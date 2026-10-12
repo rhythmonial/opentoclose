@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_accounts: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          setup_path: Database["public"]["Enums"]["setup_path"] | null
+          state: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          setup_path?: Database["public"]["Enums"]["setup_path"] | null
+          state?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          setup_path?: Database["public"]["Enums"]["setup_path"] | null
+          state?: string | null
+        }
+        Relationships: []
+      }
       client_step_status: {
         Row: {
           client_id: string
@@ -201,7 +225,10 @@ export type Database = {
       profiles: {
         Row: {
           business_name: string | null
+          client_account_id: string | null
           created_at: string
+          email: string | null
+          first_login_at: string | null
           id: string
           role: Database["public"]["Enums"]["user_role"]
           setup_path: Database["public"]["Enums"]["setup_path"] | null
@@ -209,7 +236,10 @@ export type Database = {
         }
         Insert: {
           business_name?: string | null
+          client_account_id?: string | null
           created_at?: string
+          email?: string | null
+          first_login_at?: string | null
           id: string
           role?: Database["public"]["Enums"]["user_role"]
           setup_path?: Database["public"]["Enums"]["setup_path"] | null
@@ -217,13 +247,24 @@ export type Database = {
         }
         Update: {
           business_name?: string | null
+          client_account_id?: string | null
           created_at?: string
+          email?: string | null
+          first_login_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["user_role"]
           setup_path?: Database["public"]["Enums"]["setup_path"] | null
           state?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       setup_steps: {
         Row: {
@@ -360,6 +401,7 @@ export type Database = {
     }
     Functions: {
       is_staff: { Args: never; Returns: boolean }
+      my_client_account_id: { Args: never; Returns: string }
     }
     Enums: {
       date_rule_status:
@@ -383,7 +425,8 @@ export type Database = {
         | "download"
         | "external_link"
         | "form"
-      user_role: "client" | "specialist" | "admin"
+      user_role: "dev" | "dev_admin" | "client_owner" | "client_admin"
+      user_role_old: "client" | "specialist" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -529,7 +572,8 @@ export const Constants = {
         "approved",
       ],
       step_type: ["video", "configurator", "download", "external_link", "form"],
-      user_role: ["client", "specialist", "admin"],
+      user_role: ["dev", "dev_admin", "client_owner", "client_admin"],
+      user_role_old: ["client", "specialist", "admin"],
     },
   },
 } as const

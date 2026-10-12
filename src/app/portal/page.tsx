@@ -26,11 +26,18 @@ export default async function PortalPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("*, client_accounts(name, setup_path)")
     .eq("id", user.id)
     .single();
 
-  const setupPath = profile?.setup_path ?? "custom";
+  if (profile && !profile.first_login_at) {
+    await supabase
+      .from("profiles")
+      .update({ first_login_at: new Date().toISOString() })
+      .eq("id", user.id);
+  }
+
+  const setupPath = profile?.client_accounts?.setup_path ?? "custom";
 
   const [{ data: steps }, { data: statuses }, { data: hoursLog }] =
     await Promise.all([
@@ -56,7 +63,8 @@ export default async function PortalPage() {
   );
 
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
-  const businessName = profile?.business_name ?? user.email ?? "Your business";
+  const businessName =
+    profile?.client_accounts?.name ?? user.email ?? "Your business";
   const initials = businessName
     .split(/\s+/)
     .map((w) => w[0])
