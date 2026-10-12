@@ -282,6 +282,8 @@ export type Database = {
           email: string | null
           first_login_at: string | null
           id: string
+          name: string | null
+          phone: string | null
           role: Database["public"]["Enums"]["user_role"]
         }
         Insert: {
@@ -290,6 +292,8 @@ export type Database = {
           email?: string | null
           first_login_at?: string | null
           id: string
+          name?: string | null
+          phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
         }
         Update: {
@@ -298,6 +302,8 @@ export type Database = {
           email?: string | null
           first_login_at?: string | null
           id?: string
+          name?: string | null
+          phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
         }
         Relationships: [

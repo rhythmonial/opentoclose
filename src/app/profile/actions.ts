@@ -1,9 +1,31 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { siteOrigin } from "@/lib/site-origin";
+
+export async function updateProfileInfo(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  await supabase
+    .from("profiles")
+    .update({ name: name || null, phone: phone || null })
+    .eq("id", user.id);
+
+  revalidatePath("/profile");
+}
 
 export async function inviteClientAdmin(formData: FormData) {
   const email = String(formData.get("email") ?? "")

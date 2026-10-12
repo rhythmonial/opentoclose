@@ -21,7 +21,7 @@ export async function addStep(formData: FormData) {
     sort_order: Number(formData.get("sort_order") ?? 0),
   });
 
-  revalidatePath("/dashboard/setup-steps");
+  revalidatePath("/profile");
 }
 
 export async function updateStep(formData: FormData) {
@@ -44,7 +44,7 @@ export async function updateStep(formData: FormData) {
     })
     .eq("id", id);
 
-  revalidatePath("/dashboard/setup-steps");
+  revalidatePath("/profile");
   revalidatePath("/portal");
 }
 
@@ -54,6 +54,6 @@ export async function deleteStep(formData: FormData) {
 
   await supabase.from("setup_steps").delete().eq("id", id);
 
-  revalidatePath("/dashboard/setup-steps");
+  revalidatePath("/profile");
   revalidatePath("/portal");
 }
