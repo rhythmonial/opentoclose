@@ -55,7 +55,17 @@ export default async function LeadsPage() {
                     )}
                   </td>
                   <td className="px-5 py-3.5 text-ink-soft">
-                    {lead.source === "request_info" ? "Request Info" : "Manual"}
+                    <div>
+                      {lead.source === "request_info" ? "Request Info" : "Manual"}
+                    </div>
+                    {lead.heard_about && (
+                      <div className="text-xs text-ink-faint">
+                        {lead.heard_about}
+                        {lead.heard_about_detail
+                          ? ` — ${lead.heard_about_detail}`
+                          : ""}
+                      </div>
+                    )}
                   </td>
                   <td className="px-5 py-3.5">
                     <LeadStatusSelect leadId={lead.id} status={lead.status} />

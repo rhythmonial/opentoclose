@@ -97,11 +97,13 @@ export default async function PortalPage() {
         <div className="flex min-w-0 flex-1 flex-col gap-2.5">
           {(steps ?? []).map((step) => {
             const status = statusByStep.get(step.id) ?? "not_started";
-            const isConfigurator = step.step_type === "configurator";
             const href =
-              step.step_type === "configurator"
-                ? `/configurator/${step.key}`
-                : undefined;
+              step.key === "setup_initiation"
+                ? "/setup"
+                : step.step_type === "configurator"
+                  ? `/configurator/${step.key}`
+                  : undefined;
+            const isClickable = Boolean(href);
 
             const Wrapper = href ? Link : "div";
 
@@ -132,9 +134,13 @@ export default async function PortalPage() {
                 >
                   {STATUS_LABEL[status].toUpperCase()}
                 </span>
-                {isConfigurator && (
+                {isClickable && (
                   <span className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
-                    {status === "not_started" ? "Start" : "Continue"}
+                    {status === "not_started"
+                      ? "Start"
+                      : status === "approved"
+                        ? "Update"
+                        : "Continue"}
                   </span>
                 )}
               </Wrapper>

@@ -9,6 +9,10 @@ export async function requestInfo(formData: FormData) {
     .trim()
     .toLowerCase();
   const phone = String(formData.get("phone") ?? "").trim();
+  const heardAbout = String(formData.get("heard_about") ?? "").trim();
+  const heardAboutDetail = String(
+    formData.get("heard_about_detail") ?? "",
+  ).trim();
 
   if (!name || !email) {
     redirect("/pricing?error=Name+and+email+are+required");
@@ -21,6 +25,8 @@ export async function requestInfo(formData: FormData) {
     phone: phone || null,
     status: "new",
     source: "request_info",
+    heard_about: heardAbout || null,
+    heard_about_detail: heardAboutDetail || null,
   });
 
   if (error) {

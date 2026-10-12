@@ -233,6 +233,8 @@ export type Database = {
           converted_client_account_id: string | null
           created_at: string
           email: string
+          heard_about: string | null
+          heard_about_detail: string | null
           id: string
           name: string
           notes: string | null
@@ -245,6 +247,8 @@ export type Database = {
           converted_client_account_id?: string | null
           created_at?: string
           email: string
+          heard_about?: string | null
+          heard_about_detail?: string | null
           id?: string
           name: string
           notes?: string | null
@@ -257,6 +261,8 @@ export type Database = {
           converted_client_account_id?: string | null
           created_at?: string
           email?: string
+          heard_about?: string | null
+          heard_about_detail?: string | null
           id?: string
           name?: string
           notes?: string | null
@@ -312,6 +318,71 @@ export type Database = {
             columns: ["client_account_id"]
             isOneToOne: false
             referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      setup_initiation: {
+        Row: {
+          business_name: string
+          cell_phone: string
+          client_id: string
+          company_structure: string
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          states_serviced: string
+          tc_count: number | null
+          tools_other: string | null
+          tools_used: string[]
+          transactions_per_month: number | null
+          transactions_under_contract: number | null
+          updated_at: string
+        }
+        Insert: {
+          business_name: string
+          cell_phone: string
+          client_id: string
+          company_structure: string
+          created_at?: string
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          states_serviced: string
+          tc_count?: number | null
+          tools_other?: string | null
+          tools_used?: string[]
+          transactions_per_month?: number | null
+          transactions_under_contract?: number | null
+          updated_at?: string
+        }
+        Update: {
+          business_name?: string
+          cell_phone?: string
+          client_id?: string
+          company_structure?: string
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          states_serviced?: string
+          tc_count?: number | null
+          tools_other?: string | null
+          tools_used?: string[]
+          transactions_per_month?: number | null
+          transactions_under_contract?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setup_initiation_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

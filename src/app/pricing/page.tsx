@@ -1,4 +1,5 @@
 import { requestInfo } from "./actions";
+import { HeardAboutField } from "@/components/HeardAboutField";
 
 export default async function PricingPage({
   searchParams,
@@ -58,6 +59,7 @@ export default async function PricingPage({
                 className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
               />
             </label>
+            <HeardAboutField />
             <button
               type="submit"
               className="mt-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
