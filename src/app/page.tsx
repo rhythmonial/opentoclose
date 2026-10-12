@@ -23,38 +23,7 @@ export default async function RootPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-bg">
-      <div className="flex items-center justify-between px-12 py-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 11l9-7 9 7" />
-              <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
-            </svg>
-          </div>
-          <span className="font-display text-lg font-bold text-ink">
-            OTC Setup with Josie
-          </span>
-        </div>
-        <div className="flex items-center gap-7">
-          <Link href="/pricing" className="text-sm font-semibold text-ink-soft">
-            Pricing
-          </Link>
-          <Link href="/login" className="text-sm font-semibold text-accent">
-            Sign in
-          </Link>
-        </div>
-      </div>
-
+    <main className="flex flex-1 flex-col bg-bg">
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
         <h1 className="max-w-2xl font-display text-4xl font-bold leading-tight text-ink">
           Your Real Estate Processes
@@ -71,18 +40,12 @@ export default async function RootPage() {
           Start closing in OTC without the guesswork.
         </p>
 
-        <div className="mt-8 flex items-center gap-4">
+        <div className="mt-8">
           <Link
             href="/pricing"
             className="rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-white"
           >
             Get Pricing &amp; Setup Details
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-lg border border-border px-6 py-3 text-sm font-semibold text-ink"
-          >
-            Sign in
           </Link>
         </div>
       </div>
