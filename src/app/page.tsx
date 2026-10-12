@@ -7,5 +7,19 @@ export default async function RootPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  redirect(user ? "/portal" : "/login");
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role === "dev" || profile?.role === "dev_admin") {
+    redirect("/dashboard");
+  }
+
+  redirect("/portal");
 }

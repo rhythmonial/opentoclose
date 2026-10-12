@@ -17,6 +17,7 @@ export type Database = {
       client_accounts: {
         Row: {
           created_at: string
+          hours_purchased: number
           id: string
           name: string
           setup_path: Database["public"]["Enums"]["setup_path"] | null
@@ -24,6 +25,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          hours_purchased?: number
           id?: string
           name: string
           setup_path?: Database["public"]["Enums"]["setup_path"] | null
@@ -31,6 +33,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          hours_purchased?: number
           id?: string
           name?: string
           setup_path?: Database["public"]["Enums"]["setup_path"] | null
@@ -222,6 +225,53 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          converted_client_account_id: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          source: string
+          status: Database["public"]["Enums"]["lead_status"]
+          updated_at: string
+        }
+        Insert: {
+          converted_client_account_id?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          source?: string
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+        }
+        Update: {
+          converted_client_account_id?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          source?: string
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_converted_client_account_id_fkey"
+            columns: ["converted_client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           client_account_id: string | null
@@ -403,6 +453,13 @@ export type Database = {
         | "needs_input"
         | "custom"
       field_action: "keep" | "remove" | "add" | "rename"
+      lead_status:
+        | "new"
+        | "contacted"
+        | "info_sent"
+        | "proposal_sent"
+        | "won"
+        | "lost"
       setup_path: "custom" | "express"
       step_status:
         | "locked"
@@ -553,6 +610,14 @@ export const Constants = {
         "custom",
       ],
       field_action: ["keep", "remove", "add", "rename"],
+      lead_status: [
+        "new",
+        "contacted",
+        "info_sent",
+        "proposal_sent",
+        "won",
+        "lost",
+      ],
       setup_path: ["custom", "express"],
       step_status: [
         "locked",
