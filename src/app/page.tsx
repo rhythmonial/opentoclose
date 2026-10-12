@@ -45,26 +45,35 @@ export default async function RootPage() {
             OTC Setup with Josie
           </span>
         </div>
-        <Link href="/login" className="text-sm font-semibold text-accent">
-          Sign in
-        </Link>
+        <div className="flex items-center gap-7">
+          <Link href="/pricing" className="text-sm font-semibold text-ink-soft">
+            Pricing
+          </Link>
+          <Link href="/login" className="text-sm font-semibold text-accent">
+            Sign in
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
         <h1 className="max-w-2xl font-display text-4xl font-bold leading-tight text-ink">
-          Your transaction coordination process, fully set up in Open to
-          Close.
+          Your Real Estate Processes
+          <br />
+          Fully Automated in Open to Close
         </h1>
         <p className="mt-5 max-w-xl text-base text-ink-soft">
           For TC business owners and real estate team &amp; brokerage owners.
-          We configure your workflow fields, documents, date rules, and
-          terminology &mdash; so your team can start closing in OTC without
-          the guesswork.
+          <br />
+          Configure your workflow fields, date rules, contacts, documents,
+          emails, tasks, intake forms, views, and automations with
+          Josie&rsquo;s Team.
+          <br />
+          Start closing in OTC without the guesswork.
         </p>
 
         <div className="mt-8 flex items-center gap-4">
           <Link
-            href="/request-info"
+            href="/pricing"
             className="rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-white"
           >
             Get Pricing &amp; Setup Details
@@ -76,12 +85,6 @@ export default async function RootPage() {
             Sign in
           </Link>
         </div>
-
-        <p className="mt-6 max-w-md text-xs text-ink-faint">
-          Heads up: this is for the business owner. We work directly with
-          team and brokerage owners on setup, and owners invite their admins
-          once things get started.
-        </p>
       </div>
     </main>
   );

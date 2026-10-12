@@ -11,7 +11,7 @@ export async function requestInfo(formData: FormData) {
   const phone = String(formData.get("phone") ?? "").trim();
 
   if (!name || !email) {
-    redirect("/request-info?error=Name+and+email+are+required");
+    redirect("/pricing?error=Name+and+email+are+required");
   }
 
   const supabase = await createClient();
@@ -24,8 +24,8 @@ export async function requestInfo(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/request-info?error=${encodeURIComponent(error.message)}`);
+    redirect(`/pricing?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/request-info?sent=1");
+  redirect("/pricing?sent=1");
 }

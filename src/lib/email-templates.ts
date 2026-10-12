@@ -8,11 +8,11 @@ export function requestInfoEmail({ name }: { name: string }) {
 
 Thanks for your interest in Open to Close setup.
 
-A quick but important note: this process is completed by the team or
-brokerage owner. We work directly with owners on pricing, scheduling, and
-sign-off — and once setup begins, the owner invites their own admins from
-their Profile page inside the portal to help run day-to-day setup. If
-you're not the owner, please forward this to them.
+One important note: anyone on the team can request info, but the account
+itself has to be created and paid for by the broker/team owner — that's
+who we set up and bill directly. Once the owner signs up, they can invite
+admins (like you, if you're not the owner) from their Profile page to help
+run day-to-day setup.
 
 Here's what setup looks like:
 1. The owner signs up and chooses a setup path (Custom or Express).
