@@ -19,6 +19,7 @@ export async function addStep(formData: FormData) {
       | "external_link"
       | "form",
     sort_order: Number(formData.get("sort_order") ?? 0),
+    completed_by: String(formData.get("completed_by") ?? "client"),
   });
 
   revalidatePath("/profile");
@@ -41,6 +42,7 @@ export async function updateStep(formData: FormData) {
         | "external_link"
         | "form",
       sort_order: Number(formData.get("sort_order") ?? 0),
+      completed_by: String(formData.get("completed_by") ?? "client"),
     })
     .eq("id", id);
 

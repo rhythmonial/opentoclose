@@ -389,6 +389,7 @@ export type Database = {
       }
       setup_steps: {
         Row: {
+          completed_by: string
           created_at: string
           description: string | null
           id: string
@@ -400,6 +401,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          completed_by?: string
           created_at?: string
           description?: string | null
           id?: string
@@ -411,6 +413,7 @@ export type Database = {
           title: string
         }
         Update: {
+          completed_by?: string
           created_at?: string
           description?: string | null
           id?: string

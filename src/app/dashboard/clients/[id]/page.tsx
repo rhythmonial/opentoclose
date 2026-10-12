@@ -2,7 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ClientStatusSelect } from "@/components/ClientStatusSelect";
-import { approveSubmission, returnSubmission } from "../../actions";
+import { StepOwnerIcon } from "@/components/StepOwnerIcon";
+import {
+  approveSubmission,
+  returnSubmission,
+  markStaffStepComplete,
+} from "../../actions";
 import { logHours } from "./actions";
 
 const STEP_STATUS_LABEL: Record<string, string> = {
@@ -173,11 +178,14 @@ export default async function ClientDetailPage({
                 className="rounded-xl border border-border bg-surface p-5"
               >
                 <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="text-[15px] font-bold text-ink">
-                      {step.title}
+                  <div className="flex items-center gap-2.5">
+                    <StepOwnerIcon completedBy={step.completed_by} />
+                    <div>
+                      <div className="text-[15px] font-bold text-ink">
+                        {step.title}
+                      </div>
+                      <div className="text-xs text-ink-faint">{step.section}</div>
                     </div>
-                    <div className="text-xs text-ink-faint">{step.section}</div>
                   </div>
                   <span
                     className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
@@ -198,6 +206,19 @@ export default async function ClientDetailPage({
                   <p className="mt-2.5 rounded-lg bg-bg px-3 py-2 text-sm text-ink-soft">
                     &ldquo;{submission.specialist_feedback}&rdquo;
                   </p>
+                )}
+
+                {step.completed_by === "staff" && status !== "approved" && owner && (
+                  <form action={markStaffStepComplete} className="mt-3">
+                    <input type="hidden" name="client_id" value={owner.id} />
+                    <input type="hidden" name="step_id" value={step.id} />
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white"
+                    >
+                      Mark Complete
+                    </button>
+                  </form>
                 )}
 
                 {status === "submitted" && submission && owner && (

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
+import { StepOwnerIcon } from "@/components/StepOwnerIcon";
 import { signOut } from "@/app/login/actions";
 import { updateProfileInfo, inviteClientAdmin, inviteStaff } from "./actions";
 import { addStep, updateStep, deleteStep } from "./setup-steps-actions";
@@ -205,12 +206,15 @@ export default async function ProfilePage({
                         className="rounded-xl border border-border bg-surface p-5"
                       >
                         <summary className="flex cursor-pointer items-center justify-between gap-4">
-                          <div>
-                            <span className="text-xs font-bold uppercase tracking-wide text-ink-faint">
-                              {step.section}
-                            </span>
-                            <div className="text-[15px] font-bold text-ink">
-                              {step.sort_order}. {step.title}
+                          <div className="flex items-center gap-2.5">
+                            <StepOwnerIcon completedBy={step.completed_by} />
+                            <div>
+                              <span className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+                                {step.section}
+                              </span>
+                              <div className="text-[15px] font-bold text-ink">
+                                {step.sort_order}. {step.title}
+                              </div>
                             </div>
                           </div>
                           <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
@@ -279,6 +283,19 @@ export default async function ProfilePage({
                                   {t}
                                 </option>
                               ))}
+                            </select>
+                          </label>
+                          <label className="flex flex-col gap-1.5">
+                            <span className="text-xs font-medium text-ink-soft">
+                              Completed by
+                            </span>
+                            <select
+                              name="completed_by"
+                              defaultValue={step.completed_by}
+                              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                            >
+                              <option value="client">Client</option>
+                              <option value="staff">Staff</option>
                             </select>
                           </label>
                           <div className="flex items-end gap-2">
@@ -375,6 +392,19 @@ export default async function ProfilePage({
                             {t}
                           </option>
                         ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1.5">
+                      <span className="text-xs font-medium text-ink-soft">
+                        Completed by
+                      </span>
+                      <select
+                        name="completed_by"
+                        defaultValue="client"
+                        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                      >
+                        <option value="client">Client</option>
+                        <option value="staff">Staff</option>
                       </select>
                     </label>
                     <div className="flex items-end">
