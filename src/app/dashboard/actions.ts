@@ -28,8 +28,8 @@ export async function approveSubmission(formData: FormData) {
     .eq("client_id", clientId)
     .eq("step_id", stepId);
 
-  revalidatePath("/dashboard/tasks");
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/clients", "layout");
 }
 
 export async function returnSubmission(formData: FormData) {
@@ -59,6 +59,20 @@ export async function returnSubmission(formData: FormData) {
     .eq("client_id", clientId)
     .eq("step_id", stepId);
 
-  revalidatePath("/dashboard/tasks");
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/clients", "layout");
+}
+
+export async function updateClientStatus(formData: FormData) {
+  const accountId = String(formData.get("account_id") ?? "");
+  const status = String(formData.get("status") ?? "");
+
+  const supabase = await createClient();
+  await supabase
+    .from("client_accounts")
+    .update({ status: status as never })
+    .eq("id", accountId);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/clients", "layout");
 }

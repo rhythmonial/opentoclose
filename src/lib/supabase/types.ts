@@ -22,6 +22,7 @@ export type Database = {
           name: string
           setup_path: Database["public"]["Enums"]["setup_path"] | null
           state: string | null
+          status: Database["public"]["Enums"]["client_account_status"]
         }
         Insert: {
           created_at?: string
@@ -30,6 +31,7 @@ export type Database = {
           name: string
           setup_path?: Database["public"]["Enums"]["setup_path"] | null
           state?: string | null
+          status?: Database["public"]["Enums"]["client_account_status"]
         }
         Update: {
           created_at?: string
@@ -38,6 +40,7 @@ export type Database = {
           name?: string
           setup_path?: Database["public"]["Enums"]["setup_path"] | null
           state?: string | null
+          status?: Database["public"]["Enums"]["client_account_status"]
         }
         Relationships: []
       }
@@ -446,6 +449,7 @@ export type Database = {
       run_legacy_cleanup: { Args: never; Returns: string }
     }
     Enums: {
+      client_account_status: "active" | "paused" | "completed" | "churned"
       date_rule_status:
         | "confirmed"
         | "updated"
@@ -602,6 +606,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      client_account_status: ["active", "paused", "completed", "churned"],
       date_rule_status: [
         "confirmed",
         "updated",
