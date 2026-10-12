@@ -32,11 +32,20 @@ export default async function RequestInfoPage({
         </div>
 
         <h1 className="font-display text-2xl font-bold text-ink">
-          Get the details
+          Get pricing &amp; setup details
         </h1>
         <p className="mt-1.5 text-sm text-ink-soft">
-          Tell us where to send the overview of how setup works.
+          Tell us where to send pricing and an overview of how setup works.
         </p>
+
+        <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft px-4 py-3 text-xs leading-relaxed text-ink">
+          <strong>This should be completed by the team or brokerage owner.</strong>{" "}
+          We set up and bill the account directly with the owner — once
+          things get started, the owner invites their own admins from their
+          Profile page to help run day-to-day setup. If you&rsquo;re a team
+          manager, please pass this along to your owner instead of
+          submitting it yourself.
+        </div>
 
         {error && (
           <div className="mt-5 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
@@ -46,7 +55,9 @@ export default async function RequestInfoPage({
 
         {sent ? (
           <div className="mt-5 rounded-lg border border-success/30 bg-success-soft px-4 py-3 text-sm text-success">
-            Thanks! Keep an eye on your inbox.
+            Thanks! Keep an eye on your inbox for pricing and setup details —
+            and a reminder that we&rsquo;ll need the owner to sign off before
+            setup begins.
           </div>
         ) : (
           <form action={requestInfo} className="mt-6 flex flex-col gap-4">

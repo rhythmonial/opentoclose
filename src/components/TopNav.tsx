@@ -8,7 +8,7 @@ export function TopNav({
 }: {
   businessName: string;
   initials: string;
-  active: "setup" | "resources" | "terminology" | "team";
+  active: "setup" | "resources" | "terminology" | "profile";
 }) {
   const linkClass = (key: typeof active) =>
     `text-sm ${
@@ -48,8 +48,8 @@ export function TopNav({
         <Link href="/terminology" className={linkClass("terminology")}>
           Terminology
         </Link>
-        <Link href="/team" className={linkClass("team")}>
-          Team
+        <Link href="/profile" className={linkClass("profile")}>
+          Profile
         </Link>
       </div>
 

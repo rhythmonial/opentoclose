@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/dashboard/tasks", label: "Tasks" },
   { href: "/dashboard/setup-steps", label: "Setup Steps" },
   { href: "/dashboard/stats", label: "Stats" },
+  { href: "/profile", label: "Profile" },
 ];
 
 export function StaffNav({ email }: { email: string }) {
