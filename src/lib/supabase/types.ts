@@ -224,37 +224,28 @@ export type Database = {
       }
       profiles: {
         Row: {
-          business_name: string | null
           client_account_id: string | null
           created_at: string
           email: string | null
           first_login_at: string | null
           id: string
           role: Database["public"]["Enums"]["user_role"]
-          setup_path: Database["public"]["Enums"]["setup_path"] | null
-          state: string | null
         }
         Insert: {
-          business_name?: string | null
           client_account_id?: string | null
           created_at?: string
           email?: string | null
           first_login_at?: string | null
           id: string
           role?: Database["public"]["Enums"]["user_role"]
-          setup_path?: Database["public"]["Enums"]["setup_path"] | null
-          state?: string | null
         }
         Update: {
-          business_name?: string | null
           client_account_id?: string | null
           created_at?: string
           email?: string | null
           first_login_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["user_role"]
-          setup_path?: Database["public"]["Enums"]["setup_path"] | null
-          state?: string | null
         }
         Relationships: [
           {
@@ -402,6 +393,7 @@ export type Database = {
     Functions: {
       is_staff: { Args: never; Returns: boolean }
       my_client_account_id: { Args: never; Returns: string }
+      run_legacy_cleanup: { Args: never; Returns: string }
     }
     Enums: {
       date_rule_status:
@@ -426,7 +418,6 @@ export type Database = {
         | "external_link"
         | "form"
       user_role: "dev" | "dev_admin" | "client_owner" | "client_admin"
-      user_role_old: "client" | "specialist" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -573,7 +564,6 @@ export const Constants = {
       ],
       step_type: ["video", "configurator", "download", "external_link", "form"],
       user_role: ["dev", "dev_admin", "client_owner", "client_admin"],
-      user_role_old: ["client", "specialist", "admin"],
     },
   },
 } as const
