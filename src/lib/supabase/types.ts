@@ -393,8 +393,11 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_optional: boolean
           key: string
           path: Database["public"]["Enums"]["setup_path"]
+          phase: string | null
+          resource_url: string | null
           section: string
           sort_order: number
           step_type: Database["public"]["Enums"]["step_type"]
@@ -405,8 +408,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_optional?: boolean
           key: string
           path: Database["public"]["Enums"]["setup_path"]
+          phase?: string | null
+          resource_url?: string | null
           section: string
           sort_order?: number
           step_type: Database["public"]["Enums"]["step_type"]
@@ -417,8 +423,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_optional?: boolean
           key?: string
           path?: Database["public"]["Enums"]["setup_path"]
+          phase?: string | null
+          resource_url?: string | null
           section?: string
           sort_order?: number
           step_type?: Database["public"]["Enums"]["step_type"]
@@ -527,6 +536,7 @@ export type Database = {
       is_staff: { Args: never; Returns: boolean }
       my_client_account_id: { Args: never; Returns: string }
       run_legacy_cleanup: { Args: never; Returns: string }
+      run_legacy_cleanup_test: { Args: never; Returns: string }
     }
     Enums: {
       client_account_status: "active" | "paused" | "completed" | "churned"

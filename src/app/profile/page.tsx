@@ -191,234 +191,337 @@ export default async function ProfilePage({
               needed.
             </p>
 
-            {PATHS.map((path) => (
-              <section key={path} className="mt-6">
-                <h3 className="font-display text-base font-bold capitalize text-ink">
-                  {path} path
-                </h3>
+            {PATHS.map((path) => {
+              const pathSteps = (steps ?? []).filter((s) => s.path === path);
+              const phases = Array.from(
+                new Set(pathSteps.map((s) => s.phase ?? "General")),
+              );
 
-                <div className="mt-3 flex flex-col gap-3">
-                  {(steps ?? [])
-                    .filter((s) => s.path === path)
-                    .map((step) => (
-                      <details
-                        key={step.id}
-                        className="rounded-xl border border-border bg-surface p-5"
-                      >
-                        <summary className="flex cursor-pointer items-center justify-between gap-4">
-                          <div className="flex items-center gap-2.5">
-                            <StepOwnerIcon completedBy={step.completed_by} />
-                            <div>
-                              <span className="text-xs font-bold uppercase tracking-wide text-ink-faint">
-                                {step.section}
-                              </span>
-                              <div className="text-[15px] font-bold text-ink">
-                                {step.sort_order}. {step.title}
+              return (
+                <section key={path} className="mt-6">
+                  <h3 className="font-display text-base font-bold capitalize text-ink">
+                    {path} path{" "}
+                    <span className="text-sm font-normal text-ink-faint">
+                      ({pathSteps.length} steps)
+                    </span>
+                  </h3>
+
+                  <div className="mt-3 flex flex-col gap-3">
+                    {phases.map((phase) => {
+                      const phaseSteps = pathSteps.filter(
+                        (s) => (s.phase ?? "General") === phase,
+                      );
+                      const sections = Array.from(
+                        new Set(phaseSteps.map((s) => s.section)),
+                      );
+
+                      return (
+                        <details
+                          key={phase}
+                          className="rounded-xl border border-border-soft bg-bg p-4"
+                        >
+                          <summary className="cursor-pointer font-display text-base font-bold text-ink">
+                            {phase}{" "}
+                            <span className="ml-1.5 text-xs font-normal text-ink-faint">
+                              ({phaseSteps.length})
+                            </span>
+                          </summary>
+
+                          {sections.map((section) => (
+                            <div key={section} className="mt-4">
+                              <h4 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+                                {section}
+                              </h4>
+                              <div className="mt-2 flex flex-col gap-3">
+                                {phaseSteps
+                                  .filter((s) => s.section === section)
+                                  .map((step) => (
+                                    <details
+                                      key={step.id}
+                                      className="rounded-xl border border-border bg-surface p-5"
+                                    >
+                                      <summary className="flex cursor-pointer items-center justify-between gap-4">
+                                        <div className="flex items-center gap-2.5">
+                                          <StepOwnerIcon
+                                            completedBy={step.completed_by}
+                                          />
+                                          <div>
+                                            <div className="text-[15px] font-bold text-ink">
+                                              {step.sort_order}. {step.title}
+                                              {step.is_optional && (
+                                                <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+                                                  Optional
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
+                                          {step.step_type}
+                                        </span>
+                                      </summary>
+
+                                      <form
+                                        action={updateStep}
+                                        className="mt-4 grid grid-cols-2 gap-3 border-t border-border-soft pt-4"
+                                      >
+                                        <input type="hidden" name="id" value={step.id} />
+                                        <label className="flex flex-col gap-1.5">
+                                          <span className="text-xs font-medium text-ink-soft">
+                                            Phase
+                                          </span>
+                                          <input
+                                            name="phase"
+                                            defaultValue={step.phase ?? ""}
+                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                                          />
+                                        </label>
+                                        <label className="flex flex-col gap-1.5">
+                                          <span className="text-xs font-medium text-ink-soft">
+                                            Section
+                                          </span>
+                                          <input
+                                            name="section"
+                                            defaultValue={step.section}
+                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                                          />
+                                        </label>
+                                        <label className="flex flex-col gap-1.5">
+                                          <span className="text-xs font-medium text-ink-soft">
+                                            Sort order
+                                          </span>
+                                          <input
+                                            name="sort_order"
+                                            type="number"
+                                            defaultValue={step.sort_order}
+                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                                          />
+                                        </label>
+                                        <label className="flex items-end gap-2 pb-2.5">
+                                          <input
+                                            type="checkbox"
+                                            name="is_optional"
+                                            defaultChecked={step.is_optional}
+                                            className="h-4 w-4"
+                                          />
+                                          <span className="text-xs font-medium text-ink-soft">
+                                            Optional (can be done later)
+                                          </span>
+                                        </label>
+                                        <label className="col-span-2 flex flex-col gap-1.5">
+                                          <span className="text-xs font-medium text-ink-soft">
+                                            Title
+                                          </span>
+                                          <input
+                                            name="title"
+                                            defaultValue={step.title}
+                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                                          />
+                                        </label>
+                                        <label className="col-span-2 flex flex-col gap-1.5">
+                                          <span className="text-xs font-medium text-ink-soft">
+                                            Description
+                                          </span>
+                                          <textarea
+                                            name="description"
+                                            rows={2}
+                                            defaultValue={step.description ?? ""}
+                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                                          />
+                                        </label>
+                                        <label className="col-span-2 flex flex-col gap-1.5">
+                                          <span className="text-xs font-medium text-ink-soft">
+                                            Resource URL (optional)
+                                          </span>
+                                          <input
+                                            name="resource_url"
+                                            defaultValue={step.resource_url ?? ""}
+                                            placeholder="https://..."
+                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                                          />
+                                        </label>
+                                        <label className="flex flex-col gap-1.5">
+                                          <span className="text-xs font-medium text-ink-soft">
+                                            Type
+                                          </span>
+                                          <select
+                                            name="step_type"
+                                            defaultValue={step.step_type}
+                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                                          >
+                                            {STEP_TYPES.map((t) => (
+                                              <option key={t} value={t}>
+                                                {t}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </label>
+                                        <label className="flex flex-col gap-1.5">
+                                          <span className="text-xs font-medium text-ink-soft">
+                                            Completed by
+                                          </span>
+                                          <select
+                                            name="completed_by"
+                                            defaultValue={step.completed_by}
+                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                                          >
+                                            <option value="client">Client</option>
+                                            <option value="staff">Staff</option>
+                                          </select>
+                                        </label>
+                                        <div className="flex items-end gap-2">
+                                          <button
+                                            type="submit"
+                                            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
+                                          >
+                                            Save
+                                          </button>
+                                        </div>
+                                      </form>
+
+                                      <form action={deleteStep} className="mt-2">
+                                        <input type="hidden" name="id" value={step.id} />
+                                        <button
+                                          type="submit"
+                                          className="text-xs font-medium text-danger"
+                                        >
+                                          Delete this step
+                                        </button>
+                                      </form>
+                                    </details>
+                                  ))}
                               </div>
                             </div>
-                          </div>
-                          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
-                            {step.step_type}
-                          </span>
-                        </summary>
+                          ))}
+                        </details>
+                      );
+                    })}
+                  </div>
 
-                        <form
-                          action={updateStep}
-                          className="mt-4 grid grid-cols-2 gap-3 border-t border-border-soft pt-4"
+                  <details className="mt-3 rounded-xl border border-dashed border-border bg-bg p-5">
+                    <summary className="cursor-pointer text-sm font-semibold text-accent">
+                      + Add a step to the {path} path
+                    </summary>
+                    <form action={addStep} className="mt-4 grid grid-cols-2 gap-3">
+                      <input type="hidden" name="path" value={path} />
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-ink-soft">
+                          Key (unique, e.g. kickoff_call)
+                        </span>
+                        <input
+                          name="key"
+                          required
+                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-ink-soft">
+                          Sort order
+                        </span>
+                        <input
+                          name="sort_order"
+                          type="number"
+                          defaultValue={0}
+                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-ink-soft">
+                          Phase
+                        </span>
+                        <input
+                          name="phase"
+                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-ink-soft">
+                          Section
+                        </span>
+                        <input
+                          name="section"
+                          required
+                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                        />
+                      </label>
+                      <label className="col-span-2 flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-ink-soft">
+                          Title
+                        </span>
+                        <input
+                          name="title"
+                          required
+                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                        />
+                      </label>
+                      <label className="col-span-2 flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-ink-soft">
+                          Description
+                        </span>
+                        <textarea
+                          name="description"
+                          rows={2}
+                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                        />
+                      </label>
+                      <label className="col-span-2 flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-ink-soft">
+                          Resource URL (optional)
+                        </span>
+                        <input
+                          name="resource_url"
+                          placeholder="https://..."
+                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-ink-soft">
+                          Type
+                        </span>
+                        <select
+                          name="step_type"
+                          defaultValue="video"
+                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
                         >
-                          <input type="hidden" name="id" value={step.id} />
-                          <label className="flex flex-col gap-1.5">
-                            <span className="text-xs font-medium text-ink-soft">
-                              Section
-                            </span>
-                            <input
-                              name="section"
-                              defaultValue={step.section}
-                              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                            />
-                          </label>
-                          <label className="flex flex-col gap-1.5">
-                            <span className="text-xs font-medium text-ink-soft">
-                              Sort order
-                            </span>
-                            <input
-                              name="sort_order"
-                              type="number"
-                              defaultValue={step.sort_order}
-                              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                            />
-                          </label>
-                          <label className="col-span-2 flex flex-col gap-1.5">
-                            <span className="text-xs font-medium text-ink-soft">
-                              Title
-                            </span>
-                            <input
-                              name="title"
-                              defaultValue={step.title}
-                              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                            />
-                          </label>
-                          <label className="col-span-2 flex flex-col gap-1.5">
-                            <span className="text-xs font-medium text-ink-soft">
-                              Description
-                            </span>
-                            <textarea
-                              name="description"
-                              rows={2}
-                              defaultValue={step.description ?? ""}
-                              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                            />
-                          </label>
-                          <label className="flex flex-col gap-1.5">
-                            <span className="text-xs font-medium text-ink-soft">
-                              Type
-                            </span>
-                            <select
-                              name="step_type"
-                              defaultValue={step.step_type}
-                              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                            >
-                              {STEP_TYPES.map((t) => (
-                                <option key={t} value={t}>
-                                  {t}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="flex flex-col gap-1.5">
-                            <span className="text-xs font-medium text-ink-soft">
-                              Completed by
-                            </span>
-                            <select
-                              name="completed_by"
-                              defaultValue={step.completed_by}
-                              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                            >
-                              <option value="client">Client</option>
-                              <option value="staff">Staff</option>
-                            </select>
-                          </label>
-                          <div className="flex items-end gap-2">
-                            <button
-                              type="submit"
-                              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
-                            >
-                              Save
-                            </button>
-                          </div>
-                        </form>
-
-                        <form action={deleteStep} className="mt-2">
-                          <input type="hidden" name="id" value={step.id} />
-                          <button
-                            type="submit"
-                            className="text-xs font-medium text-danger"
-                          >
-                            Delete this step
-                          </button>
-                        </form>
-                      </details>
-                    ))}
-                </div>
-
-                <details className="mt-3 rounded-xl border border-dashed border-border bg-bg p-5">
-                  <summary className="cursor-pointer text-sm font-semibold text-accent">
-                    + Add a step to the {path} path
-                  </summary>
-                  <form action={addStep} className="mt-4 grid grid-cols-2 gap-3">
-                    <input type="hidden" name="path" value={path} />
-                    <label className="flex flex-col gap-1.5">
-                      <span className="text-xs font-medium text-ink-soft">
-                        Key (unique, e.g. kickoff_call)
-                      </span>
-                      <input
-                        name="key"
-                        required
-                        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1.5">
-                      <span className="text-xs font-medium text-ink-soft">
-                        Sort order
-                      </span>
-                      <input
-                        name="sort_order"
-                        type="number"
-                        defaultValue={0}
-                        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                      />
-                    </label>
-                    <label className="col-span-2 flex flex-col gap-1.5">
-                      <span className="text-xs font-medium text-ink-soft">
-                        Section
-                      </span>
-                      <input
-                        name="section"
-                        required
-                        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                      />
-                    </label>
-                    <label className="col-span-2 flex flex-col gap-1.5">
-                      <span className="text-xs font-medium text-ink-soft">
-                        Title
-                      </span>
-                      <input
-                        name="title"
-                        required
-                        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                      />
-                    </label>
-                    <label className="col-span-2 flex flex-col gap-1.5">
-                      <span className="text-xs font-medium text-ink-soft">
-                        Description
-                      </span>
-                      <textarea
-                        name="description"
-                        rows={2}
-                        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1.5">
-                      <span className="text-xs font-medium text-ink-soft">
-                        Type
-                      </span>
-                      <select
-                        name="step_type"
-                        defaultValue="video"
-                        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                      >
-                        {STEP_TYPES.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="flex flex-col gap-1.5">
-                      <span className="text-xs font-medium text-ink-soft">
-                        Completed by
-                      </span>
-                      <select
-                        name="completed_by"
-                        defaultValue="client"
-                        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                      >
-                        <option value="client">Client</option>
-                        <option value="staff">Staff</option>
-                      </select>
-                    </label>
-                    <div className="flex items-end">
-                      <button
-                        type="submit"
-                        className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
-                      >
-                        Add step
-                      </button>
-                    </div>
-                  </form>
-                </details>
-              </section>
-            ))}
+                          {STEP_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-ink-soft">
+                          Completed by
+                        </span>
+                        <select
+                          name="completed_by"
+                          defaultValue="client"
+                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                        >
+                          <option value="client">Client</option>
+                          <option value="staff">Staff</option>
+                        </select>
+                      </label>
+                      <label className="flex items-end gap-2 pb-2.5">
+                        <input type="checkbox" name="is_optional" className="h-4 w-4" />
+                        <span className="text-xs font-medium text-ink-soft">
+                          Optional (can be done later)
+                        </span>
+                      </label>
+                      <div className="flex items-end">
+                        <button
+                          type="submit"
+                          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
+                        >
+                          Add step
+                        </button>
+                      </div>
+                    </form>
+                  </details>
+                </section>
+              );
+            })}
           </details>
 
           <form action={signOut} className="mt-9">

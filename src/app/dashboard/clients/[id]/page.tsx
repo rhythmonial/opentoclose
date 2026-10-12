@@ -167,103 +167,199 @@ export default async function ClientDetailPage({
         <h2 className="font-display text-lg font-bold text-ink">
           Setup Steps
         </h2>
-        <div className="mt-3 flex flex-col gap-2.5">
-          {(steps ?? []).map((step) => {
-            const status = statusByStepId.get(step.id) ?? "not_started";
-            const submission = latestSubmissionByStep.get(step.id);
+        <div className="mt-3 flex flex-col gap-3">
+          {Array.from(new Set((steps ?? []).map((s) => s.phase ?? "General"))).map(
+            (phase) => {
+              const phaseSteps = (steps ?? []).filter(
+                (s) => (s.phase ?? "General") === phase,
+              );
+              const sections = Array.from(
+                new Set(phaseSteps.map((s) => s.section)),
+              );
+              const completeCount = phaseSteps.filter(
+                (s) => statusByStepId.get(s.id) === "approved",
+              ).length;
 
-            return (
-              <div
-                key={step.id}
-                className="rounded-xl border border-border bg-surface p-5"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2.5">
-                    <StepOwnerIcon completedBy={step.completed_by} />
-                    <div>
-                      <div className="text-[15px] font-bold text-ink">
-                        {step.title}
+              return (
+                <details
+                  key={phase}
+                  className="rounded-xl border border-border bg-surface p-5"
+                >
+                  <summary className="flex cursor-pointer items-center justify-between gap-4">
+                    <h3 className="font-display text-base font-bold text-ink">
+                      {phase}
+                    </h3>
+                    <span className="text-xs font-semibold text-ink-faint">
+                      {completeCount} / {phaseSteps.length} complete
+                    </span>
+                  </summary>
+
+                  <div className="mt-4 flex flex-col gap-4">
+                    {sections.map((section) => (
+                      <div key={section}>
+                        <h4 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+                          {section}
+                        </h4>
+                        <div className="mt-2 flex flex-col gap-2.5">
+                          {phaseSteps
+                            .filter((s) => s.section === section)
+                            .map((step) => {
+                              const status =
+                                statusByStepId.get(step.id) ?? "not_started";
+                              const submission = latestSubmissionByStep.get(
+                                step.id,
+                              );
+
+                              return (
+                                <div
+                                  key={step.id}
+                                  className="rounded-lg border border-border-soft bg-bg p-4"
+                                >
+                                  <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-2.5">
+                                      <StepOwnerIcon
+                                        completedBy={step.completed_by}
+                                      />
+                                      <div>
+                                        <div className="text-sm font-bold text-ink">
+                                          {step.title}
+                                          {step.is_optional && (
+                                            <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+                                              Optional
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <span
+                                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+                                        status === "approved"
+                                          ? "bg-success-soft text-success"
+                                          : status === "returned"
+                                            ? "bg-warning-soft text-warning"
+                                            : status === "submitted" ||
+                                                status === "in_progress"
+                                              ? "bg-accent-soft text-accent"
+                                              : "bg-border-soft text-ink-faint"
+                                      }`}
+                                    >
+                                      {STEP_STATUS_LABEL[status].toUpperCase()}
+                                    </span>
+                                  </div>
+
+                                  {submission?.specialist_feedback && (
+                                    <p className="mt-2.5 rounded-lg bg-surface px-3 py-2 text-sm text-ink-soft">
+                                      &ldquo;{submission.specialist_feedback}
+                                      &rdquo;
+                                    </p>
+                                  )}
+
+                                  {step.completed_by === "staff" &&
+                                    status !== "approved" &&
+                                    owner && (
+                                      <form
+                                        action={markStaffStepComplete}
+                                        className="mt-3"
+                                      >
+                                        <input
+                                          type="hidden"
+                                          name="client_id"
+                                          value={owner.id}
+                                        />
+                                        <input
+                                          type="hidden"
+                                          name="step_id"
+                                          value={step.id}
+                                        />
+                                        <button
+                                          type="submit"
+                                          className="rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white"
+                                        >
+                                          Mark Complete
+                                        </button>
+                                      </form>
+                                    )}
+
+                                  {status === "submitted" &&
+                                    submission &&
+                                    owner && (
+                                      <>
+                                        <form
+                                          action={approveSubmission}
+                                          className="mt-3 inline-block"
+                                        >
+                                          <input
+                                            type="hidden"
+                                            name="submission_id"
+                                            value={submission.id}
+                                          />
+                                          <input
+                                            type="hidden"
+                                            name="client_id"
+                                            value={owner.id}
+                                          />
+                                          <input
+                                            type="hidden"
+                                            name="step_id"
+                                            value={step.id}
+                                          />
+                                          <button
+                                            type="submit"
+                                            className="rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white"
+                                          >
+                                            Approve
+                                          </button>
+                                        </form>
+
+                                        <form
+                                          action={returnSubmission}
+                                          className="mt-3 flex items-end gap-3 border-t border-border-soft pt-3"
+                                        >
+                                          <input
+                                            type="hidden"
+                                            name="submission_id"
+                                            value={submission.id}
+                                          />
+                                          <input
+                                            type="hidden"
+                                            name="client_id"
+                                            value={owner.id}
+                                          />
+                                          <input
+                                            type="hidden"
+                                            name="step_id"
+                                            value={step.id}
+                                          />
+                                          <label className="flex flex-1 flex-col gap-1.5">
+                                            <span className="text-xs font-medium text-ink-soft">
+                                              Return with feedback
+                                            </span>
+                                            <textarea
+                                              name="feedback"
+                                              rows={2}
+                                              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                                            />
+                                          </label>
+                                          <button
+                                            type="submit"
+                                            className="shrink-0 rounded-lg border border-warning/40 bg-warning-soft px-4 py-2 text-sm font-semibold text-warning"
+                                          >
+                                            Return
+                                          </button>
+                                        </form>
+                                      </>
+                                    )}
+                                </div>
+                              );
+                            })}
+                        </div>
                       </div>
-                      <div className="text-xs text-ink-faint">{step.section}</div>
-                    </div>
+                    ))}
                   </div>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
-                      status === "approved"
-                        ? "bg-success-soft text-success"
-                        : status === "returned"
-                          ? "bg-warning-soft text-warning"
-                          : status === "submitted" || status === "in_progress"
-                            ? "bg-accent-soft text-accent"
-                            : "bg-border-soft text-ink-faint"
-                    }`}
-                  >
-                    {STEP_STATUS_LABEL[status].toUpperCase()}
-                  </span>
-                </div>
-
-                {submission?.specialist_feedback && (
-                  <p className="mt-2.5 rounded-lg bg-bg px-3 py-2 text-sm text-ink-soft">
-                    &ldquo;{submission.specialist_feedback}&rdquo;
-                  </p>
-                )}
-
-                {step.completed_by === "staff" && status !== "approved" && owner && (
-                  <form action={markStaffStepComplete} className="mt-3">
-                    <input type="hidden" name="client_id" value={owner.id} />
-                    <input type="hidden" name="step_id" value={step.id} />
-                    <button
-                      type="submit"
-                      className="rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white"
-                    >
-                      Mark Complete
-                    </button>
-                  </form>
-                )}
-
-                {status === "submitted" && submission && owner && (
-                  <>
-                    <form action={approveSubmission} className="mt-3 inline-block">
-                      <input type="hidden" name="submission_id" value={submission.id} />
-                      <input type="hidden" name="client_id" value={owner.id} />
-                      <input type="hidden" name="step_id" value={step.id} />
-                      <button
-                        type="submit"
-                        className="rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white"
-                      >
-                        Approve
-                      </button>
-                    </form>
-
-                    <form
-                      action={returnSubmission}
-                      className="mt-3 flex items-end gap-3 border-t border-border-soft pt-3"
-                    >
-                      <input type="hidden" name="submission_id" value={submission.id} />
-                      <input type="hidden" name="client_id" value={owner.id} />
-                      <input type="hidden" name="step_id" value={step.id} />
-                      <label className="flex flex-1 flex-col gap-1.5">
-                        <span className="text-xs font-medium text-ink-soft">
-                          Return with feedback
-                        </span>
-                        <textarea
-                          name="feedback"
-                          rows={2}
-                          className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                        />
-                      </label>
-                      <button
-                        type="submit"
-                        className="shrink-0 rounded-lg border border-warning/40 bg-warning-soft px-4 py-2 text-sm font-semibold text-warning"
-                      >
-                        Return
-                      </button>
-                    </form>
-                  </>
-                )}
-              </div>
-            );
-          })}
+                </details>
+              );
+            },
+          )}
         </div>
       </section>
 

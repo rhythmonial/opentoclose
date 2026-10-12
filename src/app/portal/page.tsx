@@ -94,63 +94,125 @@ export default async function PortalPage() {
       </div>
 
       <div className="flex gap-8 px-12 pb-12 pt-7">
-        <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-          {(steps ?? []).map((step) => {
-            const status = statusByStep.get(step.id) ?? "not_started";
-            const isStaffStep = step.completed_by === "staff";
-            const href = isStaffStep
-              ? undefined
-              : step.key === "setup_initiation"
-                ? "/setup"
-                : step.step_type === "configurator"
-                  ? `/configurator/${step.key}`
-                  : undefined;
-            const isClickable = Boolean(href);
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-ink-soft">
+              {(steps ?? []).length} total steps &middot;{" "}
+              <Link href="/resources" className="font-semibold text-accent">
+                View the full Resource Center &rarr;
+              </Link>
+            </p>
+          </div>
 
-            const Wrapper = href ? Link : "div";
+          {Array.from(
+            new Set((steps ?? []).map((s) => s.phase ?? "General")),
+          ).map((phase) => {
+            const phaseSteps = (steps ?? []).filter(
+              (s) => (s.phase ?? "General") === phase,
+            );
+            const sections = Array.from(
+              new Set(phaseSteps.map((s) => s.section)),
+            );
+            const completeCount = phaseSteps.filter(
+              (s) => statusByStep.get(s.id) === "approved",
+            ).length;
 
             return (
-              <Wrapper
-                key={step.id}
-                href={href as never}
-                className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-[18px]"
+              <details
+                key={phase}
+                open
+                className="rounded-xl border border-border bg-surface p-5"
               >
-                <div className="flex-1">
-                  <div className="text-[15px] font-bold text-ink">
-                    {step.title}
-                  </div>
-                  <div className="text-sm text-ink-soft">
-                    {step.description}
-                  </div>
+                <summary className="flex cursor-pointer items-center justify-between gap-4">
+                  <h2 className="font-display text-lg font-bold text-ink">
+                    {phase}
+                  </h2>
+                  <span className="text-xs font-semibold text-ink-faint">
+                    {completeCount} / {phaseSteps.length} complete
+                  </span>
+                </summary>
+
+                <div className="mt-4 flex flex-col gap-5">
+                  {sections.map((section) => (
+                    <div key={section}>
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+                        {section}
+                      </h3>
+                      <div className="mt-2 flex flex-col gap-2.5">
+                        {phaseSteps
+                          .filter((s) => s.section === section)
+                          .map((step) => {
+                            const status =
+                              statusByStep.get(step.id) ?? "not_started";
+                            const isStaffStep = step.completed_by === "staff";
+                            const href = isStaffStep
+                              ? undefined
+                              : step.key === "setup_initiation"
+                                ? "/setup"
+                                : step.step_type === "configurator"
+                                  ? `/configurator/${step.key}`
+                                  : undefined;
+                            const isClickable = Boolean(href);
+
+                            const Wrapper = href ? Link : "div";
+
+                            return (
+                              <Wrapper
+                                key={step.id}
+                                href={href as never}
+                                className="flex items-center gap-4 rounded-lg border border-border-soft bg-bg px-4 py-3"
+                              >
+                                <div className="flex-1">
+                                  <div className="text-sm font-bold text-ink">
+                                    {step.title}
+                                    {step.is_optional && (
+                                      <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+                                        Optional
+                                      </span>
+                                    )}
+                                  </div>
+                                  {step.description && (
+                                    <div className="text-xs text-ink-soft">
+                                      {step.description}
+                                    </div>
+                                  )}
+                                </div>
+                                <span
+                                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+                                    status === "approved"
+                                      ? "bg-success-soft text-success"
+                                      : status === "returned"
+                                        ? "bg-warning-soft text-warning"
+                                        : status === "submitted" ||
+                                            status === "in_progress"
+                                          ? "bg-accent-soft text-accent"
+                                          : "bg-border-soft text-ink-faint"
+                                  }`}
+                                >
+                                  {STATUS_LABEL[status].toUpperCase()}
+                                </span>
+                                {isStaffStep && status !== "approved" && (
+                                  <span className="text-xs font-medium text-ink-faint">
+                                    Handled by our team
+                                  </span>
+                                )}
+                                {isClickable && (
+                                  <span className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
+                                    {status === "not_started"
+                                      ? "Start"
+                                      : status === "approved"
+                                        ? "Update"
+                                        : "Continue"}
+                                  </span>
+                                )}
+                              </Wrapper>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <span
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
-                    status === "approved"
-                      ? "bg-success-soft text-success"
-                      : status === "returned"
-                        ? "bg-warning-soft text-warning"
-                        : status === "submitted" || status === "in_progress"
-                          ? "bg-accent-soft text-accent"
-                          : "bg-border-soft text-ink-faint"
-                  }`}
-                >
-                  {STATUS_LABEL[status].toUpperCase()}
-                </span>
-                {isStaffStep && status !== "approved" && (
-                  <span className="text-xs font-medium text-ink-faint">
-                    Handled by our team
-                  </span>
-                )}
-                {isClickable && (
-                  <span className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
-                    {status === "not_started"
-                      ? "Start"
-                      : status === "approved"
-                        ? "Update"
-                        : "Continue"}
-                  </span>
-                )}
-              </Wrapper>
+              </details>
             );
           })}
 
