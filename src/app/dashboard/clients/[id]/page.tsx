@@ -160,7 +160,7 @@ export default async function ClientDetailPage({
 
       <section className="mt-9">
         <h2 className="font-display text-lg font-bold text-ink">
-          Setup steps &amp; status
+          Setup Steps
         </h2>
         <div className="mt-3 flex flex-col gap-2.5">
           {(steps ?? []).map((step) => {

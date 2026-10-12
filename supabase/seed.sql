@@ -3,12 +3,14 @@
 -- once that flow is built.
 
 insert into setup_steps (path, section, key, title, description, step_type, sort_order) values
-  ('custom', 'Onboarding', 'initiation_payment', 'Setup Initiation & Payment', 'Your signed contract and bundle payment.', 'form', 1),
-  ('custom', 'Onboarding', 'terminology', 'Set Your Terminology', 'Tell us your state''s terms so every sample is ready to use.', 'configurator', 2),
-  ('custom', 'Prep Sheets', 'date_calculations', 'Date Setup Prep Sheet', 'Confirm or adjust OTC''s default deadline calculations.', 'configurator', 3),
-  ('custom', 'Prep Sheets', 'doc_templates', 'Doc Setup Prep Sheet', 'Review your document templates and intro-email roles.', 'configurator', 4),
-  ('custom', 'Prep Sheets', 'task_templates', 'Task Setup Prep Sheet', 'Review your task templates and triggers.', 'configurator', 5),
-  ('custom', 'Prep Sheets', 'share_sheets', 'Share Your Prep Sheets', 'Submit all prep sheets together for review.', 'form', 6),
-  ('custom', 'Build', 'kickoff_call', 'Kickoff Call', 'Schedule your 1:1 to kick off the build.', 'external_link', 7),
-  ('custom', 'Build', 'build_launch', 'Build & Launch', 'We build your workspace behind the scenes and launch it with you.', 'form', 8)
+  ('custom', 'Getting Started', 'setup_initiation', 'Setup Initiation', 'Complete the intake form so we know your business and starting point.', 'form', 1),
+  ('custom', 'Getting Started', 'setup_paid', 'Setup Paid', 'Payment received and your setup officially begins.', 'form', 2),
+  ('custom', 'Configuration', 'workflow_fields', 'Workflow Fields', 'Confirm which fields you need and rename anything to match your terminology.', 'configurator', 3),
+  ('custom', 'Configuration', 'date_field_calculations', 'Date Field Calculations', 'Set how key dates are calculated from your contract.', 'configurator', 4),
+  ('custom', 'Configuration', 'contact_management', 'Contact Management', 'Set up contact roles and how they flow through a transaction.', 'configurator', 5),
+  ('custom', 'Configuration', 'document_management', 'Document Management', 'Upload and organize your document templates.', 'configurator', 6),
+  ('custom', 'Configuration', 'email_templates', 'Email Templates', 'Build out the email templates sent throughout a transaction.', 'configurator', 7),
+  ('custom', 'Configuration', 'task_templates', 'Task Templates', 'Define the tasks that get triggered at each stage.', 'configurator', 8),
+  ('custom', 'Configuration', 'intake_form_setup', 'Intake Form Setup', 'Configure the intake form your team uses to start a new file.', 'configurator', 9),
+  ('custom', 'Launch', 'build_launch', 'Build & Launch', 'We build everything into your OTC account and you go live.', 'form', 10)
 on conflict (path, key) do nothing;

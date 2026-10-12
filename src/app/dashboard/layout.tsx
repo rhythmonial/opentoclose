@@ -18,7 +18,7 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, email")
+    .select("role")
     .eq("id", user.id)
     .single();
 
@@ -28,7 +28,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
-      <StaffNav email={profile.email ?? user.email ?? ""} />
+      <StaffNav />
       <div className="flex-1">{children}</div>
     </div>
   );

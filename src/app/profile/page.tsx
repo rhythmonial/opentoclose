@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
+import { signOut } from "@/app/login/actions";
 import { inviteClientAdmin, inviteStaff } from "./actions";
 
 const CLIENT_ROLE_LABEL: Record<string, string> = {
@@ -48,7 +49,7 @@ export default async function ProfilePage({
 
     return (
       <div className="flex min-h-screen flex-col bg-bg">
-        <StaffNav email={profile?.email ?? user.email ?? ""} />
+        <StaffNav />
 
         <main className="px-12 py-9">
           <h1 className="font-display text-[25px] font-bold text-ink">
@@ -135,6 +136,29 @@ export default async function ProfilePage({
               </div>
             )}
           </div>
+
+          <form action={signOut} className="mt-9">
+            <button
+              type="submit"
+              className="flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-ink"
+            >
+              Sign Out
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <path d="M16 17l5-5-5-5" />
+                <path d="M21 12H9" />
+              </svg>
+            </button>
+          </form>
         </main>
       </div>
     );
