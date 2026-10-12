@@ -34,7 +34,7 @@ export function TopNav({
           </svg>
         </div>
         <span className="font-display text-[17px] font-bold text-ink">
-          Open to Close
+          OTC Setup with Josie
         </span>
       </Link>
 

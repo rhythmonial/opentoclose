@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signUp } from "./actions";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export default async function SignUpPage({
   searchParams,
@@ -28,7 +29,7 @@ export default async function SignUpPage({
             </svg>
           </div>
           <span className="font-display text-lg font-bold text-ink">
-            Open to Close
+            OTC Setup with Josie
           </span>
         </div>
 
@@ -67,13 +68,11 @@ export default async function SignUpPage({
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">Password</span>
-            <input
-              type="password"
+            <PasswordInput
               name="password"
               required
               minLength={8}
               autoComplete="new-password"
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
             />
           </label>
           <button

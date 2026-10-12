@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signIn } from "./actions";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export default async function LoginPage({
   searchParams,
@@ -28,7 +29,7 @@ export default async function LoginPage({
             </svg>
           </div>
           <span className="font-display text-lg font-bold text-ink">
-            Open to Close
+            OTC Setup with Josie
           </span>
         </div>
 
@@ -55,14 +56,16 @@ export default async function LoginPage({
             />
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">Password</span>
-            <input
-              type="password"
-              name="password"
-              required
-              autoComplete="current-password"
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-            />
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-ink">Password</span>
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-accent"
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <PasswordInput name="password" required autoComplete="current-password" />
           </label>
           <button
             type="submit"

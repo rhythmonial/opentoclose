@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { siteOrigin } from "@/lib/site-origin";
 
 export async function inviteTeammate(formData: FormData) {
   const email = String(formData.get("email") ?? "")
@@ -38,6 +39,7 @@ export async function inviteTeammate(formData: FormData) {
     .eq("id", profile.client_account_id)
     .single();
 
+  const origin = await siteOrigin();
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.inviteUserByEmail(email, {
     data: {
@@ -45,6 +47,7 @@ export async function inviteTeammate(formData: FormData) {
       client_account_id: profile.client_account_id,
       business_name: account?.name,
     },
+    redirectTo: `${origin}/reset-password`,
   });
 
   if (error) {

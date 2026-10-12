@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Open to Close",
+  title: "OTC Setup with Josie",
   description: "Your OTC setup, from kickoff to launch.",
 };
 
