@@ -104,36 +104,101 @@ export default async function PortalPage() {
             </p>
           </div>
 
-          {Array.from(
-            new Set((steps ?? []).map((s) => s.phase ?? "General")),
-          ).map((phase) => {
-            const phaseSteps = (steps ?? []).filter(
-              (s) => (s.phase ?? "General") === phase,
+          {(() => {
+            const phaseList = Array.from(
+              new Set((steps ?? []).map((s) => s.phase ?? "General")),
             );
-            const sections = Array.from(
-              new Set(phaseSteps.map((s) => s.section)),
-            );
-            const completeCount = phaseSteps.filter(
-              (s) => statusByStep.get(s.id) === "approved",
-            ).length;
+            const phaseComplete = phaseList.map((phase) => {
+              const required = (steps ?? []).filter(
+                (s) => (s.phase ?? "General") === phase && !s.is_optional,
+              );
+              return required.every(
+                (s) => statusByStep.get(s.id) === "approved",
+              );
+            });
+            const activeIndex = phaseComplete.findIndex((c) => !c);
+            const currentPhaseIndex =
+              activeIndex === -1 ? phaseList.length - 1 : activeIndex;
 
-            return (
-              <details
-                key={phase}
-                open
-                className="rounded-xl border border-border bg-surface p-5"
-              >
-                <summary className="flex cursor-pointer items-center justify-between gap-4">
-                  <h2 className="font-display text-lg font-bold text-ink">
-                    {phase}
-                  </h2>
-                  <span className="text-xs font-semibold text-ink-faint">
-                    {completeCount} / {phaseSteps.length} complete
-                  </span>
-                </summary>
+            return phaseList.map((phase, phaseIndex) => {
+              const phaseSteps = (steps ?? []).filter(
+                (s) => (s.phase ?? "General") === phase,
+              );
+              const sections = Array.from(
+                new Set(phaseSteps.map((s) => s.section)),
+              );
+              const completeCount = phaseSteps.filter(
+                (s) => statusByStep.get(s.id) === "approved",
+              ).length;
+              const isComplete = phaseComplete[phaseIndex];
+              const isLocked = phaseIndex > currentPhaseIndex;
 
-                <div className="mt-4 flex flex-col gap-5">
-                  {sections.map((section) => (
+              if (isLocked) {
+                return (
+                  <div
+                    key={phase}
+                    className="flex items-center justify-between gap-4 rounded-xl border border-dashed border-border-soft bg-bg px-5 py-4 opacity-60"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-ink-faint"
+                      >
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                      <h2 className="font-display text-base font-bold text-ink-faint">
+                        {phase}
+                      </h2>
+                    </div>
+                    <span className="text-xs font-medium text-ink-faint">
+                      Unlocks after {phaseList[phaseIndex - 1]}
+                    </span>
+                  </div>
+                );
+              }
+
+              return (
+                <details
+                  key={phase}
+                  open={!isComplete}
+                  className="rounded-xl border border-border bg-surface p-5"
+                >
+                  <summary className="flex cursor-pointer items-center justify-between gap-4">
+                    <div className="flex items-center gap-2.5">
+                      {isComplete && (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="text-success"
+                        >
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                      )}
+                      <h2 className="font-display text-lg font-bold text-ink">
+                        {phase}
+                      </h2>
+                    </div>
+                    <span className="text-xs font-semibold text-ink-faint">
+                      {completeCount} / {phaseSteps.length} complete
+                    </span>
+                  </summary>
+
+                  <div className="mt-4 flex flex-col gap-5">
+                    {sections.map((section) => (
                     <div key={section}>
                       <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
                         {section}
@@ -214,7 +279,8 @@ export default async function PortalPage() {
                 </div>
               </details>
             );
-          })}
+          });
+          })()}
 
           {(steps ?? []).length === 0 && (
             <p className="text-sm text-ink-soft">
