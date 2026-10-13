@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { effectiveOwner, type EngagementType } from "@/lib/stepOwnership";
 import { stepClientHref, isExternalStepLink } from "@/lib/stepHref";
-import { requestUpgrade } from "./actions";
 import { toggleLessonComplete } from "@/app/lesson/actions";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -18,7 +17,12 @@ const STATUS_LABEL: Record<string, string> = {
 
 const HOURS_PER_BUNDLE = 10;
 
-export default async function PortalPage() {
+export default async function PortalPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
+  const { view } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -43,43 +47,72 @@ export default async function PortalPage() {
 
   const setupPath = profile?.client_accounts?.setup_path ?? "custom";
 
-  const [{ data: allSteps }, { data: statuses }, { data: hoursLog }, { data: initiation }] =
-    await Promise.all([
-      supabase
-        .from("setup_steps")
-        .select("*")
-        .eq("path", setupPath)
-        .order("sort_order"),
-      supabase
-        .from("client_step_status")
-        .select("*")
-        .eq("client_id", user.id),
-      supabase
-        .from("hours_log")
-        .select("*")
-        .eq("client_id", user.id)
-        .order("logged_date", { ascending: false })
-        .limit(5),
-      supabase
-        .from("setup_initiation")
-        .select("engagement_type, upgrade_requested_at")
-        .eq("client_id", user.id)
-        .maybeSingle(),
-    ]);
+  const [
+    { data: allSteps },
+    { data: statuses },
+    { data: hoursLog },
+    { data: initiation },
+  ] = await Promise.all([
+    supabase
+      .from("setup_steps")
+      .select("*")
+      .eq("path", setupPath)
+      .order("sort_order"),
+    supabase.from("client_step_status").select("*").eq("client_id", user.id),
+    supabase
+      .from("hours_log")
+      .select("*")
+      .eq("client_id", user.id)
+      .order("logged_date", { ascending: false })
+      .limit(5),
+    supabase
+      .from("setup_initiation")
+      .select("engagement_type")
+      .eq("client_id", user.id)
+      .maybeSingle(),
+  ]);
 
   const engagementType = (initiation?.engagement_type ?? "custom") as EngagementType;
+  const displayEngagementType: EngagementType =
+    view === "setup" ? "custom" : view === "diy" ? "diy" : engagementType;
+  const isPreviewing = displayEngagementType !== engagementType;
 
-  // The task pipeline only shows what's actually assigned to this client —
-  // purely-internal staff steps are tracked on our side and don't show up
-  // here. A staff-owned step that's also a clickable link (e.g. a payment
-  // link) still needs to be visible, since the client has to act on it even
-  // though staff confirms completion.
+  const statusByStep = new Map(
+    (statuses ?? []).map((s) => [s.step_id, s.status]),
+  );
+
+  // Work completed on the client's own steps, used as the DIY work log —
+  // DIY clients do everything themselves, so there's no staff hours_log to
+  // show them, just a record of what they've finished and when.
+  const completedStepLog = (allSteps ?? [])
+    .filter((s) => statusByStep.get(s.id) === "approved")
+    .map((s) => ({
+      id: s.id,
+      title: s.title,
+      completedAt: (statuses ?? []).find((st) => st.step_id === s.id)
+        ?.updated_at,
+    }))
+    .filter((e): e is { id: string; title: string; completedAt: string } =>
+      Boolean(e.completedAt),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime(),
+    )
+    .slice(0, 8);
+
+  // The task pipeline only shows what's actually assigned to this client in
+  // the engagement type being displayed (their real plan, or the other one
+  // they're previewing via the toggle) — purely-internal staff steps are
+  // tracked on our side and don't show up here. A staff-owned step that's
+  // also a clickable link (e.g. a payment link) still needs to be visible,
+  // since the client has to act on it even though staff confirms completion.
   const myTasks = (allSteps ?? []).filter(
-    (s) => effectiveOwner(s.completed_by, engagementType) === "client",
+    (s) => effectiveOwner(s.completed_by, displayEngagementType) === "client",
   );
   const visibleStaffSteps = (allSteps ?? []).filter(
     (s) =>
-      effectiveOwner(s.completed_by, engagementType) === "staff" &&
+      effectiveOwner(s.completed_by, displayEngagementType) === "staff" &&
       (s.step_type === "form" || s.step_type === "link") &&
       s.link_url,
   );
@@ -87,9 +120,15 @@ export default async function PortalPage() {
     (a, b) => a.sort_order - b.sort_order,
   );
 
-  const statusByStep = new Map(
-    (statuses ?? []).map((s) => [s.step_id, s.status]),
-  );
+  // How many fewer steps a client has to personally do under Setup vs DIY —
+  // this is the "time savings" shown when previewing the other plan.
+  const setupClientStepCount = (allSteps ?? []).filter(
+    (s) => effectiveOwner(s.completed_by, "custom") === "client",
+  ).length;
+  const diyClientStepCount = (allSteps ?? []).filter(
+    (s) => effectiveOwner(s.completed_by, "diy") === "client",
+  ).length;
+  const stepsOffYourPlate = diyClientStepCount - setupClientStepCount;
 
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
   const businessName =
@@ -109,12 +148,56 @@ export default async function PortalPage() {
             implementation.
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-3 rounded-full border border-accent-soft bg-accent-soft px-3.5 py-2">
-          <span className="text-sm font-semibold text-accent">
-            {hoursUsed.toFixed(1)} of {HOURS_PER_BUNDLE} hrs used
-          </span>
+        <div className="flex shrink-0 flex-col items-end gap-2.5">
+          <div className="flex items-center gap-1 rounded-full border border-border bg-surface p-1">
+            <Link
+              href="?view=setup"
+              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${
+                displayEngagementType === "custom"
+                  ? "bg-accent text-white"
+                  : "text-ink-soft"
+              }`}
+            >
+              Setup
+            </Link>
+            <Link
+              href="?view=diy"
+              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${
+                displayEngagementType === "diy"
+                  ? "bg-accent text-white"
+                  : "text-ink-soft"
+              }`}
+            >
+              DIY
+            </Link>
+          </div>
+          {engagementType === "diy" && (
+            <Link
+              href="/setup"
+              className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white"
+            >
+              Sign Up for Setup &rarr;
+            </Link>
+          )}
         </div>
       </div>
+
+      {isPreviewing && (
+        <div className="mx-4 mt-3 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent sm:mx-6 lg:mx-12">
+          {displayEngagementType === "custom" ? (
+            <>
+              Previewing Setup &mdash; our team takes {stepsOffYourPlate}{" "}
+              steps off your plate, leaving just {setupClientStepCount} for
+              you.
+            </>
+          ) : (
+            <>
+              Previewing DIY &mdash; you&rsquo;d take on {stepsOffYourPlate}{" "}
+              more steps yourself, {diyClientStepCount} in total.
+            </>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:flex-row lg:gap-8 lg:px-12 lg:pb-12">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -436,94 +519,120 @@ export default async function PortalPage() {
         </div>
 
         <div className="flex w-full flex-col gap-5 lg:w-[340px] lg:shrink-0">
-          <div className="rounded-xl border border-border bg-surface p-5">
-            <h3 className="mb-3 text-[15px] font-bold text-ink">Hours Used</h3>
-            <div className="mb-2 flex items-baseline justify-between">
-              <span className="font-display text-xl font-bold text-ink">
-                {hoursUsed.toFixed(1)}
-              </span>
-              <span className="text-sm text-ink-soft">
-                of {HOURS_PER_BUNDLE} hrs
-              </span>
-            </div>
-            <div className="mb-3.5 h-2 overflow-hidden rounded-full bg-border-soft">
-              <div
-                className="h-full bg-accent"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    (hoursUsed / HOURS_PER_BUNDLE) * 100,
-                  )}%`,
-                }}
-              />
-            </div>
-            <button className="w-full rounded-lg border border-border px-2.5 py-2.5 text-sm font-semibold text-ink">
-              Request Additional Bundle
-            </button>
-          </div>
-
-          {engagementType === "diy" && (
-            <div className="rounded-xl border border-accent-soft bg-accent-soft/40 p-5">
-              <h3 className="mb-1.5 text-[15px] font-bold text-ink">
-                Want us to handle it?
-              </h3>
-              <p className="mb-3 text-sm text-ink-soft">
-                Upgrade to Setup at any point &mdash; it&rsquo;s always a
-                flat 10-hour bundle, no matter how far along you are.
-              </p>
-              {initiation?.upgrade_requested_at ? (
-                <p className="text-sm font-semibold text-success">
-                  Request sent &mdash; we&rsquo;ll be in touch.
+          {engagementType === "diy" ? (
+            <>
+              <div className="rounded-xl border border-border-soft bg-bg p-5">
+                <h3 className="mb-1.5 text-sm font-bold text-ink">
+                  Need Help?
+                </h3>
+                <p className="mb-3 text-sm leading-relaxed text-ink-soft">
+                  Reply to your setup email thread any time &mdash; we
+                  usually respond within a few hours.
                 </p>
-              ) : (
-                <form action={requestUpgrade}>
-                  <button
-                    type="submit"
-                    className="w-full rounded-lg bg-accent px-2.5 py-2.5 text-sm font-semibold text-white"
-                  >
-                    Request Setup Upgrade
-                  </button>
-                </form>
-              )}
-            </div>
-          )}
+                <a href="#" className="text-sm font-semibold text-accent">
+                  Contact your setup team &rarr;
+                </a>
+              </div>
 
-          <div className="rounded-xl border border-border bg-surface p-5">
-            <h3 className="mb-3.5 text-[15px] font-bold text-ink">Work Log</h3>
-            <div className="flex flex-col gap-3.5">
-              {(hoursLog ?? []).length === 0 && (
-                <p className="text-sm text-ink-soft">
-                  No work logged yet &mdash; entries will appear here once your
-                  setup specialist starts on your account.
-                </p>
-              )}
-              {(hoursLog ?? []).map((entry) => (
-                <div key={entry.id}>
-                  <div className="mb-0.5 flex justify-between text-xs text-ink-soft">
-                    <span>
-                      {new Date(entry.logged_date).toLocaleDateString(
-                        "en-US",
-                        { month: "short", day: "numeric" },
-                      )}
-                    </span>
-                    <span>{Number(entry.hours).toFixed(1)} hrs</span>
-                  </div>
-                  <div className="text-sm text-ink">{entry.description}</div>
+              <div className="rounded-xl border border-border bg-surface p-5">
+                <h3 className="mb-3.5 text-[15px] font-bold text-ink">
+                  Work Log
+                </h3>
+                <div className="flex flex-col gap-3.5">
+                  {completedStepLog.length === 0 && (
+                    <p className="text-sm text-ink-soft">
+                      No steps completed yet &mdash; they&rsquo;ll show up
+                      here as you work through your checklist.
+                    </p>
+                  )}
+                  {completedStepLog.map((entry) => (
+                    <div key={entry.id}>
+                      <div className="mb-0.5 text-xs text-ink-soft">
+                        {new Date(entry.completedAt).toLocaleDateString(
+                          "en-US",
+                          { month: "short", day: "numeric" },
+                        )}
+                      </div>
+                      <div className="text-sm text-ink">{entry.title}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="rounded-xl border border-border bg-surface p-5">
+                <h3 className="mb-3 text-[15px] font-bold text-ink">
+                  Hours Used
+                </h3>
+                <div className="mb-2 flex items-baseline justify-between">
+                  <span className="font-display text-xl font-bold text-ink">
+                    {hoursUsed.toFixed(1)}
+                  </span>
+                  <span className="text-sm text-ink-soft">
+                    of {HOURS_PER_BUNDLE} hrs
+                  </span>
+                </div>
+                <div className="mb-3.5 h-2 overflow-hidden rounded-full bg-border-soft">
+                  <div
+                    className="h-full bg-accent"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        (hoursUsed / HOURS_PER_BUNDLE) * 100,
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <button className="w-full rounded-lg border border-border px-2.5 py-2.5 text-sm font-semibold text-ink">
+                  Request Additional Bundle
+                </button>
+              </div>
 
-          <div className="rounded-xl border border-border-soft bg-bg p-5">
-            <h3 className="mb-1.5 text-sm font-bold text-ink">Need Help?</h3>
-            <p className="mb-3 text-sm leading-relaxed text-ink-soft">
-              Reply to your setup email thread any time &mdash; we usually
-              respond within a few hours.
-            </p>
-            <a href="#" className="text-sm font-semibold text-accent">
-              Contact your setup team &rarr;
-            </a>
-          </div>
+              <div className="rounded-xl border border-border bg-surface p-5">
+                <h3 className="mb-3.5 text-[15px] font-bold text-ink">
+                  Work Log
+                </h3>
+                <div className="flex flex-col gap-3.5">
+                  {(hoursLog ?? []).length === 0 && (
+                    <p className="text-sm text-ink-soft">
+                      No work logged yet &mdash; entries will appear here
+                      once your setup specialist starts on your account.
+                    </p>
+                  )}
+                  {(hoursLog ?? []).map((entry) => (
+                    <div key={entry.id}>
+                      <div className="mb-0.5 flex justify-between text-xs text-ink-soft">
+                        <span>
+                          {new Date(entry.logged_date).toLocaleDateString(
+                            "en-US",
+                            { month: "short", day: "numeric" },
+                          )}
+                        </span>
+                        <span>{Number(entry.hours).toFixed(1)} hrs</span>
+                      </div>
+                      <div className="text-sm text-ink">
+                        {entry.description}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border-soft bg-bg p-5">
+                <h3 className="mb-1.5 text-sm font-bold text-ink">
+                  Need Help?
+                </h3>
+                <p className="mb-3 text-sm leading-relaxed text-ink-soft">
+                  Reply to your setup email thread any time &mdash; we
+                  usually respond within a few hours.
+                </p>
+                <a href="#" className="text-sm font-semibold text-accent">
+                  Contact your setup team &rarr;
+                </a>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </main>
