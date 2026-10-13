@@ -70,9 +70,21 @@ export default async function PortalPage() {
   const engagementType = (initiation?.engagement_type ?? "custom") as EngagementType;
 
   // The task pipeline only shows what's actually assigned to this client —
-  // staff-owned steps are tracked on our side and don't show up here.
-  const steps = (allSteps ?? []).filter(
+  // purely-internal staff steps are tracked on our side and don't show up
+  // here. A staff-owned step that's also a clickable link (e.g. a payment
+  // link) still needs to be visible, since the client has to act on it even
+  // though staff confirms completion.
+  const myTasks = (allSteps ?? []).filter(
     (s) => effectiveOwner(s.completed_by, engagementType) === "client",
+  );
+  const visibleStaffSteps = (allSteps ?? []).filter(
+    (s) =>
+      effectiveOwner(s.completed_by, engagementType) === "staff" &&
+      (s.step_type === "form" || s.step_type === "link") &&
+      s.link_url,
+  );
+  const steps = [...myTasks, ...visibleStaffSteps].sort(
+    (a, b) => a.sort_order - b.sort_order,
   );
 
   const statusByStep = new Map(
@@ -108,7 +120,7 @@ export default async function PortalPage() {
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-ink-soft">
-              {steps.length} steps assigned to you &middot;{" "}
+              {myTasks.length} steps assigned to you &middot;{" "}
               <Link href="/resources" className="font-semibold text-accent">
                 View the full Resource Center &rarr;
               </Link>
@@ -116,11 +128,12 @@ export default async function PortalPage() {
           </div>
 
           {(() => {
+            const all = allSteps ?? [];
             const phaseList = Array.from(
-              new Set(steps.map((s) => s.phase ?? "General")),
+              new Set(all.map((s) => s.phase ?? "General")),
             );
             const phaseComplete = phaseList.map((phase) => {
-              const required = steps.filter(
+              const required = all.filter(
                 (s) => (s.phase ?? "General") === phase && !s.is_optional,
               );
               return required.every(
@@ -132,7 +145,10 @@ export default async function PortalPage() {
               activeIndex === -1 ? phaseList.length - 1 : activeIndex;
 
             return phaseList.map((phase, phaseIndex) => {
-              const phaseSteps = steps.filter(
+              const phaseSteps = all.filter(
+                (s) => (s.phase ?? "General") === phase,
+              );
+              const visiblePhaseSteps = steps.filter(
                 (s) => (s.phase ?? "General") === phase,
               );
               const sections = Array.from(
@@ -246,6 +262,9 @@ export default async function PortalPage() {
                       const sectionSteps = phaseSteps.filter(
                         (s) => s.section === section,
                       );
+                      const visibleSectionSteps = visiblePhaseSteps.filter(
+                        (s) => s.section === section,
+                      );
                       const sectionRequired = sectionSteps.filter(
                         (s) => !s.is_optional,
                       );
@@ -282,13 +301,16 @@ export default async function PortalPage() {
                         </span>
                       </summary>
                       <div className="mt-2 flex flex-col gap-2.5">
-                        {sectionSteps
+                        {visibleSectionSteps
                           .map((step) => {
                             const status =
                               statusByStep.get(step.id) ?? "not_started";
                             const href = stepClientHref(step);
                             const isExternal = isExternalStepLink(step);
                             const isApproved = status === "approved";
+                            const isClientManaged =
+                              effectiveOwner(step.completed_by, engagementType) ===
+                              "client";
 
                             const titleBlock = (
                               <div className="flex-1">
@@ -340,28 +362,34 @@ export default async function PortalPage() {
                                     {titleBlock}
                                   </a>
                                   {statusBadge}
-                                  <form action={toggleLessonComplete}>
-                                    <input
-                                      type="hidden"
-                                      name="step_id"
-                                      value={step.id}
-                                    />
-                                    <input
-                                      type="hidden"
-                                      name="currently_approved"
-                                      value={String(isApproved)}
-                                    />
-                                    <button
-                                      type="submit"
-                                      className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-                                        isApproved
-                                          ? "border border-border text-ink"
-                                          : "bg-accent text-white"
-                                      }`}
-                                    >
-                                      {isApproved ? "Undo" : "Mark Complete"}
-                                    </button>
-                                  </form>
+                                  {isClientManaged ? (
+                                    <form action={toggleLessonComplete}>
+                                      <input
+                                        type="hidden"
+                                        name="step_id"
+                                        value={step.id}
+                                      />
+                                      <input
+                                        type="hidden"
+                                        name="currently_approved"
+                                        value={String(isApproved)}
+                                      />
+                                      <button
+                                        type="submit"
+                                        className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                                          isApproved
+                                            ? "border border-border text-ink"
+                                            : "bg-accent text-white"
+                                        }`}
+                                      >
+                                        {isApproved ? "Undo" : "Mark Complete"}
+                                      </button>
+                                    </form>
+                                  ) : (
+                                    <span className="text-xs font-medium text-ink-faint">
+                                      Handled by our team
+                                    </span>
+                                  )}
                                 </div>
                               );
                             }
