@@ -725,7 +725,7 @@ function StepEditPanel({
       {step.instructions && (
         <details className="mt-4 rounded-lg border border-border-soft bg-bg p-3.5">
           <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-ink-faint">
-            Instructions
+            Setup Instructions
           </summary>
           <div
             className="mt-3 text-sm leading-relaxed text-ink-soft
@@ -780,7 +780,7 @@ function StepEditPanel({
         </label>
         <label className="flex flex-col gap-1.5 sm:col-span-2">
           <span className="text-xs font-medium text-ink-soft">
-            Instructions (what needs to be done for this task)
+            Setup Instructions (what the setup team needs to do for this task)
           </span>
           <MarkdownTextarea
             name="instructions"
