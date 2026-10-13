@@ -90,45 +90,45 @@ export default async function ProfilePage({
             Profile
           </h1>
 
-          <section className="mt-7 max-w-md rounded-xl border border-border bg-surface p-5">
-            <form action={updateProfileInfo} className="flex flex-col gap-3">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-ink-soft">Name</span>
-                <input
-                  name="name"
-                  defaultValue={profile?.name ?? ""}
-                  className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-ink-soft">Email</span>
-                <input
-                  value={user.email ?? ""}
-                  disabled
-                  className="rounded-lg border border-border bg-border-soft px-3 py-2 text-sm text-ink-soft"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-ink-soft">
-                  Phone number
-                </span>
-                <input
-                  name="phone"
-                  type="tel"
-                  defaultValue={profile?.phone ?? ""}
-                  className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                />
-              </label>
-              <button
-                type="submit"
-                className="mt-1 self-start rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
-              >
-                Save
-              </button>
-            </form>
-          </section>
-
           <div className="mt-7 flex gap-8">
+            <section className="w-[340px] shrink-0 rounded-xl border border-border bg-surface p-5">
+              <form action={updateProfileInfo} className="flex flex-col gap-3">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-ink-soft">Name</span>
+                  <input
+                    name="name"
+                    defaultValue={profile?.name ?? ""}
+                    className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-ink-soft">Email</span>
+                  <input
+                    value={user.email ?? ""}
+                    disabled
+                    className="rounded-lg border border-border bg-border-soft px-3 py-2 text-sm text-ink-soft"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-ink-soft">
+                    Phone number
+                  </span>
+                  <input
+                    name="phone"
+                    type="tel"
+                    defaultValue={profile?.phone ?? ""}
+                    className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="mt-1 self-start rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
+                >
+                  Save
+                </button>
+              </form>
+            </section>
+
             <div className="flex min-w-0 flex-1 flex-col gap-2.5">
               <h2 className="text-[15px] font-bold text-ink">
                 Internal team
