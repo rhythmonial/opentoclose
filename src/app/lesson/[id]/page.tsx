@@ -50,6 +50,10 @@ export default async function LessonPage({
     notFound();
   }
 
+  if ((step.step_type === "form" || step.step_type === "link") && step.link_url) {
+    redirect(step.link_url);
+  }
+
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
 
   const { data: resources } = await supabase

@@ -3,11 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 
 const STEP_TYPE_LABEL: Record<string, string> = {
-  video: "Video",
+  lesson: "Lesson",
+  form: "Form",
+  link: "Link",
   configurator: "Configurator",
-  download: "Download",
-  external_link: "Link",
-  form: "Guide",
 };
 
 const RESOURCE_KIND_LABEL: Record<string, string> = {
@@ -171,9 +170,14 @@ function ResourceItem({
     description: string | null;
     step_type: string;
     video_url: string | null;
+    link_url: string | null;
   };
   resources: { id: string; kind: string; label: string | null; url: string }[];
 }) {
+  const isExternal =
+    (step.step_type === "form" || step.step_type === "link") &&
+    Boolean(step.link_url);
+
   return (
     <li className="flex flex-col gap-2.5 rounded-lg border border-border-soft bg-bg px-4 py-3">
       <div className="flex items-start justify-between gap-4">
@@ -189,6 +193,17 @@ function ResourceItem({
           {STEP_TYPE_LABEL[step.step_type] ?? step.step_type}
         </span>
       </div>
+
+      {isExternal && (
+        <a
+          href={step.link_url!}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="self-start rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white"
+        >
+          Open &rarr;
+        </a>
+      )}
 
       {(step.video_url || resources.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">

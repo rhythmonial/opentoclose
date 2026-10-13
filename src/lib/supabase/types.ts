@@ -442,6 +442,7 @@ export type Database = {
           id: string
           is_optional: boolean
           key: string
+          link_url: string | null
           path: Database["public"]["Enums"]["setup_path"]
           phase: string | null
           section: string
@@ -457,6 +458,7 @@ export type Database = {
           id?: string
           is_optional?: boolean
           key: string
+          link_url?: string | null
           path: Database["public"]["Enums"]["setup_path"]
           phase?: string | null
           section: string
@@ -472,6 +474,7 @@ export type Database = {
           id?: string
           is_optional?: boolean
           key?: string
+          link_url?: string | null
           path?: Database["public"]["Enums"]["setup_path"]
           phase?: string | null
           section?: string
@@ -615,6 +618,8 @@ export type Database = {
         | "download"
         | "external_link"
         | "form"
+        | "lesson"
+        | "link"
       user_role: "dev" | "dev_admin" | "client_owner" | "client_admin"
     }
     CompositeTypes: {
@@ -769,7 +774,15 @@ export const Constants = {
         "returned",
         "approved",
       ],
-      step_type: ["video", "configurator", "download", "external_link", "form"],
+      step_type: [
+        "video",
+        "configurator",
+        "download",
+        "external_link",
+        "form",
+        "lesson",
+        "link",
+      ],
       user_role: ["dev", "dev_admin", "client_owner", "client_admin"],
     },
   },

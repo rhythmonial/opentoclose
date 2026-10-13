@@ -30,15 +30,15 @@ export async function addStep(formData: FormData) {
     title: String(formData.get("title")),
     description: String(formData.get("description") ?? "") || null,
     step_type: String(formData.get("step_type")) as
-      | "video"
-      | "configurator"
-      | "download"
-      | "external_link"
-      | "form",
+      | "lesson"
+      | "form"
+      | "link"
+      | "configurator",
     sort_order: (maxRow?.sort_order ?? 0) + 1,
     completed_by: String(formData.get("completed_by") ?? "client"),
     is_optional: formData.get("is_optional") === "on",
     video_url: String(formData.get("video_url") ?? "").trim() || null,
+    link_url: String(formData.get("link_url") ?? "").trim() || null,
   });
 
   revalidateAll();
@@ -56,13 +56,13 @@ export async function updateStep(formData: FormData) {
       title: String(formData.get("title")),
       description: String(formData.get("description") ?? "") || null,
       step_type: String(formData.get("step_type")) as
-        | "video"
-        | "configurator"
-        | "download"
-        | "external_link"
-        | "form",
+        | "lesson"
+        | "form"
+        | "link"
+        | "configurator",
       is_optional: formData.get("is_optional") === "on",
       video_url: String(formData.get("video_url") ?? "").trim() || null,
+      link_url: String(formData.get("link_url") ?? "").trim() || null,
     })
     .eq("id", id);
 

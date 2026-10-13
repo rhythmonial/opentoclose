@@ -4,6 +4,7 @@ import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
 import { CompletedByRadios } from "@/components/CompletedByRadios";
 import { PhaseSectionPicker } from "@/components/PhaseSectionPicker";
+import { LessonTypeFields } from "@/components/LessonTypeFields";
 import { StepResourcesEditor } from "@/components/StepResourcesEditor";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
 import { signOut } from "@/app/login/actions";
@@ -30,7 +31,6 @@ const STAFF_ROLE_LABEL: Record<string, string> = {
   dev_admin: "Dev Admin",
 };
 
-const STEP_TYPES = ["video", "configurator", "download", "external_link", "form"];
 const PATHS = ["custom", "express"];
 
 export default async function ProfilePage({
@@ -313,23 +313,15 @@ export default async function ProfilePage({
                           className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
                         />
                       </label>
-                      <label className="flex flex-col gap-1.5">
-                        <span className="text-xs font-medium text-ink-soft">
-                          Type
-                        </span>
-                        <select
-                          name="step_type"
-                          defaultValue="video"
-                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                        >
-                          {STEP_TYPES.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
                       <PhaseSectionPicker phases={phases} sectionsByPhase={sectionsByPhase} />
+                      <LessonTypeFields defaultType="lesson">
+                        <label className="flex items-end gap-2 pb-2.5">
+                          <input type="checkbox" name="is_optional" className="h-4 w-4" />
+                          <span className="text-xs font-medium text-ink-soft">
+                            Optional (can be done later)
+                          </span>
+                        </label>
+                      </LessonTypeFields>
                       <label className="col-span-2 flex flex-col gap-1.5">
                         <span className="text-xs font-medium text-ink-soft">
                           Title
@@ -350,16 +342,6 @@ export default async function ProfilePage({
                           className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
                         />
                       </label>
-                      <label className="col-span-2 flex flex-col gap-1.5">
-                        <span className="text-xs font-medium text-ink-soft">
-                          Video URL
-                        </span>
-                        <input
-                          name="video_url"
-                          placeholder="https://..."
-                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                        />
-                      </label>
                       <label className="flex flex-col gap-1.5">
                         <span className="text-xs font-medium text-ink-soft">
                           Completed by
@@ -373,12 +355,6 @@ export default async function ProfilePage({
                           <option value="staff">Staff (Setup only)</option>
                           <option value="staff_always">Staff (always)</option>
                         </select>
-                      </label>
-                      <label className="flex items-end gap-2 pb-2.5">
-                        <input type="checkbox" name="is_optional" className="h-4 w-4" />
-                        <span className="text-xs font-medium text-ink-soft">
-                          Optional (can be done later)
-                        </span>
                       </label>
                       <div className="flex items-end">
                         <button
@@ -629,6 +605,24 @@ function StepEditPanel({
           defaultPhase={step.phase ?? ""}
           defaultSection={step.section}
         />
+        <LessonTypeFields
+          defaultType={step.step_type}
+          defaultLinkUrl={step.link_url}
+          defaultVideoUrl={step.video_url}
+          stepKey={step.key}
+        >
+          <label className="flex items-end gap-2 pb-2.5">
+            <input
+              type="checkbox"
+              name="is_optional"
+              defaultChecked={step.is_optional}
+              className="h-4 w-4"
+            />
+            <span className="text-xs font-medium text-ink-soft">
+              Optional (can be done later)
+            </span>
+          </label>
+        </LessonTypeFields>
         <label className="col-span-2 flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-soft">Title</span>
           <input
@@ -647,40 +641,6 @@ function StepEditPanel({
             defaultValue={step.description ?? ""}
             className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
           />
-        </label>
-        <label className="col-span-2 flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-ink-soft">Video URL</span>
-          <input
-            name="video_url"
-            defaultValue={step.video_url ?? ""}
-            placeholder="https://..."
-            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-          />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-ink-soft">Type</span>
-          <select
-            name="step_type"
-            defaultValue={step.step_type}
-            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-          >
-            {STEP_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-end gap-2 pb-2.5">
-          <input
-            type="checkbox"
-            name="is_optional"
-            defaultChecked={step.is_optional}
-            className="h-4 w-4"
-          />
-          <span className="text-xs font-medium text-ink-soft">
-            Optional (can be done later)
-          </span>
         </label>
         <div className="col-span-2 flex items-end gap-2">
           <button
