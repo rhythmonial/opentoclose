@@ -572,7 +572,6 @@ function StepEditPanel({
                 rel="noopener noreferrer"
                 title="View as the client sees it"
                 aria-label="View as the client sees it"
-                onClick={(e) => e.stopPropagation()}
                 className="flex shrink-0 items-center justify-center rounded-lg border border-border px-2.5 py-2 text-ink"
               >
                 <svg
