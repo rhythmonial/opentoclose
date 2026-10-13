@@ -4,9 +4,10 @@ import { useState } from "react";
 import { updateStepCompletedBy } from "@/app/profile/setup-steps-actions";
 
 const OPTIONS = [
-  { value: "client", label: "Client" },
-  { value: "staff", label: "Staff (Setup only)" },
-  { value: "staff_always", label: "Staff (always)" },
+  { value: "diy", label: "DIY" },
+  { value: "setup", label: "Setup" },
+  { value: "both", label: "Both" },
+  { value: "staff", label: "Staff" },
 ];
 
 export function CompletedByRadios({

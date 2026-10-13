@@ -35,8 +35,9 @@ export async function addStep(formData: FormData) {
       | "link"
       | "configurator",
     sort_order: (maxRow?.sort_order ?? 0) + 1,
-    completed_by: String(formData.get("completed_by") ?? "client"),
+    completed_by: String(formData.get("completed_by") ?? "diy"),
     is_optional: formData.get("is_optional") === "on",
+    is_future_build: formData.get("is_future_build") === "on",
     video_url: String(formData.get("video_url") ?? "").trim() || null,
     link_url: String(formData.get("link_url") ?? "").trim() || null,
   });
@@ -84,6 +85,16 @@ export async function updateStepIsOptional(stepId: string, value: boolean) {
   await supabase
     .from("setup_steps")
     .update({ is_optional: value })
+    .eq("id", stepId);
+
+  revalidateAll();
+}
+
+export async function updateStepIsFutureBuild(stepId: string, value: boolean) {
+  const supabase = await createClient();
+  await supabase
+    .from("setup_steps")
+    .update({ is_future_build: value })
     .eq("id", stepId);
 
   revalidateAll();

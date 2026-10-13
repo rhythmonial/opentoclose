@@ -441,6 +441,7 @@ export type Database = {
           description: string | null
           id: string
           instructions: string | null
+          is_future_build: boolean
           is_optional: boolean
           key: string
           link_url: string | null
@@ -458,6 +459,7 @@ export type Database = {
           description?: string | null
           id?: string
           instructions?: string | null
+          is_future_build?: boolean
           is_optional?: boolean
           key: string
           link_url?: string | null
@@ -475,6 +477,7 @@ export type Database = {
           description?: string | null
           id?: string
           instructions?: string | null
+          is_future_build?: boolean
           is_optional?: boolean
           key?: string
           link_url?: string | null

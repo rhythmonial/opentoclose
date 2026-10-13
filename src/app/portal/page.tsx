@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
-import { effectiveOwner, type EngagementType } from "@/lib/stepOwnership";
+import {
+  effectiveOwner,
+  isClientVisible,
+  type EngagementType,
+} from "@/lib/stepOwnership";
 import { stepClientHref, isExternalStepLink } from "@/lib/stepHref";
 import { toggleLessonComplete } from "@/app/lesson/actions";
 
@@ -103,14 +107,18 @@ export default async function PortalPage({
 
   // The task pipeline only shows what's actually assigned to this client in
   // the engagement type being displayed (their real plan, or the other one
-  // they're previewing via the toggle) — purely-internal staff steps are
-  // tracked on our side and don't show up here. A staff-owned step that's
-  // also a clickable link (e.g. a payment link) still needs to be visible,
-  // since the client has to act on it even though staff confirms completion.
-  const myTasks = (allSteps ?? []).filter(
+  // they're previewing via the toggle) — purely-internal staff steps, and
+  // DIY-only how-tos while viewing as Setup, don't show up here. A
+  // staff-owned step that's also a clickable link (e.g. a payment link)
+  // still needs to be visible, since the client has to act on it even
+  // though staff confirms completion.
+  const visibleSteps = (allSteps ?? []).filter((s) =>
+    isClientVisible(s.completed_by, displayEngagementType),
+  );
+  const myTasks = visibleSteps.filter(
     (s) => effectiveOwner(s.completed_by, displayEngagementType) === "client",
   );
-  const visibleStaffSteps = (allSteps ?? []).filter(
+  const visibleStaffSteps = visibleSteps.filter(
     (s) =>
       effectiveOwner(s.completed_by, displayEngagementType) === "staff" &&
       (s.step_type === "form" || s.step_type === "link") &&
@@ -123,10 +131,14 @@ export default async function PortalPage({
   // How many fewer steps a client has to personally do under Setup vs DIY —
   // this is the "time savings" shown when previewing the other plan.
   const setupClientStepCount = (allSteps ?? []).filter(
-    (s) => effectiveOwner(s.completed_by, "custom") === "client",
+    (s) =>
+      isClientVisible(s.completed_by, "custom") &&
+      effectiveOwner(s.completed_by, "custom") === "client",
   ).length;
   const diyClientStepCount = (allSteps ?? []).filter(
-    (s) => effectiveOwner(s.completed_by, "diy") === "client",
+    (s) =>
+      isClientVisible(s.completed_by, "diy") &&
+      effectiveOwner(s.completed_by, "diy") === "client",
   ).length;
   const stepsOffYourPlate = diyClientStepCount - setupClientStepCount;
 
@@ -211,7 +223,7 @@ export default async function PortalPage({
           </div>
 
           {(() => {
-            const all = allSteps ?? [];
+            const all = visibleSteps;
             const phaseList = Array.from(
               new Set(all.map((s) => s.phase ?? "General")),
             );

@@ -6,6 +6,7 @@ import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
 import { CompletedByRadios } from "@/components/CompletedByRadios";
 import { OptionalToggle } from "@/components/OptionalToggle";
+import { FutureBuildToggle } from "@/components/FutureBuildToggle";
 import { PhaseSectionPicker } from "@/components/PhaseSectionPicker";
 import { LessonTypeFields } from "@/components/LessonTypeFields";
 import { MarkdownTextarea } from "@/components/MarkdownTextarea";
@@ -40,9 +41,14 @@ const STAFF_ROLE_LABEL: Record<string, string> = {
 export default async function ProfilePage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; invited?: string; saved?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    invited?: string;
+    saved?: string;
+    stepFilter?: string;
+  }>;
 }) {
-  const { error, invited, saved } = await searchParams;
+  const { error, invited, saved, stepFilter } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -85,6 +91,7 @@ export default async function ProfilePage({
 
     const canInvite = profile?.role === "dev_admin";
     const canManageStaff = profile?.role === "dev";
+    const canSeeSetupSteps = profile?.role === "dev";
 
     return (
       <div className="flex min-h-screen flex-col bg-bg">
@@ -247,6 +254,7 @@ export default async function ProfilePage({
             )}
           </div>
 
+          {canSeeSetupSteps && (
           <details className="mt-9" open>
             <summary className="cursor-pointer font-display text-lg font-bold text-ink">
               Setup Steps
@@ -257,6 +265,32 @@ export default async function ProfilePage({
               &mdash; changes show up immediately, no code or redeploy
               needed.
             </p>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(
+                [
+                  { value: "all", label: "All Steps" },
+                  { value: "optional", label: "Optional Only" },
+                  { value: "future", label: "Future Build Only" },
+                  {
+                    value: "optional_future",
+                    label: "All Optional/Future Build",
+                  },
+                ] as const
+              ).map((opt) => (
+                <Link
+                  key={opt.value}
+                  href={opt.value === "all" ? "/profile" : `/profile?stepFilter=${opt.value}`}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                    (stepFilter ?? "all") === opt.value
+                      ? "bg-accent text-white"
+                      : "border border-border text-ink-soft"
+                  }`}
+                >
+                  {opt.label}
+                </Link>
+              ))}
+            </div>
 
             {(() => {
               const path = "custom";
@@ -275,18 +309,29 @@ export default async function ProfilePage({
                 );
               }
 
+              const visiblePathSteps = pathSteps.filter((s) => {
+                if (stepFilter === "optional") return s.is_optional;
+                if (stepFilter === "future") return s.is_future_build;
+                if (stepFilter === "optional_future")
+                  return s.is_optional || s.is_future_build;
+                return true;
+              });
+              const visiblePhases = phases.filter((phase) =>
+                visiblePathSteps.some((s) => (s.phase ?? "General") === phase),
+              );
+
               return (
                 <section key={path} className="mt-6">
                   <h3 className="font-display text-base font-bold capitalize text-ink">
                     {path} path{" "}
                     <span className="text-sm font-normal text-ink-faint">
-                      ({pathSteps.length} steps)
+                      ({visiblePathSteps.length} of {pathSteps.length} steps)
                     </span>
                   </h3>
 
                   <div className="mt-3 flex flex-col gap-3">
-                    {phases.map((phase) => {
-                      const phaseSteps = pathSteps.filter(
+                    {visiblePhases.map((phase) => {
+                      const phaseSteps = visiblePathSteps.filter(
                         (s) => (s.phase ?? "General") === phase,
                       );
                       const sections = Array.from(
@@ -379,20 +424,33 @@ export default async function ProfilePage({
                         </span>
                         <select
                           name="completed_by"
-                          defaultValue="client"
+                          defaultValue="diy"
                           className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
                         >
-                          <option value="client">Client</option>
-                          <option value="staff">Staff (Setup only)</option>
-                          <option value="staff_always">Staff (always)</option>
+                          <option value="diy">DIY</option>
+                          <option value="setup">Setup</option>
+                          <option value="both">Both</option>
+                          <option value="staff">Staff</option>
                         </select>
                       </label>
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" name="is_optional" className="h-4 w-4" />
-                        <span className="text-xs font-medium text-ink-soft">
-                          Optional (can be done later)
-                        </span>
-                      </label>
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2">
+                          <input type="checkbox" name="is_optional" className="h-4 w-4" />
+                          <span className="text-xs font-medium text-ink-soft">
+                            Optional (can be done later)
+                          </span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            name="is_future_build"
+                            className="h-4 w-4"
+                          />
+                          <span className="text-xs font-medium text-ink-soft">
+                            Future Build
+                          </span>
+                        </label>
+                      </div>
                       <div className="col-span-2 flex items-end">
                         <button
                           type="submit"
@@ -407,6 +465,7 @@ export default async function ProfilePage({
               );
             })()}
           </details>
+          )}
 
           <form action={signOut} className="mt-9">
             <button
@@ -513,59 +572,59 @@ export default async function ProfilePage({
           </form>
         </section>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-          <h2 className="text-[15px] font-bold text-ink">Your team</h2>
-          {(teammates ?? []).map((member) => (
-            <Link
-              key={member.id}
-              href={`/profile/team/${member.id}`}
-              className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-[18px] hover:border-accent"
-            >
-              <div className="flex-1">
-                <div className="text-[15px] font-bold text-ink">
-                  {member.name || "Pending"}
-                  {member.id === user.id && (
-                    <span className="ml-2 text-xs font-medium text-ink-faint">
-                      (you)
-                    </span>
-                  )}
-                </div>
-                <div className="text-sm text-ink-soft">
-                  {CLIENT_ROLE_LABEL[member.role] ?? member.role}
-                </div>
-              </div>
-              <span
-                className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
-                  member.first_login_at
-                    ? "bg-success-soft text-success"
-                    : "bg-accent-soft text-accent"
-                }`}
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <div className="flex flex-col gap-2.5">
+            <h2 className="text-[15px] font-bold text-ink">Your team</h2>
+            {(teammates ?? []).map((member) => (
+              <Link
+                key={member.id}
+                href={`/profile/team/${member.id}`}
+                className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-[18px] hover:border-accent"
               >
-                {(member.first_login_at ? "active" : "invited").toUpperCase()}
-              </span>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0 text-ink-faint"
-              >
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </Link>
-          ))}
+                <div className="flex-1">
+                  <div className="text-[15px] font-bold text-ink">
+                    {member.name || "Pending"}
+                    {member.id === user.id && (
+                      <span className="ml-2 text-xs font-medium text-ink-faint">
+                        (you)
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm text-ink-soft">
+                    {CLIENT_ROLE_LABEL[member.role] ?? member.role}
+                  </div>
+                </div>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+                    member.first_login_at
+                      ? "bg-success-soft text-success"
+                      : "bg-accent-soft text-accent"
+                  }`}
+                >
+                  {(member.first_login_at ? "active" : "invited").toUpperCase()}
+                </span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="shrink-0 text-ink-faint"
+                >
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </Link>
+            ))}
 
-          {(teammates ?? []).length === 0 && (
-            <p className="text-sm text-ink-soft">No teammates yet.</p>
-          )}
-        </div>
+            {(teammates ?? []).length === 0 && (
+              <p className="text-sm text-ink-soft">No teammates yet.</p>
+            )}
+          </div>
 
-        {isOwner && (
-          <div className="flex w-full flex-col gap-5 lg:w-[340px] lg:shrink-0">
+          {isOwner && (
             <div className="rounded-xl border border-border bg-surface p-5">
               <h3 className="mb-3 text-[15px] font-bold text-ink">
                 Invite a teammate
@@ -602,8 +661,8 @@ export default async function ProfilePage({
                 </button>
               </form>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="px-4 pb-10 sm:px-6 lg:px-12 lg:pb-12">
@@ -657,6 +716,11 @@ function StepEditPanel({
                   Optional
                 </span>
               )}
+              {step.is_future_build && (
+                <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
+                  Future Build
+                </span>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:hidden">
               <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
@@ -688,8 +752,12 @@ function StepEditPanel({
           </div>
           <div className="mt-1.5">
             <CompletedByRadios stepId={step.id} value={step.completed_by} />
-            <div className="mt-1.5">
+            <div className="mt-1.5 flex items-center gap-4">
               <OptionalToggle stepId={step.id} value={step.is_optional} />
+              <FutureBuildToggle
+                stepId={step.id}
+                value={step.is_future_build}
+              />
             </div>
           </div>
         </div>
