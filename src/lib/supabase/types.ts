@@ -330,6 +330,7 @@ export type Database = {
           company_structure: string
           created_at: string
           email: string
+          engagement_type: string
           first_name: string
           id: string
           last_name: string
@@ -341,6 +342,7 @@ export type Database = {
           transactions_per_month: number | null
           transactions_under_contract: number | null
           updated_at: string
+          upgrade_requested_at: string | null
         }
         Insert: {
           business_name: string
@@ -349,6 +351,7 @@ export type Database = {
           company_structure: string
           created_at?: string
           email: string
+          engagement_type?: string
           first_name: string
           id?: string
           last_name: string
@@ -360,6 +363,7 @@ export type Database = {
           transactions_per_month?: number | null
           transactions_under_contract?: number | null
           updated_at?: string
+          upgrade_requested_at?: string | null
         }
         Update: {
           business_name?: string
@@ -368,6 +372,7 @@ export type Database = {
           company_structure?: string
           created_at?: string
           email?: string
+          engagement_type?: string
           first_name?: string
           id?: string
           last_name?: string
@@ -379,6 +384,7 @@ export type Database = {
           transactions_per_month?: number | null
           transactions_under_contract?: number | null
           updated_at?: string
+          upgrade_requested_at?: string | null
         }
         Relationships: [
           {
@@ -386,6 +392,44 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      setup_step_resources: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          label: string | null
+          sort_order: number
+          step_id: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string | null
+          sort_order?: number
+          step_id: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string | null
+          sort_order?: number
+          step_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setup_step_resources_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "setup_steps"
             referencedColumns: ["id"]
           },
         ]
@@ -400,11 +444,11 @@ export type Database = {
           key: string
           path: Database["public"]["Enums"]["setup_path"]
           phase: string | null
-          resource_url: string | null
           section: string
           sort_order: number
           step_type: Database["public"]["Enums"]["step_type"]
           title: string
+          video_url: string | null
         }
         Insert: {
           completed_by?: string
@@ -415,11 +459,11 @@ export type Database = {
           key: string
           path: Database["public"]["Enums"]["setup_path"]
           phase?: string | null
-          resource_url?: string | null
           section: string
           sort_order?: number
           step_type: Database["public"]["Enums"]["step_type"]
           title: string
+          video_url?: string | null
         }
         Update: {
           completed_by?: string
@@ -430,11 +474,11 @@ export type Database = {
           key?: string
           path?: Database["public"]["Enums"]["setup_path"]
           phase?: string | null
-          resource_url?: string | null
           section?: string
           sort_order?: number
           step_type?: Database["public"]["Enums"]["step_type"]
           title?: string
+          video_url?: string | null
         }
         Relationships: []
       }

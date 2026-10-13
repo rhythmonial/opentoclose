@@ -10,6 +10,12 @@ const STEP_TYPE_LABEL: Record<string, string> = {
   form: "Guide",
 };
 
+const RESOURCE_KIND_LABEL: Record<string, string> = {
+  google_doc: "Open & make a copy",
+  pdf: "Download PDF",
+  link: "Open",
+};
+
 export default async function ResourcesPage() {
   const supabase = await createClient();
   const {
@@ -33,6 +39,24 @@ export default async function ResourcesPage() {
     .select("*")
     .eq("path", setupPath)
     .order("sort_order");
+
+  const stepIds = (steps ?? []).map((s) => s.id);
+
+  const { data: resources } =
+    stepIds.length > 0
+      ? await supabase
+          .from("setup_step_resources")
+          .select("*")
+          .in("step_id", stepIds)
+          .order("sort_order")
+      : { data: [] };
+
+  const resourcesByStep = new Map<string, typeof resources>();
+  for (const r of resources ?? []) {
+    const list = resourcesByStep.get(r.step_id) ?? [];
+    list.push(r);
+    resourcesByStep.set(r.step_id, list);
+  }
 
   const businessName =
     profile?.client_accounts?.name ?? user.email ?? "Your business";
@@ -93,7 +117,11 @@ export default async function ResourcesPage() {
                           </h4>
                           <ul className="mt-2 flex flex-col gap-2">
                             {required.map((step) => (
-                              <ResourceItem key={step.id} step={step} />
+                              <ResourceItem
+                                key={step.id}
+                                step={step}
+                                resources={resourcesByStep.get(step.id) ?? []}
+                              />
                             ))}
                           </ul>
                         </div>
@@ -106,7 +134,11 @@ export default async function ResourcesPage() {
                           </h4>
                           <ul className="mt-2 flex flex-col gap-2">
                             {optional.map((step) => (
-                              <ResourceItem key={step.id} step={step} />
+                              <ResourceItem
+                                key={step.id}
+                                step={step}
+                                resources={resourcesByStep.get(step.id) ?? []}
+                              />
                             ))}
                           </ul>
                         </div>
@@ -131,40 +163,67 @@ export default async function ResourcesPage() {
 
 function ResourceItem({
   step,
+  resources,
 }: {
   step: {
     id: string;
     title: string;
     description: string | null;
     step_type: string;
-    resource_url: string | null;
+    video_url: string | null;
   };
+  resources: { id: string; kind: string; label: string | null; url: string }[];
 }) {
   return (
-    <li className="flex items-start justify-between gap-4 rounded-lg border border-border-soft bg-bg px-4 py-3">
-      <div className="flex-1">
-        <div className="text-sm font-bold text-ink">{step.title}</div>
-        {step.description && (
-          <div className="mt-0.5 text-xs text-ink-soft">
-            {step.description}
-          </div>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
+    <li className="flex flex-col gap-2.5 rounded-lg border border-border-soft bg-bg px-4 py-3">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <div className="text-sm font-bold text-ink">{step.title}</div>
+          {step.description && (
+            <div className="mt-0.5 text-xs text-ink-soft">
+              {step.description}
+            </div>
+          )}
+        </div>
+        <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
           {STEP_TYPE_LABEL[step.step_type] ?? step.step_type}
         </span>
-        {step.resource_url && (
-          <a
-            href={step.resource_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white"
-          >
-            Open &rarr;
-          </a>
-        )}
       </div>
+
+      {(step.video_url || resources.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {step.video_url && (
+            <a
+              href={step.video_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-lg bg-navy px-3 py-1.5 text-xs font-semibold text-white"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              Watch the video
+            </a>
+          )}
+          {resources.map((r) => (
+            <a
+              key={r.id}
+              href={r.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              {...(r.kind === "pdf" ? { download: true } : {})}
+              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-ink"
+            >
+              {r.label || RESOURCE_KIND_LABEL[r.kind] || "Open"}
+            </a>
+          ))}
+        </div>
+      )}
     </li>
   );
 }

@@ -2,10 +2,22 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
-import { StepOwnerIcon } from "@/components/StepOwnerIcon";
+import { CompletedByRadios } from "@/components/CompletedByRadios";
+import { PhaseSectionPicker } from "@/components/PhaseSectionPicker";
+import { StepResourcesEditor } from "@/components/StepResourcesEditor";
+import { SortableGroup } from "@/components/dnd/SortableGroup";
 import { signOut } from "@/app/login/actions";
 import { updateProfileInfo, inviteClientAdmin, inviteStaff } from "./actions";
-import { addStep, updateStep, deleteStep } from "./setup-steps-actions";
+import {
+  addStep,
+  updateStep,
+  deleteStep,
+  reorderSteps,
+} from "./setup-steps-actions";
+import type { Tables } from "@/lib/supabase/types";
+
+type SetupStep = Tables<"setup_steps">;
+type StepResource = Tables<"setup_step_resources">;
 
 const CLIENT_ROLE_LABEL: Record<string, string> = {
   client_owner: "Owner",
@@ -44,14 +56,27 @@ export default async function ProfilePage({
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
 
   if (isStaff) {
-    const [{ data: staff }, { data: steps }] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("id, role, email, first_login_at")
-        .in("role", ["dev", "dev_admin"])
-        .order("created_at"),
-      supabase.from("setup_steps").select("*").order("path").order("sort_order"),
-    ]);
+    const [{ data: staff }, { data: steps }, { data: resources }] =
+      await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, role, email, first_login_at")
+          .in("role", ["dev", "dev_admin"])
+          .order("created_at"),
+        supabase
+          .from("setup_steps")
+          .select("*")
+          .order("path")
+          .order("sort_order"),
+        supabase.from("setup_step_resources").select("*").order("sort_order"),
+      ]);
+
+    const resourcesByStep = new Map<string, StepResource[]>();
+    for (const r of resources ?? []) {
+      const list = resourcesByStep.get(r.step_id) ?? [];
+      list.push(r);
+      resourcesByStep.set(r.step_id, list);
+    }
 
     const canInvite = profile?.role === "dev_admin";
 
@@ -196,6 +221,16 @@ export default async function ProfilePage({
               const phases = Array.from(
                 new Set(pathSteps.map((s) => s.phase ?? "General")),
               );
+              const sectionsByPhase: Record<string, string[]> = {};
+              for (const phase of phases) {
+                sectionsByPhase[phase] = Array.from(
+                  new Set(
+                    pathSteps
+                      .filter((s) => (s.phase ?? "General") === phase)
+                      .map((s) => s.section),
+                  ),
+                );
+              }
 
               return (
                 <section key={path} className="mt-6">
@@ -227,172 +262,35 @@ export default async function ProfilePage({
                             </span>
                           </summary>
 
-                          {sections.map((section) => (
-                            <div key={section} className="mt-4">
-                              <h4 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
-                                {section}
-                              </h4>
-                              <div className="mt-2 flex flex-col gap-3">
-                                {phaseSteps
-                                  .filter((s) => s.section === section)
-                                  .map((step) => (
-                                    <details
-                                      key={step.id}
-                                      className="rounded-xl border border-border bg-surface p-5"
-                                    >
-                                      <summary className="flex cursor-pointer items-center justify-between gap-4">
-                                        <div className="flex items-center gap-2.5">
-                                          <StepOwnerIcon
-                                            completedBy={step.completed_by}
-                                          />
-                                          <div>
-                                            <div className="text-[15px] font-bold text-ink">
-                                              {step.sort_order}. {step.title}
-                                              {step.is_optional && (
-                                                <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
-                                                  Optional
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </div>
-                                        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
-                                          {step.step_type}
-                                        </span>
-                                      </summary>
+                          {sections.map((section) => {
+                            const sectionSteps = phaseSteps.filter(
+                              (s) => s.section === section,
+                            );
 
-                                      <form
-                                        action={updateStep}
-                                        className="mt-4 grid grid-cols-2 gap-3 border-t border-border-soft pt-4"
-                                      >
-                                        <input type="hidden" name="id" value={step.id} />
-                                        <label className="flex flex-col gap-1.5">
-                                          <span className="text-xs font-medium text-ink-soft">
-                                            Phase
-                                          </span>
-                                          <input
-                                            name="phase"
-                                            defaultValue={step.phase ?? ""}
-                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                                          />
-                                        </label>
-                                        <label className="flex flex-col gap-1.5">
-                                          <span className="text-xs font-medium text-ink-soft">
-                                            Section
-                                          </span>
-                                          <input
-                                            name="section"
-                                            defaultValue={step.section}
-                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                                          />
-                                        </label>
-                                        <label className="flex flex-col gap-1.5">
-                                          <span className="text-xs font-medium text-ink-soft">
-                                            Sort order
-                                          </span>
-                                          <input
-                                            name="sort_order"
-                                            type="number"
-                                            defaultValue={step.sort_order}
-                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                                          />
-                                        </label>
-                                        <label className="flex items-end gap-2 pb-2.5">
-                                          <input
-                                            type="checkbox"
-                                            name="is_optional"
-                                            defaultChecked={step.is_optional}
-                                            className="h-4 w-4"
-                                          />
-                                          <span className="text-xs font-medium text-ink-soft">
-                                            Optional (can be done later)
-                                          </span>
-                                        </label>
-                                        <label className="col-span-2 flex flex-col gap-1.5">
-                                          <span className="text-xs font-medium text-ink-soft">
-                                            Title
-                                          </span>
-                                          <input
-                                            name="title"
-                                            defaultValue={step.title}
-                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                                          />
-                                        </label>
-                                        <label className="col-span-2 flex flex-col gap-1.5">
-                                          <span className="text-xs font-medium text-ink-soft">
-                                            Description
-                                          </span>
-                                          <textarea
-                                            name="description"
-                                            rows={2}
-                                            defaultValue={step.description ?? ""}
-                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                                          />
-                                        </label>
-                                        <label className="col-span-2 flex flex-col gap-1.5">
-                                          <span className="text-xs font-medium text-ink-soft">
-                                            Resource URL (optional)
-                                          </span>
-                                          <input
-                                            name="resource_url"
-                                            defaultValue={step.resource_url ?? ""}
-                                            placeholder="https://..."
-                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                                          />
-                                        </label>
-                                        <label className="flex flex-col gap-1.5">
-                                          <span className="text-xs font-medium text-ink-soft">
-                                            Type
-                                          </span>
-                                          <select
-                                            name="step_type"
-                                            defaultValue={step.step_type}
-                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                                          >
-                                            {STEP_TYPES.map((t) => (
-                                              <option key={t} value={t}>
-                                                {t}
-                                              </option>
-                                            ))}
-                                          </select>
-                                        </label>
-                                        <label className="flex flex-col gap-1.5">
-                                          <span className="text-xs font-medium text-ink-soft">
-                                            Completed by
-                                          </span>
-                                          <select
-                                            name="completed_by"
-                                            defaultValue={step.completed_by}
-                                            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                                          >
-                                            <option value="client">Client</option>
-                                            <option value="staff">Staff</option>
-                                          </select>
-                                        </label>
-                                        <div className="flex items-end gap-2">
-                                          <button
-                                            type="submit"
-                                            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
-                                          >
-                                            Save
-                                          </button>
-                                        </div>
-                                      </form>
-
-                                      <form action={deleteStep} className="mt-2">
-                                        <input type="hidden" name="id" value={step.id} />
-                                        <button
-                                          type="submit"
-                                          className="text-xs font-medium text-danger"
-                                        >
-                                          Delete this step
-                                        </button>
-                                      </form>
-                                    </details>
-                                  ))}
+                            return (
+                              <div key={section} className="mt-4">
+                                <h4 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+                                  {section}
+                                </h4>
+                                <div className="mt-2">
+                                  <SortableGroup
+                                    items={sectionSteps.map((step) => ({
+                                      id: step.id,
+                                      node: (
+                                        <StepEditPanel
+                                          step={step}
+                                          resources={resourcesByStep.get(step.id) ?? []}
+                                          phases={phases}
+                                          sectionsByPhase={sectionsByPhase}
+                                        />
+                                      ),
+                                    }))}
+                                    onReorder={reorderSteps}
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </details>
                       );
                     })}
@@ -416,34 +314,21 @@ export default async function ProfilePage({
                       </label>
                       <label className="flex flex-col gap-1.5">
                         <span className="text-xs font-medium text-ink-soft">
-                          Sort order
+                          Type
                         </span>
-                        <input
-                          name="sort_order"
-                          type="number"
-                          defaultValue={0}
+                        <select
+                          name="step_type"
+                          defaultValue="video"
                           className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                        />
+                        >
+                          {STEP_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
                       </label>
-                      <label className="flex flex-col gap-1.5">
-                        <span className="text-xs font-medium text-ink-soft">
-                          Phase
-                        </span>
-                        <input
-                          name="phase"
-                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                        />
-                      </label>
-                      <label className="flex flex-col gap-1.5">
-                        <span className="text-xs font-medium text-ink-soft">
-                          Section
-                        </span>
-                        <input
-                          name="section"
-                          required
-                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                        />
-                      </label>
+                      <PhaseSectionPicker phases={phases} sectionsByPhase={sectionsByPhase} />
                       <label className="col-span-2 flex flex-col gap-1.5">
                         <span className="text-xs font-medium text-ink-soft">
                           Title
@@ -466,29 +351,13 @@ export default async function ProfilePage({
                       </label>
                       <label className="col-span-2 flex flex-col gap-1.5">
                         <span className="text-xs font-medium text-ink-soft">
-                          Resource URL (optional)
+                          Video URL
                         </span>
                         <input
-                          name="resource_url"
+                          name="video_url"
                           placeholder="https://..."
                           className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
                         />
-                      </label>
-                      <label className="flex flex-col gap-1.5">
-                        <span className="text-xs font-medium text-ink-soft">
-                          Type
-                        </span>
-                        <select
-                          name="step_type"
-                          defaultValue="video"
-                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                        >
-                          {STEP_TYPES.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          ))}
-                        </select>
                       </label>
                       <label className="flex flex-col gap-1.5">
                         <span className="text-xs font-medium text-ink-soft">
@@ -500,7 +369,8 @@ export default async function ProfilePage({
                           className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
                         >
                           <option value="client">Client</option>
-                          <option value="staff">Staff</option>
+                          <option value="staff">Staff (Setup only)</option>
+                          <option value="staff_always">Staff (always)</option>
                         </select>
                       </label>
                       <label className="flex items-end gap-2 pb-2.5">
@@ -690,5 +560,130 @@ export default async function ProfilePage({
         </form>
       </div>
     </main>
+  );
+}
+
+function StepEditPanel({
+  step,
+  resources,
+  phases,
+  sectionsByPhase,
+}: {
+  step: SetupStep;
+  resources: StepResource[];
+  phases: string[];
+  sectionsByPhase: Record<string, string[]>;
+}) {
+  return (
+    <details className="rounded-xl border border-border bg-surface p-5">
+      <summary className="flex cursor-pointer items-center justify-between gap-4">
+        <div className="flex-1">
+          <div className="text-[15px] font-bold text-ink">
+            {step.title}
+            {step.is_optional && (
+              <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+                Optional
+              </span>
+            )}
+          </div>
+          <div className="mt-1.5">
+            <CompletedByRadios stepId={step.id} value={step.completed_by} />
+          </div>
+        </div>
+        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
+          {step.step_type}
+        </span>
+      </summary>
+
+      <form
+        action={updateStep}
+        className="mt-4 grid grid-cols-2 gap-3 border-t border-border-soft pt-4"
+      >
+        <input type="hidden" name="id" value={step.id} />
+        <PhaseSectionPicker
+          phases={phases}
+          sectionsByPhase={sectionsByPhase}
+          defaultPhase={step.phase ?? ""}
+          defaultSection={step.section}
+        />
+        <label className="col-span-2 flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-ink-soft">Title</span>
+          <input
+            name="title"
+            defaultValue={step.title}
+            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+          />
+        </label>
+        <label className="col-span-2 flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-ink-soft">
+            Description
+          </span>
+          <textarea
+            name="description"
+            rows={2}
+            defaultValue={step.description ?? ""}
+            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+          />
+        </label>
+        <label className="col-span-2 flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-ink-soft">Video URL</span>
+          <input
+            name="video_url"
+            defaultValue={step.video_url ?? ""}
+            placeholder="https://..."
+            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-ink-soft">Type</span>
+          <select
+            name="step_type"
+            defaultValue={step.step_type}
+            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+          >
+            {STEP_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-end gap-2 pb-2.5">
+          <input
+            type="checkbox"
+            name="is_optional"
+            defaultChecked={step.is_optional}
+            className="h-4 w-4"
+          />
+          <span className="text-xs font-medium text-ink-soft">
+            Optional (can be done later)
+          </span>
+        </label>
+        <div className="col-span-2 flex items-end gap-2">
+          <button
+            type="submit"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
+          >
+            Save
+          </button>
+        </div>
+      </form>
+
+      <div className="mt-4 border-t border-border-soft pt-4">
+        <span className="text-xs font-medium text-ink-soft">
+          Resource links
+        </span>
+        <div className="mt-2">
+          <StepResourcesEditor stepId={step.id} initialResources={resources} />
+        </div>
+      </div>
+
+      <form action={deleteStep} className="mt-3">
+        <input type="hidden" name="id" value={step.id} />
+        <button type="submit" className="text-xs font-medium text-danger">
+          Delete this step
+        </button>
+      </form>
+    </details>
   );
 }

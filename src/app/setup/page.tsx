@@ -144,6 +144,44 @@ export default async function SetupInitiationPage({
               ))}
             </select>
           </label>
+          <div className="col-span-2 flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-ink">
+              How would you like your setup handled?
+            </span>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex cursor-pointer flex-col gap-1 rounded-lg border border-border bg-surface px-3.5 py-3 has-[:checked]:border-accent has-[:checked]:bg-accent-soft">
+                <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <input
+                    type="radio"
+                    name="engagement_type"
+                    value="custom"
+                    defaultChecked={(existing?.engagement_type ?? "custom") === "custom"}
+                    className="h-4 w-4"
+                  />
+                  Full Setup
+                </span>
+                <span className="text-xs text-ink-soft">
+                  Our team builds the steps assigned to us. A 10-hour bundle.
+                </span>
+              </label>
+              <label className="flex cursor-pointer flex-col gap-1 rounded-lg border border-border bg-surface px-3.5 py-3 has-[:checked]:border-accent has-[:checked]:bg-accent-soft">
+                <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <input
+                    type="radio"
+                    name="engagement_type"
+                    value="diy"
+                    defaultChecked={existing?.engagement_type === "diy"}
+                    className="h-4 w-4"
+                  />
+                  DIY
+                </span>
+                <span className="text-xs text-ink-soft">
+                  You complete every step yourself, using our checklist and
+                  videos as your guide. You can upgrade to Full Setup later.
+                </span>
+              </label>
+            </div>
+          </div>
           <div className="col-span-2">
             <StatesServicedField
               defaultStates={

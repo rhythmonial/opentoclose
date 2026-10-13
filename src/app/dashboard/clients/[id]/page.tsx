@@ -3,12 +3,19 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ClientStatusSelect } from "@/components/ClientStatusSelect";
 import { StepOwnerIcon } from "@/components/StepOwnerIcon";
+import { effectiveOwner, type EngagementType } from "@/lib/stepOwnership";
 import {
   approveSubmission,
   returnSubmission,
   markStaffStepComplete,
+  markUpgraded,
 } from "../../actions";
 import { logHours } from "./actions";
+
+const ENGAGEMENT_LABEL: Record<string, string> = {
+  custom: "Full Setup",
+  diy: "DIY",
+};
 
 const STEP_STATUS_LABEL: Record<string, string> = {
   not_started: "Not Started",
@@ -58,7 +65,7 @@ export default async function ClientDetailPage({
   const owner = (members ?? []).find((m) => m.role === "client_owner") ?? members?.[0];
   const memberIds = (members ?? []).map((m) => m.id);
 
-  const [{ data: statuses }, { data: submissions }, { data: hoursLog }] =
+  const [{ data: statuses }, { data: submissions }, { data: hoursLog }, { data: initiation }] =
     await Promise.all([
       owner
         ? supabase
@@ -80,6 +87,13 @@ export default async function ClientDetailPage({
             .in("client_id", memberIds)
             .order("logged_date", { ascending: false })
         : Promise.resolve({ data: [] }),
+      owner
+        ? supabase
+            .from("setup_initiation")
+            .select("engagement_type, upgrade_requested_at")
+            .eq("client_id", owner.id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
   const statusByStepId = new Map((statuses ?? []).map((s) => [s.step_id, s.status]));
@@ -88,6 +102,7 @@ export default async function ClientDetailPage({
   );
 
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
+  const engagementType = (initiation?.engagement_type ?? "custom") as EngagementType;
 
   return (
     <main className="px-12 py-9">
@@ -100,12 +115,46 @@ export default async function ClientDetailPage({
           <h1 className="font-display text-[25px] font-bold text-ink">
             {account.name}
           </h1>
-          <p className="mt-1.5 text-sm capitalize text-ink-soft">
-            {account.setup_path ?? "custom"} path
+          <p className="mt-1.5 flex items-center gap-2 text-sm text-ink-soft">
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${
+                engagementType === "diy"
+                  ? "bg-warning-soft text-warning"
+                  : "bg-accent-soft text-accent"
+              }`}
+            >
+              {ENGAGEMENT_LABEL[engagementType]}
+            </span>
           </p>
         </div>
         <ClientStatusSelect accountId={account.id} status={account.status} />
       </div>
+
+      {initiation?.upgrade_requested_at && owner && (
+        <div className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-accent-soft bg-accent-soft/40 px-5 py-4">
+          <div>
+            <div className="text-sm font-bold text-ink">
+              Wants to upgrade to Full Setup
+            </div>
+            <div className="text-xs text-ink-soft">
+              Requested{" "}
+              {new Date(initiation.upgrade_requested_at).toLocaleDateString(
+                "en-US",
+                { month: "short", day: "numeric", year: "numeric" },
+              )}
+            </div>
+          </div>
+          <form action={markUpgraded}>
+            <input type="hidden" name="client_id" value={owner.id} />
+            <button
+              type="submit"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
+            >
+              Mark as Upgraded
+            </button>
+          </form>
+        </div>
+      )}
 
       <div className="mt-7 grid grid-cols-3 gap-4">
         <div className="rounded-xl border border-border bg-surface p-5">
@@ -254,7 +303,8 @@ export default async function ClientDetailPage({
                                     </p>
                                   )}
 
-                                  {step.completed_by === "staff" &&
+                                  {effectiveOwner(step.completed_by, engagementType) ===
+                                    "staff" &&
                                     status !== "approved" &&
                                     owner && (
                                       <form

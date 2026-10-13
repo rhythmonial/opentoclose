@@ -82,6 +82,19 @@ export async function markStaffStepComplete(formData: FormData) {
   revalidatePath("/dashboard/clients", "layout");
 }
 
+export async function markUpgraded(formData: FormData) {
+  const clientId = String(formData.get("client_id") ?? "");
+
+  const supabase = await createClient();
+  await supabase
+    .from("setup_initiation")
+    .update({ engagement_type: "custom", upgrade_requested_at: null })
+    .eq("client_id", clientId);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/clients", "layout");
+}
+
 export async function updateClientStatus(formData: FormData) {
   const accountId = String(formData.get("account_id") ?? "");
   const status = String(formData.get("status") ?? "");

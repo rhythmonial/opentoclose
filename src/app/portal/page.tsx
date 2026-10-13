@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
+import { effectiveOwner, type EngagementType } from "@/lib/stepOwnership";
+import { requestUpgrade } from "./actions";
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not Started",
@@ -39,7 +41,7 @@ export default async function PortalPage() {
 
   const setupPath = profile?.client_accounts?.setup_path ?? "custom";
 
-  const [{ data: steps }, { data: statuses }, { data: hoursLog }] =
+  const [{ data: allSteps }, { data: statuses }, { data: hoursLog }, { data: initiation }] =
     await Promise.all([
       supabase
         .from("setup_steps")
@@ -56,7 +58,20 @@ export default async function PortalPage() {
         .eq("client_id", user.id)
         .order("logged_date", { ascending: false })
         .limit(5),
+      supabase
+        .from("setup_initiation")
+        .select("engagement_type, upgrade_requested_at")
+        .eq("client_id", user.id)
+        .maybeSingle(),
     ]);
+
+  const engagementType = (initiation?.engagement_type ?? "custom") as EngagementType;
+
+  // The task pipeline only shows what's actually assigned to this client —
+  // staff-owned steps are tracked on our side and don't show up here.
+  const steps = (allSteps ?? []).filter(
+    (s) => effectiveOwner(s.completed_by, engagementType) === "client",
+  );
 
   const statusByStep = new Map(
     (statuses ?? []).map((s) => [s.step_id, s.status]),
@@ -91,7 +106,7 @@ export default async function PortalPage() {
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-ink-soft">
-              {(steps ?? []).length} total steps &middot;{" "}
+              {steps.length} steps assigned to you &middot;{" "}
               <Link href="/resources" className="font-semibold text-accent">
                 View the full Resource Center &rarr;
               </Link>
@@ -100,10 +115,10 @@ export default async function PortalPage() {
 
           {(() => {
             const phaseList = Array.from(
-              new Set((steps ?? []).map((s) => s.phase ?? "General")),
+              new Set(steps.map((s) => s.phase ?? "General")),
             );
             const phaseComplete = phaseList.map((phase) => {
-              const required = (steps ?? []).filter(
+              const required = steps.filter(
                 (s) => (s.phase ?? "General") === phase && !s.is_optional,
               );
               return required.every(
@@ -115,7 +130,7 @@ export default async function PortalPage() {
               activeIndex === -1 ? phaseList.length - 1 : activeIndex;
 
             return phaseList.map((phase, phaseIndex) => {
-              const phaseSteps = (steps ?? []).filter(
+              const phaseSteps = steps.filter(
                 (s) => (s.phase ?? "General") === phase,
               );
               const sections = Array.from(
@@ -236,10 +251,8 @@ export default async function PortalPage() {
                           .map((step) => {
                             const status =
                               statusByStep.get(step.id) ?? "not_started";
-                            const isStaffStep = step.completed_by === "staff";
-                            const href = isStaffStep
-                              ? undefined
-                              : step.key === "setup_initiation"
+                            const href =
+                              step.key === "setup_initiation"
                                 ? "/setup"
                                 : step.step_type === "configurator"
                                   ? `/configurator/${step.key}`
@@ -283,11 +296,6 @@ export default async function PortalPage() {
                                 >
                                   {STATUS_LABEL[status].toUpperCase()}
                                 </span>
-                                {isStaffStep && status !== "approved" && (
-                                  <span className="text-xs font-medium text-ink-faint">
-                                    Handled by our team
-                                  </span>
-                                )}
                                 {isClickable && (
                                   <span className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
                                     {status === "not_started"
@@ -310,7 +318,7 @@ export default async function PortalPage() {
           });
           })()}
 
-          {(steps ?? []).length === 0 && (
+          {steps.length === 0 && (
             <p className="text-sm text-ink-soft">
               No setup steps configured yet for this path.
             </p>
@@ -343,6 +351,32 @@ export default async function PortalPage() {
               Request Additional Bundle
             </button>
           </div>
+
+          {engagementType === "diy" && (
+            <div className="rounded-xl border border-accent-soft bg-accent-soft/40 p-5">
+              <h3 className="mb-1.5 text-[15px] font-bold text-ink">
+                Want us to handle it?
+              </h3>
+              <p className="mb-3 text-sm text-ink-soft">
+                Upgrade to Full Setup at any point &mdash; it&rsquo;s always a
+                flat 10-hour bundle, no matter how far along you are.
+              </p>
+              {initiation?.upgrade_requested_at ? (
+                <p className="text-sm font-semibold text-success">
+                  Request sent &mdash; we&rsquo;ll be in touch.
+                </p>
+              ) : (
+                <form action={requestUpgrade}>
+                  <button
+                    type="submit"
+                    className="w-full rounded-lg bg-accent px-2.5 py-2.5 text-sm font-semibold text-white"
+                  >
+                    Request Full Setup Upgrade
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
 
           <div className="rounded-xl border border-border bg-surface p-5">
             <h3 className="mb-3.5 text-[15px] font-bold text-ink">Work Log</h3>
