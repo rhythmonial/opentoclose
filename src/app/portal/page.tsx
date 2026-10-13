@@ -65,16 +65,10 @@ export default async function PortalPage() {
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
   const businessName =
     profile?.client_accounts?.name ?? user.email ?? "Your business";
-  const initials = businessName
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <TopNav businessName={businessName} initials={initials} active="setup" />
+      <TopNav businessName={businessName} active="setup" />
 
       <div className="flex items-start justify-between px-12 pt-9">
         <div>

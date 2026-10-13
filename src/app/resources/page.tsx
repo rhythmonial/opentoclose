@@ -36,12 +36,6 @@ export default async function ResourcesPage() {
 
   const businessName =
     profile?.client_accounts?.name ?? user.email ?? "Your business";
-  const initials = businessName
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   const phases = Array.from(
     new Set((steps ?? []).map((s) => s.phase ?? "General")),
@@ -49,7 +43,7 @@ export default async function ResourcesPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <TopNav businessName={businessName} initials={initials} active="resources" />
+      <TopNav businessName={businessName} active="resources" />
 
       <div className="px-12 pt-9">
         <h1 className="font-display text-[25px] font-bold text-ink">

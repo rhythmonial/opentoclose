@@ -568,18 +568,12 @@ export default async function ProfilePage({
     : { data: null };
 
   const businessName = account?.name ?? user.email ?? "Your business";
-  const initials = businessName
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   const isOwner = profile?.role === "client_owner";
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <TopNav businessName={businessName} initials={initials} active="profile" />
+      <TopNav businessName={businessName} />
 
       <div className="px-12 pt-9">
         <h1 className="font-display text-[25px] font-bold text-ink">
