@@ -25,6 +25,7 @@ export async function updateProfileInfo(formData: FormData) {
     .eq("id", user.id);
 
   revalidatePath("/profile");
+  redirect("/profile?saved=1");
 }
 
 export async function inviteClientAdmin(formData: FormData) {
