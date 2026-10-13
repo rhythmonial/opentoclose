@@ -64,7 +64,7 @@ export default async function StaffMemberPage({
   }
 
   const { data: logRows } = await supabase
-    .from("staff_activity_log")
+    .from("profile_activity_log")
     .select(
       "id, event_type, detail, created_at, actor:profiles!staff_activity_log_actor_id_fkey(name, email)",
     )
@@ -136,6 +136,11 @@ export default async function StaffMemberPage({
                   Email updated.
                 </div>
               )}
+              {reset && (
+                <div className="mb-3.5 rounded-lg border border-success/30 bg-success-soft px-3.5 py-2.5 text-sm text-success">
+                  Reset link sent.
+                </div>
+              )}
               {error && (
                 <div className="mb-3.5 rounded-lg border border-danger/30 bg-danger/5 px-3.5 py-2.5 text-sm text-danger">
                   {error}
@@ -151,36 +156,21 @@ export default async function StaffMemberPage({
                   defaultValue={member.email ?? ""}
                   className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
                 />
-                <button
-                  type="submit"
-                  className="self-start rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
-                >
-                  Update email
-                </button>
-              </form>
-            </section>
-
-            <section className="rounded-xl border border-border bg-surface p-5">
-              <h2 className="mb-3 text-[15px] font-bold text-ink">Password</h2>
-
-              {reset && (
-                <div className="mb-3.5 rounded-lg border border-success/30 bg-success-soft px-3.5 py-2.5 text-sm text-success">
-                  Reset link sent.
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
+                  >
+                    Update email
+                  </button>
+                  <button
+                    type="submit"
+                    formAction={sendStaffPasswordReset}
+                    className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-ink"
+                  >
+                    Reset Password
+                  </button>
                 </div>
-              )}
-
-              <p className="mb-3.5 text-sm text-ink-soft">
-                Sends {member.name || "this teammate"} an email with a link to
-                set a new password.
-              </p>
-              <form action={sendStaffPasswordReset}>
-                <input type="hidden" name="id" value={member.id} />
-                <button
-                  type="submit"
-                  className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-ink"
-                >
-                  Send password reset
-                </button>
               </form>
             </section>
           </div>

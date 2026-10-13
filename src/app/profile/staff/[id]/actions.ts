@@ -64,7 +64,7 @@ export async function updateStaffEmail(formData: FormData) {
 
   await supabase.from("profiles").update({ email }).eq("id", targetId);
 
-  await supabase.from("staff_activity_log").insert({
+  await supabase.from("profile_activity_log").insert({
     profile_id: targetId,
     actor_id: actorId,
     event_type: "email_changed",
@@ -96,7 +96,7 @@ export async function sendStaffPasswordReset(formData: FormData) {
     redirectTo: `${origin}/reset-password`,
   });
 
-  await supabase.from("staff_activity_log").insert({
+  await supabase.from("profile_activity_log").insert({
     profile_id: targetId,
     actor_id: actorId,
     event_type: "password_reset_requested",

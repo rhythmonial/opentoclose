@@ -440,6 +440,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          instructions: string | null
           is_optional: boolean
           key: string
           link_url: string | null
@@ -456,6 +457,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          instructions?: string | null
           is_optional?: boolean
           key: string
           link_url?: string | null
@@ -472,6 +474,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          instructions?: string | null
           is_optional?: boolean
           key?: string
           link_url?: string | null
@@ -485,7 +488,7 @@ export type Database = {
         }
         Relationships: []
       }
-      staff_activity_log: {
+      profile_activity_log: {
         Row: {
           actor_id: string | null
           created_at: string

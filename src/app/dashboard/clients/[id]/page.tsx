@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ClientStatusSelect } from "@/components/ClientStatusSelect";
 import { StepOwnerIcon } from "@/components/StepOwnerIcon";
+import { TimerButton } from "@/components/TimerButton";
 import { effectiveOwner, type EngagementType } from "@/lib/stepOwnership";
 import {
   approveSubmission,
@@ -10,7 +11,7 @@ import {
   markStaffStepComplete,
   markUpgraded,
 } from "../../actions";
-import { logHours } from "./actions";
+import { logHours, logTimedHours } from "./actions";
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
   custom: "Setup ($999)",
@@ -103,6 +104,20 @@ export default async function ClientDetailPage({
 
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
   const engagementType = (initiation?.engagement_type ?? "custom") as EngagementType;
+
+  const phases = Array.from(new Set((steps ?? []).map((s) => s.phase ?? "General")));
+  const sortedSteps = (steps ?? [])
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order);
+  let currentPhase: string | null = null;
+  if (owner) {
+    const nextStep = sortedSteps.find(
+      (s) => statusByStepId.get(s.id) !== "approved",
+    );
+    currentPhase = nextStep
+      ? (nextStep.phase ?? "General")
+      : (phases[phases.length - 1] ?? null);
+  }
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
@@ -213,11 +228,20 @@ export default async function ClientDetailPage({
       </section>
 
       <section className="mt-9">
-        <h2 className="font-display text-lg font-bold text-ink">
-          Setup Steps
-        </h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-display text-lg font-bold text-ink">
+            Setup Steps
+          </h2>
+          {owner && (
+            <TimerButton
+              accountId={account.id}
+              clientId={owner.id}
+              onStop={logTimedHours}
+            />
+          )}
+        </div>
         <div className="mt-3 flex flex-col gap-3">
-          {Array.from(new Set((steps ?? []).map((s) => s.phase ?? "General"))).map(
+          {phases.map(
             (phase) => {
               const phaseSteps = (steps ?? []).filter(
                 (s) => (s.phase ?? "General") === phase,
@@ -232,6 +256,7 @@ export default async function ClientDetailPage({
               return (
                 <details
                   key={phase}
+                  open={phase === currentPhase}
                   className="rounded-xl border border-border bg-surface p-5"
                 >
                   <summary className="flex cursor-pointer items-center justify-between gap-4">

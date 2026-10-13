@@ -126,7 +126,7 @@ export async function inviteStaff(formData: FormData) {
   }
 
   if (invited.user) {
-    await supabase.from("staff_activity_log").insert({
+    await supabase.from("profile_activity_log").insert({
       profile_id: invited.user.id,
       actor_id: user.id,
       event_type: "invited",

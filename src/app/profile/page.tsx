@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
@@ -515,13 +516,14 @@ export default async function ProfilePage({
         <div className="flex min-w-0 flex-1 flex-col gap-2.5">
           <h2 className="text-[15px] font-bold text-ink">Your team</h2>
           {(teammates ?? []).map((member) => (
-            <div
+            <Link
               key={member.id}
-              className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-[18px]"
+              href={`/profile/team/${member.id}`}
+              className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-[18px] hover:border-accent"
             >
               <div className="flex-1">
                 <div className="text-[15px] font-bold text-ink">
-                  {member.name || member.email || "Pending"}
+                  {member.name || "Pending"}
                   {member.id === user.id && (
                     <span className="ml-2 text-xs font-medium text-ink-faint">
                       (you)
@@ -530,12 +532,6 @@ export default async function ProfilePage({
                 </div>
                 <div className="text-sm text-ink-soft">
                   {CLIENT_ROLE_LABEL[member.role] ?? member.role}
-                  {member.name && member.email && (
-                    <>
-                      {" "}
-                      &middot; {member.email}
-                    </>
-                  )}
                 </div>
               </div>
               <span
@@ -547,7 +543,20 @@ export default async function ProfilePage({
               >
                 {(member.first_login_at ? "active" : "invited").toUpperCase()}
               </span>
-            </div>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="shrink-0 text-ink-faint"
+              >
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </Link>
           ))}
 
           {(teammates ?? []).length === 0 && (
@@ -713,6 +722,26 @@ function StepEditPanel({
         </div>
       </summary>
 
+      {step.instructions && (
+        <details className="mt-4 rounded-lg border border-border-soft bg-bg p-3.5">
+          <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-ink-faint">
+            Instructions
+          </summary>
+          <div
+            className="mt-3 text-sm leading-relaxed text-ink-soft
+              [&_h1]:mt-3 [&_h1]:font-display [&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-ink
+              [&_h2]:mt-3 [&_h2]:font-display [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-ink
+              [&_h3]:mt-2 [&_h3]:font-bold [&_h3]:text-ink
+              [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
+              [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
+              [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
+              [&_li]:mt-1 first:[&>*]:mt-0"
+          >
+            <ReactMarkdown>{step.instructions}</ReactMarkdown>
+          </div>
+        </details>
+      )}
+
       <form
         id={`step-form-${step.id}`}
         action={updateStep}
@@ -747,6 +776,16 @@ function StepEditPanel({
             name="description"
             rows={2}
             defaultValue={step.description ?? ""}
+          />
+        </label>
+        <label className="flex flex-col gap-1.5 sm:col-span-2">
+          <span className="text-xs font-medium text-ink-soft">
+            Instructions (what needs to be done for this task)
+          </span>
+          <MarkdownTextarea
+            name="instructions"
+            rows={6}
+            defaultValue={step.instructions ?? ""}
           />
         </label>
       </form>

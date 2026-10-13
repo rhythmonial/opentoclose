@@ -55,6 +55,7 @@ export async function updateStep(formData: FormData) {
       section: String(formData.get("section")),
       title: String(formData.get("title")),
       description: String(formData.get("description") ?? "") || null,
+      instructions: String(formData.get("instructions") ?? "") || null,
       step_type: String(formData.get("step_type")) as
         | "lesson"
         | "form"

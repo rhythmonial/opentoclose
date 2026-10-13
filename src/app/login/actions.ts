@@ -23,6 +23,12 @@ export async function signIn(formData: FormData) {
     .eq("id", data.user.id)
     .single();
 
+  await supabase.from("profile_activity_log").insert({
+    profile_id: data.user.id,
+    actor_id: data.user.id,
+    event_type: "sign_in",
+  });
+
   if (profile?.role === "dev" || profile?.role === "dev_admin") {
     redirect("/dashboard");
   }
