@@ -10,7 +10,6 @@ const TOOLS = [
   "Open to Close",
   "Follow Up Boss",
   "Google Sheets / Spreadsheets",
-  "None yet",
 ];
 
 export function ToolsChecklist({
@@ -48,6 +47,7 @@ export function ToolsChecklist({
       {otherChecked && (
         <input
           name="tools_other"
+          required
           defaultValue={defaultOther}
           placeholder="What else do you use?"
           className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"

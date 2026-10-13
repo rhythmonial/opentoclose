@@ -593,6 +593,14 @@ function StepEditPanel({
         <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
           {step.step_type}
         </span>
+        <a
+          href={`/resources#step-${step.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink"
+        >
+          View &rarr;
+        </a>
       </summary>
 
       <form

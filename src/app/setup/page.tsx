@@ -2,7 +2,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ToolsChecklist } from "@/components/ToolsChecklist";
-import { StatesServicedField } from "@/components/StatesServicedField";
+import {
+  StatesServicedField,
+  normalizeStateName,
+} from "@/components/StatesServicedField";
 import { submitSetupInitiation } from "./actions";
 
 const COMPANY_STRUCTURES = [
@@ -188,17 +191,19 @@ export default async function SetupInitiationPage({
                 existing?.states_serviced
                   ? existing.states_serviced
                       .split(",")
-                      .map((s) => s.trim())
+                      .map((s) => normalizeStateName(s.trim()))
                       .filter(Boolean)
                   : []
               }
-              defaultPriorityState={existing?.priority_state ?? ""}
+              defaultPriorityState={normalizeStateName(
+                existing?.priority_state ?? "",
+              )}
             />
           </div>
           <div className="col-span-2 grid grid-cols-3 gap-4">
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-ink">
-                # of transactions under contract
+                # of under contract
               </span>
               <input
                 name="transactions_under_contract"
@@ -210,7 +215,7 @@ export default async function SetupInitiationPage({
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-ink">
-                # of transactions closed per month
+                # of closed this month
               </span>
               <input
                 name="transactions_per_month"

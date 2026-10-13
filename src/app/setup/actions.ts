@@ -16,6 +16,14 @@ export async function submitSetupInitiation(formData: FormData) {
   const tools = formData.getAll("tools").map(String);
   const toolsOther = String(formData.get("tools_other") ?? "").trim();
 
+  if (tools.length === 0 && !toolsOther) {
+    redirect(
+      `/setup?error=${encodeURIComponent(
+        "Select at least one tool you're currently using, or tell us under Other.",
+      )}`,
+    );
+  }
+
   const { error } = await supabase.from("setup_initiation").upsert(
     {
       client_id: user.id,
