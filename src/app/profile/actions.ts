@@ -110,16 +110,27 @@ export async function inviteStaff(formData: FormData) {
 
   const origin = await siteOrigin();
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: {
-      role: "dev_admin",
-      business_name: "TC Optimize (Internal)",
+  const { data: invited, error } = await admin.auth.admin.inviteUserByEmail(
+    email,
+    {
+      data: {
+        role: "dev_admin",
+        business_name: "TC Optimize (Internal)",
+      },
+      redirectTo: `${origin}/reset-password`,
     },
-    redirectTo: `${origin}/reset-password`,
-  });
+  );
 
   if (error) {
     redirect(`/profile?error=${encodeURIComponent(error.message)}`);
+  }
+
+  if (invited.user) {
+    await supabase.from("staff_activity_log").insert({
+      profile_id: invited.user.id,
+      actor_id: user.id,
+      event_type: "invited",
+    });
   }
 
   redirect("/profile?invited=1");

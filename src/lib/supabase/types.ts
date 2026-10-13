@@ -485,6 +485,48 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_activity_log: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          detail: string | null
+          event_type: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          detail?: string | null
+          event_type: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          detail?: string | null
+          event_type?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_activity_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_activity_log_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       submissions: {
         Row: {
           client_id: string
@@ -583,6 +625,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_dev: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       my_client_account_id: { Args: never; Returns: string }
       run_legacy_cleanup: { Args: never; Returns: string }

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
@@ -82,6 +83,7 @@ export default async function ProfilePage({
     }
 
     const canInvite = profile?.role === "dev_admin";
+    const canManageStaff = profile?.role === "dev";
 
     return (
       <div className="flex min-h-screen flex-col bg-bg">
@@ -140,41 +142,66 @@ export default async function ProfilePage({
               <h2 className="text-[15px] font-bold text-ink">
                 Internal team
               </h2>
-              {(staff ?? []).map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-[18px]"
-                >
-                  <div className="flex-1">
-                    <div className="text-[15px] font-bold text-ink">
-                      {member.name || member.email || "Pending"}
-                      {member.id === user.id && (
-                        <span className="ml-2 text-xs font-medium text-ink-faint">
-                          (you)
-                        </span>
-                      )}
+              {(staff ?? []).map((member) => {
+                const row = (
+                  <>
+                    <div className="flex-1">
+                      <div className="text-[15px] font-bold text-ink">
+                        {member.name || "Pending"}
+                        {member.id === user.id && (
+                          <span className="ml-2 text-xs font-medium text-ink-faint">
+                            (you)
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-ink-soft">
+                        {STAFF_ROLE_LABEL[member.role] ?? member.role}
+                      </div>
                     </div>
-                    <div className="text-sm text-ink-soft">
-                      {STAFF_ROLE_LABEL[member.role] ?? member.role}
-                      {member.name && member.email && (
-                        <>
-                          {" "}
-                          &middot; {member.email}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
-                      member.first_login_at
-                        ? "bg-success-soft text-success"
-                        : "bg-accent-soft text-accent"
-                    }`}
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+                        member.first_login_at
+                          ? "bg-success-soft text-success"
+                          : "bg-accent-soft text-accent"
+                      }`}
+                    >
+                      {(member.first_login_at ? "active" : "invited").toUpperCase()}
+                    </span>
+                    {canManageStaff && (
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="shrink-0 text-ink-faint"
+                      >
+                        <path d="M9 18l6-6-6-6" />
+                      </svg>
+                    )}
+                  </>
+                );
+
+                return canManageStaff ? (
+                  <Link
+                    key={member.id}
+                    href={`/profile/staff/${member.id}`}
+                    className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-[18px] hover:border-accent"
                   >
-                    {(member.first_login_at ? "active" : "invited").toUpperCase()}
-                  </span>
-                </div>
-              ))}
+                    {row}
+                  </Link>
+                ) : (
+                  <div
+                    key={member.id}
+                    className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-[18px]"
+                  >
+                    {row}
+                  </div>
+                );
+              })}
             </div>
 
             {canInvite && (
