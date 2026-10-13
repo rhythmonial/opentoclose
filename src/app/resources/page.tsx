@@ -175,10 +175,7 @@ function ResourceItem({
   resources: { id: string; kind: string; label: string | null; url: string }[];
 }) {
   return (
-    <li
-      id={`step-${step.id}`}
-      className="flex scroll-mt-24 flex-col gap-2.5 rounded-lg border border-border-soft bg-bg px-4 py-3 target:ring-2 target:ring-accent"
-    >
+    <li className="flex flex-col gap-2.5 rounded-lg border border-border-soft bg-bg px-4 py-3">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <div className="text-sm font-bold text-ink">{step.title}</div>

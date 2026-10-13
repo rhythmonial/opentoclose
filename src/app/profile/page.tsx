@@ -594,12 +594,26 @@ function StepEditPanel({
           {step.step_type}
         </span>
         <a
-          href={`/resources#step-${step.id}`}
+          href={`/lesson/${step.id}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink"
+          title="View as the client sees it"
+          aria-label="View as the client sees it"
+          className="flex shrink-0 items-center justify-center rounded-lg border border-border px-2.5 py-2 text-ink"
         >
-          View &rarr;
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
         </a>
       </summary>
 

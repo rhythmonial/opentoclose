@@ -143,34 +143,67 @@ export default async function PortalPage() {
               const isLocked = phaseIndex > currentPhaseIndex;
 
               if (isLocked) {
+                const sections = Array.from(
+                  new Set(phaseSteps.map((s) => s.section)),
+                );
+
                 return (
-                  <div
+                  <details
                     key={phase}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-dashed border-border-soft bg-bg px-5 py-4 opacity-60"
+                    className="rounded-xl border border-dashed border-border-soft bg-bg p-5 opacity-80"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <svg
-                        width="15"
-                        height="15"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="text-ink-faint"
-                      >
-                        <rect x="3" y="11" width="18" height="11" rx="2" />
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                      </svg>
-                      <h2 className="font-display text-base font-bold text-ink-faint">
-                        {phase}
-                      </h2>
+                    <summary className="flex cursor-pointer items-center justify-between gap-4">
+                      <div className="flex items-center gap-2.5">
+                        <svg
+                          width="15"
+                          height="15"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="text-ink-faint"
+                        >
+                          <rect x="3" y="11" width="18" height="11" rx="2" />
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                        <h2 className="font-display text-base font-bold text-ink-faint">
+                          {phase}
+                        </h2>
+                      </div>
+                      <span className="text-xs font-medium text-ink-faint">
+                        Unlocks after {phaseList[phaseIndex - 1]}
+                      </span>
+                    </summary>
+
+                    <div className="mt-4 flex flex-col gap-4">
+                      {sections.map((section) => (
+                        <div key={section}>
+                          <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+                            {section}
+                          </h3>
+                          <div className="mt-2 flex flex-col gap-2">
+                            {phaseSteps
+                              .filter((s) => s.section === section)
+                              .map((s) => (
+                                <div
+                                  key={s.id}
+                                  className="rounded-lg border border-border-soft bg-surface px-4 py-2.5 text-sm font-medium text-ink-faint"
+                                >
+                                  {s.title}
+                                  {s.is_optional && (
+                                    <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+                                      Optional
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <span className="text-xs font-medium text-ink-faint">
-                      Unlocks after {phaseList[phaseIndex - 1]}
-                    </span>
-                  </div>
+                  </details>
                 );
               }
 
@@ -256,7 +289,7 @@ export default async function PortalPage() {
                                 ? "/setup"
                                 : step.step_type === "configurator"
                                   ? `/configurator/${step.key}`
-                                  : undefined;
+                                  : `/lesson/${step.id}`;
                             const isClickable = Boolean(href);
 
                             const Wrapper = href ? Link : "div";
