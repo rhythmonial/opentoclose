@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
 import { CompletedByRadios } from "@/components/CompletedByRadios";
+import { OptionalToggle } from "@/components/OptionalToggle";
 import { PhaseSectionPicker } from "@/components/PhaseSectionPicker";
 import { LessonTypeFields } from "@/components/LessonTypeFields";
 import { StepResourcesEditor } from "@/components/StepResourcesEditor";
@@ -303,7 +304,7 @@ export default async function ProfilePage({
                     </summary>
                     <form action={addStep} className="mt-4 grid grid-cols-2 gap-3">
                       <input type="hidden" name="path" value={path} />
-                      <label className="flex flex-col gap-1.5">
+                      <label className="col-span-2 flex flex-col gap-1.5">
                         <span className="text-xs font-medium text-ink-soft">
                           Key (unique, e.g. kickoff_call)
                         </span>
@@ -314,15 +315,8 @@ export default async function ProfilePage({
                         />
                       </label>
                       <PhaseSectionPicker phases={phases} sectionsByPhase={sectionsByPhase} />
-                      <LessonTypeFields defaultType="lesson">
-                        <label className="flex items-end gap-2 pb-2.5">
-                          <input type="checkbox" name="is_optional" className="h-4 w-4" />
-                          <span className="text-xs font-medium text-ink-soft">
-                            Optional (can be done later)
-                          </span>
-                        </label>
-                      </LessonTypeFields>
-                      <label className="col-span-2 flex flex-col gap-1.5">
+                      <LessonTypeFields defaultType="lesson" />
+                      <label className="flex flex-col gap-1.5">
                         <span className="text-xs font-medium text-ink-soft">
                           Title
                         </span>
@@ -332,7 +326,7 @@ export default async function ProfilePage({
                           className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
                         />
                       </label>
-                      <label className="col-span-2 flex flex-col gap-1.5">
+                      <label className="flex flex-col gap-1.5">
                         <span className="text-xs font-medium text-ink-soft">
                           Description
                         </span>
@@ -356,7 +350,13 @@ export default async function ProfilePage({
                           <option value="staff_always">Staff (always)</option>
                         </select>
                       </label>
-                      <div className="flex items-end">
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" name="is_optional" className="h-4 w-4" />
+                        <span className="text-xs font-medium text-ink-soft">
+                          Optional (can be done later)
+                        </span>
+                      </label>
+                      <div className="col-span-2 flex items-end">
                         <button
                           type="submit"
                           className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
@@ -563,8 +563,9 @@ function StepEditPanel({
               </span>
             )}
           </div>
-          <div className="mt-1.5">
+          <div className="mt-1.5 flex items-center gap-4">
             <CompletedByRadios stepId={step.id} value={step.completed_by} />
+            <OptionalToggle stepId={step.id} value={step.is_optional} />
           </div>
         </div>
         <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
@@ -610,20 +611,8 @@ function StepEditPanel({
           defaultLinkUrl={step.link_url}
           defaultVideoUrl={step.video_url}
           stepKey={step.key}
-        >
-          <label className="flex items-end gap-2 pb-2.5">
-            <input
-              type="checkbox"
-              name="is_optional"
-              defaultChecked={step.is_optional}
-              className="h-4 w-4"
-            />
-            <span className="text-xs font-medium text-ink-soft">
-              Optional (can be done later)
-            </span>
-          </label>
-        </LessonTypeFields>
-        <label className="col-span-2 flex flex-col gap-1.5">
+        />
+        <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-soft">Title</span>
           <input
             name="title"
@@ -631,7 +620,7 @@ function StepEditPanel({
             className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
           />
         </label>
-        <label className="col-span-2 flex flex-col gap-1.5">
+        <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-soft">
             Description
           </span>

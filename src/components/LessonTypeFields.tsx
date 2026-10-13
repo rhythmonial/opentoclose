@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 
 const LESSON_TYPES = [
   { value: "lesson", label: "Lesson (video + resources)" },
@@ -14,13 +14,11 @@ export function LessonTypeFields({
   defaultLinkUrl,
   defaultVideoUrl,
   stepKey,
-  children,
 }: {
   defaultType: string;
   defaultLinkUrl?: string | null;
   defaultVideoUrl?: string | null;
   stepKey?: string;
-  children?: ReactNode;
 }) {
   const [type, setType] = useState(defaultType);
 
@@ -42,10 +40,8 @@ export function LessonTypeFields({
         </select>
       </label>
 
-      {children}
-
       {(type === "form" || type === "link") && (
-        <label className="col-span-2 flex flex-col gap-1.5">
+        <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-soft">Link</span>
           <input
             name="link_url"
@@ -58,7 +54,7 @@ export function LessonTypeFields({
       )}
 
       {type === "lesson" && (
-        <label className="col-span-2 flex flex-col gap-1.5">
+        <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-soft">Video URL</span>
           <input
             name="video_url"
@@ -70,10 +66,10 @@ export function LessonTypeFields({
       )}
 
       {type === "configurator" && (
-        <p className="col-span-2 text-xs text-ink-faint">
-          This step opens a custom-built page at /configurator/
-          {stepKey || "{key}"} instead of a generic one. Ask your developer
-          to build or update it there.
+        <p className="flex items-center text-xs text-ink-faint">
+          Opens a custom-built page at /configurator/
+          {stepKey || "{key}"}. Ask your developer to build or update it
+          there.
         </p>
       )}
     </>

@@ -60,7 +60,6 @@ export async function updateStep(formData: FormData) {
         | "form"
         | "link"
         | "configurator",
-      is_optional: formData.get("is_optional") === "on",
       video_url: String(formData.get("video_url") ?? "").trim() || null,
       link_url: String(formData.get("link_url") ?? "").trim() || null,
     })
@@ -74,6 +73,16 @@ export async function updateStepCompletedBy(stepId: string, value: string) {
   await supabase
     .from("setup_steps")
     .update({ completed_by: value })
+    .eq("id", stepId);
+
+  revalidateAll();
+}
+
+export async function updateStepIsOptional(stepId: string, value: boolean) {
+  const supabase = await createClient();
+  await supabase
+    .from("setup_steps")
+    .update({ is_optional: value })
     .eq("id", stepId);
 
   revalidateAll();
