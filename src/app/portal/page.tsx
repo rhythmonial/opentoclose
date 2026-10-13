@@ -198,14 +198,47 @@ export default async function PortalPage() {
                   </summary>
 
                   <div className="mt-4 flex flex-col gap-5">
-                    {sections.map((section) => (
-                    <div key={section}>
-                      <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
-                        {section}
-                      </h3>
+                    {sections.map((section) => {
+                      const sectionSteps = phaseSteps.filter(
+                        (s) => s.section === section,
+                      );
+                      const sectionRequired = sectionSteps.filter(
+                        (s) => !s.is_optional,
+                      );
+                      const sectionComplete = sectionRequired.every(
+                        (s) => statusByStep.get(s.id) === "approved",
+                      );
+                      const sectionCompleteCount = sectionSteps.filter(
+                        (s) => statusByStep.get(s.id) === "approved",
+                      ).length;
+
+                      return (
+                    <details key={section} open={!sectionComplete}>
+                      <summary className="flex cursor-pointer items-center justify-between gap-4">
+                        <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-ink-faint">
+                          {sectionComplete && (
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="text-success"
+                            >
+                              <path d="M20 6 9 17l-5-5" />
+                            </svg>
+                          )}
+                          {section}
+                        </h3>
+                        <span className="text-[11px] font-semibold normal-case text-ink-faint">
+                          {sectionCompleteCount} / {sectionSteps.length}
+                        </span>
+                      </summary>
                       <div className="mt-2 flex flex-col gap-2.5">
-                        {phaseSteps
-                          .filter((s) => s.section === section)
+                        {sectionSteps
                           .map((step) => {
                             const status =
                               statusByStep.get(step.id) ?? "not_started";
@@ -274,8 +307,9 @@ export default async function PortalPage() {
                             );
                           })}
                       </div>
-                    </div>
-                  ))}
+                    </details>
+                      );
+                    })}
                 </div>
               </details>
             );
