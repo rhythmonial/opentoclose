@@ -664,6 +664,31 @@ export default async function ProfilePage({
           </div>
         )}
       </div>
+
+      <div className="px-12 pb-12">
+        <form action={signOut}>
+          <button
+            type="submit"
+            className="flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-ink"
+          >
+            Sign Out
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="M16 17l5-5-5-5" />
+              <path d="M21 12H9" />
+            </svg>
+          </button>
+        </form>
+      </div>
     </main>
   );
 }
