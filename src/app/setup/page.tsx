@@ -2,10 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ToolsChecklist } from "@/components/ToolsChecklist";
-import {
-  StatesServicedField,
-  normalizeStateName,
-} from "@/components/StatesServicedField";
+import { StatesServicedField } from "@/components/StatesServicedField";
+import { normalizeStateName } from "@/lib/usStates";
 import { submitSetupInitiation } from "./actions";
 
 const COMPANY_STRUCTURES = [
@@ -174,7 +172,7 @@ export default async function SetupInitiationPage({
                     defaultChecked={(existing?.engagement_type ?? "custom") === "custom"}
                     className="h-4 w-4"
                   />
-                  Full Setup
+                  Setup ($999)
                 </span>
                 <span className="text-xs text-ink-soft">
                   Our team builds the steps assigned to us. A 10-hour bundle.
@@ -189,11 +187,11 @@ export default async function SetupInitiationPage({
                     defaultChecked={existing?.engagement_type === "diy"}
                     className="h-4 w-4"
                   />
-                  DIY
+                  DIY ($19)
                 </span>
                 <span className="text-xs text-ink-soft">
                   You complete every step yourself, using our checklist and
-                  videos as your guide. You can upgrade to Full Setup later.
+                  videos as your guide. You can upgrade to Setup later.
                 </span>
               </label>
             </div>

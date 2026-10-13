@@ -13,8 +13,8 @@ import {
 import { logHours } from "./actions";
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
-  custom: "Full Setup",
-  diy: "DIY",
+  custom: "Setup ($999)",
+  diy: "DIY ($19)",
 };
 
 const STEP_STATUS_LABEL: Record<string, string> = {
@@ -134,7 +134,7 @@ export default async function ClientDetailPage({
         <div className="mt-5 flex flex-col items-start gap-3 rounded-xl border border-accent-soft bg-accent-soft/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div>
             <div className="text-sm font-bold text-ink">
-              Wants to upgrade to Full Setup
+              Wants to upgrade to Setup
             </div>
             <div className="text-xs text-ink-soft">
               Requested{" "}

@@ -468,7 +468,7 @@ export default async function PortalPage() {
                 Want us to handle it?
               </h3>
               <p className="mb-3 text-sm text-ink-soft">
-                Upgrade to Full Setup at any point &mdash; it&rsquo;s always a
+                Upgrade to Setup at any point &mdash; it&rsquo;s always a
                 flat 10-hour bundle, no matter how far along you are.
               </p>
               {initiation?.upgrade_requested_at ? (
@@ -481,7 +481,7 @@ export default async function PortalPage() {
                     type="submit"
                     className="w-full rounded-lg bg-accent px-2.5 py-2.5 text-sm font-semibold text-white"
                   >
-                    Request Full Setup Upgrade
+                    Request Setup Upgrade
                   </button>
                 </form>
               )}

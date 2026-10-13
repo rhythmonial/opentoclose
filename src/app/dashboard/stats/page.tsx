@@ -3,19 +3,28 @@ import { createClient } from "@/lib/supabase/server";
 export default async function StatsPage() {
   const supabase = await createClient();
 
-  const [{ data: accounts }, { data: submissions }, { data: leads }, { data: hoursLog }] =
-    await Promise.all([
-      supabase.from("client_accounts").select("setup_path, hours_purchased"),
-      supabase.from("submissions").select("status"),
-      supabase.from("leads").select("status"),
-      supabase.from("hours_log").select("hours"),
-    ]);
+  const [
+    { data: accounts },
+    { data: initiations },
+    { data: submissions },
+    { data: leads },
+    { data: hoursLog },
+  ] = await Promise.all([
+    supabase.from("client_accounts").select("hours_purchased"),
+    supabase.from("setup_initiation").select("engagement_type"),
+    supabase.from("submissions").select("status"),
+    supabase.from("leads").select("status"),
+    supabase.from("hours_log").select("hours"),
+  ]);
 
-  const clientsByPath = { custom: 0, express: 0 };
+  const clientsByEngagement = { custom: 0, diy: 0 };
+  for (const i of initiations ?? []) {
+    const engagementType = (i.engagement_type ?? "custom") as "custom" | "diy";
+    clientsByEngagement[engagementType] += 1;
+  }
+
   let hoursPurchasedTotal = 0;
   for (const a of accounts ?? []) {
-    const path = (a.setup_path ?? "custom") as "custom" | "express";
-    clientsByPath[path] += 1;
     hoursPurchasedTotal += Number(a.hours_purchased);
   }
 
@@ -43,7 +52,7 @@ export default async function StatsPage() {
     leadsByStatus[l.status] = (leadsByStatus[l.status] ?? 0) + 1;
   }
 
-  const totalClients = clientsByPath.custom + clientsByPath.express;
+  const totalClients = clientsByEngagement.custom + clientsByEngagement.diy;
   const decidedLeads = leadsByStatus.won + leadsByStatus.lost;
   const conversionRate =
     decidedLeads > 0 ? (leadsByStatus.won / decidedLeads) * 100 : 0;
@@ -63,12 +72,12 @@ export default async function StatsPage() {
         <div className="rounded-xl border border-border bg-surface p-5">
           <h3 className="text-[15px] font-bold text-ink">Clients by path</h3>
           <div className="mt-3 flex justify-between text-sm">
-            <span className="text-ink-soft">Custom ($999)</span>
-            <span className="font-bold text-ink">{clientsByPath.custom}</span>
+            <span className="text-ink-soft">Setup ($999)</span>
+            <span className="font-bold text-ink">{clientsByEngagement.custom}</span>
           </div>
           <div className="mt-1.5 flex justify-between text-sm">
-            <span className="text-ink-soft">Express ($777)</span>
-            <span className="font-bold text-ink">{clientsByPath.express}</span>
+            <span className="text-ink-soft">DIY ($19)</span>
+            <span className="font-bold text-ink">{clientsByEngagement.diy}</span>
           </div>
           <div className="mt-3 flex justify-between border-t border-border-soft pt-2 text-sm font-bold text-ink">
             <span>Total</span>

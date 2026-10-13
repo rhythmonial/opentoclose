@@ -15,7 +15,7 @@ admins (like you, if you're not the owner) from their Profile page to help
 run day-to-day setup.
 
 Here's what setup looks like:
-1. The owner signs up and chooses a setup path (Custom or Express).
+1. The owner signs up and chooses a setup path (Setup or DIY).
 2. We send a short set of prep sheets covering your workflow fields,
    contacts & roles, document templates, and date rules.
 3. The owner (or an admin they've invited) fills those out at their own
@@ -24,8 +24,9 @@ Here's what setup looks like:
 5. Kickoff call, then you're live.
 
 Pricing:
-- Custom Setup — $999, up to 10 hours of setup support
-- OTC Express — $777 flat, a faster guided path
+- Setup — $999, up to 10 hours of setup support from our team
+- DIY — $19, you complete every step yourself with our checklist and
+  videos as your guide (upgrade to Setup any time)
 
 Reply to this email any time with questions — happy to walk through
 whichever path fits best.`,

@@ -44,7 +44,7 @@ export function StepOwnerIcon({ completedBy }: { completedBy: string }) {
   if (completedBy === "staff") {
     return (
       <span
-        title="Staff for Full Setup clients — the client does this themselves if they're DIY"
+        title="Staff for Setup clients — the client does this themselves if they're DIY"
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-warning-soft text-warning"
       >
         {WRENCH}
