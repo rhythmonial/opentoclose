@@ -14,9 +14,9 @@ export function StaffNav() {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-[76px] shrink-0 items-center justify-between border-b border-border bg-surface px-12">
-      <div className="flex items-center gap-3">
-        <div className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] bg-navy">
+    <div className="flex h-[64px] shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-4 sm:h-[76px] sm:px-6 lg:px-12">
+      <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-navy sm:h-[34px] sm:w-[34px]">
           <svg
             width="18"
             height="18"
@@ -31,12 +31,12 @@ export function StaffNav() {
             <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
           </svg>
         </div>
-        <span className="font-display text-[17px] font-bold text-ink">
+        <span className="hidden truncate font-display text-[17px] font-bold text-ink sm:inline">
           OTC Setup with Josie
         </span>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto px-1 sm:flex-none sm:justify-center sm:gap-6 sm:px-0">
         {LINKS.map((link) => {
           const isAnchor = link.href.includes("#");
           const isActive = !isAnchor && pathname === link.href;
@@ -44,7 +44,7 @@ export function StaffNav() {
             <Link
               key={link.href}
               href={link.href}
-              className={`text-sm ${
+              className={`shrink-0 whitespace-nowrap text-xs sm:text-sm ${
                 isActive ? "font-semibold text-ink" : "font-medium text-ink-soft"
               }`}
             >
@@ -54,12 +54,12 @@ export function StaffNav() {
         })}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         <Link
           href="/profile"
           aria-label="Profile"
           title="Profile"
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-ink-soft"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-soft sm:h-9 sm:w-9"
         >
           <svg
             width="18"

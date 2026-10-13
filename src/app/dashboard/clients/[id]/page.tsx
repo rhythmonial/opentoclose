@@ -105,14 +105,14 @@ export default async function ClientDetailPage({
   const engagementType = (initiation?.engagement_type ?? "custom") as EngagementType;
 
   return (
-    <main className="px-12 py-9">
+    <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
       <Link href="/dashboard#clients" className="text-sm font-medium text-accent">
         &larr; Back to clients
       </Link>
 
-      <div className="mt-3 flex items-start justify-between">
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-display text-[25px] font-bold text-ink">
+          <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
             {account.name}
           </h1>
           <p className="mt-1.5 flex items-center gap-2 text-sm text-ink-soft">
@@ -131,7 +131,7 @@ export default async function ClientDetailPage({
       </div>
 
       {initiation?.upgrade_requested_at && owner && (
-        <div className="mt-5 flex items-center justify-between gap-4 rounded-xl border border-accent-soft bg-accent-soft/40 px-5 py-4">
+        <div className="mt-5 flex flex-col items-start gap-3 rounded-xl border border-accent-soft bg-accent-soft/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div>
             <div className="text-sm font-bold text-ink">
               Wants to upgrade to Full Setup
@@ -156,7 +156,7 @@ export default async function ClientDetailPage({
         </div>
       )}
 
-      <div className="mt-7 grid grid-cols-3 gap-4">
+      <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-border bg-surface p-5">
           <div className="text-sm text-ink-soft">Hours</div>
           <div className="mt-1 font-display text-xl font-bold text-ink">
@@ -264,7 +264,7 @@ export default async function ClientDetailPage({
                                   key={step.id}
                                   className="rounded-lg border border-border-soft bg-bg p-4"
                                 >
-                                  <div className="flex items-center justify-between gap-4">
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                                     <div className="flex items-center gap-2.5">
                                       <StepOwnerIcon
                                         completedBy={step.completed_by}
@@ -281,7 +281,7 @@ export default async function ClientDetailPage({
                                       </div>
                                     </div>
                                     <span
-                                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+                                      className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide sm:self-auto ${
                                         status === "approved"
                                           ? "bg-success-soft text-success"
                                           : status === "returned"
@@ -363,7 +363,7 @@ export default async function ClientDetailPage({
 
                                         <form
                                           action={returnSubmission}
-                                          className="mt-3 flex items-end gap-3 border-t border-border-soft pt-3"
+                                          className="mt-3 flex flex-col items-stretch gap-3 border-t border-border-soft pt-3 sm:flex-row sm:items-end"
                                         >
                                           <input
                                             type="hidden"
@@ -416,9 +416,9 @@ export default async function ClientDetailPage({
       <section className="mt-9">
         <h2 className="font-display text-lg font-bold text-ink">Work log</h2>
 
-        <div className="mt-3 flex gap-8">
-          <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-surface">
-            <table className="w-full text-left text-sm">
+        <div className="mt-3 flex flex-col gap-6 lg:flex-row lg:gap-8">
+          <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-border bg-surface">
+            <table className="w-full min-w-[480px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase tracking-wide text-ink-faint">
                   <th className="px-5 py-3">Date</th>
@@ -454,7 +454,7 @@ export default async function ClientDetailPage({
           </div>
 
           {owner && (
-            <div className="w-[300px] shrink-0 rounded-xl border border-border bg-surface p-5">
+            <div className="w-full shrink-0 rounded-xl border border-border bg-surface p-5 lg:w-[300px]">
               <h3 className="text-[15px] font-bold text-ink">Log hours</h3>
               <form action={logHours} className="mt-3 flex flex-col gap-3">
                 <input type="hidden" name="account_id" value={account.id} />

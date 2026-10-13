@@ -49,8 +49,8 @@ export default async function StatsPage() {
     decidedLeads > 0 ? (leadsByStatus.won / decidedLeads) * 100 : 0;
 
   return (
-    <main className="px-12 py-9">
-      <h1 className="font-display text-[25px] font-bold text-ink">
+    <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
+      <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
         Business numbers
       </h1>
       <p className="mt-1.5 text-sm text-ink-soft">
@@ -59,7 +59,7 @@ export default async function StatsPage() {
         revenue.
       </p>
 
-      <div className="mt-7 grid grid-cols-3 gap-4">
+      <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-xl border border-border bg-surface p-5">
           <h3 className="text-[15px] font-bold text-ink">Clients by path</h3>
           <div className="mt-3 flex justify-between text-sm">
@@ -118,9 +118,9 @@ export default async function StatsPage() {
           </div>
         </div>
 
-        <div className="col-span-2 rounded-xl border border-border bg-surface p-5">
+        <div className="sm:col-span-2 rounded-xl border border-border bg-surface p-5">
           <h3 className="text-[15px] font-bold text-ink">Leads by stage</h3>
-          <div className="mt-3 grid grid-cols-3 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {Object.entries(leadsByStatus).map(([status, count]) => (
               <div key={status}>
                 <div className="font-display text-xl font-bold text-ink">

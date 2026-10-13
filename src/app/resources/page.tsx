@@ -68,8 +68,8 @@ export default async function ResourcesPage() {
     <main className="flex min-h-screen flex-col bg-bg">
       <TopNav businessName={businessName} active="resources" />
 
-      <div className="px-12 pt-9">
-        <h1 className="font-display text-[25px] font-bold text-ink">
+      <div className="px-4 pt-6 sm:px-6 sm:pt-9 lg:px-12">
+        <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
           Resource Center
         </h1>
         <p className="mt-1.5 max-w-2xl text-sm text-ink-soft">
@@ -79,7 +79,7 @@ export default async function ResourcesPage() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-5 px-12 pb-12 pt-7">
+      <div className="flex flex-col gap-5 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:px-12 lg:pb-12">
         {phases.map((phase) => {
           const phaseSteps = (steps ?? []).filter(
             (s) => (s.phase ?? "General") === phase,
@@ -180,8 +180,8 @@ function ResourceItem({
 
   return (
     <li className="flex flex-col gap-2.5 rounded-lg border border-border-soft bg-bg px-4 py-3">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0 flex-1">
           <div className="text-sm font-bold text-ink">{step.title}</div>
           {step.description && (
             <div className="mt-0.5 text-xs text-ink-soft">
@@ -189,7 +189,7 @@ function ResourceItem({
             </div>
           )}
         </div>
-        <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
+        <span className="self-start rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent sm:shrink-0">
           {STEP_TYPE_LABEL[step.step_type] ?? step.step_type}
         </span>
       </div>

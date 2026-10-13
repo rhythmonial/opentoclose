@@ -87,13 +87,13 @@ export default async function ProfilePage({
       <div className="flex min-h-screen flex-col bg-bg">
         <StaffNav />
 
-        <main className="px-12 py-9">
-          <h1 className="font-display text-[25px] font-bold text-ink">
+        <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
+          <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
             Profile
           </h1>
 
-          <div className="mt-7 flex gap-8">
-            <section className="w-[340px] shrink-0 rounded-xl border border-border bg-surface p-5">
+          <div className="mt-7 flex flex-col gap-6 lg:flex-row lg:gap-8">
+            <section className="w-full rounded-xl border border-border bg-surface p-5 lg:w-[340px] lg:shrink-0">
               <form action={updateProfileInfo} className="flex flex-col gap-3">
                 <label className="flex flex-col gap-1.5">
                   <span className="text-xs font-medium text-ink-soft">Name</span>
@@ -167,7 +167,7 @@ export default async function ProfilePage({
             </div>
 
             {canInvite && (
-              <div className="flex w-[340px] shrink-0 flex-col gap-5">
+              <div className="flex w-full flex-col gap-5 lg:w-[340px] lg:shrink-0">
                 <div className="rounded-xl border border-border bg-surface p-5">
                   <h3 className="mb-3 text-[15px] font-bold text-ink">
                     Invite a colleague
@@ -304,7 +304,7 @@ export default async function ProfilePage({
                     <summary className="cursor-pointer text-sm font-semibold text-accent">
                       + Add a step to the {path} path
                     </summary>
-                    <form action={addStep} className="mt-4 grid grid-cols-2 gap-3">
+                    <form action={addStep} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <input type="hidden" name="path" value={path} />
                       <label className="col-span-2 flex flex-col gap-1.5">
                         <span className="text-xs font-medium text-ink-soft">
@@ -420,8 +420,8 @@ export default async function ProfilePage({
     <main className="flex min-h-screen flex-col bg-bg">
       <TopNav businessName={businessName} />
 
-      <div className="px-12 pt-9">
-        <h1 className="font-display text-[25px] font-bold text-ink">
+      <div className="px-4 pt-6 sm:px-6 sm:pt-9 lg:px-12">
+        <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
           Profile
         </h1>
         <p className="mt-1.5 text-sm text-ink-soft">
@@ -430,7 +430,7 @@ export default async function ProfilePage({
         </p>
       </div>
 
-      <div className="flex gap-8 px-12 pb-12 pt-7">
+      <div className="flex flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:flex-row lg:gap-8 lg:px-12 lg:pb-12">
         <div className="flex min-w-0 flex-1 flex-col gap-2.5">
           <h2 className="text-[15px] font-bold text-ink">Your team</h2>
           {(teammates ?? []).map((member) => (
@@ -469,7 +469,7 @@ export default async function ProfilePage({
         </div>
 
         {isOwner && (
-          <div className="flex w-[340px] shrink-0 flex-col gap-5">
+          <div className="flex w-full flex-col gap-5 lg:w-[340px] lg:shrink-0">
             <div className="rounded-xl border border-border bg-surface p-5">
               <h3 className="mb-3 text-[15px] font-bold text-ink">
                 Invite a teammate
@@ -510,7 +510,7 @@ export default async function ProfilePage({
         )}
       </div>
 
-      <div className="px-12 pb-12">
+      <div className="px-4 pb-10 sm:px-6 lg:px-12 lg:pb-12">
         <form action={signOut}>
           <button
             type="submit"
@@ -551,52 +551,86 @@ function StepEditPanel({
 }) {
   return (
     <details className="rounded-xl border border-border bg-surface p-5">
-      <summary className="flex cursor-pointer items-center justify-between gap-4">
-        <div className="flex-1">
-          <div className="text-[15px] font-bold text-ink">
-            {step.title}
-            {step.is_optional && (
-              <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
-                Optional
+      <summary className="flex cursor-pointer flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3 sm:block">
+            <div className="text-[15px] font-bold text-ink">
+              {step.title}
+              {step.is_optional && (
+                <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+                  Optional
+                </span>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2 sm:hidden">
+              <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
+                {step.step_type}
               </span>
-            )}
+              <a
+                href={stepClientHref(step)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="View as the client sees it"
+                aria-label="View as the client sees it"
+                onClick={(e) => e.stopPropagation()}
+                className="flex shrink-0 items-center justify-center rounded-lg border border-border px-2.5 py-2 text-ink"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </a>
+            </div>
           </div>
-          <div className="mt-1.5 flex items-center gap-4">
+          <div className="mt-1.5">
             <CompletedByRadios stepId={step.id} value={step.completed_by} />
-            <OptionalToggle stepId={step.id} value={step.is_optional} />
+            <div className="mt-1.5">
+              <OptionalToggle stepId={step.id} value={step.is_optional} />
+            </div>
           </div>
         </div>
-        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
-          {step.step_type}
-        </span>
-        <a
-          href={stepClientHref(step)}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="View as the client sees it"
-          aria-label="View as the client sees it"
-          className="flex shrink-0 items-center justify-center rounded-lg border border-border px-2.5 py-2 text-ink"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="hidden shrink-0 items-center gap-2 sm:flex">
+          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
+            {step.step_type}
+          </span>
+          <a
+            href={stepClientHref(step)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="View as the client sees it"
+            aria-label="View as the client sees it"
+            className="flex shrink-0 items-center justify-center rounded-lg border border-border px-2.5 py-2 text-ink"
           >
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        </a>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </a>
+        </div>
       </summary>
 
       <form
         id={`step-form-${step.id}`}
         action={updateStep}
-        className="mt-4 grid grid-cols-2 gap-3 border-t border-border-soft pt-4"
+        className="mt-4 grid grid-cols-1 gap-3 border-t border-border-soft pt-4 sm:grid-cols-2"
       >
         <input type="hidden" name="id" value={step.id} />
         <PhaseSectionPicker
@@ -631,7 +665,7 @@ function StepEditPanel({
         </label>
       </form>
 
-      <div className="mt-4 flex items-start justify-between gap-4 border-t border-border-soft pt-4">
+      <div className="mt-4 flex flex-col items-stretch gap-4 border-t border-border-soft pt-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <span className="text-xs font-medium text-ink-soft">
             Resource links
@@ -641,7 +675,7 @@ function StepEditPanel({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex items-center justify-end gap-2 sm:shrink-0">
           <SaveStepButton formId={`step-form-${step.id}`} />
           <form action={deleteStep}>
             <input type="hidden" name="id" value={step.id} />

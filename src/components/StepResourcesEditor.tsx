@@ -86,11 +86,11 @@ export function StepResourcesEditor({
       />
 
       {adding ? (
-        <div className="flex items-end gap-2 rounded-lg border border-dashed border-border bg-bg p-2.5">
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border bg-bg p-2.5 sm:flex-row sm:items-end">
           <select
             value={newKind}
             onChange={(e) => setNewKind(e.target.value)}
-            className="rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink"
+            className="w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink sm:w-auto"
           >
             {KINDS.map((k) => (
               <option key={k.value} value={k.value}>
@@ -102,28 +102,30 @@ export function StepResourcesEditor({
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
             placeholder="Label (optional)"
-            className="flex-1 rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink"
+            className="w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink sm:flex-1"
           />
           <input
             value={newUrl}
             onChange={(e) => setNewUrl(e.target.value)}
             placeholder="https://..."
-            className="flex-1 rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink"
+            className="w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink sm:flex-1"
           />
-          <button
-            type="button"
-            onClick={handleAdd}
-            className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white"
-          >
-            Add
-          </button>
-          <button
-            type="button"
-            onClick={() => setAdding(false)}
-            className="text-xs text-ink-faint"
-          >
-            Cancel
-          </button>
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleAdd}
+              className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white"
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              onClick={() => setAdding(false)}
+              className="text-xs text-ink-faint"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       ) : (
         <button
@@ -153,14 +155,14 @@ function ResourceRow({
   const [dirty, setDirty] = useState(false);
 
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border-soft bg-bg p-2.5">
+    <div className="flex flex-col gap-2 rounded-lg border border-border-soft bg-bg p-2.5 sm:flex-row sm:items-center">
       <select
         value={kind}
         onChange={(e) => {
           setKind(e.target.value);
           setDirty(true);
         }}
-        className="rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink"
+        className="w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink sm:w-auto"
       >
         {KINDS.map((k) => (
           <option key={k.value} value={k.value}>
@@ -175,7 +177,7 @@ function ResourceRow({
           setDirty(true);
         }}
         placeholder="Label (optional)"
-        className="flex-1 rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink"
+        className="w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink sm:flex-1"
       />
       <input
         value={url}
@@ -184,27 +186,29 @@ function ResourceRow({
           setDirty(true);
         }}
         placeholder="https://..."
-        className="flex-1 rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink"
+        className="w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink sm:flex-1"
       />
-      {dirty && (
+      <div className="flex items-center justify-end gap-2">
+        {dirty && (
+          <button
+            type="button"
+            onClick={() => {
+              onSave({ kind, label, url });
+              setDirty(false);
+            }}
+            className="shrink-0 rounded-lg bg-accent px-2.5 py-1.5 text-xs font-semibold text-white"
+          >
+            Save
+          </button>
+        )}
         <button
           type="button"
-          onClick={() => {
-            onSave({ kind, label, url });
-            setDirty(false);
-          }}
-          className="shrink-0 rounded-lg bg-accent px-2.5 py-1.5 text-xs font-semibold text-white"
+          onClick={onDelete}
+          className="shrink-0 text-xs font-medium text-danger"
         >
-          Save
+          Delete
         </button>
-      )}
-      <button
-        type="button"
-        onClick={onDelete}
-        className="shrink-0 text-xs font-medium text-danger"
-      >
-        Delete
-      </button>
+      </div>
     </div>
   );
 }

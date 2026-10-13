@@ -88,7 +88,7 @@ export default async function SetupInitiationPage({
 
         <form
           action={submitSetupInitiation}
-          className="mt-6 grid grid-cols-2 gap-4"
+          className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2"
         >
         <fieldset disabled={isStaff} className="contents">
           <label className="flex flex-col gap-1.5">
@@ -160,11 +160,11 @@ export default async function SetupInitiationPage({
               ))}
             </select>
           </label>
-          <div className="col-span-2 flex flex-col gap-1.5">
+          <div className="sm:col-span-2 flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">
               How would you like your setup handled?
             </span>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="flex cursor-pointer flex-col gap-1 rounded-lg border border-border bg-surface px-3.5 py-3 has-[:checked]:border-accent has-[:checked]:bg-accent-soft">
                 <span className="flex items-center gap-2 text-sm font-semibold text-ink">
                   <input
@@ -198,7 +198,7 @@ export default async function SetupInitiationPage({
               </label>
             </div>
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <StatesServicedField
               defaultStates={
                 existing?.states_serviced
@@ -213,7 +213,7 @@ export default async function SetupInitiationPage({
               )}
             />
           </div>
-          <div className="col-span-2 grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-3">
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-ink">
                 # of under contract
@@ -251,7 +251,7 @@ export default async function SetupInitiationPage({
               />
             </label>
           </div>
-          <div className="col-span-2 flex flex-col gap-1.5">
+          <div className="sm:col-span-2 flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">
               What tools/systems/platforms are you currently using for
               Transaction Management?
@@ -264,7 +264,7 @@ export default async function SetupInitiationPage({
 
           <button
             type="submit"
-            className="col-span-2 mt-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            className="mt-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 sm:col-span-2"
           >
             {isUpdate ? "Save changes" : "Submit"}
           </button>

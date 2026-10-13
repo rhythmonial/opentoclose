@@ -140,15 +140,15 @@ export default async function DashboardHome() {
   });
 
   return (
-    <main className="px-12 py-9">
-      <h1 className="font-display text-[25px] font-bold text-ink">
+    <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
+      <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
         Dashboard
       </h1>
       <p className="mt-1.5 text-sm text-ink-soft">
         Everything running through OTC Setup, at a glance.
       </p>
 
-      <div className="mt-7 grid grid-cols-3 gap-4">
+      <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <div
             key={card.label}
@@ -173,7 +173,7 @@ export default async function DashboardHome() {
               key={row.id}
               className="rounded-xl border border-border bg-surface p-5"
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div>
                   <div className="text-[15px] font-bold text-ink">
                     {row.stepTitle}
@@ -207,7 +207,7 @@ export default async function DashboardHome() {
 
               <form
                 action={returnSubmission}
-                className="mt-4 flex items-end gap-3 border-t border-border-soft pt-4"
+                className="mt-4 flex flex-col items-stretch gap-3 border-t border-border-soft pt-4 sm:flex-row sm:items-end"
               >
                 <input type="hidden" name="submission_id" value={row.id} />
                 <input type="hidden" name="client_id" value={row.clientId} />
@@ -244,8 +244,8 @@ export default async function DashboardHome() {
       <section id="clients" className="mt-9 scroll-mt-9">
         <h2 className="font-display text-lg font-bold text-ink">Clients</h2>
 
-        <div className="mt-3 overflow-hidden rounded-xl border border-border bg-surface">
-          <table className="w-full text-left text-sm">
+        <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-surface">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase tracking-wide text-ink-faint">
                 <th className="px-5 py-3">Business</th>

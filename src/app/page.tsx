@@ -24,19 +24,19 @@ export default async function RootPage() {
 
   return (
     <main className="flex flex-1 flex-col bg-bg">
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-        <h1 className="max-w-2xl font-display text-4xl font-bold leading-tight text-ink">
+      <div className="flex flex-1 flex-col items-center justify-center px-5 py-12 text-center sm:px-6 sm:py-16">
+        <h1 className="max-w-2xl font-display text-2xl font-bold leading-tight text-ink sm:text-4xl">
           Your Real Estate Processes
-          <br />
+          <br className="hidden sm:inline" />{" "}
           Fully Automated in Open to Close
         </h1>
-        <p className="mt-5 max-w-xl text-base text-ink-soft">
+        <p className="mt-5 max-w-xl text-sm text-ink-soft sm:text-base">
           For TC business owners and real estate team &amp; brokerage owners.
-          <br />
+          <br className="hidden sm:inline" />{" "}
           Configure your workflow fields, date rules, contacts, documents,
           emails, tasks, intake forms, views, and automations with
           Josie&rsquo;s Team.
-          <br />
+          <br className="hidden sm:inline" />{" "}
           Start closing in OTC without the guesswork.
         </p>
 

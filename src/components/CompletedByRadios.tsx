@@ -21,7 +21,7 @@ export function CompletedByRadios({
 
   return (
     <div
-      className="flex items-center gap-3"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1.5"
       onClick={(e) => e.stopPropagation()}
     >
       {OPTIONS.map((opt) => (

@@ -19,16 +19,16 @@ export default async function LeadsPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <main className="px-12 py-9">
-      <h1 className="font-display text-[25px] font-bold text-ink">Leads</h1>
+    <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
+      <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">Leads</h1>
       <p className="mt-1.5 text-sm text-ink-soft">
         Everyone who&rsquo;s requested info or been added as a prospect, before
         they become a client.
       </p>
 
-      <div className="mt-7 flex gap-8">
-        <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-surface">
-          <table className="w-full text-left text-sm">
+      <div className="mt-7 flex flex-col gap-6 lg:flex-row lg:gap-8">
+        <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-border bg-surface">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase tracking-wide text-ink-faint">
                 <th className="px-5 py-3">Name</th>
@@ -101,7 +101,7 @@ export default async function LeadsPage() {
           </table>
         </div>
 
-        <div className="w-[320px] shrink-0 rounded-xl border border-border bg-surface p-5">
+        <div className="w-full shrink-0 rounded-xl border border-border bg-surface p-5 lg:w-[320px]">
           <h3 className="text-[15px] font-bold text-ink">Add a lead</h3>
           <form action={addLead} className="mt-4 flex flex-col gap-3">
             <label className="flex flex-col gap-1.5">

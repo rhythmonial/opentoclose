@@ -99,9 +99,9 @@ export default async function PortalPage() {
     <main className="flex min-h-screen flex-col bg-bg">
       <TopNav businessName={businessName} active="setup" />
 
-      <div className="flex items-start justify-between px-12 pt-9">
+      <div className="flex flex-col items-start gap-3 px-4 pt-6 sm:px-6 sm:pt-9 lg:flex-row lg:items-start lg:justify-between lg:px-12">
         <div>
-          <h1 className="font-display text-[25px] font-bold text-ink">
+          <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
             Your OTC Setup
           </h1>
           <p className="mt-1.5 text-sm text-ink-soft">
@@ -109,14 +109,14 @@ export default async function PortalPage() {
             implementation.
           </p>
         </div>
-        <div className="flex items-center gap-3 rounded-full border border-accent-soft bg-accent-soft px-3.5 py-2">
+        <div className="flex shrink-0 items-center gap-3 rounded-full border border-accent-soft bg-accent-soft px-3.5 py-2">
           <span className="text-sm font-semibold text-accent">
             {hoursUsed.toFixed(1)} of {HOURS_PER_BUNDLE} hrs used
           </span>
         </div>
       </div>
 
-      <div className="flex gap-8 px-12 pb-12 pt-7">
+      <div className="flex flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:flex-row lg:gap-8 lg:px-12 lg:pb-12">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-ink-soft">
@@ -313,7 +313,7 @@ export default async function PortalPage() {
                               "client";
 
                             const titleBlock = (
-                              <div className="flex-1">
+                              <div className="min-w-0 flex-1">
                                 <div className="text-sm font-bold text-ink">
                                   {step.title}
                                   {step.is_optional && (
@@ -351,45 +351,47 @@ export default async function PortalPage() {
                               return (
                                 <div
                                   key={step.id}
-                                  className="flex items-center gap-4 rounded-lg border border-border-soft bg-bg px-4 py-3"
+                                  className="flex flex-col items-start gap-3 rounded-lg border border-border-soft bg-bg px-4 py-3 sm:flex-row sm:items-center sm:gap-4"
                                 >
                                   <a
                                     href={href}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex-1"
+                                    className="w-full min-w-0 sm:w-auto sm:flex-1"
                                   >
                                     {titleBlock}
                                   </a>
-                                  {statusBadge}
-                                  {isClientManaged ? (
-                                    <form action={toggleLessonComplete}>
-                                      <input
-                                        type="hidden"
-                                        name="step_id"
-                                        value={step.id}
-                                      />
-                                      <input
-                                        type="hidden"
-                                        name="currently_approved"
-                                        value={String(isApproved)}
-                                      />
-                                      <button
-                                        type="submit"
-                                        className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-                                          isApproved
-                                            ? "border border-border text-ink"
-                                            : "bg-accent text-white"
-                                        }`}
-                                      >
-                                        {isApproved ? "Undo" : "Mark Complete"}
-                                      </button>
-                                    </form>
-                                  ) : (
-                                    <span className="text-xs font-medium text-ink-faint">
-                                      Handled by our team
-                                    </span>
-                                  )}
+                                  <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+                                    {statusBadge}
+                                    {isClientManaged ? (
+                                      <form action={toggleLessonComplete}>
+                                        <input
+                                          type="hidden"
+                                          name="step_id"
+                                          value={step.id}
+                                        />
+                                        <input
+                                          type="hidden"
+                                          name="currently_approved"
+                                          value={String(isApproved)}
+                                        />
+                                        <button
+                                          type="submit"
+                                          className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold ${
+                                            isApproved
+                                              ? "border border-border text-ink"
+                                              : "bg-accent text-white"
+                                          }`}
+                                        >
+                                          {isApproved ? "Undo" : "Mark Complete"}
+                                        </button>
+                                      </form>
+                                    ) : (
+                                      <span className="shrink-0 text-xs font-medium text-ink-faint">
+                                        Handled by our team
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               );
                             }
@@ -398,17 +400,21 @@ export default async function PortalPage() {
                               <Link
                                 key={step.id}
                                 href={href}
-                                className="flex items-center gap-4 rounded-lg border border-border-soft bg-bg px-4 py-3"
+                                className="flex flex-col items-start gap-3 rounded-lg border border-border-soft bg-bg px-4 py-3 sm:flex-row sm:items-center sm:gap-4"
                               >
-                                {titleBlock}
-                                {statusBadge}
-                                <span className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
-                                  {status === "not_started"
-                                    ? "Start"
-                                    : status === "approved"
-                                      ? "Update"
-                                      : "Continue"}
-                                </span>
+                                <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+                                  {titleBlock}
+                                </div>
+                                <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+                                  {statusBadge}
+                                  <span className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
+                                    {status === "not_started"
+                                      ? "Start"
+                                      : status === "approved"
+                                        ? "Update"
+                                        : "Continue"}
+                                  </span>
+                                </div>
                               </Link>
                             );
                           })}
@@ -429,7 +435,7 @@ export default async function PortalPage() {
           )}
         </div>
 
-        <div className="flex w-[340px] shrink-0 flex-col gap-5">
+        <div className="flex w-full flex-col gap-5 lg:w-[340px] lg:shrink-0">
           <div className="rounded-xl border border-border bg-surface p-5">
             <h3 className="mb-3 text-[15px] font-bold text-ink">Hours Used</h3>
             <div className="mb-2 flex items-baseline justify-between">
