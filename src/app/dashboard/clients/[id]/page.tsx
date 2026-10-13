@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { ClientStatusSelect } from "@/components/ClientStatusSelect";
 import { StepOwnerIcon } from "@/components/StepOwnerIcon";
@@ -289,37 +290,61 @@ export default async function ClientDetailPage({
                                   key={step.id}
                                   className="rounded-lg border border-border-soft bg-bg p-4"
                                 >
-                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                                    <div className="flex items-center gap-2.5">
-                                      <StepOwnerIcon
-                                        completedBy={step.completed_by}
-                                      />
-                                      <div>
-                                        <div className="text-sm font-bold text-ink">
-                                          {step.title}
-                                          {step.is_optional && (
-                                            <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
-                                              Optional
-                                            </span>
-                                          )}
+                                  <details>
+                                    <summary className="flex cursor-pointer flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                                      <div className="flex items-center gap-2.5">
+                                        <StepOwnerIcon
+                                          completedBy={step.completed_by}
+                                        />
+                                        <div>
+                                          <div className="text-sm font-bold text-ink">
+                                            {step.title}
+                                            {step.is_optional && (
+                                              <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+                                                Optional
+                                              </span>
+                                            )}
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
-                                    <span
-                                      className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide sm:self-auto ${
-                                        status === "approved"
-                                          ? "bg-success-soft text-success"
-                                          : status === "returned"
-                                            ? "bg-warning-soft text-warning"
-                                            : status === "submitted" ||
-                                                status === "in_progress"
-                                              ? "bg-accent-soft text-accent"
-                                              : "bg-border-soft text-ink-faint"
-                                      }`}
+                                      <span
+                                        className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide sm:self-auto ${
+                                          status === "approved"
+                                            ? "bg-success-soft text-success"
+                                            : status === "returned"
+                                              ? "bg-warning-soft text-warning"
+                                              : status === "submitted" ||
+                                                  status === "in_progress"
+                                                ? "bg-accent-soft text-accent"
+                                                : "bg-border-soft text-ink-faint"
+                                        }`}
+                                      >
+                                        {STEP_STATUS_LABEL[status].toUpperCase()}
+                                      </span>
+                                    </summary>
+
+                                    <div
+                                      className="mt-3 text-sm leading-relaxed text-ink-soft
+                                        [&_h1]:mt-3 [&_h1]:font-display [&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-ink
+                                        [&_h2]:mt-3 [&_h2]:font-display [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-ink
+                                        [&_h3]:mt-2 [&_h3]:font-bold [&_h3]:text-ink
+                                        [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
+                                        [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
+                                        [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
+                                        [&_li]:mt-1 first:[&>*]:mt-0"
                                     >
-                                      {STEP_STATUS_LABEL[status].toUpperCase()}
-                                    </span>
-                                  </div>
+                                      {step.instructions ? (
+                                        <ReactMarkdown>
+                                          {step.instructions}
+                                        </ReactMarkdown>
+                                      ) : (
+                                        <p className="text-ink-faint">
+                                          No instructions added for this step
+                                          yet.
+                                        </p>
+                                      )}
+                                    </div>
+                                  </details>
 
                                   {submission?.specialist_feedback && (
                                     <p className="mt-2.5 rounded-lg bg-surface px-3 py-2 text-sm text-ink-soft">
