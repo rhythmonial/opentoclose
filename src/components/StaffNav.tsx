@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/dashboard#clients", label: "Clients" },
   { href: "/dashboard/leads", label: "Leads" },
   { href: "/dashboard/stats", label: "Stats" },
 ];
@@ -38,8 +37,7 @@ export function StaffNav() {
 
       <div className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto px-1 sm:flex-none sm:justify-center sm:gap-6 sm:px-0">
         {LINKS.map((link) => {
-          const isAnchor = link.href.includes("#");
-          const isActive = !isAnchor && pathname === link.href;
+          const isActive = pathname === link.href;
           return (
             <Link
               key={link.href}

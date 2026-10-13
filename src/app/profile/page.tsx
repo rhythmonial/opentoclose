@@ -442,6 +442,49 @@ export default async function ProfilePage({
       </div>
 
       <div className="flex flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:flex-row lg:gap-8 lg:px-12 lg:pb-12">
+        <section className="w-full rounded-xl border border-border bg-surface p-5 lg:w-[340px] lg:shrink-0">
+          {saved && (
+            <div className="mb-3.5 rounded-lg border border-success/30 bg-success-soft px-3.5 py-2.5 text-sm text-success">
+              Profile saved.
+            </div>
+          )}
+          <form action={updateProfileInfo} className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-ink-soft">Name</span>
+              <input
+                name="name"
+                defaultValue={profile?.name ?? ""}
+                className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-ink-soft">Email</span>
+              <input
+                value={user.email ?? ""}
+                disabled
+                className="rounded-lg border border-border bg-border-soft px-3 py-2 text-sm text-ink-soft"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-ink-soft">
+                Phone number
+              </span>
+              <input
+                name="phone"
+                type="tel"
+                defaultValue={profile?.phone ?? ""}
+                className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+              />
+            </label>
+            <button
+              type="submit"
+              className="mt-1 self-start rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
+            >
+              Save
+            </button>
+          </form>
+        </section>
+
         <div className="flex min-w-0 flex-1 flex-col gap-2.5">
           <h2 className="text-[15px] font-bold text-ink">Your team</h2>
           {(teammates ?? []).map((member) => (
