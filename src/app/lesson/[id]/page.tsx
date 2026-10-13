@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
@@ -176,9 +177,18 @@ export default async function LessonPage({
         )}
 
         {step.description && (
-          <p className="mt-6 whitespace-pre-line text-[15px] leading-relaxed text-ink-soft">
-            {step.description}
-          </p>
+          <div
+            className="mt-6 text-[15px] leading-relaxed text-ink-soft
+              [&_h1]:mt-4 [&_h1]:font-display [&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-ink
+              [&_h2]:mt-4 [&_h2]:font-display [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-ink
+              [&_h3]:mt-3 [&_h3]:font-display [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-ink
+              [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
+              [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
+              [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
+              [&_li]:mt-1 first:[&>*]:mt-0"
+          >
+            <ReactMarkdown>{step.description}</ReactMarkdown>
+          </div>
         )}
 
         {(resources ?? []).length > 0 && (

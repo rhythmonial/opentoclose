@@ -6,6 +6,7 @@ import { CompletedByRadios } from "@/components/CompletedByRadios";
 import { OptionalToggle } from "@/components/OptionalToggle";
 import { PhaseSectionPicker } from "@/components/PhaseSectionPicker";
 import { LessonTypeFields } from "@/components/LessonTypeFields";
+import { MarkdownTextarea } from "@/components/MarkdownTextarea";
 import { StepResourcesEditor } from "@/components/StepResourcesEditor";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
 import { signOut } from "@/app/login/actions";
@@ -32,7 +33,6 @@ const STAFF_ROLE_LABEL: Record<string, string> = {
   dev_admin: "Dev Admin",
 };
 
-const PATHS = ["custom", "express"];
 
 export default async function ProfilePage({
   searchParams,
@@ -207,7 +207,7 @@ export default async function ProfilePage({
             )}
           </div>
 
-          <details className="mt-9">
+          <details className="mt-9" open>
             <summary className="cursor-pointer font-display text-lg font-bold text-ink">
               Setup Steps
             </summary>
@@ -218,7 +218,8 @@ export default async function ProfilePage({
               needed.
             </p>
 
-            {PATHS.map((path) => {
+            {(() => {
+              const path = "custom";
               const pathSteps = (steps ?? []).filter((s) => s.path === path);
               const phases = Array.from(
                 new Set(pathSteps.map((s) => s.phase ?? "General")),
@@ -330,11 +331,7 @@ export default async function ProfilePage({
                         <span className="text-xs font-medium text-ink-soft">
                           Description
                         </span>
-                        <textarea
-                          name="description"
-                          rows={2}
-                          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                        />
+                        <MarkdownTextarea name="description" rows={2} />
                       </label>
                       <label className="flex flex-col gap-1.5">
                         <span className="text-xs font-medium text-ink-soft">
@@ -368,7 +365,7 @@ export default async function ProfilePage({
                   </details>
                 </section>
               );
-            })}
+            })()}
           </details>
 
           <form action={signOut} className="mt-9">
@@ -624,11 +621,10 @@ function StepEditPanel({
           <span className="text-xs font-medium text-ink-soft">
             Description
           </span>
-          <textarea
+          <MarkdownTextarea
             name="description"
             rows={2}
             defaultValue={step.description ?? ""}
-            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
           />
         </label>
         <div className="col-span-2 flex items-end gap-2">
