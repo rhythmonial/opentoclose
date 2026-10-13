@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ToolsChecklist } from "@/components/ToolsChecklist";
+import { StatesServicedField } from "@/components/StatesServicedField";
 import { submitSetupInitiation } from "./actions";
 
 const COMPANY_STRUCTURES = [
@@ -112,7 +113,7 @@ export default async function SetupInitiationPage({
               className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
             />
           </label>
-          <label className="col-span-2 flex flex-col gap-1.5">
+          <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">
               Business, Brokerage, or Team Name
             </span>
@@ -123,7 +124,7 @@ export default async function SetupInitiationPage({
               className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
             />
           </label>
-          <label className="col-span-2 flex flex-col gap-1.5">
+          <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">
               Company Structure
             </span>
@@ -143,54 +144,57 @@ export default async function SetupInitiationPage({
               ))}
             </select>
           </label>
-          <label className="col-span-2 flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">
-              What state(s) do you service?
-            </span>
-            <input
-              name="states_serviced"
-              required
-              placeholder="e.g. FL, GA, NC"
-              defaultValue={existing?.states_serviced ?? ""}
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+          <div className="col-span-2">
+            <StatesServicedField
+              defaultStates={
+                existing?.states_serviced
+                  ? existing.states_serviced
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                  : []
+              }
+              defaultPriorityState={existing?.priority_state ?? ""}
             />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">
-              Transactions currently under contract
-            </span>
-            <input
-              name="transactions_under_contract"
-              type="number"
-              min={0}
-              defaultValue={existing?.transactions_under_contract ?? ""}
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">
-              Transactions closed per month
-            </span>
-            <input
-              name="transactions_per_month"
-              type="number"
-              min={0}
-              defaultValue={existing?.transactions_per_month ?? ""}
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">
-              How many TCs are on your team
-            </span>
-            <input
-              name="tc_count"
-              type="number"
-              min={0}
-              defaultValue={existing?.tc_count ?? ""}
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
+          </div>
+          <div className="col-span-2 grid grid-cols-3 gap-4">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-ink">
+                # of transactions under contract
+              </span>
+              <input
+                name="transactions_under_contract"
+                type="number"
+                min={0}
+                defaultValue={existing?.transactions_under_contract ?? ""}
+                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-ink">
+                # of transactions closed per month
+              </span>
+              <input
+                name="transactions_per_month"
+                type="number"
+                min={0}
+                defaultValue={existing?.transactions_per_month ?? ""}
+                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-ink">
+                # of TCs on your team
+              </span>
+              <input
+                name="tc_count"
+                type="number"
+                min={0}
+                defaultValue={existing?.tc_count ?? ""}
+                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+              />
+            </label>
+          </div>
           <div className="col-span-2 flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">
               What tools/systems/platforms are you currently using for

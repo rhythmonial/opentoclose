@@ -333,6 +333,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          priority_state: string | null
           states_serviced: string
           tc_count: number | null
           tools_other: string | null
@@ -351,6 +352,7 @@ export type Database = {
           first_name: string
           id?: string
           last_name: string
+          priority_state?: string | null
           states_serviced: string
           tc_count?: number | null
           tools_other?: string | null
@@ -369,6 +371,7 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
+          priority_state?: string | null
           states_serviced?: string
           tc_count?: number | null
           tools_other?: string | null

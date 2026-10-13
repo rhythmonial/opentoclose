@@ -26,6 +26,7 @@ export async function submitSetupInitiation(formData: FormData) {
       business_name: String(formData.get("business_name") ?? "").trim(),
       company_structure: String(formData.get("company_structure") ?? ""),
       states_serviced: String(formData.get("states_serviced") ?? "").trim(),
+      priority_state: String(formData.get("priority_state") ?? "").trim() || null,
       transactions_under_contract:
         Number(formData.get("transactions_under_contract")) || 0,
       transactions_per_month:
