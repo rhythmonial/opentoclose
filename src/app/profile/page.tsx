@@ -15,6 +15,7 @@ import {
   reorderSteps,
 } from "./setup-steps-actions";
 import type { Tables } from "@/lib/supabase/types";
+import { stepClientHref } from "@/lib/stepHref";
 
 type SetupStep = Tables<"setup_steps">;
 type StepResource = Tables<"setup_step_resources">;
@@ -594,7 +595,7 @@ function StepEditPanel({
           {step.step_type}
         </span>
         <a
-          href={`/lesson/${step.id}`}
+          href={stepClientHref(step)}
           target="_blank"
           rel="noopener noreferrer"
           title="View as the client sees it"

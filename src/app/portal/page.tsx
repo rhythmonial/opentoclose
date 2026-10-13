@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { effectiveOwner, type EngagementType } from "@/lib/stepOwnership";
+import { stepClientHref } from "@/lib/stepHref";
 import { requestUpgrade } from "./actions";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -284,12 +285,7 @@ export default async function PortalPage() {
                           .map((step) => {
                             const status =
                               statusByStep.get(step.id) ?? "not_started";
-                            const href =
-                              step.key === "setup_initiation"
-                                ? "/setup"
-                                : step.step_type === "configurator"
-                                  ? `/configurator/${step.key}`
-                                  : `/lesson/${step.id}`;
+                            const href = stepClientHref(step);
                             const isClickable = Boolean(href);
 
                             const Wrapper = href ? Link : "div";

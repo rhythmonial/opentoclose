@@ -34,7 +34,7 @@ export default async function SetupInitiationPage({
   const [{ data: profile }, { data: existing }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("client_account_id")
+      .select("role, client_account_id")
       .eq("id", user.id)
       .single(),
     supabase
@@ -43,6 +43,8 @@ export default async function SetupInitiationPage({
       .eq("client_id", user.id)
       .maybeSingle(),
   ]);
+
+  const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
 
   const { data: account } = profile?.client_account_id
     ? await supabase
@@ -57,9 +59,19 @@ export default async function SetupInitiationPage({
   return (
     <main className="flex flex-1 items-center justify-center bg-bg px-4 py-12">
       <div className="w-full max-w-2xl">
-        <Link href="/portal" className="text-sm font-medium text-accent">
-          &larr; Back to your setup
+        <Link
+          href={isStaff ? "/profile" : "/portal"}
+          className="text-sm font-medium text-accent"
+        >
+          &larr; {isStaff ? "Back to editor" : "Back to your setup"}
         </Link>
+
+        {isStaff && (
+          <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
+            Previewing this step the way a client sees it &mdash; actions
+            are disabled here.
+          </div>
+        )}
 
         <h1 className="mt-3 font-display text-2xl font-bold text-ink">
           {isUpdate ? "Update your setup initiation details" : "Setup Initiation"}
@@ -78,6 +90,7 @@ export default async function SetupInitiationPage({
           action={submitSetupInitiation}
           className="mt-6 grid grid-cols-2 gap-4"
         >
+        <fieldset disabled={isStaff} className="contents">
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">First name</span>
             <input
@@ -251,10 +264,11 @@ export default async function SetupInitiationPage({
 
           <button
             type="submit"
-            className="col-span-2 mt-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
+            className="col-span-2 mt-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           >
             {isUpdate ? "Save changes" : "Submit"}
           </button>
+        </fieldset>
         </form>
       </div>
     </main>

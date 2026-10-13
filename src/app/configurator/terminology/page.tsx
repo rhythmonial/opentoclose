@@ -26,37 +26,69 @@ export default async function TerminologyConfiguratorPage() {
     redirect("/login");
   }
 
-  let { data: terms } = await supabase
-    .from("terminology")
-    .select("*")
-    .eq("client_id", user.id)
-    .order("sort_order");
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
 
-  if (!terms || terms.length === 0) {
-    await supabase.from("terminology").insert(
-      DEFAULT_TERMS.map((term, i) => ({
-        client_id: user.id,
-        our_term: term,
-        applies: true,
-        sort_order: i,
-      })),
-    );
+  const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
 
-    const { data: seeded } = await supabase
+  let terms: { id: string; our_term: string; your_term: string | null; applies: boolean }[] =
+    [];
+
+  if (isStaff) {
+    terms = DEFAULT_TERMS.map((term, i) => ({
+      id: `preview-${i}`,
+      our_term: term,
+      your_term: null,
+      applies: true,
+    }));
+  } else {
+    const { data: existingTerms } = await supabase
       .from("terminology")
       .select("*")
       .eq("client_id", user.id)
       .order("sort_order");
 
-    terms = seeded;
+    if (!existingTerms || existingTerms.length === 0) {
+      await supabase.from("terminology").insert(
+        DEFAULT_TERMS.map((term, i) => ({
+          client_id: user.id,
+          our_term: term,
+          applies: true,
+          sort_order: i,
+        })),
+      );
+
+      const { data: seeded } = await supabase
+        .from("terminology")
+        .select("*")
+        .eq("client_id", user.id)
+        .order("sort_order");
+
+      terms = seeded ?? [];
+    } else {
+      terms = existingTerms;
+    }
   }
 
   return (
     <main className="flex flex-1 items-center justify-center bg-bg px-4 py-12">
       <div className="w-full max-w-2xl">
-        <Link href="/portal" className="text-sm font-medium text-accent">
-          &larr; Back to your setup
+        <Link
+          href={isStaff ? "/profile" : "/portal"}
+          className="text-sm font-medium text-accent"
+        >
+          &larr; {isStaff ? "Back to editor" : "Back to your setup"}
         </Link>
+
+        {isStaff && (
+          <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
+            Previewing this step the way a client sees it &mdash; actions
+            are disabled here.
+          </div>
+        )}
 
         <h1 className="mt-3 font-display text-2xl font-bold text-ink">
           Set Your Terminology
@@ -68,7 +100,7 @@ export default async function TerminologyConfiguratorPage() {
         </p>
 
         <form action={saveTerminology} className="mt-6 flex flex-col gap-3">
-          {(terms ?? []).map((term) => (
+          {terms.map((term) => (
             <div
               key={term.id}
               className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface p-4"
@@ -79,6 +111,7 @@ export default async function TerminologyConfiguratorPage() {
                   type="checkbox"
                   name={`applies_${term.id}`}
                   defaultChecked={term.applies}
+                  disabled={isStaff}
                   className="h-4 w-4"
                 />
                 <span className="text-sm font-bold text-ink">
@@ -89,17 +122,20 @@ export default async function TerminologyConfiguratorPage() {
                 name={`your_term_${term.id}`}
                 defaultValue={term.your_term ?? ""}
                 placeholder="Same as ours"
-                className="w-56 rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-ink outline-none focus:border-accent"
+                disabled={isStaff}
+                className="w-56 rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-ink outline-none focus:border-accent disabled:bg-border-soft"
               />
             </div>
           ))}
 
-          <button
-            type="submit"
-            className="mt-2 self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
-          >
-            Save
-          </button>
+          {!isStaff && (
+            <button
+              type="submit"
+              className="mt-2 self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
+            >
+              Save
+            </button>
+          )}
         </form>
       </div>
     </main>
