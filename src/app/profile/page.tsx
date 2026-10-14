@@ -257,7 +257,7 @@ export default async function ProfilePage({
           {canSeeSetupSteps && (
           <details className="mt-9" open>
             <summary className="cursor-pointer font-display text-lg font-bold text-ink">
-              Setup Steps
+              Setup Tasks
             </summary>
 
             <p className="mt-1.5 text-sm text-ink-soft">
@@ -269,7 +269,7 @@ export default async function ProfilePage({
             <div className="mt-3 flex flex-wrap gap-2">
               {(
                 [
-                  { value: "all", label: "All Steps" },
+                  { value: "all", label: "All Tasks" },
                   { value: "optional", label: "Optional Only" },
                   { value: "future", label: "Future Build Only" },
                   {
@@ -356,10 +356,13 @@ export default async function ProfilePage({
                             );
 
                             return (
-                              <div key={section} className="mt-4">
-                                <h4 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
-                                  {section}
-                                </h4>
+                              <details key={section} className="mt-4">
+                                <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-ink-faint">
+                                  {section}{" "}
+                                  <span className="ml-1.5 text-[10px] font-normal normal-case text-ink-faint">
+                                    ({sectionSteps.length})
+                                  </span>
+                                </summary>
                                 <div className="mt-2">
                                   <SortableGroup
                                     items={sectionSteps.map((step) => ({
@@ -376,7 +379,7 @@ export default async function ProfilePage({
                                     onReorder={reorderSteps}
                                   />
                                 </div>
-                              </div>
+                              </details>
                             );
                           })}
                         </details>
@@ -386,7 +389,7 @@ export default async function ProfilePage({
 
                   <details className="mt-3 rounded-xl border border-dashed border-border bg-bg p-5">
                     <summary className="cursor-pointer text-sm font-semibold text-accent">
-                      + Add a step to the {path} path
+                      + Add a task to the {path} path
                     </summary>
                     <form action={addStep} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <input type="hidden" name="path" value={path} />
@@ -750,15 +753,11 @@ function StepEditPanel({
               </a>
             </div>
           </div>
-          <div className="mt-1.5">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <CompletedByRadios stepId={step.id} value={step.completed_by} />
-            <div className="mt-1.5 flex items-center gap-4">
-              <OptionalToggle stepId={step.id} value={step.is_optional} />
-              <FutureBuildToggle
-                stepId={step.id}
-                value={step.is_future_build}
-              />
-            </div>
+            <span className="text-ink-faint">|</span>
+            <OptionalToggle stepId={step.id} value={step.is_optional} />
+            <FutureBuildToggle stepId={step.id} value={step.is_future_build} />
           </div>
         </div>
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
@@ -874,8 +873,8 @@ function StepEditPanel({
             <input type="hidden" name="id" value={step.id} />
             <button
               type="submit"
-              title="Delete this step"
-              aria-label="Delete this step"
+              title="Delete this task"
+              aria-label="Delete this task"
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-danger"
             >
               <svg

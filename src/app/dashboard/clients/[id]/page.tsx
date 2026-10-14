@@ -186,7 +186,7 @@ export default async function ClientDetailPage({
           </div>
         </div>
         <div className="rounded-xl border border-border bg-surface p-5">
-          <div className="text-sm text-ink-soft">Steps complete</div>
+          <div className="text-sm text-ink-soft">Tasks complete</div>
           <div className="mt-1 font-display text-xl font-bold text-ink">
             {(steps ?? []).filter((s) => statusByStepId.get(s.id) === "approved").length}
             {" / "}
@@ -231,7 +231,7 @@ export default async function ClientDetailPage({
       <section className="mt-9">
         <div className="flex items-center justify-between gap-4">
           <h2 className="font-display text-lg font-bold text-ink">
-            Setup Steps
+            Setup Tasks
           </h2>
           {owner && (
             <TimerButton
