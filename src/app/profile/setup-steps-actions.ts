@@ -124,6 +124,33 @@ export async function reorderSteps(stepIds: string[]) {
   revalidateAll();
 }
 
+export async function deletePillar(formData: FormData) {
+  const supabase = await createClient();
+  const path = String(formData.get("path")) as "custom" | "express";
+  const phase = String(formData.get("phase") ?? "");
+
+  const query = supabase.from("setup_steps").delete().eq("path", path);
+  await (phase ? query.eq("phase", phase) : query.is("phase", null));
+
+  revalidateAll();
+}
+
+export async function deleteSection(formData: FormData) {
+  const supabase = await createClient();
+  const path = String(formData.get("path")) as "custom" | "express";
+  const phase = String(formData.get("phase") ?? "");
+  const section = String(formData.get("section"));
+
+  const query = supabase
+    .from("setup_steps")
+    .delete()
+    .eq("path", path)
+    .eq("section", section);
+  await (phase ? query.eq("phase", phase) : query.is("phase", null));
+
+  revalidateAll();
+}
+
 export async function deleteStep(formData: FormData) {
   const supabase = await createClient();
   const id = String(formData.get("id"));

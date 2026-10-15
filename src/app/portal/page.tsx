@@ -288,15 +288,6 @@ export default async function PortalPage({
 
       <div className="flex flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:flex-row lg:gap-8 lg:px-12 lg:pb-12">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-ink-soft">
-              {myTasks.length} steps assigned to you &middot;{" "}
-              <Link href="/resources" className="font-semibold text-accent">
-                View the full Resource Center &rarr;
-              </Link>
-            </p>
-          </div>
-
           <div className="flex flex-wrap gap-2">
             {FILTER_OPTIONS.map((opt) => (
               <Link

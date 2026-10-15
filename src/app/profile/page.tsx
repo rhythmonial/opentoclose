@@ -19,8 +19,11 @@ import {
   addStep,
   updateStep,
   deleteStep,
+  deletePillar,
+  deleteSection,
   reorderSteps,
 } from "./setup-steps-actions";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import type { Tables } from "@/lib/supabase/types";
 import { stepClientHref } from "@/lib/stepHref";
 
@@ -359,17 +362,46 @@ export default async function ProfilePage({
                         new Set(phaseSteps.map((s) => s.section)),
                       );
 
+                      const rawPhase = phaseSteps[0]?.phase ?? "";
+
                       return (
                         <details
                           key={phase}
-                          className="rounded-xl border border-border-soft bg-bg p-4"
+                          className="relative rounded-xl border border-border-soft bg-bg p-4"
                         >
-                          <summary className="cursor-pointer font-display text-base font-bold text-ink">
+                          <summary className="cursor-pointer pr-10 font-display text-base font-bold text-ink">
                             {phase}{" "}
                             <span className="ml-1.5 text-xs font-normal text-ink-faint">
                               ({phaseSteps.length})
                             </span>
                           </summary>
+
+                          <form action={deletePillar} className="absolute right-4 top-4">
+                            <input type="hidden" name="path" value={path} />
+                            <input type="hidden" name="phase" value={rawPhase} />
+                            <ConfirmSubmitButton
+                              confirmMessage={`Delete the "${phase}" pillar and all ${phaseSteps.length} task(s) in it? This cannot be undone.`}
+                              title={`Delete the ${phase} pillar`}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-danger"
+                            >
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M3 6h18" />
+                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                <path d="M10 11v6" />
+                                <path d="M14 11v6" />
+                              </svg>
+                            </ConfirmSubmitButton>
+                          </form>
 
                           {sections.map((section) => {
                             const sectionSteps = phaseSteps.filter(
@@ -377,13 +409,45 @@ export default async function ProfilePage({
                             );
 
                             return (
-                              <details key={section} className="mt-4">
-                                <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-ink-faint">
+                              <details key={section} className="relative mt-4">
+                                <summary className="cursor-pointer pr-10 text-xs font-bold uppercase tracking-wide text-ink-faint">
                                   {section}{" "}
                                   <span className="ml-1.5 text-[10px] font-normal normal-case text-ink-faint">
                                     ({sectionSteps.length})
                                   </span>
                                 </summary>
+
+                                <form
+                                  action={deleteSection}
+                                  className="absolute right-0 top-0"
+                                >
+                                  <input type="hidden" name="path" value={path} />
+                                  <input type="hidden" name="phase" value={rawPhase} />
+                                  <input type="hidden" name="section" value={section} />
+                                  <ConfirmSubmitButton
+                                    confirmMessage={`Delete the "${section}" section and all ${sectionSteps.length} task(s) in it? This cannot be undone.`}
+                                    title={`Delete the ${section} section`}
+                                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-border text-danger"
+                                  >
+                                    <svg
+                                      width="12"
+                                      height="12"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    >
+                                      <path d="M3 6h18" />
+                                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                      <path d="M10 11v6" />
+                                      <path d="M14 11v6" />
+                                    </svg>
+                                  </ConfirmSubmitButton>
+                                </form>
+
                                 <div className="mt-2">
                                   <SortableGroup
                                     items={sectionSteps.map((step) => ({
@@ -892,10 +956,9 @@ function StepEditPanel({
           <SaveStepButton formId={`step-form-${step.id}`} />
           <form action={deleteStep}>
             <input type="hidden" name="id" value={step.id} />
-            <button
-              type="submit"
+            <ConfirmSubmitButton
+              confirmMessage={`Delete the task "${step.title}"? This cannot be undone.`}
               title="Delete this task"
-              aria-label="Delete this task"
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-danger"
             >
               <svg
@@ -914,7 +977,7 @@ function StepEditPanel({
                 <path d="M10 11v6" />
                 <path d="M14 11v6" />
               </svg>
-            </button>
+            </ConfirmSubmitButton>
           </form>
         </div>
       </div>
