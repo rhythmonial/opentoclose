@@ -5,7 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
 import { getVideoEmbedUrl } from "@/lib/videoEmbed";
-import { effectiveOwner, type EngagementType } from "@/lib/stepOwnership";
+import {
+  effectiveOwner,
+  type EngagementType,
+  type PlanType,
+} from "@/lib/stepOwnership";
 import { toggleLessonComplete } from "../actions";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -68,6 +72,7 @@ export default async function LessonPage({
 
   let status = "not_started";
   let isHandledByStaff = false;
+  let isFreeTier = false;
 
   if (!isStaff) {
     const [{ data: statusRow }, { data: initiation }] = await Promise.all([
@@ -86,11 +91,33 @@ export default async function LessonPage({
 
     status = statusRow?.status ?? "not_started";
     const engagementType = (initiation?.engagement_type ??
-      "custom") as EngagementType;
+      "free") as EngagementType;
+    isFreeTier = engagementType === "free";
+    // Free accounts haven't paid for staff to handle anything yet, so
+    // they're treated like DIY for the purpose of "is this mine to do".
+    const ownershipPlan: PlanType = engagementType === "custom" ? "custom" : "diy";
     isHandledByStaff =
-      effectiveOwner(step.completed_by, engagementType) === "staff";
+      effectiveOwner(step.completed_by, ownershipPlan) === "staff";
+
+    // First visit to a not-yet-started task marks it in progress, so the
+    // portal list can show "Continue" instead of "Start" afterward. This
+    // happens regardless of free/paid status — tracking progress is free,
+    // only the lesson content itself is gated.
+    if (status === "not_started" && !isHandledByStaff) {
+      await supabase.from("client_step_status").upsert(
+        {
+          client_id: user.id,
+          step_id: step.id,
+          status: "in_progress",
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "client_id,step_id" },
+      );
+      status = "in_progress";
+    }
   }
 
+  const canViewContent = isStaff || !isFreeTier;
   const embedUrl = step.video_url ? getVideoEmbedUrl(step.video_url) : null;
   const isApproved = status === "approved";
 
@@ -114,6 +141,12 @@ export default async function LessonPage({
           <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
             Previewing this lesson the way a client sees it &mdash; actions
             are disabled here.
+          </div>
+        )}
+
+        {isFreeTier && (
+          <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
+            Sign up for Setup or DIY to unlock the video and resources below.
           </div>
         )}
 
@@ -149,7 +182,26 @@ export default async function LessonPage({
 
         {step.video_url && (
           <div className="mt-6">
-            {embedUrl ? (
+            {!canViewContent ? (
+              <div className="flex aspect-video flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-border bg-black text-white/70">
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span className="text-sm font-semibold">
+                  Sign up to watch this video
+                </span>
+              </div>
+            ) : embedUrl ? (
               <div className="aspect-video overflow-hidden rounded-xl border border-border bg-black">
                 <iframe
                   src={embedUrl}
@@ -197,19 +249,42 @@ export default async function LessonPage({
               Resources
             </h2>
             <div className="mt-2.5 flex flex-col gap-2">
-              {(resources ?? []).map((r) => (
-                <a
-                  key={r.id}
-                  href={r.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  {...(r.kind === "pdf" ? { download: true } : {})}
-                  className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface px-4 py-3 text-sm font-semibold text-ink"
-                >
-                  {r.label || RESOURCE_KIND_LABEL[r.kind] || "Open"}
-                  <span className="text-ink-faint">&rarr;</span>
-                </a>
-              ))}
+              {(resources ?? []).map((r) =>
+                canViewContent ? (
+                  <a
+                    key={r.id}
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    {...(r.kind === "pdf" ? { download: true } : {})}
+                    className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface px-4 py-3 text-sm font-semibold text-ink"
+                  >
+                    {r.label || RESOURCE_KIND_LABEL[r.kind] || "Open"}
+                    <span className="text-ink-faint">&rarr;</span>
+                  </a>
+                ) : (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between gap-4 rounded-lg border border-border-soft bg-bg px-4 py-3 text-sm font-semibold text-ink-faint"
+                  >
+                    {r.label || RESOURCE_KIND_LABEL[r.kind] || "Open"}
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="shrink-0"
+                    >
+                      <rect x="3" y="11" width="18" height="11" rx="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </div>
+                ),
+              )}
             </div>
           </div>
         )}

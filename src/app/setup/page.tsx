@@ -17,9 +17,9 @@ const COMPANY_STRUCTURES = [
 export default async function SetupInitiationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; plan?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, plan } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -53,6 +53,8 @@ export default async function SetupInitiationPage({
     : { data: null };
 
   const isUpdate = Boolean(existing);
+  const defaultEngagementType =
+    existing?.engagement_type ?? (plan === "diy" ? "diy" : "custom");
 
   return (
     <main className="flex flex-1 items-center justify-center bg-bg px-4 py-12">
@@ -169,7 +171,7 @@ export default async function SetupInitiationPage({
                     type="radio"
                     name="engagement_type"
                     value="custom"
-                    defaultChecked={(existing?.engagement_type ?? "custom") === "custom"}
+                    defaultChecked={defaultEngagementType === "custom"}
                     className="h-4 w-4"
                   />
                   Setup ($999)
@@ -184,7 +186,7 @@ export default async function SetupInitiationPage({
                     type="radio"
                     name="engagement_type"
                     value="diy"
-                    defaultChecked={existing?.engagement_type === "diy"}
+                    defaultChecked={defaultEngagementType === "diy"}
                     className="h-4 w-4"
                   />
                   DIY ($19)

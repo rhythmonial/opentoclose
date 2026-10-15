@@ -6,6 +6,7 @@ import {
   effectiveOwner,
   isClientVisible,
   type EngagementType,
+  type PlanType,
 } from "@/lib/stepOwnership";
 import { stepClientHref, isExternalStepLink } from "@/lib/stepHref";
 import { toggleLessonComplete } from "@/app/lesson/actions";
@@ -76,10 +77,14 @@ export default async function PortalPage({
       .maybeSingle(),
   ]);
 
-  const engagementType = (initiation?.engagement_type ?? "custom") as EngagementType;
-  const displayEngagementType: EngagementType =
-    view === "setup" ? "custom" : view === "diy" ? "diy" : engagementType;
-  const isPreviewing = displayEngagementType !== engagementType;
+  const engagementType = (initiation?.engagement_type ?? "free") as EngagementType;
+  // A free account hasn't chosen a plan yet, so there's no "their real plan"
+  // to fall back to — default the toggle to Setup, same as a paid Setup
+  // client would see.
+  const realPlan: PlanType = engagementType === "diy" ? "diy" : "custom";
+  const displayEngagementType: PlanType =
+    view === "setup" ? "custom" : view === "diy" ? "diy" : realPlan;
+  const isPreviewing = displayEngagementType !== realPlan;
 
   const statusByStep = new Map(
     (statuses ?? []).map((s) => [s.step_id, s.status]),
@@ -185,10 +190,21 @@ export default async function PortalPage({
           </div>
           {engagementType === "diy" && (
             <Link
-              href="/setup"
+              href="/setup?plan=setup"
               className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white"
             >
               Sign Up for Setup &rarr;
+            </Link>
+          )}
+          {engagementType === "free" && (
+            <Link
+              href={`/setup?plan=${displayEngagementType === "custom" ? "setup" : "diy"}`}
+              className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white"
+            >
+              {displayEngagementType === "custom"
+                ? "Sign Up for Setup"
+                : "Sign Up for DIY"}{" "}
+              &rarr;
             </Link>
           )}
         </div>
@@ -404,8 +420,10 @@ export default async function PortalPage({
                             const isExternal = isExternalStepLink(step);
                             const isApproved = status === "approved";
                             const isClientManaged =
-                              effectiveOwner(step.completed_by, engagementType) ===
-                              "client";
+                              effectiveOwner(
+                                step.completed_by,
+                                displayEngagementType,
+                              ) === "client";
 
                             const titleBlock = (
                               <div className="min-w-0 flex-1">
@@ -531,7 +549,7 @@ export default async function PortalPage({
         </div>
 
         <div className="flex w-full flex-col gap-5 lg:w-[340px] lg:shrink-0">
-          {engagementType === "diy" ? (
+          {engagementType !== "custom" ? (
             <>
               <div className="rounded-xl border border-border-soft bg-bg p-5">
                 <h3 className="mb-1.5 text-sm font-bold text-ink">

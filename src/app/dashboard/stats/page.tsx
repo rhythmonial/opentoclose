@@ -53,6 +53,7 @@ export default async function StatsPage() {
   }
 
   const totalClients = clientsByEngagement.custom + clientsByEngagement.diy;
+  const freeClients = Math.max(0, (accounts ?? []).length - totalClients);
   const decidedLeads = leadsByStatus.won + leadsByStatus.lost;
   const conversionRate =
     decidedLeads > 0 ? (leadsByStatus.won / decidedLeads) * 100 : 0;
@@ -79,8 +80,12 @@ export default async function StatsPage() {
             <span className="text-ink-soft">DIY ($19)</span>
             <span className="font-bold text-ink">{clientsByEngagement.diy}</span>
           </div>
+          <div className="mt-1.5 flex justify-between text-sm">
+            <span className="text-ink-soft">Free (not signed up yet)</span>
+            <span className="font-bold text-ink">{freeClients}</span>
+          </div>
           <div className="mt-3 flex justify-between border-t border-border-soft pt-2 text-sm font-bold text-ink">
-            <span>Total</span>
+            <span>Total paying</span>
             <span>{totalClients}</span>
           </div>
         </div>

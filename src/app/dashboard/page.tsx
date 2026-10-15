@@ -148,8 +148,8 @@ export default async function DashboardHome() {
     }
 
     const engagementType = owner
-      ? (engagementByClientId.get(owner.id) ?? "custom")
-      : "custom";
+      ? (engagementByClientId.get(owner.id) ?? "free")
+      : "free";
 
     return {
       id: account.id,
@@ -171,6 +171,10 @@ export default async function DashboardHome() {
     {
       label: "DIY ($19)",
       rows: clientRows.filter((r) => r.engagementType === "diy"),
+    },
+    {
+      label: "Free",
+      rows: clientRows.filter((r) => r.engagementType === "free"),
     },
   ];
 

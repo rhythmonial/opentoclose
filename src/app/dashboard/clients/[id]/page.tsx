@@ -5,7 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { ClientStatusSelect } from "@/components/ClientStatusSelect";
 import { StepOwnerIcon } from "@/components/StepOwnerIcon";
 import { TimerButton } from "@/components/TimerButton";
-import { effectiveOwner, type EngagementType } from "@/lib/stepOwnership";
+import {
+  effectiveOwner,
+  type EngagementType,
+  type PlanType,
+} from "@/lib/stepOwnership";
 import {
   approveSubmission,
   returnSubmission,
@@ -15,6 +19,7 @@ import {
 import { logHours, logTimedHours } from "./actions";
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
+  free: "Free",
   custom: "Setup ($999)",
   diy: "DIY ($19)",
 };
@@ -104,7 +109,12 @@ export default async function ClientDetailPage({
   );
 
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
-  const engagementType = (initiation?.engagement_type ?? "custom") as EngagementType;
+  const engagementType = (initiation?.engagement_type ?? "free") as EngagementType;
+  // Staff always see the full task list for a client regardless of plan;
+  // this only resolves which plan's ownership rules apply (free clients
+  // haven't paid for staff to handle anything yet, so they're treated like
+  // DIY for that purpose).
+  const ownershipPlan: PlanType = engagementType === "custom" ? "custom" : "diy";
 
   const phases = Array.from(new Set((steps ?? []).map((s) => s.phase ?? "General")));
   const sortedSteps = (steps ?? [])
@@ -136,7 +146,9 @@ export default async function ClientDetailPage({
               className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${
                 engagementType === "diy"
                   ? "bg-warning-soft text-warning"
-                  : "bg-accent-soft text-accent"
+                  : engagementType === "free"
+                    ? "bg-border-soft text-ink-faint"
+                    : "bg-accent-soft text-accent"
               }`}
             >
               {ENGAGEMENT_LABEL[engagementType]}
@@ -353,7 +365,7 @@ export default async function ClientDetailPage({
                                     </p>
                                   )}
 
-                                  {effectiveOwner(step.completed_by, engagementType) ===
+                                  {effectiveOwner(step.completed_by, ownershipPlan) ===
                                     "staff" &&
                                     status !== "approved" &&
                                     owner && (
