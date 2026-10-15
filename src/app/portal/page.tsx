@@ -8,6 +8,7 @@ import {
   type EngagementType,
   type PlanType,
 } from "@/lib/stepOwnership";
+import { StaffNav } from "@/components/StaffNav";
 import { stepClientHref, isExternalStepLink } from "@/lib/stepHref";
 import { toggleLessonComplete } from "@/app/lesson/actions";
 
@@ -22,12 +23,22 @@ const STATUS_LABEL: Record<string, string> = {
 
 const HOURS_PER_BUNDLE = 10;
 
+function matchesStepFilter(
+  step: { is_optional: boolean; is_future_build: boolean },
+  filter: string | undefined,
+): boolean {
+  if (filter === "optional") return step.is_optional;
+  if (filter === "future") return step.is_future_build;
+  if (filter === "optional_future") return step.is_optional || step.is_future_build;
+  return !step.is_optional && !step.is_future_build;
+}
+
 export default async function PortalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; stepFilter?: string; previewAs?: string }>;
 }) {
-  const { view } = await searchParams;
+  const { view, stepFilter, previewAs } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -43,7 +54,9 @@ export default async function PortalPage({
     .eq("id", user.id)
     .single();
 
-  if (profile && !profile.first_login_at) {
+  const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
+
+  if (!isStaff && profile && !profile.first_login_at) {
     await supabase
       .from("profiles")
       .update({ first_login_at: new Date().toISOString() })
@@ -77,7 +90,18 @@ export default async function PortalPage({
       .maybeSingle(),
   ]);
 
-  const engagementType = (initiation?.engagement_type ?? "free") as EngagementType;
+  // Staff previewing use ?previewAs= instead of a real plan (they have no
+  // setup_initiation row of their own) — defaults to Free, same as a brand
+  // new signup would see.
+  const engagementType = (
+    isStaff
+      ? previewAs === "setup"
+        ? "custom"
+        : previewAs === "diy"
+          ? "diy"
+          : "free"
+      : (initiation?.engagement_type ?? "free")
+  ) as EngagementType;
   // A free account hasn't chosen a plan yet, so there's no "their real plan"
   // to fall back to — default the toggle to Setup, same as a paid Setup
   // client would see.
@@ -117,8 +141,10 @@ export default async function PortalPage({
   // staff-owned step that's also a clickable link (e.g. a payment link)
   // still needs to be visible, since the client has to act on it even
   // though staff confirms completion.
-  const visibleSteps = (allSteps ?? []).filter((s) =>
-    isClientVisible(s.completed_by, displayEngagementType),
+  const visibleSteps = (allSteps ?? []).filter(
+    (s) =>
+      isClientVisible(s.completed_by, displayEngagementType) &&
+      matchesStepFilter(s, stepFilter),
   );
   const myTasks = visibleSteps.filter(
     (s) => effectiveOwner(s.completed_by, displayEngagementType) === "client",
@@ -134,26 +160,59 @@ export default async function PortalPage({
   );
 
   // How many fewer steps a client has to personally do under Setup vs DIY —
-  // this is the "time savings" shown when previewing the other plan.
+  // this is the "time savings" shown when previewing the other plan. Scoped
+  // to whatever task filter is active, so the numbers match what's on screen.
   const setupClientStepCount = (allSteps ?? []).filter(
     (s) =>
       isClientVisible(s.completed_by, "custom") &&
-      effectiveOwner(s.completed_by, "custom") === "client",
+      effectiveOwner(s.completed_by, "custom") === "client" &&
+      matchesStepFilter(s, stepFilter),
   ).length;
   const diyClientStepCount = (allSteps ?? []).filter(
     (s) =>
       isClientVisible(s.completed_by, "diy") &&
-      effectiveOwner(s.completed_by, "diy") === "client",
+      effectiveOwner(s.completed_by, "diy") === "client" &&
+      matchesStepFilter(s, stepFilter),
   ).length;
   const stepsOffYourPlate = diyClientStepCount - setupClientStepCount;
 
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
-  const businessName =
-    profile?.client_accounts?.name ?? user.email ?? "Your business";
+  const businessName = isStaff
+    ? "Preview"
+    : (profile?.client_accounts?.name ?? user.email ?? "Your business");
+
+  // Preserve the other query params whenever one toggle/filter link changes
+  // another, so e.g. clicking a filter pill doesn't reset the Setup/DIY view.
+  const currentParams: Record<string, string | undefined> = {
+    view,
+    stepFilter,
+    previewAs,
+  };
+  function hrefWith(overrides: Record<string, string>) {
+    const merged = { ...currentParams, ...overrides };
+    const qs = Object.entries(merged)
+      .filter((entry): entry is [string, string] => Boolean(entry[1]))
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+      .join("&");
+    return `?${qs}`;
+  }
+
+  const FILTER_OPTIONS = [
+    { value: "required", label: "Required" },
+    { value: "optional", label: "Optional Only" },
+    { value: "future", label: "Future Build Only" },
+    { value: "optional_future", label: "All Optional/Future Build" },
+  ] as const;
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <TopNav businessName={businessName} active="setup" />
+      {isStaff ? <StaffNav /> : <TopNav businessName={businessName} active="setup" />}
+
+      {isStaff && (
+        <div className="mx-4 mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent sm:mx-6 lg:mx-12">
+          Previewing the portal as a {engagementType === "custom" ? "Setup" : engagementType === "diy" ? "DIY" : "Free"} account &mdash; actions are disabled here.
+        </div>
+      )}
 
       <div className="flex flex-col items-start gap-3 px-4 pt-6 sm:px-6 sm:pt-9 lg:flex-row lg:items-start lg:justify-between lg:px-12">
         <div>
@@ -168,17 +227,7 @@ export default async function PortalPage({
         <div className="flex shrink-0 flex-col items-end gap-2.5">
           <div className="flex items-center gap-1 rounded-full border border-border bg-surface p-1">
             <Link
-              href="?view=setup"
-              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${
-                displayEngagementType === "custom"
-                  ? "bg-accent text-white"
-                  : "text-ink-soft"
-              }`}
-            >
-              Setup
-            </Link>
-            <Link
-              href="?view=diy"
+              href={hrefWith({ view: "diy" })}
               className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${
                 displayEngagementType === "diy"
                   ? "bg-accent text-white"
@@ -187,8 +236,18 @@ export default async function PortalPage({
             >
               DIY
             </Link>
+            <Link
+              href={hrefWith({ view: "setup" })}
+              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${
+                displayEngagementType === "custom"
+                  ? "bg-accent text-white"
+                  : "text-ink-soft"
+              }`}
+            >
+              Setup
+            </Link>
           </div>
-          {engagementType === "diy" && (
+          {!isStaff && engagementType === "diy" && (
             <Link
               href="/setup?plan=setup"
               className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white"
@@ -196,7 +255,7 @@ export default async function PortalPage({
               Sign Up for Setup &rarr;
             </Link>
           )}
-          {engagementType === "free" && (
+          {!isStaff && engagementType === "free" && (
             <Link
               href={`/setup?plan=${displayEngagementType === "custom" ? "setup" : "diy"}`}
               className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white"
@@ -236,6 +295,22 @@ export default async function PortalPage({
                 View the full Resource Center &rarr;
               </Link>
             </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {FILTER_OPTIONS.map((opt) => (
+              <Link
+                key={opt.value}
+                href={hrefWith({ stepFilter: opt.value })}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  (stepFilter ?? "required") === opt.value
+                    ? "bg-accent text-white"
+                    : "border border-border text-ink-soft"
+                }`}
+              >
+                {opt.label}
+              </Link>
+            ))}
           </div>
 
           {(() => {

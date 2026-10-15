@@ -260,16 +260,37 @@ export default async function ProfilePage({
               Setup Tasks
             </summary>
 
-            <p className="mt-1.5 text-sm text-ink-soft">
-              This is the checklist clients see in their portal. Edit it here
-              &mdash; changes show up immediately, no code or redeploy
-              needed.
-            </p>
+            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-ink-soft">
+                This is the checklist clients see in their portal. Edit it
+                here &mdash; changes show up immediately, no code or redeploy
+                needed.
+              </p>
+              <div className="flex items-center gap-2">
+                {(
+                  [
+                    { value: "free", label: "View as Free" },
+                    { value: "diy", label: "View as DIY" },
+                    { value: "setup", label: "View as Setup" },
+                  ] as const
+                ).map((opt) => (
+                  <Link
+                    key={opt.value}
+                    href={`/portal?previewAs=${opt.value}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink-soft"
+                  >
+                    {opt.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
               {(
                 [
-                  { value: "all", label: "All Tasks" },
+                  { value: "required", label: "Required" },
                   { value: "optional", label: "Optional Only" },
                   { value: "future", label: "Future Build Only" },
                   {
@@ -280,9 +301,9 @@ export default async function ProfilePage({
               ).map((opt) => (
                 <Link
                   key={opt.value}
-                  href={opt.value === "all" ? "/profile" : `/profile?stepFilter=${opt.value}`}
+                  href={opt.value === "required" ? "/profile" : `/profile?stepFilter=${opt.value}`}
                   className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                    (stepFilter ?? "all") === opt.value
+                    (stepFilter ?? "required") === opt.value
                       ? "bg-accent text-white"
                       : "border border-border text-ink-soft"
                   }`}
@@ -314,7 +335,7 @@ export default async function ProfilePage({
                 if (stepFilter === "future") return s.is_future_build;
                 if (stepFilter === "optional_future")
                   return s.is_optional || s.is_future_build;
-                return true;
+                return !s.is_optional && !s.is_future_build;
               });
               const visiblePhases = phases.filter((phase) =>
                 visiblePathSteps.some((s) => (s.phase ?? "General") === phase),
