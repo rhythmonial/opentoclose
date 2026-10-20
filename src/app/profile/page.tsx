@@ -67,7 +67,7 @@ export default async function ProfilePage({
 
     return (
       <div className="flex min-h-screen flex-col bg-bg">
-        <StaffNav showTasks={profile?.role === "dev"} />
+        <StaffNav isDev={profile?.role === "dev"} />
 
         <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
           <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">

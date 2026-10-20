@@ -111,9 +111,7 @@ export default async function ClientDetailPage({
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
   const engagementType = (initiation?.engagement_type ?? "free") as EngagementType;
   // Staff always see the full task list for a client regardless of plan;
-  // this only resolves which plan's ownership rules apply (free clients
-  // haven't paid for staff to handle anything yet, so they're treated like
-  // DIY for that purpose).
+  // free clients follow the DIY rules.
   const ownershipPlan: PlanType = engagementType === "custom" ? "custom" : "diy";
 
   const phases = Array.from(new Set((steps ?? []).map((s) => s.phase ?? "General")));

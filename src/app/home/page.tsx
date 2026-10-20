@@ -86,8 +86,7 @@ export default async function HomePage() {
   ]);
 
   const engagementType = (initiation?.engagement_type ?? "free") as EngagementType;
-  // Free accounts haven't paid for staff to handle anything yet, so their
-  // own required-task count is computed the same way DIY's is.
+  // Free accounts follow the DIY checklist.
   const plan: PlanType = engagementType === "custom" ? "custom" : "diy";
 
   const statusByStep = new Map(

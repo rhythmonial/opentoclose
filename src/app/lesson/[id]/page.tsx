@@ -100,8 +100,7 @@ export default async function LessonPage({
 
       status = statusRow?.status ?? "not_started";
       isFreeTier = sandboxTier === "free";
-      // Free accounts haven't paid for staff to handle anything yet, so
-      // they're treated like DIY for the purpose of "is this mine to do".
+      // Free accounts follow the DIY checklist.
       const ownershipPlan: PlanType = sandboxTier === "custom" ? "custom" : "diy";
       isHandledByStaff =
         effectiveOwner(step.completed_by, ownershipPlan) === "staff";
@@ -141,8 +140,7 @@ export default async function LessonPage({
       const engagementType = (initiation?.engagement_type ??
         "free") as EngagementType;
       isFreeTier = engagementType === "free";
-      // Free accounts haven't paid for staff to handle anything yet, so
-      // they're treated like DIY for the purpose of "is this mine to do".
+      // Free accounts follow the DIY checklist.
       const ownershipPlan: PlanType = engagementType === "custom" ? "custom" : "diy";
       isHandledByStaff =
         effectiveOwner(step.completed_by, ownershipPlan) === "staff";
@@ -174,7 +172,7 @@ export default async function LessonPage({
   return (
     <main className="flex min-h-screen flex-col bg-bg">
       {isStaff && !isSandboxing ? (
-        <StaffNav showTasks={realProfile?.role === "dev"} />
+        <StaffNav isDev={realProfile?.role === "dev"} />
       ) : (
         <TopNav
           businessName={businessName}

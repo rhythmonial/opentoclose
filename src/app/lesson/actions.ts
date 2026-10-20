@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { effectiveOwner, type PlanType } from "@/lib/stepOwnership";
+import {
+  effectiveOwner,
+  isClientVisible,
+  type PlanType,
+} from "@/lib/stepOwnership";
 import { getSandboxTier } from "@/lib/devSandbox";
 
 export async function toggleLessonComplete(formData: FormData) {
@@ -91,8 +95,7 @@ export async function toggleLessonComplete(formData: FormData) {
             .maybeSingle(),
     ]);
 
-  // Free accounts haven't paid for staff to handle anything yet, so they're
-  // treated like DIY for the purpose of "is this the client's to do next".
+  // Free accounts follow the DIY checklist.
   const plan: PlanType =
     initiation?.engagement_type === "custom" ? "custom" : "diy";
   const approvedStepIds = new Set(
@@ -104,6 +107,7 @@ export async function toggleLessonComplete(formData: FormData) {
   const next = (allSteps ?? []).find(
     (s) =>
       s.sort_order > step.sort_order &&
+      isClientVisible(s.completed_by, plan) &&
       effectiveOwner(s.completed_by, plan) === "client" &&
       !approvedStepIds.has(s.id),
   );

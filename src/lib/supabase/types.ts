@@ -431,6 +431,36 @@ export type Database = {
           },
         ]
       }
+      resource_items: {
+        Row: {
+          body: string | null
+          category: string
+          created_at: string
+          id: string
+          sort_order: number
+          title: string
+          url: string | null
+        }
+        Insert: {
+          body?: string | null
+          category: string
+          created_at?: string
+          id?: string
+          sort_order?: number
+          title: string
+          url?: string | null
+        }
+        Update: {
+          body?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          sort_order?: number
+          title?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       setup_step_resources: {
         Row: {
           created_at: string

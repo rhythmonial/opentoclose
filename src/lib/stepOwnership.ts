@@ -3,9 +3,7 @@
 // ($999). "diy" -> DIY ($19).
 export type EngagementType = "free" | "custom" | "diy";
 
-// The two real, paid plans. Ownership/visibility only ever differ between
-// these two — a "free" account is resolved to one of these (almost always
-// "diy", since nobody's paying staff to do anything for them yet) before
+// The two real, paid plans. A "free" account is resolved to "diy" before
 // calling effectiveOwner/isClientVisible, so those functions never see
 // "free" directly.
 export type PlanType = "custom" | "diy";
@@ -14,30 +12,23 @@ export type CompletedBy = "diy" | "setup" | "both" | "staff";
 
 export type EffectiveOwner = "client" | "staff";
 
-// Who actually does the step, regardless of whether it's shown to the
-// client at all (see isClientVisible for that).
-// "staff" -> always staff (ops-only, e.g. payment, intake approval).
-// "setup" -> staff for full-Setup clients, but flips to the client for DIY
-// clients who haven't paid for us to handle it.
-// "diy" / "both" -> always the client, whenever it's relevant to them.
+// Who checks the step off. Every step a client can see is theirs to
+// complete; only "staff" steps are internal ops work.
 export function effectiveOwner(
   completedBy: string,
+  // Kept so call sites stay plan-aware if ownership ever diverges by plan.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   plan: PlanType,
 ): EffectiveOwner {
-  if (completedBy === "staff") return "staff";
-  if (completedBy === "setup") return plan === "diy" ? "client" : "staff";
-  return "client";
+  return completedBy === "staff" ? "staff" : "client";
 }
 
-// Whether the client-facing portal should show this step at all under the
-// given plan.
-// "staff" -> never (ops-only, not client-facing).
-// "diy" -> only under the DIY plan — it's a self-serve how-to that doesn't
-// apply once staff is handling the equivalent work for a Setup client.
-// "setup" / "both" -> always shown (as a staff-handled line or a client
-// task, respectively).
+// Which steps the client portal shows under a plan.
+// "diy" -> DIY (and Free) clients only. "setup" -> Setup clients only.
+// "both" -> everyone. "staff" -> nobody (ops-only).
 export function isClientVisible(completedBy: string, plan: PlanType): boolean {
   if (completedBy === "staff") return false;
   if (completedBy === "diy") return plan === "diy";
+  if (completedBy === "setup") return plan === "custom";
   return true;
 }

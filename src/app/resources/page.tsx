@@ -1,24 +1,38 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
+import { getVideoEmbedUrl } from "@/lib/videoEmbed";
 import type { EngagementType } from "@/lib/stepOwnership";
+import {
+  RESOURCE_CATEGORIES,
+  type ResourceCategory,
+} from "@/lib/resourceCategories";
 
-const STEP_TYPE_LABEL: Record<string, string> = {
-  lesson: "Lesson",
-  form: "Form",
-  link: "Link",
-  configurator: "Configurator",
+const EMPTY_MESSAGE: Record<ResourceCategory, string> = {
+  training: "Training videos are on the way.",
+  replay: "Call replays will show up here.",
+  faq: "No FAQs yet.",
 };
 
-const RESOURCE_KIND_LABEL: Record<string, string> = {
-  google_doc: "Open & make a copy",
-  pdf: "Download PDF",
-  link: "Open",
-};
+const markdownClass = `text-sm leading-relaxed text-ink-soft
+  [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
+  [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
+  [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
+  [&_li]:mt-1 first:[&>*]:mt-0`;
 
-export default async function ResourcesPage() {
+export default async function ResourcesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
+  const category: ResourceCategory =
+    RESOURCE_CATEGORIES.find((c) => c.value === tab)?.value ?? "training";
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -42,69 +56,49 @@ export default async function ResourcesPage() {
   if (isStaff && !isSandboxing) {
     return (
       <main className="flex min-h-screen flex-col bg-bg">
-        <StaffNav showTasks={realProfile?.role === "dev"} />
+        <StaffNav isDev={realProfile?.role === "dev"} />
         <div className="px-4 py-9 sm:px-6 lg:px-12">
           <p className="text-sm text-ink-soft">
-            Enter a Free/DIY/Setup sandbox from the dashboard to preview the
-            Resource Center.
+            Edit Resource Center content from the Resources tab, or enter a
+            Free/DIY/Setup sandbox from the Clients tab to see it as a client.
           </p>
         </div>
       </main>
     );
   }
 
-  const { data: profile } = isSandboxing
-    ? { data: null }
-    : await supabase
-        .from("profiles")
-        .select("*, client_accounts(name, setup_path)")
-        .eq("id", user.id)
-        .single();
+  const [{ data: profile }, { data: initiation }, { data: items }] =
+    await Promise.all([
+      isSandboxing
+        ? Promise.resolve({ data: null })
+        : supabase
+            .from("profiles")
+            .select("client_accounts(name)")
+            .eq("id", user.id)
+            .single(),
+      isSandboxing
+        ? Promise.resolve({ data: { engagement_type: sandboxTier! } })
+        : supabase
+            .from("setup_initiation")
+            .select("engagement_type")
+            .eq("client_id", user.id)
+            .maybeSingle(),
+      supabase
+        .from("resource_items")
+        .select("*")
+        .eq("category", category)
+        .order("sort_order"),
+    ]);
 
-  const engagementType = isSandboxing
-    ? (sandboxTier as EngagementType)
-    : ((
-        await supabase
-          .from("setup_initiation")
-          .select("engagement_type")
-          .eq("client_id", user.id)
-          .maybeSingle()
-      ).data?.engagement_type ?? "free") as EngagementType;
-  const canViewContent = engagementType !== "free";
-
-  const setupPath = profile?.client_accounts?.setup_path ?? "custom";
-
-  const { data: steps } = await supabase
-    .from("setup_steps")
-    .select("*")
-    .eq("path", setupPath)
-    .order("sort_order");
-
-  const stepIds = (steps ?? []).map((s) => s.id);
-
-  const { data: resources } =
-    stepIds.length > 0
-      ? await supabase
-          .from("setup_step_resources")
-          .select("*")
-          .in("step_id", stepIds)
-          .order("sort_order")
-      : { data: [] };
-
-  const resourcesByStep = new Map<string, typeof resources>();
-  for (const r of resources ?? []) {
-    const list = resourcesByStep.get(r.step_id) ?? [];
-    list.push(r);
-    resourcesByStep.set(r.step_id, list);
-  }
+  const engagementType = (initiation?.engagement_type ??
+    "free") as EngagementType;
+  // FAQs are open to everyone; training videos and replays are part of
+  // the paid plans.
+  const isLocked = engagementType === "free" && category !== "faq";
 
   const businessName = isSandboxing
     ? SANDBOX_LABEL[sandboxTier!]
     : (profile?.client_accounts?.name ?? user.email ?? "Your business");
-
-  const phases = Array.from(
-    new Set((steps ?? []).map((s) => s.phase ?? "General")),
-  );
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
@@ -119,183 +113,130 @@ export default async function ResourcesPage() {
           Resource Center
         </h1>
         <p className="mt-1.5 max-w-2xl text-sm text-ink-soft">
-          Every step in your OTC setup, organized by phase. Required items are
-          the core build &mdash; optional items are nice-to-haves you can
-          tackle later without holding up your launch.
+          Training videos, call replays and answers to common questions.
         </p>
-      </div>
 
-      <div className="flex flex-col gap-5 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:px-12 lg:pb-12">
-        {phases.map((phase) => {
-          const phaseSteps = (steps ?? []).filter(
-            (s) => (s.phase ?? "General") === phase,
-          );
-          const sections = Array.from(
-            new Set(phaseSteps.map((s) => s.section)),
-          );
-
-          return (
-            <details
-              key={phase}
-              className="rounded-xl border border-border bg-surface p-5"
+        <div className="mt-6 flex gap-1 border-b border-border">
+          {RESOURCE_CATEGORIES.map((c) => (
+            <Link
+              key={c.value}
+              href={`/resources?tab=${c.value}`}
+              className={`-mb-px border-b-2 px-3.5 py-2 text-sm font-semibold ${
+                category === c.value
+                  ? "border-accent text-ink"
+                  : "border-transparent text-ink-soft"
+              }`}
             >
-              <summary className="cursor-pointer font-display text-lg font-bold text-ink">
-                {phase}
-              </summary>
-
-              <div className="mt-4 flex flex-col gap-6">
-                {sections.map((section) => {
-                  const sectionSteps = phaseSteps.filter(
-                    (s) => s.section === section,
-                  );
-                  const required = sectionSteps.filter((s) => !s.is_optional);
-                  const optional = sectionSteps.filter((s) => s.is_optional);
-
-                  return (
-                    <div key={section}>
-                      <h3 className="text-sm font-bold text-ink">{section}</h3>
-
-                      {required.length > 0 && (
-                        <div className="mt-2.5">
-                          <h4 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
-                            Required
-                          </h4>
-                          <ul className="mt-2 flex flex-col gap-2">
-                            {required.map((step) => (
-                              <ResourceItem
-                                key={step.id}
-                                step={step}
-                                resources={resourcesByStep.get(step.id) ?? []}
-                                canViewContent={canViewContent}
-                              />
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {optional.length > 0 && (
-                        <div className="mt-3">
-                          <h4 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
-                            Optional &mdash; can wait
-                          </h4>
-                          <ul className="mt-2 flex flex-col gap-2">
-                            {optional.map((step) => (
-                              <ResourceItem
-                                key={step.id}
-                                step={step}
-                                resources={resourcesByStep.get(step.id) ?? []}
-                                canViewContent={canViewContent}
-                              />
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </details>
-          );
-        })}
-
-        {(steps ?? []).length === 0 && (
-          <p className="text-sm text-ink-soft">
-            No resources configured yet for this path.
-          </p>
-        )}
-      </div>
-    </main>
-  );
-}
-
-function ResourceItem({
-  step,
-  resources,
-  canViewContent,
-}: {
-  step: {
-    id: string;
-    title: string;
-    description: string | null;
-    step_type: string;
-    video_url: string | null;
-    link_url: string | null;
-  };
-  resources: { id: string; kind: string; label: string | null; url: string }[];
-  canViewContent: boolean;
-}) {
-  const isExternal =
-    (step.step_type === "form" || step.step_type === "link") &&
-    Boolean(step.link_url);
-
-  return (
-    <li className="flex flex-col gap-2.5 rounded-lg border border-border-soft bg-bg px-4 py-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold text-ink">{step.title}</div>
-          {step.description && (
-            <div className="mt-0.5 text-xs text-ink-soft">
-              {step.description}
-            </div>
-          )}
-        </div>
-        <span className="self-start rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent sm:shrink-0">
-          {STEP_TYPE_LABEL[step.step_type] ?? step.step_type}
-        </span>
-      </div>
-
-      {isExternal && (
-        <a
-          href={step.link_url!}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="self-start rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white"
-        >
-          Open &rarr;
-        </a>
-      )}
-
-      {!canViewContent && (step.video_url || resources.length > 0) && (
-        <p className="text-xs font-medium text-ink-faint">
-          Sign up for Setup or DIY to unlock the video and resources for this
-          step.
-        </p>
-      )}
-
-      {canViewContent && (step.video_url || resources.length > 0) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {step.video_url && (
-            <a
-              href={step.video_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-lg bg-navy px-3 py-1.5 text-xs font-semibold text-white"
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M8 5v14l11-7z" />
-              </svg>
-              Watch the video
-            </a>
-          )}
-          {resources.map((r) => (
-            <a
-              key={r.id}
-              href={r.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              {...(r.kind === "pdf" ? { download: true } : {})}
-              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-ink"
-            >
-              {r.label || RESOURCE_KIND_LABEL[r.kind] || "Open"}
-            </a>
+              {c.label}
+            </Link>
           ))}
         </div>
-      )}
-    </li>
+      </div>
+
+      <div className="flex flex-col gap-4 px-4 pb-10 pt-6 sm:px-6 lg:px-12 lg:pb-12">
+        {isLocked && (
+          <div className="rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
+            Sign up for Setup or DIY to unlock training videos and replays.
+          </div>
+        )}
+
+        {(items ?? []).length === 0 && (
+          <p className="rounded-xl border border-border bg-surface p-5 text-sm text-ink-soft">
+            {EMPTY_MESSAGE[category]}
+          </p>
+        )}
+
+        {category === "faq"
+          ? (items ?? []).map((item) => (
+              <details
+                key={item.id}
+                className="rounded-xl border border-border bg-surface p-5"
+              >
+                <summary className="cursor-pointer text-[15px] font-bold text-ink">
+                  {item.title}
+                </summary>
+                {item.body && (
+                  <div className={`mt-3 ${markdownClass}`}>
+                    <ReactMarkdown>{item.body}</ReactMarkdown>
+                  </div>
+                )}
+                {item.url && (
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-block text-sm font-semibold text-accent"
+                  >
+                    Learn more &rarr;
+                  </a>
+                )}
+              </details>
+            ))
+          : (items ?? []).map((item) => {
+              const embedUrl = item.url ? getVideoEmbedUrl(item.url) : null;
+
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-xl border border-border bg-surface p-5"
+                >
+                  <h2 className="text-[15px] font-bold text-ink">
+                    {item.title}
+                  </h2>
+                  {item.body && (
+                    <div className={`mt-1.5 ${markdownClass}`}>
+                      <ReactMarkdown>{item.body}</ReactMarkdown>
+                    </div>
+                  )}
+                  {item.url &&
+                    (isLocked ? (
+                      <div className="mt-3 flex items-center gap-2 text-sm font-semibold text-ink-faint">
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect x="3" y="11" width="18" height="11" rx="2" />
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                        Locked
+                      </div>
+                    ) : embedUrl ? (
+                      <div className="mt-3 aspect-video max-w-3xl overflow-hidden rounded-lg border border-border bg-black">
+                        <iframe
+                          src={embedUrl}
+                          className="h-full w-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : (
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-navy px-3 py-1.5 text-xs font-semibold text-white"
+                      >
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                        Watch
+                      </a>
+                    ))}
+                </div>
+              );
+            })}
+      </div>
+    </main>
   );
 }

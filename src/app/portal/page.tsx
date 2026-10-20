@@ -43,12 +43,7 @@ function stepRowClass(
   return "border-danger/30 bg-danger/5";
 }
 
-export default async function PortalPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ view?: string }>;
-}) {
-  const { view } = await searchParams;
+export default async function PortalPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -125,13 +120,8 @@ export default async function PortalPage({
       ? "free"
       : (initiation?.engagement_type ?? "free")
   ) as EngagementType;
-  // A free account hasn't chosen a plan yet, so there's no "their real plan"
-  // to fall back to — default the toggle to Setup, same as a paid Setup
-  // client would see.
-  const realPlan: PlanType = engagementType === "diy" ? "diy" : "custom";
-  const displayEngagementType: PlanType =
-    view === "setup" ? "custom" : view === "diy" ? "diy" : realPlan;
-  const isPreviewing = displayEngagementType !== realPlan;
+  // Free accounts follow the DIY checklist until they pick a plan.
+  const plan: PlanType = engagementType === "custom" ? "custom" : "diy";
 
   const statusByStep = new Map(
     (statuses ?? []).map((s) => [s.step_id, s.status]),
@@ -157,28 +147,12 @@ export default async function PortalPage({
     )
     .slice(0, 8);
 
-  // The task pipeline only shows what's actually assigned to this client in
-  // the engagement type being displayed (their real plan, or the other one
-  // they're previewing via the toggle) — purely-internal staff steps, and
-  // DIY-only how-tos while viewing as Setup, don't show up here. A
-  // staff-owned step that's also a clickable link (e.g. a payment link)
-  // still needs to be visible, since the client has to act on it even
-  // though staff confirms completion.
+  // Setup clients see Setup + Both steps; DIY and Free see DIY + Both.
+  // Staff-only steps never show here.
   const visibleSteps = (allSteps ?? []).filter((s) =>
-    isClientVisible(s.completed_by, displayEngagementType),
+    isClientVisible(s.completed_by, plan),
   );
-  const myTasks = visibleSteps.filter(
-    (s) => effectiveOwner(s.completed_by, displayEngagementType) === "client",
-  );
-  const visibleStaffSteps = visibleSteps.filter(
-    (s) =>
-      effectiveOwner(s.completed_by, displayEngagementType) === "staff" &&
-      (s.step_type === "form" || s.step_type === "link") &&
-      s.link_url,
-  );
-  const steps = [...myTasks, ...visibleStaffSteps].sort(
-    (a, b) => a.sort_order - b.sort_order,
-  );
+  const steps = visibleSteps;
 
   // Only the section holding the client's next task starts expanded: the
   // first unfinished required step after their last completed one (falling
@@ -192,23 +166,6 @@ export default async function PortalPage({
   const currentPhase = nextStep ? (nextStep.phase ?? "General") : null;
   const currentSection = nextStep?.section ?? null;
 
-  // How many fewer steps a client has to personally do under Setup vs DIY —
-  // this is the "time savings" shown when previewing the other plan. Only
-  // required steps count.
-  const setupClientStepCount = (allSteps ?? []).filter(
-    (s) =>
-      isClientVisible(s.completed_by, "custom") &&
-      effectiveOwner(s.completed_by, "custom") === "client" &&
-      isRequiredStep(s),
-  ).length;
-  const diyClientStepCount = (allSteps ?? []).filter(
-    (s) =>
-      isClientVisible(s.completed_by, "diy") &&
-      effectiveOwner(s.completed_by, "diy") === "client" &&
-      isRequiredStep(s),
-  ).length;
-  const stepsOffYourPlate = diyClientStepCount - setupClientStepCount;
-
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
   const businessName =
     isStaff
@@ -221,7 +178,7 @@ export default async function PortalPage({
   return (
     <main className="flex min-h-screen flex-col bg-bg">
       {isStaff && !isSandboxing ? (
-        <StaffNav showTasks={realProfile?.role === "dev"} />
+        <StaffNav isDev={realProfile?.role === "dev"} />
       ) : (
         <TopNav
           businessName={businessName}
@@ -246,30 +203,16 @@ export default async function PortalPage({
             implementation.
           </p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2.5">
-          <div className="flex items-center gap-1 rounded-full border border-border bg-surface p-1">
+        <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+          {!isStaff && engagementType === "free" && (
             <Link
-              href="?view=diy"
-              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${
-                displayEngagementType === "diy"
-                  ? "bg-accent text-white"
-                  : "text-ink-soft"
-              }`}
+              href="/setup?plan=diy"
+              className="rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-ink"
             >
-              DIY
+              Sign Up for DIY &rarr;
             </Link>
-            <Link
-              href="?view=setup"
-              className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${
-                displayEngagementType === "custom"
-                  ? "bg-accent text-white"
-                  : "text-ink-soft"
-              }`}
-            >
-              Setup
-            </Link>
-          </div>
-          {!isStaff && engagementType === "diy" && (
+          )}
+          {!isStaff && engagementType !== "custom" && (
             <Link
               href="/setup?plan=setup"
               className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white"
@@ -277,36 +220,8 @@ export default async function PortalPage({
               Sign Up for Setup &rarr;
             </Link>
           )}
-          {!isStaff && engagementType === "free" && (
-            <Link
-              href={`/setup?plan=${displayEngagementType === "custom" ? "setup" : "diy"}`}
-              className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white"
-            >
-              {displayEngagementType === "custom"
-                ? "Sign Up for Setup"
-                : "Sign Up for DIY"}{" "}
-              &rarr;
-            </Link>
-          )}
         </div>
       </div>
-
-      {isPreviewing && (
-        <div className="mx-4 mt-3 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent sm:mx-6 lg:mx-12">
-          {displayEngagementType === "custom" ? (
-            <>
-              Previewing Setup &mdash; our team takes {stepsOffYourPlate}{" "}
-              steps off your plate, leaving just {setupClientStepCount} for
-              you.
-            </>
-          ) : (
-            <>
-              Previewing DIY &mdash; you&rsquo;d take on {stepsOffYourPlate}{" "}
-              more steps yourself, {diyClientStepCount} in total.
-            </>
-          )}
-        </div>
-      )}
 
       <div className="flex flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:flex-row lg:gap-8 lg:px-12 lg:pb-12">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -440,7 +355,7 @@ export default async function PortalPage({
                             const isClientManaged =
                               effectiveOwner(
                                 step.completed_by,
-                                displayEngagementType,
+                                plan,
                               ) === "client";
 
                             const titleBlock = (

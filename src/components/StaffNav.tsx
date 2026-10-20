@@ -9,11 +9,14 @@ const LINKS = [
   { href: "/dashboard/stats", label: "Stats" },
 ];
 
-const TASKS_LINK = { href: "/dashboard/tasks", label: "Tasks" };
+const DEV_LINKS = [
+  { href: "/dashboard/tasks", label: "Tasks" },
+  { href: "/dashboard/resources", label: "Resources" },
+];
 
-export function StaffNav({ showTasks = false }: { showTasks?: boolean }) {
+export function StaffNav({ isDev = false }: { isDev?: boolean }) {
   const pathname = usePathname();
-  const links = showTasks ? [...LINKS, TASKS_LINK] : LINKS;
+  const links = isDev ? [...LINKS, ...DEV_LINKS] : LINKS;
 
   return (
     <div className="flex h-[64px] shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-4 sm:h-[76px] sm:px-6 lg:px-12">
