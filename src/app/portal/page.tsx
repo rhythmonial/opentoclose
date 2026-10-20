@@ -225,34 +225,21 @@ export default async function PortalPage() {
 
       <div className="flex flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:flex-row lg:gap-8 lg:px-12 lg:pb-12">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 self-start rounded-lg border border-border bg-surface px-3.5 py-2 text-xs font-medium text-ink-soft">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-medium text-ink-soft">
             <span className="flex items-center gap-1.5">
-              <span className="h-3.5 w-3.5 rounded border border-danger/40 bg-danger/10" />
+              <span className="h-3 w-3 rounded border border-danger/30 bg-danger/5" />
               Required
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-3.5 w-3.5 rounded border border-warning/60 bg-warning-soft" />
+              <span className="h-3 w-3 rounded border border-warning/50 bg-warning-soft" />
               Optional
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-3.5 w-3.5 rounded border border-success/50 bg-success-soft" />
+              <span className="h-3 w-3 rounded border border-success/40 bg-success-soft" />
               Future build
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="flex h-3.5 w-3.5 items-center justify-center rounded border border-ink-faint/50 bg-bg text-ink-faint">
-                <svg
-                  width="9"
-                  height="9"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-              </span>
+              <span className="h-3 w-3 rounded border border-navy bg-bg" />
               Complete
             </span>
           </div>
