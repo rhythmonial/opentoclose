@@ -163,7 +163,7 @@ export default async function DashboardHome() {
           Live from clients, leads and hours logged. No billing data is wired
           up yet, so this is activity, not revenue.
         </p>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <div className="rounded-xl border border-border bg-surface p-5">
             <h3 className="text-[15px] font-bold text-ink">Clients by path</h3>
             <div className="mt-3 flex justify-between text-sm">
@@ -175,7 +175,7 @@ export default async function DashboardHome() {
               <span className="font-bold text-ink">{clientsByEngagement.diy}</span>
             </div>
             <div className="mt-1.5 flex justify-between text-sm">
-              <span className="text-ink-soft">Free (not signed up yet)</span>
+              <span className="text-ink-soft">Free</span>
               <span className="font-bold text-ink">{freeClients}</span>
             </div>
             <div className="mt-3 flex justify-between border-t border-border-soft pt-2 text-sm font-bold text-ink">
@@ -226,7 +226,7 @@ export default async function DashboardHome() {
             </div>
           </div>
 
-          <div className="sm:col-span-2 rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-xl sm:col-span-2 border border-border bg-surface p-5">
             <h3 className="text-[15px] font-bold text-ink">Leads by stage</h3>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {Object.entries(leadsByStatus).map(([status, count]) => (
