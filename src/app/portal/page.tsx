@@ -227,19 +227,19 @@ export default async function PortalPage() {
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-medium text-ink-soft">
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded border border-danger/30 bg-danger/5" />
+              <span className="h-3 w-3 -translate-y-0.5 rounded border border-navy bg-danger/5" />
               Required
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded border border-warning/50 bg-warning-soft" />
+              <span className="h-3 w-3 -translate-y-0.5 rounded border border-navy bg-warning-soft" />
               Optional
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded border border-success/40 bg-success-soft" />
+              <span className="h-3 w-3 -translate-y-0.5 rounded border border-navy bg-success-soft" />
               Future build
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded border border-navy bg-bg" />
+              <span className="h-3 w-3 -translate-y-0.5 rounded border border-navy bg-bg" />
               Complete
             </span>
           </div>
