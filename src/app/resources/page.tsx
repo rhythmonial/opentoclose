@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
-import { getImpersonatedClientId } from "@/lib/impersonation";
+import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
 import type { EngagementType } from "@/lib/stepOwnership";
 
 const STEP_TYPE_LABEL: Record<string, string> = {
@@ -36,38 +36,40 @@ export default async function ResourcesPage() {
 
   const isStaff =
     realProfile?.role === "dev" || realProfile?.role === "dev_admin";
-  const impersonatedId = isStaff ? await getImpersonatedClientId() : null;
-  const isImpersonating = Boolean(impersonatedId);
-  const effectiveUserId = impersonatedId ?? user.id;
+  const sandboxTier = isStaff ? await getSandboxTier() : null;
+  const isSandboxing = Boolean(sandboxTier);
 
-  if (isStaff && !isImpersonating) {
+  if (isStaff && !isSandboxing) {
     return (
       <main className="flex min-h-screen flex-col bg-bg">
         <StaffNav />
         <div className="px-4 py-9 sm:px-6 lg:px-12">
           <p className="text-sm text-ink-soft">
-            Use &ldquo;View as Free/DIY/Setup&rdquo; from the Setup Tasks
-            editor, or impersonate a real client from the dashboard, to
-            preview the Resource Center.
+            Enter a Free/DIY/Setup sandbox from the dashboard to preview the
+            Resource Center.
           </p>
         </div>
       </main>
     );
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*, client_accounts(name, setup_path)")
-    .eq("id", effectiveUserId)
-    .single();
+  const { data: profile } = isSandboxing
+    ? { data: null }
+    : await supabase
+        .from("profiles")
+        .select("*, client_accounts(name, setup_path)")
+        .eq("id", user.id)
+        .single();
 
-  const { data: initiation } = await supabase
-    .from("setup_initiation")
-    .select("engagement_type")
-    .eq("client_id", effectiveUserId)
-    .maybeSingle();
-  const engagementType = (initiation?.engagement_type ??
-    "free") as EngagementType;
+  const engagementType = isSandboxing
+    ? (sandboxTier as EngagementType)
+    : ((
+        await supabase
+          .from("setup_initiation")
+          .select("engagement_type")
+          .eq("client_id", user.id)
+          .maybeSingle()
+      ).data?.engagement_type ?? "free") as EngagementType;
   const canViewContent = engagementType !== "free";
 
   const setupPath = profile?.client_accounts?.setup_path ?? "custom";
@@ -96,8 +98,9 @@ export default async function ResourcesPage() {
     resourcesByStep.set(r.step_id, list);
   }
 
-  const businessName =
-    profile?.client_accounts?.name ?? user.email ?? "Your business";
+  const businessName = isSandboxing
+    ? SANDBOX_LABEL[sandboxTier!]
+    : (profile?.client_accounts?.name ?? user.email ?? "Your business");
 
   const phases = Array.from(
     new Set((steps ?? []).map((s) => s.phase ?? "General")),
@@ -108,13 +111,14 @@ export default async function ResourcesPage() {
       <TopNav
         businessName={businessName}
         active="resources"
-        isImpersonating={isImpersonating}
+        isSandboxing={isSandboxing}
       />
 
-      {isImpersonating && (
+      {isSandboxing && (
         <div className="mx-4 mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
-          Viewing as {businessName} &mdash; this is their real data. Click the
-          eye icon next to your profile to return to the dev dashboard.
+          Sandboxing as {businessName} &mdash; progress here persists until
+          you reset it. Click the eye icon next to your profile to return to
+          the dev dashboard.
         </div>
       )}
 

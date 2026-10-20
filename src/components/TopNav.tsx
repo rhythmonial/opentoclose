@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { stopImpersonation } from "@/app/dashboard/impersonation-actions";
+import { stopSandbox } from "@/app/dashboard/sandbox-actions";
 
 export function TopNav({
   businessName,
   active,
-  isImpersonating,
+  isSandboxing,
 }: {
   businessName: string;
   active?: "dashboard" | "setup" | "resources";
-  isImpersonating?: boolean;
+  isSandboxing?: boolean;
 }) {
   const linkClass = (key: "dashboard" | "setup" | "resources") =>
     `text-xs sm:text-sm ${
@@ -76,12 +76,12 @@ export function TopNav({
             <circle cx="12" cy="7" r="4" />
           </svg>
         </Link>
-        {isImpersonating && (
-          <form action={stopImpersonation}>
+        {isSandboxing && (
+          <form action={stopSandbox}>
             <button
               type="submit"
-              aria-label="Stop impersonating, return to dev dashboard"
-              title="Stop impersonating, return to dev dashboard"
+              aria-label="Exit sandbox, return to dev dashboard"
+              title="Exit sandbox, return to dev dashboard"
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-danger/40 bg-danger/10 text-danger sm:h-9 sm:w-9"
             >
               <svg

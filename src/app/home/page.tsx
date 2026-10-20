@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
-import { getImpersonatedClientId } from "@/lib/impersonation";
+import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
+import { resetSandbox } from "@/app/dashboard/sandbox-actions";
 import {
   effectiveOwner,
   isClientVisible,
@@ -35,19 +36,20 @@ export default async function HomePage() {
     .single();
   const isStaff =
     realProfile?.role === "dev" || realProfile?.role === "dev_admin";
-  const impersonatedId = isStaff ? await getImpersonatedClientId() : null;
-  const isImpersonating = Boolean(impersonatedId);
-  const effectiveUserId = impersonatedId ?? user.id;
+  const sandboxTier = isStaff ? await getSandboxTier() : null;
+  const isSandboxing = Boolean(sandboxTier);
 
-  if (isStaff && !isImpersonating) {
+  if (isStaff && !isSandboxing) {
     redirect("/dashboard");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*, client_accounts(name, setup_path, status)")
-    .eq("id", effectiveUserId)
-    .single();
+  const { data: profile } = isSandboxing
+    ? { data: null }
+    : await supabase
+        .from("profiles")
+        .select("*, client_accounts(name, setup_path, status)")
+        .eq("id", user.id)
+        .single();
 
   const setupPath = profile?.client_accounts?.setup_path ?? "custom";
 
@@ -63,25 +65,25 @@ export default async function HomePage() {
       .select("*")
       .eq("path", setupPath)
       .order("sort_order"),
-    supabase
-      .from("client_step_status")
-      .select("*")
-      .eq("client_id", effectiveUserId),
-    supabase
-      .from("setup_initiation")
-      .select("engagement_type")
-      .eq("client_id", effectiveUserId)
-      .maybeSingle(),
-    supabase
-      .from("hours_log")
-      .select("hours")
-      .eq("client_id", effectiveUserId),
-    profile?.client_account_id
-      ? supabase
+    isSandboxing
+      ? supabase.from("dev_sandbox_step_status").select("*").eq("tier", sandboxTier!)
+      : supabase.from("client_step_status").select("*").eq("client_id", user.id),
+    isSandboxing
+      ? Promise.resolve({ data: { engagement_type: sandboxTier! } })
+      : supabase
+          .from("setup_initiation")
+          .select("engagement_type")
+          .eq("client_id", user.id)
+          .maybeSingle(),
+    isSandboxing
+      ? Promise.resolve({ data: [] as { hours: number }[] })
+      : supabase.from("hours_log").select("hours").eq("client_id", user.id),
+    isSandboxing || !profile?.client_account_id
+      ? Promise.resolve({ data: [] as { id: string }[] })
+      : supabase
           .from("profiles")
           .select("id")
-          .eq("client_account_id", profile.client_account_id)
-      : Promise.resolve({ data: [] }),
+          .eq("client_account_id", profile.client_account_id),
   ]);
 
   const engagementType = (initiation?.engagement_type ?? "free") as EngagementType;
@@ -124,8 +126,9 @@ export default async function HomePage() {
     0,
   );
 
-  const businessName =
-    profile?.client_accounts?.name ?? user.email ?? "Your business";
+  const businessName = isSandboxing
+    ? SANDBOX_LABEL[sandboxTier!]
+    : (profile?.client_accounts?.name ?? user.email ?? "Your business");
 
   const setupButtonLabel =
     engagementType === "custom"
@@ -149,13 +152,25 @@ export default async function HomePage() {
       <TopNav
         businessName={businessName}
         active="dashboard"
-        isImpersonating={isImpersonating}
+        isSandboxing={isSandboxing}
       />
 
-      {isImpersonating && (
-        <div className="mx-4 mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
-          Viewing as {businessName} &mdash; this is their real data. Click the
-          eye icon next to your profile to return to the dev dashboard.
+      {isSandboxing && (
+        <div className="mx-4 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
+          <span>
+            Sandboxing as {businessName} &mdash; progress here persists until
+            you reset it. Click the eye icon next to your profile to return
+            to the dev dashboard.
+          </span>
+          <form action={resetSandbox}>
+            <input type="hidden" name="tier" value={sandboxTier!} />
+            <button
+              type="submit"
+              className="shrink-0 rounded-lg border border-danger/40 bg-surface px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-danger"
+            >
+              Reset sandbox
+            </button>
+          </form>
         </div>
       )}
 
@@ -213,7 +228,9 @@ export default async function HomePage() {
             <div className="mt-1 font-display text-xl font-bold text-ink">
               {engagementType === "custom"
                 ? `${hoursUsed.toFixed(1)} / ${HOURS_PER_BUNDLE}`
-                : (teammates ?? []).length}
+                : isSandboxing
+                  ? 1
+                  : (teammates ?? []).length}
             </div>
           </div>
         </div>

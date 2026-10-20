@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
-import { getImpersonatedClientId } from "@/lib/impersonation";
 
 const CLIENT_ROLE_LABEL: Record<string, string> = {
   client_owner: "Client",
@@ -47,14 +46,11 @@ export default async function TeamMemberPage({
 
   const isStaff =
     realViewer?.role === "dev" || realViewer?.role === "dev_admin";
-  const impersonatedId = isStaff ? await getImpersonatedClientId() : null;
-  const isImpersonating = Boolean(impersonatedId);
 
   if (
     !member ||
-    (!isImpersonating &&
-      (!realViewer?.client_account_id ||
-        member.client_account_id !== realViewer.client_account_id))
+    !realViewer?.client_account_id ||
+    member.client_account_id !== realViewer.client_account_id
   ) {
     redirect(isStaff ? "/dashboard" : "/profile");
   }
@@ -125,7 +121,7 @@ export default async function TeamMemberPage({
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <TopNav businessName={businessName} isImpersonating={isImpersonating} />
+      <TopNav businessName={businessName} />
 
       <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
         <Link href="/profile" className="text-sm font-medium text-accent">

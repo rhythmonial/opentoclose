@@ -11,7 +11,7 @@ import {
   type PlanType,
 } from "@/lib/stepOwnership";
 import { toggleLessonComplete } from "../actions";
-import { getImpersonatedClientId } from "@/lib/impersonation";
+import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not Started",
@@ -51,16 +51,17 @@ export default async function LessonPage({
 
   const isStaff =
     realProfile?.role === "dev" || realProfile?.role === "dev_admin";
-  const impersonatedId = isStaff ? await getImpersonatedClientId() : null;
-  const isImpersonating = Boolean(impersonatedId);
-  const effectiveUserId = impersonatedId ?? user.id;
+  const sandboxTier = isStaff ? await getSandboxTier() : null;
+  const isSandboxing = Boolean(sandboxTier);
 
   const [{ data: profile }, { data: step }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("*, client_accounts(name)")
-      .eq("id", effectiveUserId)
-      .single(),
+    isStaff
+      ? Promise.resolve({ data: null })
+      : supabase
+          .from("profiles")
+          .select("*, client_accounts(name)")
+          .eq("id", user.id)
+          .single(),
     supabase.from("setup_steps").select("*").eq("id", id).maybeSingle(),
   ]);
 
@@ -78,98 +79,130 @@ export default async function LessonPage({
     .eq("step_id", step.id)
     .order("sort_order");
 
-  const businessName =
-    isStaff && !isImpersonating
-      ? "Preview"
-      : (profile?.client_accounts?.name ?? user.email ?? "Your business");
+  const businessName = isStaff
+    ? isSandboxing
+      ? SANDBOX_LABEL[sandboxTier!]
+      : "Preview"
+    : (profile?.client_accounts?.name ?? user.email ?? "Your business");
 
   let status = "not_started";
   let isHandledByStaff = false;
   let isFreeTier = false;
 
-  if (!isStaff || isImpersonating) {
-    const [{ data: statusRow }, { data: initiation }] = await Promise.all([
-      supabase
-        .from("client_step_status")
+  if (!isStaff || isSandboxing) {
+    if (isSandboxing) {
+      const { data: statusRow } = await supabase
+        .from("dev_sandbox_step_status")
         .select("status")
-        .eq("client_id", effectiveUserId)
+        .eq("tier", sandboxTier!)
         .eq("step_id", step.id)
-        .maybeSingle(),
-      supabase
-        .from("setup_initiation")
-        .select("engagement_type")
-        .eq("client_id", effectiveUserId)
-        .maybeSingle(),
-    ]);
+        .maybeSingle();
 
-    status = statusRow?.status ?? "not_started";
-    const engagementType = (initiation?.engagement_type ??
-      "free") as EngagementType;
-    isFreeTier = engagementType === "free";
-    // Free accounts haven't paid for staff to handle anything yet, so
-    // they're treated like DIY for the purpose of "is this mine to do".
-    const ownershipPlan: PlanType = engagementType === "custom" ? "custom" : "diy";
-    isHandledByStaff =
-      effectiveOwner(step.completed_by, ownershipPlan) === "staff";
+      status = statusRow?.status ?? "not_started";
+      isFreeTier = sandboxTier === "free";
+      // Free accounts haven't paid for staff to handle anything yet, so
+      // they're treated like DIY for the purpose of "is this mine to do".
+      const ownershipPlan: PlanType = sandboxTier === "custom" ? "custom" : "diy";
+      isHandledByStaff =
+        effectiveOwner(step.completed_by, ownershipPlan) === "staff";
 
-    // First visit to a not-yet-started task marks it in progress, so the
-    // portal list can show "Continue" instead of "Start" afterward. This
-    // happens regardless of free/paid status — tracking progress is free,
-    // only the lesson content itself is gated. Never happens while staff
-    // are impersonating, since that's meant to be read-only.
-    if (!isStaff && status === "not_started" && !isHandledByStaff) {
-      await supabase.from("client_step_status").upsert(
-        {
-          client_id: user.id,
-          step_id: step.id,
-          status: "in_progress",
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "client_id,step_id" },
-      );
-      status = "in_progress";
+      // First visit to a not-yet-started task marks it in progress, so the
+      // portal list can show "Continue" instead of "Start" afterward —
+      // sandboxing is fully interactive, so this persists just like a real
+      // client's progress would.
+      if (status === "not_started" && !isHandledByStaff) {
+        await supabase.from("dev_sandbox_step_status").upsert(
+          {
+            tier: sandboxTier!,
+            step_id: step.id,
+            status: "in_progress",
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "tier,step_id" },
+        );
+        status = "in_progress";
+      }
+    } else {
+      const [{ data: statusRow }, { data: initiation }] = await Promise.all([
+        supabase
+          .from("client_step_status")
+          .select("status")
+          .eq("client_id", user.id)
+          .eq("step_id", step.id)
+          .maybeSingle(),
+        supabase
+          .from("setup_initiation")
+          .select("engagement_type")
+          .eq("client_id", user.id)
+          .maybeSingle(),
+      ]);
+
+      status = statusRow?.status ?? "not_started";
+      const engagementType = (initiation?.engagement_type ??
+        "free") as EngagementType;
+      isFreeTier = engagementType === "free";
+      // Free accounts haven't paid for staff to handle anything yet, so
+      // they're treated like DIY for the purpose of "is this mine to do".
+      const ownershipPlan: PlanType = engagementType === "custom" ? "custom" : "diy";
+      isHandledByStaff =
+        effectiveOwner(step.completed_by, ownershipPlan) === "staff";
+
+      // First visit to a not-yet-started task marks it in progress, so the
+      // portal list can show "Continue" instead of "Start" afterward.
+      if (status === "not_started" && !isHandledByStaff) {
+        await supabase.from("client_step_status").upsert(
+          {
+            client_id: user.id,
+            step_id: step.id,
+            status: "in_progress",
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "client_id,step_id" },
+        );
+        status = "in_progress";
+      }
     }
   }
 
-  // Impersonating shows content exactly as the real client would see it
-  // (locked if they're on Free) — only a plain, non-impersonating staff
-  // preview always sees everything unlocked.
-  const canViewContent = (isStaff && !isImpersonating) || !isFreeTier;
+  // Sandboxing shows content exactly as that tier's real client would see it
+  // (locked if Free) — only a plain, non-sandboxing staff preview always
+  // sees everything unlocked.
+  const canViewContent = (isStaff && !isSandboxing) || !isFreeTier;
   const embedUrl = step.video_url ? getVideoEmbedUrl(step.video_url) : null;
   const isApproved = status === "approved";
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      {isStaff && !isImpersonating ? (
+      {isStaff && !isSandboxing ? (
         <StaffNav />
       ) : (
         <TopNav
           businessName={businessName}
           active="setup"
-          isImpersonating={isImpersonating}
+          isSandboxing={isSandboxing}
         />
       )}
 
       <div className="mx-auto w-full max-w-3xl px-6 py-9">
         <Link
-          href={isStaff && !isImpersonating ? "/profile" : "/portal"}
+          href={isStaff && !isSandboxing ? "/profile" : "/portal"}
           className="text-sm font-medium text-accent"
         >
-          &larr; {isStaff && !isImpersonating ? "Back to editor" : "Back to your setup"}
+          &larr; {isStaff && !isSandboxing ? "Back to editor" : "Back to your setup"}
         </Link>
 
-        {isStaff && !isImpersonating && (
+        {isStaff && !isSandboxing && (
           <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
             Previewing this lesson the way a client sees it &mdash; actions
             are disabled here.
           </div>
         )}
 
-        {isImpersonating && (
+        {isSandboxing && (
           <div className="mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger">
-            Viewing as {businessName} &mdash; this is their real data. Click
-            the eye icon next to your profile to return to the dev
-            dashboard.
+            Sandboxing as {businessName} &mdash; progress here persists until
+            you reset it. Click the eye icon next to your profile to return
+            to the dev dashboard.
           </div>
         )}
 
@@ -192,7 +225,7 @@ export default async function LessonPage({
               </span>
             )}
           </h1>
-          {(!isStaff || isImpersonating) && (
+          {(!isStaff || isSandboxing) && (
             <span
               className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
                 status === "approved"
@@ -318,26 +351,13 @@ export default async function LessonPage({
           </div>
         )}
 
-        {(!isStaff || isImpersonating) && (
+        {(!isStaff || isSandboxing) && (
           <div className="mt-9 border-t border-border-soft pt-6">
             {isHandledByStaff ? (
               <p className="text-sm font-medium text-ink-faint">
                 This step is handled by our team &mdash; we&rsquo;ll mark it
                 complete once it&rsquo;s done.
               </p>
-            ) : isStaff ? (
-              <button
-                type="button"
-                disabled
-                title="Actions are disabled while viewing/previewing"
-                className={`rounded-lg px-5 py-2.5 text-sm font-semibold opacity-50 ${
-                  isApproved
-                    ? "border border-border text-ink"
-                    : "bg-accent text-white"
-                }`}
-              >
-                {isApproved ? "Mark as Incomplete" : "Mark as Complete"}
-              </button>
             ) : (
               <form action={toggleLessonComplete}>
                 <input type="hidden" name="step_id" value={step.id} />

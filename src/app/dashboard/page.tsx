@@ -2,7 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ClientStatusSelect } from "@/components/ClientStatusSelect";
 import { approveSubmission, returnSubmission } from "./actions";
-import { startImpersonation } from "./impersonation-actions";
+import { startSandbox } from "./sandbox-actions";
+import type { SandboxTier } from "@/lib/devSandbox";
 
 export default async function DashboardHome() {
   const supabase = await createClient();
@@ -161,21 +162,27 @@ export default async function DashboardHome() {
       section,
       hoursUsed,
       hoursPurchased: Number(account.hours_purchased),
-      ownerId: owner?.id ?? null,
     };
   });
 
-  const clientGroups: { label: string; rows: typeof clientRows }[] = [
+  const clientGroups: {
+    label: string;
+    tier: SandboxTier;
+    rows: typeof clientRows;
+  }[] = [
     {
       label: "Setup ($999)",
+      tier: "custom",
       rows: clientRows.filter((r) => r.engagementType === "custom"),
     },
     {
       label: "DIY ($19)",
+      tier: "diy",
       rows: clientRows.filter((r) => r.engagementType === "diy"),
     },
     {
       label: "Free",
+      tier: "free",
       rows: clientRows.filter((r) => r.engagementType === "free"),
     },
   ];
@@ -288,9 +295,34 @@ export default async function DashboardHome() {
         <div className="mt-3 flex flex-col gap-6">
           {clientGroups.map((group) => (
             <div key={group.label}>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-faint">
-                {group.label}
-              </h3>
+              <div className="mb-2 flex items-center gap-2">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+                  {group.label}
+                </h3>
+                <form action={startSandbox}>
+                  <input type="hidden" name="tier" value={group.tier} />
+                  <button
+                    type="submit"
+                    title={`View as ${group.label}`}
+                    aria-label={`View as ${group.label}`}
+                    className="flex h-6 w-6 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-accent"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </button>
+                </form>
+              </div>
               <div className="overflow-x-auto rounded-xl border border-border bg-surface">
                 <table className="w-full min-w-[640px] text-left text-sm">
                   <thead>
@@ -300,7 +332,6 @@ export default async function DashboardHome() {
                       <th className="px-5 py-3">Section</th>
                       <th className="px-5 py-3">Hours</th>
                       <th className="px-5 py-3">Status</th>
-                      <th className="px-5 py-3">View</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -341,37 +372,6 @@ export default async function DashboardHome() {
                             status={row.status}
                           />
                         </td>
-                        <td className="px-5 py-3.5">
-                          {row.ownerId && (
-                            <form action={startImpersonation}>
-                              <input
-                                type="hidden"
-                                name="client_id"
-                                value={row.ownerId}
-                              />
-                              <button
-                                type="submit"
-                                title={`View as ${row.name}`}
-                                aria-label={`View as ${row.name}`}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-accent"
-                              >
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
-                                  <circle cx="12" cy="12" r="3" />
-                                </svg>
-                              </button>
-                            </form>
-                          )}
-                        </td>
                       </tr>
                     ))}
 
@@ -379,7 +379,7 @@ export default async function DashboardHome() {
                       <tr>
                         <td
                           className="px-5 py-6 text-sm text-ink-soft"
-                          colSpan={6}
+                          colSpan={5}
                         >
                           No clients yet.
                         </td>

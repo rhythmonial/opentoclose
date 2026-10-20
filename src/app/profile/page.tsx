@@ -14,7 +14,8 @@ import { SaveStepButton } from "@/components/SaveStepButton";
 import { StepResourcesEditor } from "@/components/StepResourcesEditor";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
 import { signOut } from "@/app/login/actions";
-import { getImpersonatedClientId } from "@/lib/impersonation";
+import { getSandboxTier } from "@/lib/devSandbox";
+import { startSandbox } from "@/app/dashboard/sandbox-actions";
 import { updateProfileInfo, inviteClientAdmin, inviteStaff } from "./actions";
 import {
   addStep,
@@ -68,20 +69,17 @@ export default async function ProfilePage({
     .eq("id", user.id)
     .single();
 
-  const isRealStaff =
+  const isStaff =
     realProfile?.role === "dev" || realProfile?.role === "dev_admin";
-  const impersonatedId = isRealStaff ? await getImpersonatedClientId() : null;
-  const isImpersonating = Boolean(impersonatedId);
+  const sandboxTier = isStaff ? await getSandboxTier() : null;
 
-  const { data: profile } = impersonatedId
-    ? await supabase
-        .from("profiles")
-        .select("role, email, name, phone, client_account_id")
-        .eq("id", impersonatedId)
-        .single()
-    : { data: realProfile };
+  // Sandboxes have no real profile or team to show — send sandboxing staff
+  // back to /home instead of rendering this page.
+  if (sandboxTier) {
+    redirect("/home");
+  }
 
-  const isStaff = !isImpersonating && isRealStaff;
+  const profile = realProfile;
 
   if (isStaff) {
     const [{ data: staff }, { data: steps }, { data: resources }] =
@@ -288,18 +286,18 @@ export default async function ProfilePage({
                   [
                     { value: "free", label: "View as Free" },
                     { value: "diy", label: "View as DIY" },
-                    { value: "setup", label: "View as Setup" },
+                    { value: "custom", label: "View as Setup" },
                   ] as const
                 ).map((opt) => (
-                  <Link
-                    key={opt.value}
-                    href={`/portal?previewAs=${opt.value}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink-soft"
-                  >
-                    {opt.label}
-                  </Link>
+                  <form key={opt.value} action={startSandbox}>
+                    <input type="hidden" name="tier" value={opt.value} />
+                    <button
+                      type="submit"
+                      className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink-soft"
+                    >
+                      {opt.label}
+                    </button>
+                  </form>
                 ))}
               </div>
             </div>
@@ -618,14 +616,7 @@ export default async function ProfilePage({
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <TopNav businessName={businessName} isImpersonating={isImpersonating} />
-
-      {isImpersonating && (
-        <div className="mx-4 mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
-          Viewing as {businessName} &mdash; this is their real data. Click the
-          eye icon next to your profile to return to the dev dashboard.
-        </div>
-      )}
+      <TopNav businessName={businessName} />
 
       <div className="px-4 pt-6 sm:px-6 sm:pt-9 lg:px-12">
         <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
@@ -644,7 +635,6 @@ export default async function ProfilePage({
               Profile saved.
             </div>
           )}
-          <fieldset disabled={isImpersonating} className="contents">
           <form action={updateProfileInfo} className="flex flex-col gap-3">
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-ink-soft">Name</span>
@@ -680,7 +670,6 @@ export default async function ProfilePage({
               Save
             </button>
           </form>
-          </fieldset>
         </section>
 
         <div className="flex min-w-0 flex-1 flex-col gap-6">
@@ -757,21 +746,19 @@ export default async function ProfilePage({
               )}
 
               <form action={inviteClientAdmin} className="flex flex-col gap-3">
-                <fieldset disabled={isImpersonating} className="contents">
-                  <input
-                    type="email"
-                    name="email"
-                    required
-                    placeholder="teammate@example.com"
-                    className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                  >
-                    Send invite
-                  </button>
-                </fieldset>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="teammate@example.com"
+                  className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+                />
+                <button
+                  type="submit"
+                  className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  Send invite
+                </button>
               </form>
             </div>
           )}

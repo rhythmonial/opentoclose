@@ -83,6 +83,38 @@ export type Database = {
           },
         ]
       }
+      dev_sandbox_step_status: {
+        Row: {
+          id: string
+          tier: string
+          step_id: string
+          status: Database["public"]["Enums"]["step_status"]
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tier: string
+          step_id: string
+          status?: Database["public"]["Enums"]["step_status"]
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tier?: string
+          step_id?: string
+          status?: Database["public"]["Enums"]["step_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dev_sandbox_step_status_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "setup_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configurator_items: {
         Row: {
           action: Database["public"]["Enums"]["field_action"]

@@ -11,7 +11,8 @@ import {
 import { StaffNav } from "@/components/StaffNav";
 import { stepClientHref, isExternalStepLink } from "@/lib/stepHref";
 import { toggleLessonComplete } from "@/app/lesson/actions";
-import { getImpersonatedClientId } from "@/lib/impersonation";
+import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
+import { resetSandbox } from "@/app/dashboard/sandbox-actions";
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not Started",
@@ -37,9 +38,9 @@ function matchesStepFilter(
 export default async function PortalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; stepFilter?: string; previewAs?: string }>;
+  searchParams: Promise<{ view?: string; stepFilter?: string }>;
 }) {
-  const { view, stepFilter, previewAs } = await searchParams;
+  const { view, stepFilter } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -57,15 +58,16 @@ export default async function PortalPage({
 
   const isStaff =
     realProfile?.role === "dev" || realProfile?.role === "dev_admin";
-  const impersonatedId = isStaff ? await getImpersonatedClientId() : null;
-  const isImpersonating = Boolean(impersonatedId);
-  const effectiveUserId = impersonatedId ?? user.id;
+  const sandboxTier = isStaff ? await getSandboxTier() : null;
+  const isSandboxing = Boolean(sandboxTier);
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*, client_accounts(name, setup_path)")
-    .eq("id", effectiveUserId)
-    .single();
+  const { data: profile } = isStaff
+    ? { data: null }
+    : await supabase
+        .from("profiles")
+        .select("*, client_accounts(name, setup_path)")
+        .eq("id", user.id)
+        .single();
 
   if (!isStaff && profile && !profile.first_login_at) {
     await supabase
@@ -87,34 +89,32 @@ export default async function PortalPage({
       .select("*")
       .eq("path", setupPath)
       .order("sort_order"),
-    supabase
-      .from("client_step_status")
-      .select("*")
-      .eq("client_id", effectiveUserId),
-    supabase
-      .from("hours_log")
-      .select("*")
-      .eq("client_id", effectiveUserId)
-      .order("logged_date", { ascending: false })
-      .limit(5),
-    supabase
-      .from("setup_initiation")
-      .select("engagement_type")
-      .eq("client_id", effectiveUserId)
-      .maybeSingle(),
+    isSandboxing
+      ? supabase.from("dev_sandbox_step_status").select("*").eq("tier", sandboxTier!)
+      : supabase.from("client_step_status").select("*").eq("client_id", user.id),
+    isSandboxing
+      ? Promise.resolve({ data: [] as { id: string; hours: number; logged_date: string; description: string }[] })
+      : supabase
+          .from("hours_log")
+          .select("*")
+          .eq("client_id", user.id)
+          .order("logged_date", { ascending: false })
+          .limit(5),
+    isSandboxing
+      ? Promise.resolve({ data: { engagement_type: sandboxTier! } })
+      : supabase
+          .from("setup_initiation")
+          .select("engagement_type")
+          .eq("client_id", user.id)
+          .maybeSingle(),
   ]);
 
-  // Staff just previewing (not impersonating a real client) use ?previewAs=
-  // instead of a real plan, since they have no setup_initiation row of
-  // their own — defaults to Free, same as a brand new signup would see.
-  // Impersonating uses the real client's actual plan, fetched above.
+  // Plain staff preview (no sandbox active) has no setup_initiation row of
+  // its own — defaults to Free, same as a brand new signup would see.
+  // Sandboxing uses the sandbox tier directly as the engagement type.
   const engagementType = (
-    isStaff && !isImpersonating
-      ? previewAs === "setup"
-        ? "custom"
-        : previewAs === "diy"
-          ? "diy"
-          : "free"
+    isStaff && !isSandboxing
+      ? "free"
       : (initiation?.engagement_type ?? "free")
   ) as EngagementType;
   // A free account hasn't chosen a plan yet, so there's no "their real plan"
@@ -193,8 +193,10 @@ export default async function PortalPage({
 
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
   const businessName =
-    isStaff && !isImpersonating
-      ? "Preview"
+    isStaff
+      ? isSandboxing
+        ? SANDBOX_LABEL[sandboxTier!]
+        : "Preview"
       : (profile?.client_accounts?.name ?? user.email ?? "Your business");
 
   // Preserve the other query params whenever one toggle/filter link changes
@@ -202,7 +204,6 @@ export default async function PortalPage({
   const currentParams: Record<string, string | undefined> = {
     view,
     stepFilter,
-    previewAs,
   };
   function hrefWith(overrides: Record<string, string>) {
     const merged = { ...currentParams, ...overrides };
@@ -222,26 +223,38 @@ export default async function PortalPage({
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      {isStaff && !isImpersonating ? (
+      {isStaff && !isSandboxing ? (
         <StaffNav />
       ) : (
         <TopNav
           businessName={businessName}
           active="setup"
-          isImpersonating={isImpersonating}
+          isSandboxing={isSandboxing}
         />
       )}
 
-      {isStaff && !isImpersonating && (
+      {isStaff && !isSandboxing && (
         <div className="mx-4 mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent sm:mx-6 lg:mx-12">
           Previewing the portal as a {engagementType === "custom" ? "Setup" : engagementType === "diy" ? "DIY" : "Free"} account &mdash; actions are disabled here.
         </div>
       )}
 
-      {isImpersonating && (
-        <div className="mx-4 mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
-          Viewing as {businessName} &mdash; this is their real data. Click the
-          eye icon next to your profile to return to the dev dashboard.
+      {isSandboxing && (
+        <div className="mx-4 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
+          <span>
+            Sandboxing as {businessName} &mdash; progress here persists until
+            you reset it. Click the eye icon next to your profile to return
+            to the dev dashboard.
+          </span>
+          <form action={resetSandbox}>
+            <input type="hidden" name="tier" value={sandboxTier!} />
+            <button
+              type="submit"
+              className="shrink-0 rounded-lg border border-danger/40 bg-surface px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-danger"
+            >
+              Reset sandbox
+            </button>
+          </form>
         </div>
       )}
 
@@ -574,7 +587,7 @@ export default async function PortalPage({
                                   <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
                                     {statusBadge}
                                     {isClientManaged ? (
-                                      isStaff ? (
+                                      isStaff && !isSandboxing ? (
                                         <button
                                           type="button"
                                           disabled
