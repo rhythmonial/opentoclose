@@ -3,7 +3,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
-import { resetSandbox } from "@/app/dashboard/sandbox-actions";
 import {
   effectiveOwner,
   isClientVisible,
@@ -152,27 +151,8 @@ export default async function HomePage() {
       <TopNav
         businessName={businessName}
         active="dashboard"
-        isSandboxing={isSandboxing}
+        sandboxTier={sandboxTier}
       />
-
-      {isSandboxing && (
-        <div className="mx-4 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
-          <span>
-            Sandboxing as {businessName} &mdash; progress here persists until
-            you reset it. Click the eye icon next to your profile to return
-            to the dev dashboard.
-          </span>
-          <form action={resetSandbox}>
-            <input type="hidden" name="tier" value={sandboxTier!} />
-            <button
-              type="submit"
-              className="shrink-0 rounded-lg border border-danger/40 bg-surface px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-danger"
-            >
-              Reset sandbox
-            </button>
-          </form>
-        </div>
-      )}
 
       <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

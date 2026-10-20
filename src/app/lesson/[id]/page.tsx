@@ -179,7 +179,7 @@ export default async function LessonPage({
         <TopNav
           businessName={businessName}
           active="setup"
-          isSandboxing={isSandboxing}
+          sandboxTier={sandboxTier}
         />
       )}
 
@@ -195,14 +195,6 @@ export default async function LessonPage({
           <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
             Previewing this lesson the way a client sees it &mdash; actions
             are disabled here.
-          </div>
-        )}
-
-        {isSandboxing && (
-          <div className="mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger">
-            Sandboxing as {businessName} &mdash; progress here persists until
-            you reset it. Click the eye icon next to your profile to return
-            to the dev dashboard.
           </div>
         )}
 

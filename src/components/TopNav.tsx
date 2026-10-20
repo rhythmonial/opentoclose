@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { stopSandbox } from "@/app/dashboard/sandbox-actions";
+import { stopSandbox, resetSandbox } from "@/app/dashboard/sandbox-actions";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import type { SandboxTier } from "@/lib/devSandbox";
 
 export function TopNav({
   businessName,
   active,
-  isSandboxing,
+  sandboxTier,
 }: {
   businessName: string;
   active?: "dashboard" | "setup" | "resources";
-  isSandboxing?: boolean;
+  sandboxTier?: SandboxTier | null;
 }) {
   const linkClass = (key: "dashboard" | "setup" | "resources") =>
     `text-xs sm:text-sm ${
@@ -76,7 +78,31 @@ export function TopNav({
             <circle cx="12" cy="7" r="4" />
           </svg>
         </Link>
-        {isSandboxing && (
+        {sandboxTier && (
+          <form action={resetSandbox}>
+            <input type="hidden" name="tier" value={sandboxTier} />
+            <ConfirmSubmitButton
+              confirmMessage="Clear all completions in this sandbox and start fresh?"
+              title="Reset sandbox"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border text-ink-soft sm:h-9 sm:w-9"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+            </ConfirmSubmitButton>
+          </form>
+        )}
+        {sandboxTier && (
           <form action={stopSandbox}>
             <button
               type="submit"

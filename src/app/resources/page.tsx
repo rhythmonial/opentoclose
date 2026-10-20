@@ -111,16 +111,8 @@ export default async function ResourcesPage() {
       <TopNav
         businessName={businessName}
         active="resources"
-        isSandboxing={isSandboxing}
+        sandboxTier={sandboxTier}
       />
-
-      {isSandboxing && (
-        <div className="mx-4 mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
-          Sandboxing as {businessName} &mdash; progress here persists until
-          you reset it. Click the eye icon next to your profile to return to
-          the dev dashboard.
-        </div>
-      )}
 
       <div className="px-4 pt-6 sm:px-6 sm:pt-9 lg:px-12">
         <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">

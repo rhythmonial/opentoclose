@@ -12,7 +12,6 @@ import { StaffNav } from "@/components/StaffNav";
 import { stepClientHref, isExternalStepLink } from "@/lib/stepHref";
 import { toggleLessonComplete } from "@/app/lesson/actions";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
-import { resetSandbox } from "@/app/dashboard/sandbox-actions";
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not Started",
@@ -229,32 +228,13 @@ export default async function PortalPage({
         <TopNav
           businessName={businessName}
           active="setup"
-          isSandboxing={isSandboxing}
+          sandboxTier={sandboxTier}
         />
       )}
 
       {isStaff && !isSandboxing && (
         <div className="mx-4 mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent sm:mx-6 lg:mx-12">
           Previewing the portal as a {engagementType === "custom" ? "Setup" : engagementType === "diy" ? "DIY" : "Free"} account &mdash; actions are disabled here.
-        </div>
-      )}
-
-      {isSandboxing && (
-        <div className="mx-4 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
-          <span>
-            Sandboxing as {businessName} &mdash; progress here persists until
-            you reset it. Click the eye icon next to your profile to return
-            to the dev dashboard.
-          </span>
-          <form action={resetSandbox}>
-            <input type="hidden" name="tier" value={sandboxTier!} />
-            <button
-              type="submit"
-              className="shrink-0 rounded-lg border border-danger/40 bg-surface px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-danger"
-            >
-              Reset sandbox
-            </button>
-          </form>
         </div>
       )}
 
