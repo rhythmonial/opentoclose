@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, SUPPORT_INBOX } from "@/lib/email";
+import { siteOrigin } from "@/lib/site-origin";
 
 async function getActor() {
   const supabase = await createClient();
@@ -24,11 +24,6 @@ async function getActor() {
 
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
   return { supabase, userId: user.id, isStaff };
-}
-
-async function siteOrigin() {
-  const h = await headers();
-  return h.get("origin") ?? `https://${h.get("host")}`;
 }
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;

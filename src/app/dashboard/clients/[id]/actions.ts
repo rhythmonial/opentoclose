@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function logHours(formData: FormData) {
   const accountId = String(formData.get("account_id") ?? "");
@@ -74,4 +76,51 @@ export async function logTimedHours({
 
   revalidatePath(`/dashboard/clients/${accountId}`);
   revalidatePath("/dashboard");
+}
+
+export async function deleteClientAccount(formData: FormData) {
+  const accountId = String(formData.get("account_id") ?? "");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: viewer } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (viewer?.role !== "dev") {
+    redirect(`/dashboard/clients/${accountId}`);
+  }
+
+  const admin = createAdminClient();
+  const { data: members } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("client_account_id", accountId)
+    .in("role", ["client_owner", "client_admin"]);
+
+  // Deleting each login cascades to its profile, progress, hours,
+  // initiation form and support questions.
+  for (const member of members ?? []) {
+    const { error } = await admin.auth.admin.deleteUser(member.id);
+    if (error) {
+      redirect(
+        `/dashboard/clients/${accountId}?error=${encodeURIComponent(error.message)}`,
+      );
+    }
+  }
+
+  await admin.from("client_accounts").delete().eq("id", accountId);
+
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard");
+  redirect("/dashboard/clients");
 }

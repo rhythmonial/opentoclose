@@ -16,7 +16,8 @@ import {
   markStaffStepComplete,
   markUpgraded,
 } from "../../actions";
-import { logHours, logTimedHours } from "./actions";
+import { logHours, logTimedHours, deleteClientAccount } from "./actions";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
   free: "Free",
@@ -40,11 +41,21 @@ const ROLE_LABEL: Record<string, string> = {
 
 export default async function ClientDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { id } = await params;
+  const { error } = await searchParams;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: viewer } = user
+    ? await supabase.from("profiles").select("role").eq("id", user.id).single()
+    : { data: null };
+  const canDelete = viewer?.role === "dev";
 
   const { data: account } = await supabase
     .from("client_accounts")
@@ -134,11 +145,46 @@ export default async function ClientDetailPage({
         &larr; Back to clients
       </Link>
 
+      {error && (
+        <div className="mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm text-danger">
+          {error}
+        </div>
+      )}
+
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-ink sm:text-[28px]">
-            {account.name}
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="font-display text-2xl font-bold text-ink sm:text-[28px]">
+              {account.name}
+            </h1>
+            {canDelete && (
+              <form action={deleteClientAccount}>
+                <input type="hidden" name="account_id" value={account.id} />
+                <ConfirmSubmitButton
+                  confirmMessage={`Permanently delete ${account.name}? This removes the account, every login on it, and all of its progress, hours, initiation form and support questions. This cannot be undone.`}
+                  title="Delete this client account"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-danger"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
+                  </svg>
+                </ConfirmSubmitButton>
+              </form>
+            )}
+          </div>
           <p className="mt-1.5 flex items-center gap-2 text-sm text-ink-soft">
             <span
               className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase font-caption tracking-wide ${
