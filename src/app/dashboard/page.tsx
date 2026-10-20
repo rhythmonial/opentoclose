@@ -1,9 +1,5 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { ClientStatusSelect } from "@/components/ClientStatusSelect";
 import { approveSubmission, returnSubmission } from "./actions";
-import { startSandbox } from "./sandbox-actions";
-import type { SandboxTier } from "@/lib/devSandbox";
 
 export default async function DashboardHome() {
   const supabase = await createClient();
@@ -12,11 +8,9 @@ export default async function DashboardHome() {
     { data: accounts },
     { data: profiles },
     { data: steps },
-    { data: statuses },
     { data: hoursLog },
     { count: activeLeadCount },
     { data: submissions },
-    { data: initiations },
   ] = await Promise.all([
     supabase
       .from("client_accounts")
@@ -29,7 +23,6 @@ export default async function DashboardHome() {
     supabase
       .from("setup_steps")
       .select("id, path, title, phase, section, sort_order"),
-    supabase.from("client_step_status").select("client_id, step_id, status"),
     supabase.from("hours_log").select("client_id, hours, logged_date"),
     supabase
       .from("leads")
@@ -40,7 +33,6 @@ export default async function DashboardHome() {
       .select("*")
       .eq("status", "submitted")
       .order("submitted_at", { ascending: true }),
-    supabase.from("setup_initiation").select("client_id, engagement_type"),
   ]);
 
   // --- Cards ---
@@ -94,98 +86,6 @@ export default async function DashboardHome() {
       submittedAt: sub.submitted_at,
     };
   });
-
-  // --- Clients table ---
-  const hoursByClient = new Map<string, number>();
-  for (const h of hoursLog ?? []) {
-    hoursByClient.set(
-      h.client_id,
-      (hoursByClient.get(h.client_id) ?? 0) + Number(h.hours),
-    );
-  }
-
-  const statusByClientStep = new Map<string, string>();
-  for (const s of statuses ?? []) {
-    statusByClientStep.set(`${s.client_id}:${s.step_id}`, s.status);
-  }
-
-  const engagementByClientId = new Map(
-    (initiations ?? []).map((i) => [i.client_id, i.engagement_type]),
-  );
-
-  const STAGE_LABEL: Record<string, string> = {
-    "Getting Started": "Not Started",
-  };
-
-  const clientRows = (accounts ?? []).map((account) => {
-    const members = (profiles ?? []).filter(
-      (p) => p.client_account_id === account.id,
-    );
-    const owner = members.find((m) => m.role === "client_owner") ?? members[0];
-
-    const hoursUsed = members.reduce(
-      (sum, m) => sum + (hoursByClient.get(m.id) ?? 0),
-      0,
-    );
-
-    const path = account.setup_path ?? "custom";
-    const pathSteps = (steps ?? [])
-      .filter((s) => s.path === path)
-      .sort((a, b) => a.sort_order - b.sort_order);
-
-    let stage = "Not Started";
-    let section = "—";
-    if (owner) {
-      const nextStep = pathSteps.find(
-        (s) => statusByClientStep.get(`${owner.id}:${s.id}`) !== "approved",
-      );
-      if (nextStep) {
-        const phase = nextStep.phase ?? "General";
-        stage = STAGE_LABEL[phase] ?? phase;
-        section = nextStep.section;
-      } else if (pathSteps.length > 0) {
-        stage = "Complete";
-        section = "—";
-      }
-    }
-
-    const engagementType = owner
-      ? (engagementByClientId.get(owner.id) ?? "free")
-      : "free";
-
-    return {
-      id: account.id,
-      name: account.name,
-      engagementType,
-      status: account.status,
-      stage,
-      section,
-      hoursUsed,
-      hoursPurchased: Number(account.hours_purchased),
-    };
-  });
-
-  const clientGroups: {
-    label: string;
-    tier: SandboxTier;
-    rows: typeof clientRows;
-  }[] = [
-    {
-      label: "Setup ($999)",
-      tier: "custom",
-      rows: clientRows.filter((r) => r.engagementType === "custom"),
-    },
-    {
-      label: "DIY ($19)",
-      tier: "diy",
-      rows: clientRows.filter((r) => r.engagementType === "diy"),
-    },
-    {
-      label: "Free",
-      tier: "free",
-      rows: clientRows.filter((r) => r.engagementType === "free"),
-    },
-  ];
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
@@ -286,110 +186,6 @@ export default async function DashboardHome() {
               Nothing waiting on review.
             </p>
           )}
-        </div>
-      </section>
-
-      <section id="clients" className="mt-9 scroll-mt-9">
-        <h2 className="font-display text-lg font-bold text-ink">Clients</h2>
-
-        <div className="mt-3 flex flex-col gap-6">
-          {clientGroups.map((group) => (
-            <div key={group.label}>
-              <div className="mb-2 flex items-center gap-2">
-                <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
-                  {group.label}
-                </h3>
-                <form action={startSandbox}>
-                  <input type="hidden" name="tier" value={group.tier} />
-                  <button
-                    type="submit"
-                    title={`View as ${group.label}`}
-                    aria-label={`View as ${group.label}`}
-                    className="flex h-6 w-6 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-accent"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  </button>
-                </form>
-              </div>
-              <div className="overflow-x-auto rounded-xl border border-border bg-surface">
-                <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase tracking-wide text-ink-faint">
-                      <th className="px-5 py-3">Business</th>
-                      <th className="px-5 py-3">Stage</th>
-                      <th className="px-5 py-3">Section</th>
-                      <th className="px-5 py-3">Hours</th>
-                      <th className="px-5 py-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.rows.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="border-b border-border-soft last:border-0"
-                      >
-                        <td className="p-0">
-                          <Link
-                            href={`/dashboard/clients/${row.id}`}
-                            className="block px-5 py-3.5 font-semibold text-ink hover:text-accent"
-                          >
-                            {row.name}
-                          </Link>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
-                              row.stage === "Complete"
-                                ? "bg-success-soft text-success"
-                                : "bg-accent-soft text-accent"
-                            }`}
-                          >
-                            {row.stage.toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5 text-ink-soft">
-                          {row.section}
-                        </td>
-                        <td className="px-5 py-3.5 text-ink-soft">
-                          {row.hoursUsed.toFixed(1)} /{" "}
-                          {row.hoursPurchased.toFixed(1)}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <ClientStatusSelect
-                            accountId={row.id}
-                            status={row.status}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-
-                    {group.rows.length === 0 && (
-                      <tr>
-                        <td
-                          className="px-5 py-6 text-sm text-ink-soft"
-                          colSpan={5}
-                        >
-                          No clients yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
         </div>
       </section>
     </main>

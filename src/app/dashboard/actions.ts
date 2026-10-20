@@ -108,3 +108,16 @@ export async function updateClientStatus(formData: FormData) {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/clients", "layout");
 }
+
+export async function updateClientOutcome(formData: FormData) {
+  const accountId = String(formData.get("account_id") ?? "");
+  const outcome = String(formData.get("outcome") ?? "").trim();
+
+  const supabase = await createClient();
+  await supabase
+    .from("client_accounts")
+    .update({ outcome: outcome || null })
+    .eq("id", accountId);
+
+  revalidatePath("/dashboard/clients", "layout");
+}

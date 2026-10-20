@@ -180,6 +180,18 @@ export default async function PortalPage({
     (a, b) => a.sort_order - b.sort_order,
   );
 
+  // Only the section holding the client's next task starts expanded: the
+  // first unfinished required step after their last completed one (falling
+  // back to the earliest unfinished required step, then any unfinished step).
+  const isDone = (s: { id: string }) => statusByStep.get(s.id) === "approved";
+  const lastDoneIndex = steps.findLastIndex(isDone);
+  const nextStep =
+    steps.find((s, i) => i > lastDoneIndex && isRequiredStep(s) && !isDone(s)) ??
+    steps.find((s) => isRequiredStep(s) && !isDone(s)) ??
+    steps.find((s) => !isDone(s));
+  const currentPhase = nextStep ? (nextStep.phase ?? "General") : null;
+  const currentSection = nextStep?.section ?? null;
+
   // How many fewer steps a client has to personally do under Setup vs DIY —
   // this is the "time savings" shown when previewing the other plan. Only
   // required steps count.
@@ -342,7 +354,7 @@ export default async function PortalPage({
               return (
                 <details
                   key={phase}
-                  open={!isComplete}
+                  open={phase === currentPhase}
                   className="rounded-xl border border-border bg-surface p-5"
                 >
                   <summary className="flex cursor-pointer items-center justify-between gap-4">
@@ -388,7 +400,12 @@ export default async function PortalPage({
                         sectionCompleteCount === sectionRequired.length;
 
                       return (
-                    <details key={section} open={!sectionComplete}>
+                    <details
+                      key={section}
+                      open={
+                        phase === currentPhase && section === currentSection
+                      }
+                    >
                       <summary className="flex cursor-pointer items-center justify-between gap-4">
                         <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-ink-faint">
                           {sectionComplete && (

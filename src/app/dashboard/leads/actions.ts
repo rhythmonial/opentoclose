@@ -15,7 +15,7 @@ export async function addLead(formData: FormData) {
     source: "manual",
   });
 
-  revalidatePath("/dashboard/leads");
+  revalidatePath("/dashboard/clients");
 }
 
 export async function updateLeadStatus(formData: FormData) {
@@ -28,7 +28,7 @@ export async function updateLeadStatus(formData: FormData) {
     .update({ status: status as never, updated_at: new Date().toISOString() })
     .eq("id", leadId);
 
-  revalidatePath("/dashboard/leads");
+  revalidatePath("/dashboard/clients");
   revalidatePath("/dashboard");
 }
 
@@ -42,7 +42,7 @@ export async function updateLeadNotes(formData: FormData) {
     .update({ notes: notes || null, updated_at: new Date().toISOString() })
     .eq("id", leadId);
 
-  revalidatePath("/dashboard/leads");
+  revalidatePath("/dashboard/clients");
 }
 
 export async function deleteLead(formData: FormData) {
@@ -51,6 +51,6 @@ export async function deleteLead(formData: FormData) {
 
   await supabase.from("leads").delete().eq("id", leadId);
 
-  revalidatePath("/dashboard/leads");
+  revalidatePath("/dashboard/clients");
   redirect("/dashboard/leads");
 }

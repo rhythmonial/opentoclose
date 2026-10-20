@@ -20,6 +20,7 @@ export type Database = {
           hours_purchased: number
           id: string
           name: string
+          outcome: string | null
           setup_path: Database["public"]["Enums"]["setup_path"] | null
           state: string | null
           status: Database["public"]["Enums"]["client_account_status"]
@@ -29,6 +30,7 @@ export type Database = {
           hours_purchased?: number
           id?: string
           name: string
+          outcome?: string | null
           setup_path?: Database["public"]["Enums"]["setup_path"] | null
           state?: string | null
           status?: Database["public"]["Enums"]["client_account_status"]
@@ -38,6 +40,7 @@ export type Database = {
           hours_purchased?: number
           id?: string
           name?: string
+          outcome?: string | null
           setup_path?: Database["public"]["Enums"]["setup_path"] | null
           state?: string | null
           status?: Database["public"]["Enums"]["client_account_status"]

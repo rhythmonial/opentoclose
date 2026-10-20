@@ -132,7 +132,7 @@ export default async function ClientDetailPage({
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
-      <Link href="/dashboard#clients" className="text-sm font-medium text-accent">
+      <Link href="/dashboard/clients" className="text-sm font-medium text-accent">
         &larr; Back to clients
       </Link>
 
