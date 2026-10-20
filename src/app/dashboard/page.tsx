@@ -185,60 +185,60 @@ export default async function DashboardHome() {
           Live from clients, leads and hours logged. No billing data is wired
           up yet, so this is activity, not revenue.
         </p>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-          <div className="rounded-xl border border-border bg-surface p-5">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 min-[900px]:grid-cols-6">
+          <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
             <h3 className="text-[15px] font-bold text-ink">Clients by path</h3>
-            <div className="mt-3 flex justify-between text-sm">
+            <div className="mt-3 flex justify-between gap-2 text-sm">
               <span className="text-ink-soft">Setup ($999)</span>
               <span className="font-bold text-ink">{clientsByEngagement.custom}</span>
             </div>
-            <div className="mt-1.5 flex justify-between text-sm">
+            <div className="mt-1.5 flex justify-between gap-2 text-sm">
               <span className="text-ink-soft">DIY ($19)</span>
               <span className="font-bold text-ink">{clientsByEngagement.diy}</span>
             </div>
-            <div className="mt-1.5 flex justify-between text-sm">
+            <div className="mt-1.5 flex justify-between gap-2 text-sm">
               <span className="text-ink-soft">Free</span>
               <span className="font-bold text-ink">{freeClients}</span>
             </div>
-            <div className="mt-3 flex justify-between border-t border-border-soft pt-2 text-sm font-bold text-ink">
+            <div className="mt-3 flex justify-between gap-2 border-t border-border-soft pt-2 text-sm font-bold text-ink">
               <span>Total paying</span>
               <span>{payingClients}</span>
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
             <h3 className="text-[15px] font-bold text-ink">Hours</h3>
-            <div className="mt-3 flex justify-between text-sm">
+            <div className="mt-3 flex justify-between gap-2 text-sm">
               <span className="text-ink-soft">Purchased</span>
               <span className="font-bold text-ink">
                 {hoursDueTotal.toFixed(1)}
               </span>
             </div>
-            <div className="mt-1.5 flex justify-between text-sm">
+            <div className="mt-1.5 flex justify-between gap-2 text-sm">
               <span className="text-ink-soft">Used</span>
               <span className="font-bold text-ink">
                 {hoursUsedTotal.toFixed(1)}
               </span>
             </div>
-            <div className="mt-3 flex justify-between border-t border-border-soft pt-2 text-sm font-bold text-ink">
+            <div className="mt-3 flex justify-between gap-2 border-t border-border-soft pt-2 text-sm font-bold text-ink">
               <span>Remaining</span>
               <span>{(hoursDueTotal - hoursUsedTotal).toFixed(1)}</span>
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
             <h3 className="text-[15px] font-bold text-ink">Support</h3>
-            <div className="mt-3 flex justify-between text-sm">
+            <div className="mt-3 flex justify-between gap-2 text-sm">
               <span className="text-ink-soft">Open</span>
               <span className="font-bold text-ink">{ticketsByStatus.open}</span>
             </div>
-            <div className="mt-1.5 flex justify-between text-sm">
+            <div className="mt-1.5 flex justify-between gap-2 text-sm">
               <span className="text-ink-soft">Answered</span>
               <span className="font-bold text-ink">
                 {ticketsByStatus.answered}
               </span>
             </div>
-            <div className="mt-1.5 flex justify-between text-sm">
+            <div className="mt-1.5 flex justify-between gap-2 text-sm">
               <span className="text-ink-soft">Resolved</span>
               <span className="font-bold text-ink">
                 {ticketsByStatus.closed}
@@ -246,9 +246,18 @@ export default async function DashboardHome() {
             </div>
           </div>
 
-          <div className="rounded-xl sm:col-span-2 border border-border bg-surface p-5">
+          <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
+            <h3 className="text-[15px] font-bold text-ink">Conversion</h3>
+            <div className="mt-3 font-display text-2xl font-bold text-ink">
+              {conversionRate.toFixed(0)}%
+            </div>
+            <p className="mt-1 text-xs text-ink-soft">
+              Won leads as a share of all leads ever won or lost.
+            </p>
+          </div>
+          <div className="col-span-2 min-w-0 rounded-xl border border-border bg-surface p-4">
             <h3 className="text-[15px] font-bold text-ink">Leads by stage</h3>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2">
               {Object.entries(leadsByStatus).map(([status, count]) => (
                 <div key={status}>
                   <div className="font-display text-xl font-bold text-ink">
@@ -262,15 +271,6 @@ export default async function DashboardHome() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-5">
-            <h3 className="text-[15px] font-bold text-ink">Conversion</h3>
-            <div className="mt-3 font-display text-2xl font-bold text-ink">
-              {conversionRate.toFixed(0)}%
-            </div>
-            <p className="mt-1 text-xs text-ink-soft">
-              Won leads as a share of all leads ever won or lost.
-            </p>
-          </div>
         </div>
       </section>
 
