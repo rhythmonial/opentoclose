@@ -41,6 +41,7 @@ export async function addStep(formData: FormData) {
     is_future_build: formData.get("is_future_build") === "on",
     video_url: String(formData.get("video_url") ?? "").trim() || null,
     link_url: String(formData.get("link_url") ?? "").trim() || null,
+    estimated_hours: parseHours(formData.get("estimated_hours")),
   });
 
   revalidateAll();
@@ -65,6 +66,7 @@ export async function updateStep(formData: FormData) {
         | "configurator",
       video_url: String(formData.get("video_url") ?? "").trim() || null,
       link_url: String(formData.get("link_url") ?? "").trim() || null,
+      estimated_hours: parseHours(formData.get("estimated_hours")),
     })
     .eq("id", id);
 
@@ -159,4 +161,23 @@ export async function deleteStep(formData: FormData) {
   await supabase.from("setup_steps").delete().eq("id", id);
 
   revalidateAll();
+}
+
+function parseHours(value: FormDataEntryValue | null) {
+  const hours = Number(value);
+  return Number.isFinite(hours) && hours > 0 ? hours : null;
+}
+
+export async function updateHourlyRate(formData: FormData) {
+  const rate = Number(formData.get("hourly_rate"));
+  if (!Number.isFinite(rate) || rate <= 0) return;
+
+  const supabase = await createClient();
+  await supabase.from("app_settings").upsert({
+    key: "hourly_rate",
+    value: String(rate),
+    updated_at: new Date().toISOString(),
+  });
+
+  revalidatePath("/dashboard/tasks");
 }

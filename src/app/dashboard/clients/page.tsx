@@ -138,6 +138,8 @@ export default async function ClientsPage() {
     },
   ];
 
+  const newLeadCount = (leads ?? []).filter((l) => l.status === "new").length;
+
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
       <section className="relative">
@@ -146,6 +148,11 @@ export default async function ClientsPage() {
             <h2 className="inline font-display text-lg font-bold text-ink">
               Leads ({(leads ?? []).length})
             </h2>
+            {newLeadCount > 0 && (
+              <span className="ml-2 rounded-full bg-danger px-2 py-0.5 align-middle font-caption text-xs font-bold text-white">
+                {newLeadCount} new
+              </span>
+            )}
             <p className="mt-1 text-sm text-ink-soft">
               Everyone who&rsquo;s requested info or been added as a
               prospect, before they become a client.

@@ -12,6 +12,9 @@ import {
 } from "@/lib/stepOwnership";
 import { toggleLessonComplete } from "../actions";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
+import { startPlanCheckout, startStepCheckout } from "@/app/checkout/actions";
+import { getHourlyRate } from "@/lib/hourlyRate";
+import { PLAN_PRICES, formatDollars, stepPriceCents } from "@/lib/pricing";
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not Started",
@@ -30,10 +33,13 @@ const RESOURCE_KIND_LABEL: Record<string, string> = {
 
 export default async function LessonPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ paid?: string; error?: string }>;
 }) {
   const { id } = await params;
+  const { paid, error } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -88,6 +94,9 @@ export default async function LessonPage({
   let status = "not_started";
   let isHandledByStaff = false;
   let isFreeTier = false;
+  let clientPlan: EngagementType | null = null;
+  let hasInitiation = false;
+  let isPurchased = false;
 
   if (!isStaff || isSandboxing) {
     if (isSandboxing) {
@@ -100,6 +109,8 @@ export default async function LessonPage({
 
       status = statusRow?.status ?? "not_started";
       isFreeTier = sandboxTier === "free";
+      clientPlan = sandboxTier;
+      hasInitiation = true;
       // Free accounts follow the DIY checklist.
       const ownershipPlan: PlanType = sandboxTier === "custom" ? "custom" : "diy";
       isHandledByStaff =
@@ -122,7 +133,8 @@ export default async function LessonPage({
         status = "in_progress";
       }
     } else {
-      const [{ data: statusRow }, { data: initiation }] = await Promise.all([
+      const [{ data: statusRow }, { data: initiation }, { data: purchase }] =
+        await Promise.all([
         supabase
           .from("client_step_status")
           .select("status")
@@ -134,16 +146,28 @@ export default async function LessonPage({
           .select("engagement_type")
           .eq("client_id", user.id)
           .maybeSingle(),
+        supabase
+          .from("payments")
+          .select("id")
+          .eq("client_id", user.id)
+          .eq("kind", "step")
+          .eq("step_id", step.id)
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       status = statusRow?.status ?? "not_started";
       const engagementType = (initiation?.engagement_type ??
         "free") as EngagementType;
       isFreeTier = engagementType === "free";
+      clientPlan = engagementType;
+      hasInitiation = Boolean(initiation);
+      isPurchased = Boolean(purchase);
       // Free accounts follow the DIY checklist.
       const ownershipPlan: PlanType = engagementType === "custom" ? "custom" : "diy";
       isHandledByStaff =
-        effectiveOwner(step.completed_by, ownershipPlan) === "staff";
+        effectiveOwner(step.completed_by, ownershipPlan) === "staff" ||
+        isPurchased;
 
       // First visit to a not-yet-started task marks it in progress, so the
       // portal list can show "Continue" instead of "Start" afterward.
@@ -169,6 +193,18 @@ export default async function LessonPage({
   const embedUrl = step.video_url ? getVideoEmbedUrl(step.video_url) : null;
   const isApproved = status === "approved";
 
+  const isPaidStep = step.key === "setup_paid";
+  const estimatedHours = Number(step.estimated_hours ?? 0);
+  const canBuyStep =
+    clientPlan !== null &&
+    clientPlan !== "custom" &&
+    (step.completed_by === "setup" || step.completed_by === "both") &&
+    estimatedHours > 0 &&
+    !isApproved &&
+    !isPurchased &&
+    !isPaidStep;
+  const hourlyRate = canBuyStep ? await getHourlyRate() : 0;
+
   return (
     <main className="flex min-h-screen flex-col bg-bg">
       {isStaff && !isSandboxing ? (
@@ -193,6 +229,18 @@ export default async function LessonPage({
           <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
             Previewing this lesson the way a client sees it &mdash; actions
             are disabled here.
+          </div>
+        )}
+
+        {paid && (
+          <div className="mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success">
+            Payment received, thank you! Our team will take it from here.
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm text-danger">
+            {error}
           </div>
         )}
 
@@ -343,7 +391,94 @@ export default async function LessonPage({
 
         {(!isStaff || isSandboxing) && (
           <div className="mt-9 border-t border-border-soft pt-6">
-            {isHandledByStaff ? (
+            {canBuyStep && (
+              <div className="mb-6 rounded-xl border border-accent-soft bg-accent-soft/40 p-5">
+                <h2 className="text-[15px] font-bold text-ink">
+                  Want our team to do this for you?
+                </h2>
+                <p className="mt-1 text-sm text-ink-soft">
+                  Estimated {estimatedHours} hour
+                  {estimatedHours === 1 ? "" : "s"} &times; $
+                  {hourlyRate}/hr ={" "}
+                  <span className="font-bold text-ink">
+                    {formatDollars(stepPriceCents(estimatedHours, hourlyRate))}
+                  </span>
+                </p>
+                <form action={startStepCheckout} className="mt-3">
+                  <input type="hidden" name="step_id" value={step.id} />
+                  <button
+                    type="submit"
+                    disabled={isSandboxing}
+                    className="rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-50 bg-navy text-white"
+                  >
+                    Have our team do it &rarr;
+                  </button>
+                  {isSandboxing && (
+                    <span className="ml-3 text-xs text-ink-faint">
+                      Checkout is off in the sandbox.
+                    </span>
+                  )}
+                </form>
+              </div>
+            )}
+
+            {isPaidStep && !isApproved && clientPlan !== "custom" ? (
+              <div className="rounded-xl border border-border bg-surface p-5">
+                <h2 className="text-[15px] font-bold text-ink">
+                  {clientPlan === "diy" ? "Upgrade to Setup" : "Pay for your plan"}
+                </h2>
+                <p className="mt-1 text-sm text-ink-soft">
+                  This step completes automatically once your payment goes
+                  through.
+                </p>
+                {hasInitiation ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {(clientPlan === "diy"
+                      ? (["setup"] as const)
+                      : (["setup", "diy"] as const)
+                    ).map((plan) => (
+                      <form key={plan} action={startPlanCheckout}>
+                        <input type="hidden" name="plan" value={plan} />
+                        <input
+                          type="hidden"
+                          name="return_to"
+                          value={`/lesson/${step.id}`}
+                        />
+                        <button
+                          type="submit"
+                          disabled={isSandboxing}
+                          className={`rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-50 ${
+                            plan === "setup"
+                              ? "bg-navy text-white"
+                              : "border border-navy text-navy"
+                          }`}
+                        >
+                          Pay for {PLAN_PRICES[plan].label} (
+                          {formatDollars(PLAN_PRICES[plan].cents)})
+                        </button>
+                      </form>
+                    ))}
+                    {isSandboxing && (
+                      <span className="text-xs text-ink-faint">
+                        Checkout is off in the sandbox.
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    href="/setup"
+                    className="mt-3 inline-block rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white"
+                  >
+                    Fill out Setup Initiation first &rarr;
+                  </Link>
+                )}
+              </div>
+            ) : isPurchased && !isApproved ? (
+              <p className="text-sm font-medium text-ink-faint">
+                You purchased this step &mdash; our team is on it and will
+                mark it complete once it&rsquo;s done.
+              </p>
+            ) : isHandledByStaff ? (
               <p className="text-sm font-medium text-ink-faint">
                 This step is handled by our team &mdash; we&rsquo;ll mark it
                 complete once it&rsquo;s done.

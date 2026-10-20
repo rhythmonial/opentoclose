@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { startPlanCheckout } from "@/app/checkout/actions";
 
 export async function submitSetupInitiation(formData: FormData) {
   const supabase = await createClient();
@@ -35,10 +36,6 @@ export async function submitSetupInitiation(formData: FormData) {
       company_structure: String(formData.get("company_structure") ?? ""),
       states_serviced: String(formData.get("states_serviced") ?? "").trim(),
       priority_state: String(formData.get("priority_state") ?? "").trim() || null,
-      engagement_type:
-        String(formData.get("engagement_type") ?? "custom") === "diy"
-          ? "diy"
-          : "custom",
       transactions_under_contract:
         Number(formData.get("transactions_under_contract")) || 0,
       transactions_per_month:
@@ -86,6 +83,25 @@ export async function submitSetupInitiation(formData: FormData) {
       },
       { onConflict: "client_id,step_id" },
     );
+  }
+
+  // The plan only changes once Stripe confirms payment (see the webhook),
+  // so send them to checkout unless they already have this plan or better.
+  const chosen = formData.get("engagement_type") === "diy" ? "diy" : "custom";
+  const { data: current } = await supabase
+    .from("setup_initiation")
+    .select("engagement_type")
+    .eq("client_id", user.id)
+    .single();
+  const currentPlan = current?.engagement_type ?? "free";
+  const needsCheckout =
+    currentPlan === "free" || (currentPlan === "diy" && chosen === "custom");
+
+  if (needsCheckout) {
+    const checkout = new FormData();
+    checkout.set("plan", chosen === "custom" ? "setup" : "diy");
+    checkout.set("return_to", "/setup");
+    await startPlanCheckout(checkout);
   }
 
   redirect("/home");

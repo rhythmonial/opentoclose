@@ -2,7 +2,9 @@
 
 import { BrandMark } from "@/components/BrandMark";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 const LINKS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -17,6 +19,21 @@ const DEV_LINKS = [
 export function StaffNav({ isDev = false }: { isDev?: boolean }) {
   const pathname = usePathname();
   const links = isDev ? [...LINKS, ...DEV_LINKS] : LINKS;
+  const [newLeadCount, setNewLeadCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    createClient()
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "new")
+      .then(({ count }) => {
+        if (!cancelled) setNewLeadCount(count ?? 0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   return (
     <div className="flex h-[64px] shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-4 sm:h-[76px] sm:px-6 lg:px-12">
@@ -37,11 +54,19 @@ export function StaffNav({ isDev = false }: { isDev?: boolean }) {
             <Link
               key={link.href}
               href={link.href}
-              className={`shrink-0 whitespace-nowrap text-xs sm:text-sm ${
+              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs sm:text-sm ${
                 isActive ? "font-semibold text-ink" : "font-medium text-ink-soft"
               }`}
             >
               {link.label}
+              {link.href === "/dashboard/clients" && newLeadCount > 0 && (
+                <span
+                  title={`${newLeadCount} new lead${newLeadCount === 1 ? "" : "s"}`}
+                  className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 font-caption text-[10px] font-bold text-white"
+                >
+                  {newLeadCount}
+                </span>
+              )}
             </Link>
           );
         })}

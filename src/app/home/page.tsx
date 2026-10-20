@@ -18,7 +18,12 @@ const ENGAGEMENT_LABEL: Record<string, string> = {
 
 const HOURS_PER_BUNDLE = 10;
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ paid?: string }>;
+}) {
+  const { paid } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -154,6 +159,13 @@ export default async function HomePage() {
       />
 
       <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
+        {paid && (
+          <div className="mb-6 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success">
+            Payment received, welcome to {paid === "diy" ? "DIY" : "Setup"}!
+            Your plan updates within a minute; refresh if it hasn&rsquo;t
+            yet.
+          </div>
+        )}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-display text-2xl font-bold text-ink sm:text-[28px]">

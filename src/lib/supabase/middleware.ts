@@ -9,6 +9,7 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/pricing",
   "/about",
+  "/api/stripe/webhook",
 ];
 
 export async function updateSession(request: NextRequest) {

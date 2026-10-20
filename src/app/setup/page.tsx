@@ -53,8 +53,14 @@ export default async function SetupInitiationPage({
     : { data: null };
 
   const isUpdate = Boolean(existing);
+  const paidPlan = existing?.engagement_type ?? "free";
   const defaultEngagementType =
-    existing?.engagement_type ?? (plan === "diy" ? "diy" : "custom");
+    paidPlan === "custom" || paidPlan === "diy"
+      ? paidPlan
+      : plan === "diy"
+        ? "diy"
+        : "custom";
+  const hasPaidPlan = paidPlan === "custom" || paidPlan === "diy";
 
   return (
     <main className="flex flex-1 items-center justify-center bg-bg px-4 py-12">
@@ -197,6 +203,12 @@ export default async function SetupInitiationPage({
                 </span>
               </label>
             </div>
+            {!hasPaidPlan && (
+              <span className="text-xs text-ink-soft">
+                After you submit, you&rsquo;ll go to secure checkout to pay
+                for your plan.
+              </span>
+            )}
           </div>
           <div className="sm:col-span-2">
             <StatesServicedField
@@ -266,7 +278,11 @@ export default async function SetupInitiationPage({
             type="submit"
             className="mt-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 sm:col-span-2"
           >
-            {isUpdate ? "Save changes" : "Submit"}
+            {hasPaidPlan
+              ? isUpdate
+                ? "Save changes"
+                : "Submit"
+              : "Continue to payment"}
           </button>
         </fieldset>
         </form>

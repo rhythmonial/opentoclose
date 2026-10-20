@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       client_accounts: {
         Row: {
           created_at: string
@@ -504,6 +522,7 @@ export type Database = {
           completed_by: string
           created_at: string
           description: string | null
+          estimated_hours: number | null
           id: string
           instructions: string | null
           is_future_build: boolean
@@ -522,6 +541,7 @@ export type Database = {
           completed_by?: string
           created_at?: string
           description?: string | null
+          estimated_hours?: number | null
           id?: string
           instructions?: string | null
           is_future_build?: boolean
@@ -540,6 +560,7 @@ export type Database = {
           completed_by?: string
           created_at?: string
           description?: string | null
+          estimated_hours?: number | null
           id?: string
           instructions?: string | null
           is_future_build?: boolean
@@ -553,6 +574,39 @@ export type Database = {
           step_type?: Database["public"]["Enums"]["step_type"]
           title?: string
           video_url?: string | null
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount_cents: number
+          client_id: string
+          created_at: string
+          hours: number | null
+          id: string
+          kind: string
+          step_id: string | null
+          stripe_session_id: string
+        }
+        Insert: {
+          amount_cents?: number
+          client_id?: string
+          created_at?: string
+          hours?: number | null
+          id?: string
+          kind?: string
+          step_id?: string | null
+          stripe_session_id?: string
+        }
+        Update: {
+          amount_cents?: number
+          client_id?: string
+          created_at?: string
+          hours?: number | null
+          id?: string
+          kind?: string
+          step_id?: string | null
+          stripe_session_id?: string
         }
         Relationships: []
       }

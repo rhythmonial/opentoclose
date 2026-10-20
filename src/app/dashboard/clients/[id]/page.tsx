@@ -83,7 +83,13 @@ export default async function ClientDetailPage({
   const owner = (members ?? []).find((m) => m.role === "client_owner") ?? members?.[0];
   const memberIds = (members ?? []).map((m) => m.id);
 
-  const [{ data: statuses }, { data: submissions }, { data: hoursLog }, { data: initiation }] =
+  const [
+    { data: statuses },
+    { data: submissions },
+    { data: hoursLog },
+    { data: initiation },
+    { data: stepPurchases },
+  ] =
     await Promise.all([
       owner
         ? supabase
@@ -112,7 +118,18 @@ export default async function ClientDetailPage({
             .eq("client_id", owner.id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
+      owner
+        ? supabase
+            .from("payments")
+            .select("step_id")
+            .eq("client_id", owner.id)
+            .eq("kind", "step")
+        : Promise.resolve({ data: [] }),
     ]);
+
+  const purchasedStepIds = new Set(
+    (stepPurchases ?? []).map((p) => p.step_id).filter(Boolean),
+  );
 
   const statusByStepId = new Map((statuses ?? []).map((s) => [s.step_id, s.status]));
   const latestSubmissionByStep = new Map(
@@ -355,6 +372,11 @@ export default async function ClientDetailPage({
                                         <div>
                                           <div className="text-sm font-bold text-ink">
                                             {step.title}
+                                            {purchasedStepIds.has(step.id) && (
+                                              <span className="ml-2 rounded-full bg-gold/30 px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-navy">
+                                                Purchased
+                                              </span>
+                                            )}
                                             {step.is_optional && (
                                               <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-ink-faint">
                                                 Optional
@@ -409,8 +431,9 @@ export default async function ClientDetailPage({
                                     </p>
                                   )}
 
-                                  {effectiveOwner(step.completed_by, ownershipPlan) ===
-                                    "staff" &&
+                                  {(effectiveOwner(step.completed_by, ownershipPlan) ===
+                                    "staff" ||
+                                    purchasedStepIds.has(step.id)) &&
                                     status !== "approved" &&
                                     owner && (
                                       <form
