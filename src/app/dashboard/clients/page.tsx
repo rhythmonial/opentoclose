@@ -140,11 +140,7 @@ export default async function ClientsPage() {
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
-      <h1 className="font-display text-2xl font-bold text-ink sm:text-[28px]">
-        Clients
-      </h1>
-
-      <section className="relative mt-7">
+      <section className="relative">
         <details>
           <summary className="cursor-pointer pr-14">
             <h2 className="inline font-display text-lg font-bold text-ink">
@@ -242,10 +238,16 @@ export default async function ClientsPage() {
       </section>
 
       <section id="clients" className="mt-9">
-        <h2 className="font-display text-lg font-bold text-ink">
-          Client accounts
-        </h2>
-        <div className="mt-3 flex flex-col gap-6">
+        <details open>
+          <summary className="cursor-pointer">
+            <h2 className="inline font-display text-lg font-bold text-ink">
+              Clients ({clientGroups.map((g) => g.rows.length).join("/")})
+            </h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              Active and paused clients by plan: Setup / DIY / Free.
+            </p>
+          </summary>
+        <div className="mt-4 flex flex-col gap-6">
           {clientGroups.map((group) => (
             <div key={group.label}>
               <div className="mb-2 flex items-center gap-2">
@@ -413,8 +415,8 @@ export default async function ClientsPage() {
             </div>
           </details>
         </div>
+        </details>
       </section>
-
     </main>
   );
 }
