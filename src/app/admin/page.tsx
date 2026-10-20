@@ -24,7 +24,7 @@ export default async function AdminPage({
     .single();
 
   if (profile?.role !== "dev" && profile?.role !== "dev_admin") {
-    redirect("/portal");
+    redirect("/home");
   }
 
   return (

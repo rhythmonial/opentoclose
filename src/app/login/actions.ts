@@ -33,7 +33,7 @@ export async function signIn(formData: FormData) {
     redirect("/dashboard");
   }
 
-  redirect("/portal");
+  redirect("/home");
 }
 
 export async function signOut() {

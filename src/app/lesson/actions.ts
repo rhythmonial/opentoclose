@@ -32,6 +32,7 @@ export async function toggleLessonComplete(formData: FormData) {
 
   revalidatePath(`/lesson/${stepId}`);
   revalidatePath("/portal");
+  revalidatePath("/home");
 
   if (nextStatus !== "approved") return;
 
@@ -78,5 +79,5 @@ export async function toggleLessonComplete(formData: FormData) {
       !approvedStepIds.has(s.id),
   );
 
-  redirect(next ? `/lesson/${next.id}` : "/portal");
+  redirect(next ? `/lesson/${next.id}` : "/home");
 }

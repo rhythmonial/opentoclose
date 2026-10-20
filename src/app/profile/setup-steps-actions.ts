@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 function revalidateAll() {
   revalidatePath("/profile");
   revalidatePath("/portal");
+  revalidatePath("/home");
   revalidatePath("/resources");
   revalidatePath("/dashboard/clients", "layout");
 }

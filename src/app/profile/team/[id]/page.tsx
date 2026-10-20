@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 
 const CLIENT_ROLE_LABEL: Record<string, string> = {
-  client_owner: "Owner",
+  client_owner: "Client",
   client_admin: "Admin",
 };
 

@@ -31,13 +31,13 @@ type SetupStep = Tables<"setup_steps">;
 type StepResource = Tables<"setup_step_resources">;
 
 const CLIENT_ROLE_LABEL: Record<string, string> = {
-  client_owner: "Owner",
+  client_owner: "Client",
   client_admin: "Admin",
 };
 
 const STAFF_ROLE_LABEL: Record<string, string> = {
   dev: "Dev",
-  dev_admin: "Dev Admin",
+  dev_admin: "Technician",
 };
 
 

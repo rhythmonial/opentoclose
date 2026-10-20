@@ -60,10 +60,10 @@ export default async function SetupInitiationPage({
     <main className="flex flex-1 items-center justify-center bg-bg px-4 py-12">
       <div className="w-full max-w-2xl">
         <Link
-          href={isStaff ? "/profile" : "/portal"}
+          href={isStaff ? "/profile" : "/home"}
           className="text-sm font-medium text-accent"
         >
-          &larr; {isStaff ? "Back to editor" : "Back to your setup"}
+          &larr; {isStaff ? "Back to editor" : "Back to your dashboard"}
         </Link>
 
         {isStaff && (

@@ -5,16 +5,16 @@ export function TopNav({
   active,
 }: {
   businessName: string;
-  active?: "setup" | "resources";
+  active?: "dashboard" | "setup" | "resources";
 }) {
-  const linkClass = (key: "setup" | "resources") =>
+  const linkClass = (key: "dashboard" | "setup" | "resources") =>
     `text-xs sm:text-sm ${
       active === key ? "font-semibold text-ink" : "font-medium text-ink-soft"
     }`;
 
   return (
     <div className="flex h-[64px] shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-4 sm:h-[76px] sm:px-6 lg:px-12">
-      <Link href="/portal" className="flex min-w-0 items-center gap-2 sm:gap-3">
+      <Link href="/home" className="flex min-w-0 items-center gap-2 sm:gap-3">
         <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-accent sm:h-[34px] sm:w-[34px]">
           <svg
             width="18"
@@ -37,6 +37,9 @@ export function TopNav({
       </Link>
 
       <div className="flex shrink-0 items-center gap-3 sm:gap-7">
+        <Link href="/home" className={linkClass("dashboard")}>
+          Dashboard
+        </Link>
         <Link href="/portal" className={linkClass("setup")}>
           Setup
         </Link>

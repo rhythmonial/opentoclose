@@ -23,7 +23,7 @@ export default async function DashboardLayout({
     .single();
 
   if (profile?.role !== "dev" && profile?.role !== "dev_admin") {
-    redirect("/portal");
+    redirect("/home");
   }
 
   return (

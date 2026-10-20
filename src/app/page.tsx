@@ -19,7 +19,7 @@ export default async function RootPage() {
       redirect("/dashboard");
     }
 
-    redirect("/portal");
+    redirect("/home");
   }
 
   return (

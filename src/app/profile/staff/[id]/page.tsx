@@ -6,7 +6,7 @@ import { updateStaffEmail, sendStaffPasswordReset } from "./actions";
 
 const STAFF_ROLE_LABEL: Record<string, string> = {
   dev: "Dev",
-  dev_admin: "Dev Admin",
+  dev_admin: "Technician",
 };
 
 const EVENT_LABEL: Record<string, string> = {

@@ -88,5 +88,5 @@ export async function submitSetupInitiation(formData: FormData) {
     );
   }
 
-  redirect("/portal");
+  redirect("/home");
 }

@@ -21,5 +21,5 @@ export async function signUp(formData: FormData) {
     redirect(`/signup?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/portal");
+  redirect("/home");
 }
