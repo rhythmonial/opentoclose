@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <path d="M62.6 16.6 A38 38 0 1 1 18.6 47.4" fill="none" stroke="#00275e" stroke-width="6" stroke-linecap="round"/>
-  <path d="M40 55 L52 68 L77 36" fill="none" stroke="#00275e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="23" y="47" text-anchor="middle" font-family="Poppins, Arial Black, sans-serif" font-weight="800" font-size="60" fill="#feb729">$</text>
-</svg>
