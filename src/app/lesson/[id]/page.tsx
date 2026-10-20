@@ -368,6 +368,15 @@ export default async function LessonPage({
                 </button>
               </form>
             )}
+            <p className="mt-5 text-sm text-ink-soft">
+              Stuck on this step?{" "}
+              <Link
+                href={`/support?step=${step.id}`}
+                className="font-semibold text-accent"
+              >
+                Ask us a question &rarr;
+              </Link>
+            </p>
           </div>
         )}
       </div>

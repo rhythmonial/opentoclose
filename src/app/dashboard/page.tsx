@@ -1,5 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import { approveSubmission, returnSubmission } from "./actions";
+import {
+  SupportStatusBadge,
+  SupportThread,
+  type SupportMessage,
+} from "@/components/SupportThread";
 
 export default async function DashboardHome() {
   const supabase = await createClient();
@@ -10,9 +14,8 @@ export default async function DashboardHome() {
     { data: steps },
     { data: hoursLog },
     { count: activeLeadCount },
-    { data: submissions },
+    { data: tickets },
     { data: initiations },
-    { data: submissionStatuses },
     { data: leads },
   ] = await Promise.all([
     supabase
@@ -32,12 +35,10 @@ export default async function DashboardHome() {
       .select("*", { count: "exact", head: true })
       .not("status", "in", "(won,lost)"),
     supabase
-      .from("submissions")
+      .from("support_tickets")
       .select("*")
-      .eq("status", "submitted")
-      .order("submitted_at", { ascending: true }),
+      .order("updated_at", { ascending: true }),
     supabase.from("setup_initiation").select("engagement_type"),
-    supabase.from("submissions").select("status"),
     supabase.from("leads").select("status"),
   ]);
 
@@ -86,10 +87,10 @@ export default async function DashboardHome() {
     0,
   );
 
-  const submissionsByStatus = { submitted: 0, approved: 0, returned: 0 };
-  for (const sub of submissionStatuses ?? []) {
-    if (sub.status in submissionsByStatus) {
-      submissionsByStatus[sub.status as keyof typeof submissionsByStatus] += 1;
+  const ticketsByStatus = { open: 0, answered: 0, closed: 0 };
+  for (const t of tickets ?? []) {
+    if (t.status in ticketsByStatus) {
+      ticketsByStatus[t.status as keyof typeof ticketsByStatus] += 1;
     }
   }
 
@@ -108,27 +109,48 @@ export default async function DashboardHome() {
   const conversionRate =
     decidedLeads > 0 ? (leadsByStatus.won / decidedLeads) * 100 : 0;
 
-  // --- Pending reviews ---
+  // --- Support ---
   const stepTitleById = new Map((steps ?? []).map((s) => [s.id, s.title]));
   const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
   const accountNameById = new Map((accounts ?? []).map((a) => [a.id, a.name]));
 
-  const pendingReviews = (submissions ?? []).map((sub) => {
-    const profile = profileById.get(sub.client_id);
-    const accountName = profile?.client_account_id
-      ? (accountNameById.get(profile.client_account_id) ?? "—")
-      : "—";
+  const ticketIds = (tickets ?? []).map((t) => t.id);
+  const { data: ticketMessages } =
+    ticketIds.length > 0
+      ? await supabase
+          .from("support_messages")
+          .select("id, ticket_id, author_id, body, created_at")
+          .in("ticket_id", ticketIds)
+          .order("created_at")
+      : { data: [] };
+
+  const supportTickets = (tickets ?? []).map((t) => {
+    const client = profileById.get(t.client_id);
+    const accountName = client?.client_account_id
+      ? accountNameById.get(client.client_account_id)
+      : undefined;
+    const messages: SupportMessage[] = (ticketMessages ?? [])
+      .filter((m) => m.ticket_id === t.id)
+      .map((m) => ({
+        id: m.id,
+        body: m.body,
+        created_at: m.created_at,
+        fromStaff: m.author_id !== t.client_id,
+      }));
 
     return {
-      id: sub.id,
-      clientId: sub.client_id,
-      stepId: sub.step_id,
-      stepTitle: stepTitleById.get(sub.step_id) ?? "Unknown step",
-      clientEmail: profile?.email ?? "—",
-      accountName,
-      submittedAt: sub.submitted_at,
+      ...t,
+      accountName: accountName ?? "—",
+      clientEmail: client?.email ?? "—",
+      stepTitle: t.step_id ? stepTitleById.get(t.step_id) : undefined,
+      messages,
     };
   });
+  const openTickets = supportTickets.filter((t) => t.status === "open");
+  const otherTickets = supportTickets
+    .filter((t) => t.status !== "open")
+    .reverse()
+    .slice(0, 25);
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
@@ -205,23 +227,21 @@ export default async function DashboardHome() {
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-5">
-            <h3 className="text-[15px] font-bold text-ink">Submissions</h3>
+            <h3 className="text-[15px] font-bold text-ink">Support</h3>
             <div className="mt-3 flex justify-between text-sm">
-              <span className="text-ink-soft">Pending review</span>
+              <span className="text-ink-soft">Open</span>
+              <span className="font-bold text-ink">{ticketsByStatus.open}</span>
+            </div>
+            <div className="mt-1.5 flex justify-between text-sm">
+              <span className="text-ink-soft">Answered</span>
               <span className="font-bold text-ink">
-                {submissionsByStatus.submitted}
+                {ticketsByStatus.answered}
               </span>
             </div>
             <div className="mt-1.5 flex justify-between text-sm">
-              <span className="text-ink-soft">Approved</span>
+              <span className="text-ink-soft">Resolved</span>
               <span className="font-bold text-ink">
-                {submissionsByStatus.approved}
-              </span>
-            </div>
-            <div className="mt-1.5 flex justify-between text-sm">
-              <span className="text-ink-soft">Returned</span>
-              <span className="font-bold text-ink">
-                {submissionsByStatus.returned}
+                {ticketsByStatus.closed}
               </span>
             </div>
           </div>
@@ -256,26 +276,37 @@ export default async function DashboardHome() {
 
       <section className="mt-9">
         <h2 className="font-display text-lg font-bold text-ink">
-          Pending reviews
+          Support center
+          {openTickets.length > 0 && (
+            <span className="ml-2 rounded-full bg-danger px-2 py-0.5 align-middle font-caption text-xs font-bold text-white">
+              {openTickets.length}
+            </span>
+          )}
         </h2>
+        <p className="mt-1 text-sm text-ink-soft">
+          Questions from clients, oldest first. Replying marks a question
+          answered; a client reply reopens it.
+        </p>
 
         <div className="mt-3 flex flex-col gap-3">
-          {pendingReviews.map((row) => (
-            <div
-              key={row.id}
+          {openTickets.map((t) => (
+            <details
+              key={t.id}
+              open={t.status === "open"}
               className="rounded-xl border border-border bg-surface p-5"
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <div>
+              <summary className="flex cursor-pointer items-start justify-between gap-3">
+                <div className="min-w-0">
                   <div className="text-[15px] font-bold text-ink">
-                    {row.stepTitle}
+                    {t.subject}
                   </div>
                   <div className="text-sm text-ink-soft">
-                    {row.accountName} &middot; {row.clientEmail}
+                    {t.accountName} &middot; {t.clientEmail}
                   </div>
-                  <div className="mt-1 text-xs text-ink-faint">
-                    Submitted{" "}
-                    {new Date(row.submittedAt).toLocaleString("en-US", {
+                  <div className="mt-0.5 text-xs text-ink-faint">
+                    {t.stepTitle ? `${t.stepTitle} \u00b7 ` : ""}
+                    Updated{" "}
+                    {new Date(t.updated_at).toLocaleString("en-US", {
                       month: "short",
                       day: "numeric",
                       hour: "numeric",
@@ -283,52 +314,72 @@ export default async function DashboardHome() {
                     })}
                   </div>
                 </div>
-
-                <form action={approveSubmission}>
-                  <input type="hidden" name="submission_id" value={row.id} />
-                  <input type="hidden" name="client_id" value={row.clientId} />
-                  <input type="hidden" name="step_id" value={row.stepId} />
-                  <button
-                    type="submit"
-                    className="shrink-0 rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white"
-                  >
-                    Approve
-                  </button>
-                </form>
+                <SupportStatusBadge status={t.status} />
+              </summary>
+              <div className="mt-4 border-t border-border-soft pt-4">
+                <SupportThread
+                  ticketId={t.id}
+                  status={t.status}
+                  messages={t.messages}
+                  viewerIsStaff
+                  clientLabel={t.accountName}
+                />
               </div>
-
-              <form
-                action={returnSubmission}
-                className="mt-4 flex flex-col items-stretch gap-3 border-t border-border-soft pt-4 sm:flex-row sm:items-end"
-              >
-                <input type="hidden" name="submission_id" value={row.id} />
-                <input type="hidden" name="client_id" value={row.clientId} />
-                <input type="hidden" name="step_id" value={row.stepId} />
-                <label className="flex flex-1 flex-col gap-1.5">
-                  <span className="text-xs font-medium text-ink-soft">
-                    Return with feedback
-                  </span>
-                  <textarea
-                    name="feedback"
-                    rows={2}
-                    placeholder="What needs to change before this can be approved?"
-                    className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="shrink-0 rounded-lg border border-warning/40 bg-warning-soft px-4 py-2 text-sm font-semibold text-warning"
-                >
-                  Return
-                </button>
-              </form>
-            </div>
+            </details>
           ))}
 
-          {pendingReviews.length === 0 && (
+          {openTickets.length === 0 && (
             <p className="rounded-xl border border-border bg-surface p-5 text-sm text-ink-soft">
-              Nothing waiting on review.
+              No open questions.
             </p>
+          )}
+
+          {otherTickets.length > 0 && (
+            <details className="rounded-xl border border-border bg-surface">
+              <summary className="cursor-pointer px-5 py-3.5 font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
+                Answered &amp; resolved ({otherTickets.length})
+              </summary>
+              <div className="flex flex-col gap-3 border-t border-border-soft p-3">
+                {otherTickets.map((t) => (
+            <details
+              key={t.id}
+              open={t.status === "open"}
+              className="rounded-xl border border-border bg-surface p-5"
+            >
+              <summary className="flex cursor-pointer items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[15px] font-bold text-ink">
+                    {t.subject}
+                  </div>
+                  <div className="text-sm text-ink-soft">
+                    {t.accountName} &middot; {t.clientEmail}
+                  </div>
+                  <div className="mt-0.5 text-xs text-ink-faint">
+                    {t.stepTitle ? `${t.stepTitle} \u00b7 ` : ""}
+                    Updated{" "}
+                    {new Date(t.updated_at).toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                </div>
+                <SupportStatusBadge status={t.status} />
+              </summary>
+              <div className="mt-4 border-t border-border-soft pt-4">
+                <SupportThread
+                  ticketId={t.id}
+                  status={t.status}
+                  messages={t.messages}
+                  viewerIsStaff
+                  clientLabel={t.accountName}
+                />
+              </div>
+            </details>
+          ))}
+              </div>
+            </details>
           )}
         </div>
       </section>

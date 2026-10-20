@@ -476,12 +476,12 @@ export default async function PortalPage() {
                   Need Help?
                 </h3>
                 <p className="mb-3 text-sm leading-relaxed text-ink-soft">
-                  Reply to your setup email thread any time &mdash; we
+                  Send Josie’s team a question any time &mdash; we
                   usually respond within a few hours.
                 </p>
-                <a href="#" className="text-sm font-semibold text-accent">
-                  Contact your setup team &rarr;
-                </a>
+                <Link href="/support" className="text-sm font-semibold text-accent">
+                  Ask a question &rarr;
+                </Link>
               </div>
 
               <div className="rounded-xl border border-border bg-surface p-5">
@@ -574,12 +574,12 @@ export default async function PortalPage() {
                   Need Help?
                 </h3>
                 <p className="mb-3 text-sm leading-relaxed text-ink-soft">
-                  Reply to your setup email thread any time &mdash; we
+                  Send Josie’s team a question any time &mdash; we
                   usually respond within a few hours.
                 </p>
-                <a href="#" className="text-sm font-semibold text-accent">
-                  Contact your setup team &rarr;
-                </a>
+                <Link href="/support" className="text-sm font-semibold text-accent">
+                  Ask a question &rarr;
+                </Link>
               </div>
             </>
           )}
