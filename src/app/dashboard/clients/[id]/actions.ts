@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function logHours(formData: FormData) {
   const accountId = String(formData.get("account_id") ?? "");
@@ -82,43 +81,15 @@ export async function deleteClientAccount(formData: FormData) {
   const accountId = String(formData.get("account_id") ?? "");
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { error } = await supabase.rpc("delete_client_account", {
+    target_account_id: accountId,
+  });
 
-  if (!user) {
-    redirect("/login");
+  if (error) {
+    redirect(
+      `/dashboard/clients/${accountId}?error=${encodeURIComponent(`Couldn't delete this account: ${error.message}`)}`,
+    );
   }
-
-  const { data: viewer } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (viewer?.role !== "dev") {
-    redirect(`/dashboard/clients/${accountId}`);
-  }
-
-  const admin = createAdminClient();
-  const { data: members } = await admin
-    .from("profiles")
-    .select("id")
-    .eq("client_account_id", accountId)
-    .in("role", ["client_owner", "client_admin"]);
-
-  // Deleting each login cascades to its profile, progress, hours,
-  // initiation form and support questions.
-  for (const member of members ?? []) {
-    const { error } = await admin.auth.admin.deleteUser(member.id);
-    if (error) {
-      redirect(
-        `/dashboard/clients/${accountId}?error=${encodeURIComponent(error.message)}`,
-      );
-    }
-  }
-
-  await admin.from("client_accounts").delete().eq("id", accountId);
 
   revalidatePath("/dashboard/clients");
   revalidatePath("/dashboard");

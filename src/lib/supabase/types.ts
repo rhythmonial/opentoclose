@@ -780,6 +780,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_client_account: {
+        Args: { target_account_id: string }
+        Returns: number
+      }
       is_dev: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       my_client_account_id: { Args: never; Returns: string }
