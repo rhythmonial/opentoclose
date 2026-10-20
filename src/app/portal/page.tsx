@@ -13,15 +13,6 @@ import { stepClientHref, isExternalStepLink } from "@/lib/stepHref";
 import { toggleLessonComplete } from "@/app/lesson/actions";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
 
-const STATUS_LABEL: Record<string, string> = {
-  not_started: "Not Started",
-  in_progress: "In Progress",
-  submitted: "Submitted",
-  returned: "Needs Changes",
-  approved: "Complete",
-  locked: "Locked",
-};
-
 const HOURS_PER_BUNDLE = 10;
 
 function isRequiredStep(step: {
@@ -376,23 +367,6 @@ export default async function PortalPage() {
                               </div>
                             );
 
-                            const statusBadge = (
-                              <span
-                                className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
-                                  status === "approved"
-                                    ? "bg-success-soft text-success"
-                                    : status === "returned"
-                                      ? "bg-warning-soft text-warning"
-                                      : status === "submitted" ||
-                                          status === "in_progress"
-                                        ? "bg-accent-soft text-accent"
-                                        : "bg-border-soft text-ink-faint"
-                                }`}
-                              >
-                                {STATUS_LABEL[status].toUpperCase()}
-                              </span>
-                            );
-
                             if (isExternal) {
                               return (
                                 <div
@@ -407,8 +381,7 @@ export default async function PortalPage() {
                                   >
                                     {titleBlock}
                                   </a>
-                                  <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
-                                    {statusBadge}
+                                  <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
                                     {isClientManaged ? (
                                       isStaff && !isSandboxing ? (
                                         <button
@@ -466,8 +439,7 @@ export default async function PortalPage() {
                                 <div className="w-full min-w-0 sm:w-auto sm:flex-1">
                                   {titleBlock}
                                 </div>
-                                <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
-                                  {statusBadge}
+                                <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
                                   <span className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
                                     {status === "not_started"
                                       ? "Start"
