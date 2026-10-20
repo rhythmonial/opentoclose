@@ -11,6 +11,9 @@ export default async function DashboardHome() {
     { data: hoursLog },
     { count: activeLeadCount },
     { data: submissions },
+    { data: initiations },
+    { data: submissionStatuses },
+    { data: leads },
   ] = await Promise.all([
     supabase
       .from("client_accounts")
@@ -33,6 +36,9 @@ export default async function DashboardHome() {
       .select("*")
       .eq("status", "submitted")
       .order("submitted_at", { ascending: true }),
+    supabase.from("setup_initiation").select("engagement_type"),
+    supabase.from("submissions").select("status"),
+    supabase.from("leads").select("status"),
   ]);
 
   // --- Cards ---
@@ -52,18 +58,55 @@ export default async function DashboardHome() {
 
   const cards = [
     {
-      label: "Active / Total Clients",
+      label: "Active/Total",
       value: `${activeClients}/${totalClients}`,
     },
     {
-      label: "Active Leads",
+      label: "Leads",
       value: activeLeadCount ?? 0,
     },
     {
-      label: "Hours Due / Worked This Year",
+      label: "Due/Worked",
       value: `${hoursDueTotal.toFixed(1)}/${hoursWorkedThisYear.toFixed(1)}`,
     },
   ];
+
+  // --- Business numbers ---
+  const clientsByEngagement = { custom: 0, diy: 0 };
+  for (const i of initiations ?? []) {
+    if (i.engagement_type === "custom" || i.engagement_type === "diy") {
+      clientsByEngagement[i.engagement_type] += 1;
+    }
+  }
+  const payingClients = clientsByEngagement.custom + clientsByEngagement.diy;
+  const freeClients = Math.max(0, totalClients - payingClients);
+
+  const hoursUsedTotal = (hoursLog ?? []).reduce(
+    (sum, h) => sum + Number(h.hours),
+    0,
+  );
+
+  const submissionsByStatus = { submitted: 0, approved: 0, returned: 0 };
+  for (const sub of submissionStatuses ?? []) {
+    if (sub.status in submissionsByStatus) {
+      submissionsByStatus[sub.status as keyof typeof submissionsByStatus] += 1;
+    }
+  }
+
+  const leadsByStatus: Record<string, number> = {
+    new: 0,
+    contacted: 0,
+    info_sent: 0,
+    proposal_sent: 0,
+    won: 0,
+    lost: 0,
+  };
+  for (const l of leads ?? []) {
+    leadsByStatus[l.status] = (leadsByStatus[l.status] ?? 0) + 1;
+  }
+  const decidedLeads = leadsByStatus.won + leadsByStatus.lost;
+  const conversionRate =
+    decidedLeads > 0 ? (leadsByStatus.won / decidedLeads) * 100 : 0;
 
   // --- Pending reviews ---
   const stepTitleById = new Map((steps ?? []).map((s) => [s.id, s.title]));
@@ -96,19 +139,120 @@ export default async function DashboardHome() {
         Everything running through OTC Setup, at a glance.
       </p>
 
-      <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-7 grid grid-cols-3 gap-3 sm:gap-4">
         {cards.map((card) => (
           <div
             key={card.label}
-            className="rounded-xl border border-border bg-surface p-5"
+            className="min-w-0 rounded-xl border border-border bg-surface px-3 py-4 sm:p-5"
           >
-            <div className="font-display text-2xl font-bold text-ink">
+            <div className="truncate font-display text-lg font-bold text-ink sm:text-2xl">
               {card.value}
             </div>
-            <div className="mt-1 text-sm text-ink-soft">{card.label}</div>
+            <div className="mt-1 text-xs text-ink-soft sm:text-sm">
+              {card.label}
+            </div>
           </div>
         ))}
       </div>
+
+      <section className="mt-9">
+        <h2 className="font-display text-lg font-bold text-ink">
+          Business numbers
+        </h2>
+        <p className="mt-1 text-sm text-ink-soft">
+          Live from clients, leads and hours logged. No billing data is wired
+          up yet, so this is activity, not revenue.
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-[15px] font-bold text-ink">Clients by path</h3>
+            <div className="mt-3 flex justify-between text-sm">
+              <span className="text-ink-soft">Setup ($999)</span>
+              <span className="font-bold text-ink">{clientsByEngagement.custom}</span>
+            </div>
+            <div className="mt-1.5 flex justify-between text-sm">
+              <span className="text-ink-soft">DIY ($19)</span>
+              <span className="font-bold text-ink">{clientsByEngagement.diy}</span>
+            </div>
+            <div className="mt-1.5 flex justify-between text-sm">
+              <span className="text-ink-soft">Free (not signed up yet)</span>
+              <span className="font-bold text-ink">{freeClients}</span>
+            </div>
+            <div className="mt-3 flex justify-between border-t border-border-soft pt-2 text-sm font-bold text-ink">
+              <span>Total paying</span>
+              <span>{payingClients}</span>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-[15px] font-bold text-ink">Hours</h3>
+            <div className="mt-3 flex justify-between text-sm">
+              <span className="text-ink-soft">Purchased</span>
+              <span className="font-bold text-ink">
+                {hoursDueTotal.toFixed(1)}
+              </span>
+            </div>
+            <div className="mt-1.5 flex justify-between text-sm">
+              <span className="text-ink-soft">Used</span>
+              <span className="font-bold text-ink">
+                {hoursUsedTotal.toFixed(1)}
+              </span>
+            </div>
+            <div className="mt-3 flex justify-between border-t border-border-soft pt-2 text-sm font-bold text-ink">
+              <span>Remaining</span>
+              <span>{(hoursDueTotal - hoursUsedTotal).toFixed(1)}</span>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-[15px] font-bold text-ink">Submissions</h3>
+            <div className="mt-3 flex justify-between text-sm">
+              <span className="text-ink-soft">Pending review</span>
+              <span className="font-bold text-ink">
+                {submissionsByStatus.submitted}
+              </span>
+            </div>
+            <div className="mt-1.5 flex justify-between text-sm">
+              <span className="text-ink-soft">Approved</span>
+              <span className="font-bold text-ink">
+                {submissionsByStatus.approved}
+              </span>
+            </div>
+            <div className="mt-1.5 flex justify-between text-sm">
+              <span className="text-ink-soft">Returned</span>
+              <span className="font-bold text-ink">
+                {submissionsByStatus.returned}
+              </span>
+            </div>
+          </div>
+
+          <div className="sm:col-span-2 rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-[15px] font-bold text-ink">Leads by stage</h3>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {Object.entries(leadsByStatus).map(([status, count]) => (
+                <div key={status}>
+                  <div className="font-display text-xl font-bold text-ink">
+                    {count}
+                  </div>
+                  <div className="text-xs capitalize text-ink-soft">
+                    {status.replace("_", " ")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-5">
+            <h3 className="text-[15px] font-bold text-ink">Conversion</h3>
+            <div className="mt-3 font-display text-2xl font-bold text-ink">
+              {conversionRate.toFixed(0)}%
+            </div>
+            <p className="mt-1 text-xs text-ink-soft">
+              Won leads as a share of all leads ever won or lost.
+            </p>
+          </div>
+        </div>
+      </section>
 
       <section className="mt-9">
         <h2 className="font-display text-lg font-bold text-ink">
