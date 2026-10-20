@@ -14,6 +14,7 @@ import { SaveStepButton } from "@/components/SaveStepButton";
 import { StepResourcesEditor } from "@/components/StepResourcesEditor";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
 import { signOut } from "@/app/login/actions";
+import { getImpersonatedClientId } from "@/lib/impersonation";
 import { updateProfileInfo, inviteClientAdmin, inviteStaff } from "./actions";
 import {
   addStep,
@@ -61,13 +62,26 @@ export default async function ProfilePage({
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
+  const { data: realProfile } = await supabase
     .from("profiles")
     .select("role, email, name, phone, client_account_id")
     .eq("id", user.id)
     .single();
 
-  const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
+  const isRealStaff =
+    realProfile?.role === "dev" || realProfile?.role === "dev_admin";
+  const impersonatedId = isRealStaff ? await getImpersonatedClientId() : null;
+  const isImpersonating = Boolean(impersonatedId);
+
+  const { data: profile } = impersonatedId
+    ? await supabase
+        .from("profiles")
+        .select("role, email, name, phone, client_account_id")
+        .eq("id", impersonatedId)
+        .single()
+    : { data: realProfile };
+
+  const isStaff = !isImpersonating && isRealStaff;
 
   if (isStaff) {
     const [{ data: staff }, { data: steps }, { data: resources }] =
@@ -598,20 +612,27 @@ export default async function ProfilePage({
         .order("created_at")
     : { data: null };
 
-  const businessName = account?.name ?? user.email ?? "Your business";
+  const businessName = account?.name ?? profile?.email ?? user.email ?? "Your business";
 
   const isOwner = profile?.role === "client_owner";
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <TopNav businessName={businessName} />
+      <TopNav businessName={businessName} isImpersonating={isImpersonating} />
+
+      {isImpersonating && (
+        <div className="mx-4 mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
+          Viewing as {businessName} &mdash; this is their real data. Click the
+          eye icon next to your profile to return to the dev dashboard.
+        </div>
+      )}
 
       <div className="px-4 pt-6 sm:px-6 sm:pt-9 lg:px-12">
         <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
           Profile
         </h1>
         <p className="mt-1.5 text-sm text-ink-soft">
-          {user.email} &middot; {CLIENT_ROLE_LABEL[profile?.role ?? ""]} at{" "}
+          {profile?.email ?? user.email} &middot; {CLIENT_ROLE_LABEL[profile?.role ?? ""]} at{" "}
           {businessName}
         </p>
       </div>
@@ -623,6 +644,7 @@ export default async function ProfilePage({
               Profile saved.
             </div>
           )}
+          <fieldset disabled={isImpersonating} className="contents">
           <form action={updateProfileInfo} className="flex flex-col gap-3">
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-ink-soft">Name</span>
@@ -635,7 +657,7 @@ export default async function ProfilePage({
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-ink-soft">Email</span>
               <input
-                value={user.email ?? ""}
+                value={profile?.email ?? user.email ?? ""}
                 disabled
                 className="rounded-lg border border-border bg-border-soft px-3 py-2 text-sm text-ink-soft"
               />
@@ -653,11 +675,12 @@ export default async function ProfilePage({
             </label>
             <button
               type="submit"
-              className="mt-1 self-start rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
+              className="mt-1 self-start rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
               Save
             </button>
           </form>
+          </fieldset>
         </section>
 
         <div className="flex min-w-0 flex-1 flex-col gap-6">
@@ -734,19 +757,21 @@ export default async function ProfilePage({
               )}
 
               <form action={inviteClientAdmin} className="flex flex-col gap-3">
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  placeholder="teammate@example.com"
-                  className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-                />
-                <button
-                  type="submit"
-                  className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
-                >
-                  Send invite
-                </button>
+                <fieldset disabled={isImpersonating} className="contents">
+                  <input
+                    type="email"
+                    name="email"
+                    required
+                    placeholder="teammate@example.com"
+                    className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    Send invite
+                  </button>
+                </fieldset>
               </form>
             </div>
           )}

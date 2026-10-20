@@ -1,7 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { IMPERSONATE_COOKIE } from "@/lib/impersonation";
 
 export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "");
@@ -39,5 +41,6 @@ export async function signIn(formData: FormData) {
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  (await cookies()).delete(IMPERSONATE_COOKIE);
   redirect("/login");
 }

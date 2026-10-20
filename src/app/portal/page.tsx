@@ -11,6 +11,7 @@ import {
 import { StaffNav } from "@/components/StaffNav";
 import { stepClientHref, isExternalStepLink } from "@/lib/stepHref";
 import { toggleLessonComplete } from "@/app/lesson/actions";
+import { getImpersonatedClientId } from "@/lib/impersonation";
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not Started",
@@ -48,13 +49,23 @@ export default async function PortalPage({
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
+  const { data: realProfile } = await supabase
     .from("profiles")
-    .select("*, client_accounts(name, setup_path)")
+    .select("role")
     .eq("id", user.id)
     .single();
 
-  const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
+  const isStaff =
+    realProfile?.role === "dev" || realProfile?.role === "dev_admin";
+  const impersonatedId = isStaff ? await getImpersonatedClientId() : null;
+  const isImpersonating = Boolean(impersonatedId);
+  const effectiveUserId = impersonatedId ?? user.id;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*, client_accounts(name, setup_path)")
+    .eq("id", effectiveUserId)
+    .single();
 
   if (!isStaff && profile && !profile.first_login_at) {
     await supabase
@@ -76,25 +87,29 @@ export default async function PortalPage({
       .select("*")
       .eq("path", setupPath)
       .order("sort_order"),
-    supabase.from("client_step_status").select("*").eq("client_id", user.id),
+    supabase
+      .from("client_step_status")
+      .select("*")
+      .eq("client_id", effectiveUserId),
     supabase
       .from("hours_log")
       .select("*")
-      .eq("client_id", user.id)
+      .eq("client_id", effectiveUserId)
       .order("logged_date", { ascending: false })
       .limit(5),
     supabase
       .from("setup_initiation")
       .select("engagement_type")
-      .eq("client_id", user.id)
+      .eq("client_id", effectiveUserId)
       .maybeSingle(),
   ]);
 
-  // Staff previewing use ?previewAs= instead of a real plan (they have no
-  // setup_initiation row of their own) — defaults to Free, same as a brand
-  // new signup would see.
+  // Staff just previewing (not impersonating a real client) use ?previewAs=
+  // instead of a real plan, since they have no setup_initiation row of
+  // their own — defaults to Free, same as a brand new signup would see.
+  // Impersonating uses the real client's actual plan, fetched above.
   const engagementType = (
-    isStaff
+    isStaff && !isImpersonating
       ? previewAs === "setup"
         ? "custom"
         : previewAs === "diy"
@@ -177,9 +192,10 @@ export default async function PortalPage({
   const stepsOffYourPlate = diyClientStepCount - setupClientStepCount;
 
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
-  const businessName = isStaff
-    ? "Preview"
-    : (profile?.client_accounts?.name ?? user.email ?? "Your business");
+  const businessName =
+    isStaff && !isImpersonating
+      ? "Preview"
+      : (profile?.client_accounts?.name ?? user.email ?? "Your business");
 
   // Preserve the other query params whenever one toggle/filter link changes
   // another, so e.g. clicking a filter pill doesn't reset the Setup/DIY view.
@@ -206,11 +222,26 @@ export default async function PortalPage({
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      {isStaff ? <StaffNav /> : <TopNav businessName={businessName} active="setup" />}
+      {isStaff && !isImpersonating ? (
+        <StaffNav />
+      ) : (
+        <TopNav
+          businessName={businessName}
+          active="setup"
+          isImpersonating={isImpersonating}
+        />
+      )}
 
-      {isStaff && (
+      {isStaff && !isImpersonating && (
         <div className="mx-4 mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent sm:mx-6 lg:mx-12">
           Previewing the portal as a {engagementType === "custom" ? "Setup" : engagementType === "diy" ? "DIY" : "Free"} account &mdash; actions are disabled here.
+        </div>
+      )}
+
+      {isImpersonating && (
+        <div className="mx-4 mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
+          Viewing as {businessName} &mdash; this is their real data. Click the
+          eye icon next to your profile to return to the dev dashboard.
         </div>
       )}
 
@@ -543,20 +574,12 @@ export default async function PortalPage({
                                   <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
                                     {statusBadge}
                                     {isClientManaged ? (
-                                      <form action={toggleLessonComplete}>
-                                        <input
-                                          type="hidden"
-                                          name="step_id"
-                                          value={step.id}
-                                        />
-                                        <input
-                                          type="hidden"
-                                          name="currently_approved"
-                                          value={String(isApproved)}
-                                        />
+                                      isStaff ? (
                                         <button
-                                          type="submit"
-                                          className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold ${
+                                          type="button"
+                                          disabled
+                                          title="Actions are disabled while viewing/previewing"
+                                          className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold opacity-50 ${
                                             isApproved
                                               ? "border border-border text-ink"
                                               : "bg-accent text-white"
@@ -564,7 +587,30 @@ export default async function PortalPage({
                                         >
                                           {isApproved ? "Undo" : "Mark Complete"}
                                         </button>
-                                      </form>
+                                      ) : (
+                                        <form action={toggleLessonComplete}>
+                                          <input
+                                            type="hidden"
+                                            name="step_id"
+                                            value={step.id}
+                                          />
+                                          <input
+                                            type="hidden"
+                                            name="currently_approved"
+                                            value={String(isApproved)}
+                                          />
+                                          <button
+                                            type="submit"
+                                            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold ${
+                                              isApproved
+                                                ? "border border-border text-ink"
+                                                : "bg-accent text-white"
+                                            }`}
+                                          >
+                                            {isApproved ? "Undo" : "Mark Complete"}
+                                          </button>
+                                        </form>
+                                      )
                                     ) : (
                                       <span className="shrink-0 text-xs font-medium text-ink-faint">
                                         Handled by our team

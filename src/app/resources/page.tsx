@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
+import { StaffNav } from "@/components/StaffNav";
+import { getImpersonatedClientId } from "@/lib/impersonation";
+import type { EngagementType } from "@/lib/stepOwnership";
 
 const STEP_TYPE_LABEL: Record<string, string> = {
   lesson: "Lesson",
@@ -25,11 +28,47 @@ export default async function ResourcesPage() {
     redirect("/login");
   }
 
+  const { data: realProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const isStaff =
+    realProfile?.role === "dev" || realProfile?.role === "dev_admin";
+  const impersonatedId = isStaff ? await getImpersonatedClientId() : null;
+  const isImpersonating = Boolean(impersonatedId);
+  const effectiveUserId = impersonatedId ?? user.id;
+
+  if (isStaff && !isImpersonating) {
+    return (
+      <main className="flex min-h-screen flex-col bg-bg">
+        <StaffNav />
+        <div className="px-4 py-9 sm:px-6 lg:px-12">
+          <p className="text-sm text-ink-soft">
+            Use &ldquo;View as Free/DIY/Setup&rdquo; from the Setup Tasks
+            editor, or impersonate a real client from the dashboard, to
+            preview the Resource Center.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("*, client_accounts(name, setup_path)")
-    .eq("id", user.id)
+    .eq("id", effectiveUserId)
     .single();
+
+  const { data: initiation } = await supabase
+    .from("setup_initiation")
+    .select("engagement_type")
+    .eq("client_id", effectiveUserId)
+    .maybeSingle();
+  const engagementType = (initiation?.engagement_type ??
+    "free") as EngagementType;
+  const canViewContent = engagementType !== "free";
 
   const setupPath = profile?.client_accounts?.setup_path ?? "custom";
 
@@ -66,7 +105,18 @@ export default async function ResourcesPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <TopNav businessName={businessName} active="resources" />
+      <TopNav
+        businessName={businessName}
+        active="resources"
+        isImpersonating={isImpersonating}
+      />
+
+      {isImpersonating && (
+        <div className="mx-4 mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
+          Viewing as {businessName} &mdash; this is their real data. Click the
+          eye icon next to your profile to return to the dev dashboard.
+        </div>
+      )}
 
       <div className="px-4 pt-6 sm:px-6 sm:pt-9 lg:px-12">
         <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
@@ -120,6 +170,7 @@ export default async function ResourcesPage() {
                                 key={step.id}
                                 step={step}
                                 resources={resourcesByStep.get(step.id) ?? []}
+                                canViewContent={canViewContent}
                               />
                             ))}
                           </ul>
@@ -137,6 +188,7 @@ export default async function ResourcesPage() {
                                 key={step.id}
                                 step={step}
                                 resources={resourcesByStep.get(step.id) ?? []}
+                                canViewContent={canViewContent}
                               />
                             ))}
                           </ul>
@@ -163,6 +215,7 @@ export default async function ResourcesPage() {
 function ResourceItem({
   step,
   resources,
+  canViewContent,
 }: {
   step: {
     id: string;
@@ -173,6 +226,7 @@ function ResourceItem({
     link_url: string | null;
   };
   resources: { id: string; kind: string; label: string | null; url: string }[];
+  canViewContent: boolean;
 }) {
   const isExternal =
     (step.step_type === "form" || step.step_type === "link") &&
@@ -205,7 +259,14 @@ function ResourceItem({
         </a>
       )}
 
-      {(step.video_url || resources.length > 0) && (
+      {!canViewContent && (step.video_url || resources.length > 0) && (
+        <p className="text-xs font-medium text-ink-faint">
+          Sign up for Setup or DIY to unlock the video and resources for this
+          step.
+        </p>
+      )}
+
+      {canViewContent && (step.video_url || resources.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
           {step.video_url && (
             <a

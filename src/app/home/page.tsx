@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
+import { getImpersonatedClientId } from "@/lib/impersonation";
 import {
   effectiveOwner,
   isClientVisible,
@@ -27,10 +28,25 @@ export default async function HomePage() {
     redirect("/login");
   }
 
+  const { data: realProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  const isStaff =
+    realProfile?.role === "dev" || realProfile?.role === "dev_admin";
+  const impersonatedId = isStaff ? await getImpersonatedClientId() : null;
+  const isImpersonating = Boolean(impersonatedId);
+  const effectiveUserId = impersonatedId ?? user.id;
+
+  if (isStaff && !isImpersonating) {
+    redirect("/dashboard");
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("*, client_accounts(name, setup_path, status)")
-    .eq("id", user.id)
+    .eq("id", effectiveUserId)
     .single();
 
   const setupPath = profile?.client_accounts?.setup_path ?? "custom";
@@ -47,16 +63,19 @@ export default async function HomePage() {
       .select("*")
       .eq("path", setupPath)
       .order("sort_order"),
-    supabase.from("client_step_status").select("*").eq("client_id", user.id),
+    supabase
+      .from("client_step_status")
+      .select("*")
+      .eq("client_id", effectiveUserId),
     supabase
       .from("setup_initiation")
       .select("engagement_type")
-      .eq("client_id", user.id)
+      .eq("client_id", effectiveUserId)
       .maybeSingle(),
     supabase
       .from("hours_log")
       .select("hours")
-      .eq("client_id", user.id),
+      .eq("client_id", effectiveUserId),
     profile?.client_account_id
       ? supabase
           .from("profiles")
@@ -127,7 +146,18 @@ export default async function HomePage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <TopNav businessName={businessName} active="dashboard" />
+      <TopNav
+        businessName={businessName}
+        active="dashboard"
+        isImpersonating={isImpersonating}
+      />
+
+      {isImpersonating && (
+        <div className="mx-4 mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger sm:mx-6 lg:mx-12">
+          Viewing as {businessName} &mdash; this is their real data. Click the
+          eye icon next to your profile to return to the dev dashboard.
+        </div>
+      )}
 
       <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

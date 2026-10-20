@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
+import { getImpersonatedClientId } from "@/lib/impersonation";
 
 const CLIENT_ROLE_LABEL: Record<string, string> = {
   client_owner: "Client",
@@ -30,10 +31,10 @@ export default async function TeamMemberPage({
     redirect("/login");
   }
 
-  const [{ data: viewer }, { data: member }] = await Promise.all([
+  const [{ data: realViewer }, { data: member }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("client_account_id")
+      .select("role, client_account_id")
       .eq("id", user.id)
       .single(),
     supabase
@@ -44,12 +45,18 @@ export default async function TeamMemberPage({
       .single(),
   ]);
 
+  const isStaff =
+    realViewer?.role === "dev" || realViewer?.role === "dev_admin";
+  const impersonatedId = isStaff ? await getImpersonatedClientId() : null;
+  const isImpersonating = Boolean(impersonatedId);
+
   if (
     !member ||
-    !viewer?.client_account_id ||
-    member.client_account_id !== viewer.client_account_id
+    (!isImpersonating &&
+      (!realViewer?.client_account_id ||
+        member.client_account_id !== realViewer.client_account_id))
   ) {
-    redirect("/profile");
+    redirect(isStaff ? "/dashboard" : "/profile");
   }
 
   const [{ data: account }, { data: owner }] = await Promise.all([
@@ -118,7 +125,7 @@ export default async function TeamMemberPage({
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <TopNav businessName={businessName} />
+      <TopNav businessName={businessName} isImpersonating={isImpersonating} />
 
       <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
         <Link href="/profile" className="text-sm font-medium text-accent">

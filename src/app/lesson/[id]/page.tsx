@@ -11,6 +11,7 @@ import {
   type PlanType,
 } from "@/lib/stepOwnership";
 import { toggleLessonComplete } from "../actions";
+import { getImpersonatedClientId } from "@/lib/impersonation";
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not Started",
@@ -42,11 +43,23 @@ export default async function LessonPage({
     redirect("/login");
   }
 
+  const { data: realProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const isStaff =
+    realProfile?.role === "dev" || realProfile?.role === "dev_admin";
+  const impersonatedId = isStaff ? await getImpersonatedClientId() : null;
+  const isImpersonating = Boolean(impersonatedId);
+  const effectiveUserId = impersonatedId ?? user.id;
+
   const [{ data: profile }, { data: step }] = await Promise.all([
     supabase
       .from("profiles")
       .select("*, client_accounts(name)")
-      .eq("id", user.id)
+      .eq("id", effectiveUserId)
       .single(),
     supabase.from("setup_steps").select("*").eq("id", id).maybeSingle(),
   ]);
@@ -59,8 +72,6 @@ export default async function LessonPage({
     redirect(step.link_url);
   }
 
-  const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
-
   const { data: resources } = await supabase
     .from("setup_step_resources")
     .select("*")
@@ -68,24 +79,26 @@ export default async function LessonPage({
     .order("sort_order");
 
   const businessName =
-    profile?.client_accounts?.name ?? user.email ?? "Your business";
+    isStaff && !isImpersonating
+      ? "Preview"
+      : (profile?.client_accounts?.name ?? user.email ?? "Your business");
 
   let status = "not_started";
   let isHandledByStaff = false;
   let isFreeTier = false;
 
-  if (!isStaff) {
+  if (!isStaff || isImpersonating) {
     const [{ data: statusRow }, { data: initiation }] = await Promise.all([
       supabase
         .from("client_step_status")
         .select("status")
-        .eq("client_id", user.id)
+        .eq("client_id", effectiveUserId)
         .eq("step_id", step.id)
         .maybeSingle(),
       supabase
         .from("setup_initiation")
         .select("engagement_type")
-        .eq("client_id", user.id)
+        .eq("client_id", effectiveUserId)
         .maybeSingle(),
     ]);
 
@@ -102,8 +115,9 @@ export default async function LessonPage({
     // First visit to a not-yet-started task marks it in progress, so the
     // portal list can show "Continue" instead of "Start" afterward. This
     // happens regardless of free/paid status — tracking progress is free,
-    // only the lesson content itself is gated.
-    if (status === "not_started" && !isHandledByStaff) {
+    // only the lesson content itself is gated. Never happens while staff
+    // are impersonating, since that's meant to be read-only.
+    if (!isStaff && status === "not_started" && !isHandledByStaff) {
       await supabase.from("client_step_status").upsert(
         {
           client_id: user.id,
@@ -117,30 +131,45 @@ export default async function LessonPage({
     }
   }
 
-  const canViewContent = isStaff || !isFreeTier;
+  // Impersonating shows content exactly as the real client would see it
+  // (locked if they're on Free) — only a plain, non-impersonating staff
+  // preview always sees everything unlocked.
+  const canViewContent = (isStaff && !isImpersonating) || !isFreeTier;
   const embedUrl = step.video_url ? getVideoEmbedUrl(step.video_url) : null;
   const isApproved = status === "approved";
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      {isStaff ? (
+      {isStaff && !isImpersonating ? (
         <StaffNav />
       ) : (
-        <TopNav businessName={businessName} active="setup" />
+        <TopNav
+          businessName={businessName}
+          active="setup"
+          isImpersonating={isImpersonating}
+        />
       )}
 
       <div className="mx-auto w-full max-w-3xl px-6 py-9">
         <Link
-          href={isStaff ? "/profile" : "/portal"}
+          href={isStaff && !isImpersonating ? "/profile" : "/portal"}
           className="text-sm font-medium text-accent"
         >
-          &larr; {isStaff ? "Back to editor" : "Back to your setup"}
+          &larr; {isStaff && !isImpersonating ? "Back to editor" : "Back to your setup"}
         </Link>
 
-        {isStaff && (
+        {isStaff && !isImpersonating && (
           <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
             Previewing this lesson the way a client sees it &mdash; actions
             are disabled here.
+          </div>
+        )}
+
+        {isImpersonating && (
+          <div className="mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm font-semibold text-danger">
+            Viewing as {businessName} &mdash; this is their real data. Click
+            the eye icon next to your profile to return to the dev
+            dashboard.
           </div>
         )}
 
@@ -163,7 +192,7 @@ export default async function LessonPage({
               </span>
             )}
           </h1>
-          {!isStaff && (
+          {(!isStaff || isImpersonating) && (
             <span
               className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
                 status === "approved"
@@ -289,13 +318,26 @@ export default async function LessonPage({
           </div>
         )}
 
-        {!isStaff && (
+        {(!isStaff || isImpersonating) && (
           <div className="mt-9 border-t border-border-soft pt-6">
             {isHandledByStaff ? (
               <p className="text-sm font-medium text-ink-faint">
                 This step is handled by our team &mdash; we&rsquo;ll mark it
                 complete once it&rsquo;s done.
               </p>
+            ) : isStaff ? (
+              <button
+                type="button"
+                disabled
+                title="Actions are disabled while viewing/previewing"
+                className={`rounded-lg px-5 py-2.5 text-sm font-semibold opacity-50 ${
+                  isApproved
+                    ? "border border-border text-ink"
+                    : "bg-accent text-white"
+                }`}
+              >
+                {isApproved ? "Mark as Incomplete" : "Mark as Complete"}
+              </button>
             ) : (
               <form action={toggleLessonComplete}>
                 <input type="hidden" name="step_id" value={step.id} />

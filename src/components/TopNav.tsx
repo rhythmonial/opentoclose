@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { stopImpersonation } from "@/app/dashboard/impersonation-actions";
 
 export function TopNav({
   businessName,
   active,
+  isImpersonating,
 }: {
   businessName: string;
   active?: "dashboard" | "setup" | "resources";
+  isImpersonating?: boolean;
 }) {
   const linkClass = (key: "dashboard" | "setup" | "resources") =>
     `text-xs sm:text-sm ${
@@ -73,6 +76,30 @@ export function TopNav({
             <circle cx="12" cy="7" r="4" />
           </svg>
         </Link>
+        {isImpersonating && (
+          <form action={stopImpersonation}>
+            <button
+              type="submit"
+              aria-label="Stop impersonating, return to dev dashboard"
+              title="Stop impersonating, return to dev dashboard"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-danger/40 bg-danger/10 text-danger sm:h-9 sm:w-9"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

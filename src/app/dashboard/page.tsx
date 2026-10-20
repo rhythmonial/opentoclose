@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ClientStatusSelect } from "@/components/ClientStatusSelect";
 import { approveSubmission, returnSubmission } from "./actions";
+import { startImpersonation } from "./impersonation-actions";
 
 export default async function DashboardHome() {
   const supabase = await createClient();
@@ -160,6 +161,7 @@ export default async function DashboardHome() {
       section,
       hoursUsed,
       hoursPurchased: Number(account.hours_purchased),
+      ownerId: owner?.id ?? null,
     };
   });
 
@@ -298,6 +300,7 @@ export default async function DashboardHome() {
                       <th className="px-5 py-3">Section</th>
                       <th className="px-5 py-3">Hours</th>
                       <th className="px-5 py-3">Status</th>
+                      <th className="px-5 py-3">View</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -338,6 +341,37 @@ export default async function DashboardHome() {
                             status={row.status}
                           />
                         </td>
+                        <td className="px-5 py-3.5">
+                          {row.ownerId && (
+                            <form action={startImpersonation}>
+                              <input
+                                type="hidden"
+                                name="client_id"
+                                value={row.ownerId}
+                              />
+                              <button
+                                type="submit"
+                                title={`View as ${row.name}`}
+                                aria-label={`View as ${row.name}`}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-accent"
+                              >
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                              </button>
+                            </form>
+                          )}
+                        </td>
                       </tr>
                     ))}
 
@@ -345,7 +379,7 @@ export default async function DashboardHome() {
                       <tr>
                         <td
                           className="px-5 py-6 text-sm text-ink-soft"
-                          colSpan={5}
+                          colSpan={6}
                         >
                           No clients yet.
                         </td>
