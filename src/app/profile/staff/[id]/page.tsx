@@ -99,7 +99,7 @@ export default async function StaffMemberPage({
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
-      <StaffNav />
+      <StaffNav showTasks />
 
       <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
         <Link href="/profile" className="text-sm font-medium text-accent">

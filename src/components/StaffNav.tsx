@@ -9,8 +9,11 @@ const LINKS = [
   { href: "/dashboard/stats", label: "Stats" },
 ];
 
-export function StaffNav() {
+const TASKS_LINK = { href: "/dashboard/tasks", label: "Tasks" };
+
+export function StaffNav({ showTasks = false }: { showTasks?: boolean }) {
   const pathname = usePathname();
+  const links = showTasks ? [...LINKS, TASKS_LINK] : LINKS;
 
   return (
     <div className="flex h-[64px] shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-4 sm:h-[76px] sm:px-6 lg:px-12">
@@ -36,7 +39,7 @@ export function StaffNav() {
       </div>
 
       <div className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto px-1 sm:flex-none sm:justify-center sm:gap-6 sm:px-0">
-        {LINKS.map((link) => {
+        {links.map((link) => {
           const isActive = pathname === link.href;
           return (
             <Link

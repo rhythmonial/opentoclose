@@ -42,7 +42,7 @@ export default async function ResourcesPage() {
   if (isStaff && !isSandboxing) {
     return (
       <main className="flex min-h-screen flex-col bg-bg">
-        <StaffNav />
+        <StaffNav showTasks={realProfile?.role === "dev"} />
         <div className="px-4 py-9 sm:px-6 lg:px-12">
           <p className="text-sm text-ink-soft">
             Enter a Free/DIY/Setup sandbox from the dashboard to preview the

@@ -174,7 +174,7 @@ export default async function LessonPage({
   return (
     <main className="flex min-h-screen flex-col bg-bg">
       {isStaff && !isSandboxing ? (
-        <StaffNav />
+        <StaffNav showTasks={realProfile?.role === "dev"} />
       ) : (
         <TopNav
           businessName={businessName}
@@ -185,7 +185,7 @@ export default async function LessonPage({
 
       <div className="mx-auto w-full max-w-3xl px-6 py-9">
         <Link
-          href={isStaff && !isSandboxing ? "/profile" : "/portal"}
+          href={isStaff && !isSandboxing ? "/dashboard/tasks" : "/portal"}
           className="text-sm font-medium text-accent"
         >
           &larr; {isStaff && !isSandboxing ? "Back to editor" : "Back to your setup"}

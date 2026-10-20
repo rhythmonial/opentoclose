@@ -84,7 +84,7 @@ export function TopNav({
             <ConfirmSubmitButton
               confirmMessage="Clear all completions in this sandbox and start fresh?"
               title="Reset sandbox"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border text-ink-soft sm:h-9 sm:w-9"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-success/40 bg-success-soft text-success sm:h-9 sm:w-9"
             >
               <svg
                 width="18"

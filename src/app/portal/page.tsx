@@ -24,22 +24,31 @@ const STATUS_LABEL: Record<string, string> = {
 
 const HOURS_PER_BUNDLE = 10;
 
-function matchesStepFilter(
-  step: { is_optional: boolean; is_future_build: boolean },
-  filter: string | undefined,
-): boolean {
-  if (filter === "optional") return step.is_optional;
-  if (filter === "future") return step.is_future_build;
-  if (filter === "optional_future") return step.is_optional || step.is_future_build;
+function isRequiredStep(step: {
+  is_optional: boolean;
+  is_future_build: boolean;
+}): boolean {
   return !step.is_optional && !step.is_future_build;
+}
+
+// Required -> red, optional -> yellow, future build -> green; anything
+// complete falls back to the neutral grey row.
+function stepRowClass(
+  step: { is_optional: boolean; is_future_build: boolean },
+  isApproved: boolean,
+): string {
+  if (isApproved) return "border-border-soft bg-bg";
+  if (step.is_future_build) return "border-success/40 bg-success-soft";
+  if (step.is_optional) return "border-warning/50 bg-warning-soft";
+  return "border-danger/30 bg-danger/5";
 }
 
 export default async function PortalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; stepFilter?: string }>;
+  searchParams: Promise<{ view?: string }>;
 }) {
-  const { view, stepFilter } = await searchParams;
+  const { view } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -155,10 +164,8 @@ export default async function PortalPage({
   // staff-owned step that's also a clickable link (e.g. a payment link)
   // still needs to be visible, since the client has to act on it even
   // though staff confirms completion.
-  const visibleSteps = (allSteps ?? []).filter(
-    (s) =>
-      isClientVisible(s.completed_by, displayEngagementType) &&
-      matchesStepFilter(s, stepFilter),
+  const visibleSteps = (allSteps ?? []).filter((s) =>
+    isClientVisible(s.completed_by, displayEngagementType),
   );
   const myTasks = visibleSteps.filter(
     (s) => effectiveOwner(s.completed_by, displayEngagementType) === "client",
@@ -174,19 +181,19 @@ export default async function PortalPage({
   );
 
   // How many fewer steps a client has to personally do under Setup vs DIY —
-  // this is the "time savings" shown when previewing the other plan. Scoped
-  // to whatever task filter is active, so the numbers match what's on screen.
+  // this is the "time savings" shown when previewing the other plan. Only
+  // required steps count.
   const setupClientStepCount = (allSteps ?? []).filter(
     (s) =>
       isClientVisible(s.completed_by, "custom") &&
       effectiveOwner(s.completed_by, "custom") === "client" &&
-      matchesStepFilter(s, stepFilter),
+      isRequiredStep(s),
   ).length;
   const diyClientStepCount = (allSteps ?? []).filter(
     (s) =>
       isClientVisible(s.completed_by, "diy") &&
       effectiveOwner(s.completed_by, "diy") === "client" &&
-      matchesStepFilter(s, stepFilter),
+      isRequiredStep(s),
   ).length;
   const stepsOffYourPlate = diyClientStepCount - setupClientStepCount;
 
@@ -198,32 +205,11 @@ export default async function PortalPage({
         : "Preview"
       : (profile?.client_accounts?.name ?? user.email ?? "Your business");
 
-  // Preserve the other query params whenever one toggle/filter link changes
-  // another, so e.g. clicking a filter pill doesn't reset the Setup/DIY view.
-  const currentParams: Record<string, string | undefined> = {
-    view,
-    stepFilter,
-  };
-  function hrefWith(overrides: Record<string, string>) {
-    const merged = { ...currentParams, ...overrides };
-    const qs = Object.entries(merged)
-      .filter((entry): entry is [string, string] => Boolean(entry[1]))
-      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
-      .join("&");
-    return `?${qs}`;
-  }
-
-  const FILTER_OPTIONS = [
-    { value: "required", label: "Required" },
-    { value: "optional", label: "Optional Only" },
-    { value: "future", label: "Future Build Only" },
-    { value: "optional_future", label: "All Optional/Future Build" },
-  ] as const;
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
       {isStaff && !isSandboxing ? (
-        <StaffNav />
+        <StaffNav showTasks={realProfile?.role === "dev"} />
       ) : (
         <TopNav
           businessName={businessName}
@@ -251,7 +237,7 @@ export default async function PortalPage({
         <div className="flex shrink-0 flex-col items-end gap-2.5">
           <div className="flex items-center gap-1 rounded-full border border-border bg-surface p-1">
             <Link
-              href={hrefWith({ view: "diy" })}
+              href="?view=diy"
               className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${
                 displayEngagementType === "diy"
                   ? "bg-accent text-white"
@@ -261,7 +247,7 @@ export default async function PortalPage({
               DIY
             </Link>
             <Link
-              href={hrefWith({ view: "setup" })}
+              href="?view=setup"
               className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${
                 displayEngagementType === "custom"
                   ? "bg-accent text-white"
@@ -312,20 +298,23 @@ export default async function PortalPage({
 
       <div className="flex flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:flex-row lg:gap-8 lg:px-12 lg:pb-12">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="flex flex-wrap gap-2">
-            {FILTER_OPTIONS.map((opt) => (
-              <Link
-                key={opt.value}
-                href={hrefWith({ stepFilter: opt.value })}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                  (stepFilter ?? "required") === opt.value
-                    ? "bg-accent text-white"
-                    : "border border-border text-ink-soft"
-                }`}
-              >
-                {opt.label}
-              </Link>
-            ))}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-medium text-ink-soft">
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded border border-danger/30 bg-danger/5" />
+              Required
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded border border-warning/50 bg-warning-soft" />
+              Optional
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded border border-success/40 bg-success-soft" />
+              Future build
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded border border-border-soft bg-bg" />
+              Complete
+            </span>
           </div>
 
           {(() => {
@@ -333,19 +322,8 @@ export default async function PortalPage({
             const phaseList = Array.from(
               new Set(all.map((s) => s.phase ?? "General")),
             );
-            const phaseComplete = phaseList.map((phase) => {
-              const required = all.filter(
-                (s) => (s.phase ?? "General") === phase && !s.is_optional,
-              );
-              return required.every(
-                (s) => statusByStep.get(s.id) === "approved",
-              );
-            });
-            const activeIndex = phaseComplete.findIndex((c) => !c);
-            const currentPhaseIndex =
-              activeIndex === -1 ? phaseList.length - 1 : activeIndex;
 
-            return phaseList.map((phase, phaseIndex) => {
+            return phaseList.map((phase) => {
               const phaseSteps = all.filter(
                 (s) => (s.phase ?? "General") === phase,
               );
@@ -355,76 +333,11 @@ export default async function PortalPage({
               const sections = Array.from(
                 new Set(phaseSteps.map((s) => s.section)),
               );
-              const completeCount = phaseSteps.filter(
+              const requiredPhaseSteps = phaseSteps.filter(isRequiredStep);
+              const completeCount = requiredPhaseSteps.filter(
                 (s) => statusByStep.get(s.id) === "approved",
               ).length;
-              const isComplete = phaseComplete[phaseIndex];
-              const isLocked = phaseIndex > currentPhaseIndex;
-
-              if (isLocked) {
-                const sections = Array.from(
-                  new Set(phaseSteps.map((s) => s.section)),
-                );
-
-                return (
-                  <details
-                    key={phase}
-                    className="rounded-xl border border-dashed border-border-soft bg-bg p-5 opacity-80"
-                  >
-                    <summary className="flex cursor-pointer items-center justify-between gap-4">
-                      <div className="flex items-center gap-2.5">
-                        <svg
-                          width="15"
-                          height="15"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-ink-faint"
-                        >
-                          <rect x="3" y="11" width="18" height="11" rx="2" />
-                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                        </svg>
-                        <h2 className="font-display text-base font-bold text-ink-faint">
-                          {phase}
-                        </h2>
-                      </div>
-                      <span className="text-xs font-medium text-ink-faint">
-                        Unlocks after {phaseList[phaseIndex - 1]}
-                      </span>
-                    </summary>
-
-                    <div className="mt-4 flex flex-col gap-4">
-                      {sections.map((section) => (
-                        <div key={section}>
-                          <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
-                            {section}
-                          </h3>
-                          <div className="mt-2 flex flex-col gap-2">
-                            {phaseSteps
-                              .filter((s) => s.section === section)
-                              .map((s) => (
-                                <div
-                                  key={s.id}
-                                  className="rounded-lg border border-border-soft bg-surface px-4 py-2.5 text-sm font-medium text-ink-faint"
-                                >
-                                  {s.title}
-                                  {s.is_optional && (
-                                    <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
-                                      Optional
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                );
-              }
+              const isComplete = completeCount === requiredPhaseSteps.length;
 
               return (
                 <details
@@ -454,7 +367,7 @@ export default async function PortalPage({
                       </h2>
                     </div>
                     <span className="text-xs font-semibold text-ink-faint">
-                      {completeCount} / {phaseSteps.length} complete
+                      {completeCount} / {requiredPhaseSteps.length} complete
                     </span>
                   </summary>
 
@@ -466,15 +379,13 @@ export default async function PortalPage({
                       const visibleSectionSteps = visiblePhaseSteps.filter(
                         (s) => s.section === section,
                       );
-                      const sectionRequired = sectionSteps.filter(
-                        (s) => !s.is_optional,
-                      );
-                      const sectionComplete = sectionRequired.every(
-                        (s) => statusByStep.get(s.id) === "approved",
-                      );
-                      const sectionCompleteCount = sectionSteps.filter(
+                      const sectionRequired =
+                        sectionSteps.filter(isRequiredStep);
+                      const sectionCompleteCount = sectionRequired.filter(
                         (s) => statusByStep.get(s.id) === "approved",
                       ).length;
+                      const sectionComplete =
+                        sectionCompleteCount === sectionRequired.length;
 
                       return (
                     <details key={section} open={!sectionComplete}>
@@ -498,7 +409,7 @@ export default async function PortalPage({
                           {section}
                         </h3>
                         <span className="text-[11px] font-semibold normal-case text-ink-faint">
-                          {sectionCompleteCount} / {sectionSteps.length}
+                          {sectionCompleteCount} / {sectionRequired.length}
                         </span>
                       </summary>
                       <div className="mt-2 flex flex-col gap-2.5">
@@ -554,7 +465,7 @@ export default async function PortalPage({
                               return (
                                 <div
                                   key={step.id}
-                                  className="flex flex-col items-start gap-3 rounded-lg border border-border-soft bg-bg px-4 py-3 sm:flex-row sm:items-center sm:gap-4"
+                                  className={`flex flex-col items-start gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:gap-4 ${stepRowClass(step, isApproved)}`}
                                 >
                                   <a
                                     href={href}
@@ -618,7 +529,7 @@ export default async function PortalPage({
                               <Link
                                 key={step.id}
                                 href={href}
-                                className="flex flex-col items-start gap-3 rounded-lg border border-border-soft bg-bg px-4 py-3 sm:flex-row sm:items-center sm:gap-4"
+                                className={`flex flex-col items-start gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:gap-4 ${stepRowClass(step, isApproved)}`}
                               >
                                 <div className="w-full min-w-0 sm:w-auto sm:flex-1">
                                   {titleBlock}
