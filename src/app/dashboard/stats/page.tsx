@@ -60,7 +60,7 @@ export default async function StatsPage() {
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
-      <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
+      <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
         Business numbers
       </h1>
       <p className="mt-1.5 text-sm text-ink-soft">

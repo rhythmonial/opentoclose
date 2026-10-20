@@ -108,7 +108,7 @@ export default async function StaffMemberPage({
 
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
+            <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
               {member.name || "Pending"}
             </h1>
             <p className="mt-1 text-sm text-ink-soft">
@@ -116,7 +116,7 @@ export default async function StaffMemberPage({
             </p>
           </div>
           <span
-            className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide sm:self-auto ${
+            className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide sm:self-auto ${
               member.first_login_at
                 ? "bg-success-soft text-success"
                 : "bg-accent-soft text-accent"

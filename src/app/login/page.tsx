@@ -12,7 +12,7 @@ export default async function LoginPage({
   return (
     <main className="flex flex-1 items-center justify-center bg-bg px-4">
       <div className="w-full max-w-sm">
-        <h1 className="font-display text-2xl font-bold text-ink">Sign in</h1>
+        <h1 className="font-script text-[38px] leading-tight text-ink">Sign in</h1>
         <p className="mt-1.5 text-sm text-ink-soft">
           Welcome back. Enter your details to continue your setup.
         </p>

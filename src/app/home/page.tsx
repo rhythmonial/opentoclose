@@ -156,7 +156,7 @@ export default async function HomePage() {
       <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
+            <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
               Welcome back
             </h1>
             <p className="mt-1.5 text-sm text-ink-soft">
@@ -164,7 +164,7 @@ export default async function HomePage() {
             </p>
           </div>
           <span
-            className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+            className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold uppercase font-caption tracking-wide ${
               engagementType === "diy"
                 ? "bg-warning-soft text-warning"
                 : engagementType === "free"

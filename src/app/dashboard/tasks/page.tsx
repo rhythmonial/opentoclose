@@ -66,7 +66,7 @@ export default async function TasksPage({
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
-      <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
+      <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
         Setup Tasks
       </h1>
 
@@ -223,7 +223,7 @@ export default async function TasksPage({
 
                       return (
                         <details key={section} className="relative mt-4">
-                          <summary className="cursor-pointer pr-10 text-xs font-bold uppercase tracking-wide text-ink-faint">
+                          <summary className="cursor-pointer pr-10 text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                             {section}{" "}
                             <span className="ml-1.5 text-[10px] font-normal normal-case text-ink-faint">
                               ({sectionSteps.length})
@@ -408,18 +408,18 @@ function StepEditPanel({
             <div className="text-[15px] font-bold text-ink">
               {step.title}
               {step.is_optional && (
-                <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+                <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-ink-faint">
                   Optional
                 </span>
               )}
               {step.is_future_build && (
-                <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
+                <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-accent">
                   Future Build
                 </span>
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:hidden">
-              <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
+              <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase font-caption tracking-wide text-accent">
                 {step.step_type}
               </span>
               <a
@@ -454,7 +454,7 @@ function StepEditPanel({
           </div>
         </div>
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
-          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-accent">
+          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase font-caption tracking-wide text-accent">
             {step.step_type}
           </span>
           <a
@@ -484,7 +484,7 @@ function StepEditPanel({
 
       {step.instructions && (
         <details className="mt-4 rounded-lg border border-border-soft bg-bg p-3.5">
-          <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-ink-faint">
+          <summary className="cursor-pointer text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
             Setup Instructions
           </summary>
           <div

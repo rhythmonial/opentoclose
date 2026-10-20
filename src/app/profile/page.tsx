@@ -70,7 +70,7 @@ export default async function ProfilePage({
         <StaffNav isDev={profile?.role === "dev"} />
 
         <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
-          <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
+          <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
             Profile
           </h1>
 
@@ -139,7 +139,7 @@ export default async function ProfilePage({
                       </div>
                     </div>
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
                         member.first_login_at
                           ? "bg-success-soft text-success"
                           : "bg-accent-soft text-accent"
@@ -278,7 +278,7 @@ export default async function ProfilePage({
       <TopNav businessName={businessName} />
 
       <div className="px-4 pt-6 sm:px-6 sm:pt-9 lg:px-12">
-        <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
+        <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
           Profile
         </h1>
         <p className="mt-1.5 text-sm text-ink-soft">
@@ -354,7 +354,7 @@ export default async function ProfilePage({
                   </div>
                 </div>
                 <span
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
                     member.first_login_at
                       ? "bg-success-soft text-success"
                       : "bg-accent-soft text-accent"

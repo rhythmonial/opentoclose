@@ -1,21 +1,24 @@
 @import "tailwindcss";
 
+/* Brand palette: navy #00275e, gold #feb729, steel blue #597ea2,
+   light grey #e9eaec, white #fefefe. Text tones are navy-derived. */
 :root {
-  --color-bg: oklch(0.985 0.004 90);
-  --color-surface: oklch(1 0 0);
-  --color-ink: oklch(0.22 0.015 260);
-  --color-ink-soft: oklch(0.48 0.015 260);
-  --color-ink-faint: oklch(0.65 0.008 260);
-  --color-border: oklch(0.89 0.006 260);
-  --color-border-soft: oklch(0.93 0.004 90);
-  --color-accent: oklch(0.52 0.16 260);
-  --color-accent-soft: oklch(0.93 0.03 260);
+  --color-bg: #e9eaec;
+  --color-surface: #fefefe;
+  --color-ink: #0d1f3c;
+  --color-ink-soft: #3f526b;
+  --color-ink-faint: #597ea2;
+  --color-border: #cfd5dd;
+  --color-border-soft: #e3e6ea;
+  --color-accent: #00275e;
+  --color-accent-soft: #dde6f0;
+  --color-navy: #00275e;
+  --color-gold: #feb729;
   --color-success: oklch(0.6 0.13 155);
   --color-success-soft: oklch(0.94 0.04 155);
-  --color-warning: oklch(0.72 0.13 70);
-  --color-warning-soft: oklch(0.97 0.03 70);
+  --color-warning: #a86f00;
+  --color-warning-soft: #fff2cf;
   --color-danger: oklch(0.55 0.15 25);
-  --color-navy: oklch(0.24 0.045 260);
 }
 
 @theme inline {
@@ -28,14 +31,19 @@
   --color-border-soft: var(--color-border-soft);
   --color-accent: var(--color-accent);
   --color-accent-soft: var(--color-accent-soft);
+  --color-navy: var(--color-navy);
+  --color-gold: var(--color-gold);
   --color-success: var(--color-success);
   --color-success-soft: var(--color-success-soft);
   --color-warning: var(--color-warning);
   --color-warning-soft: var(--color-warning-soft);
   --color-danger: var(--color-danger);
-  --color-navy: var(--color-navy);
-  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
-  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-sans: "Josefin Sans", system-ui, sans-serif;
+  --font-display: "Josefin Sans", system-ui, sans-serif;
+  /* Gellatio isn't on Google Fonts; Mr Dafoe stands in until the font
+     file is added. */
+  --font-script: "Gellatio", "Mr Dafoe", cursive;
+  --font-caption: "Poppins", system-ui, sans-serif;
 }
 
 body {

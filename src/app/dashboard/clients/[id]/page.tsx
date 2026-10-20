@@ -136,12 +136,12 @@ export default async function ClientDetailPage({
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
+          <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
             {account.name}
           </h1>
           <p className="mt-1.5 flex items-center gap-2 text-sm text-ink-soft">
             <span
-              className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase font-caption tracking-wide ${
                 engagementType === "diy"
                   ? "bg-warning-soft text-warning"
                   : engagementType === "free"
@@ -222,7 +222,7 @@ export default async function ClientDetailPage({
                 </div>
               </div>
               <span
-                className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+                className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
                   member.first_login_at
                     ? "bg-success-soft text-success"
                     : "bg-accent-soft text-accent"
@@ -282,7 +282,7 @@ export default async function ClientDetailPage({
                   <div className="mt-4 flex flex-col gap-4">
                     {sections.map((section) => (
                       <div key={section}>
-                        <h4 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+                        <h4 className="text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                           {section}
                         </h4>
                         <div className="mt-2 flex flex-col gap-2.5">
@@ -310,7 +310,7 @@ export default async function ClientDetailPage({
                                           <div className="text-sm font-bold text-ink">
                                             {step.title}
                                             {step.is_optional && (
-                                              <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+                                              <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-ink-faint">
                                                 Optional
                                               </span>
                                             )}
@@ -318,7 +318,7 @@ export default async function ClientDetailPage({
                                         </div>
                                       </div>
                                       <span
-                                        className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide sm:self-auto ${
+                                        className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide sm:self-auto ${
                                           status === "approved"
                                             ? "bg-success-soft text-success"
                                             : status === "returned"
@@ -480,7 +480,7 @@ export default async function ClientDetailPage({
           <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-border bg-surface">
             <table className="w-full min-w-[480px] text-left text-sm">
               <thead>
-                <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase tracking-wide text-ink-faint">
+                <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                   <th className="px-5 py-3">Date</th>
                   <th className="px-5 py-3">Hours</th>
                   <th className="px-5 py-3">Description</th>

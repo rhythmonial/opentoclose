@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandMark } from "@/components/BrandMark";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -21,21 +22,7 @@ export function StaffNav({ isDev = false }: { isDev?: boolean }) {
   return (
     <div className="flex h-[64px] shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-4 sm:h-[76px] sm:px-6 lg:px-12">
       <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
-        <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-navy sm:h-[34px] sm:w-[34px]">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M3 11l9-7 9 7" />
-            <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
-          </svg>
-        </div>
+        <BrandMark className="h-[30px] w-[30px] shrink-0 sm:h-[34px] sm:w-[34px]" />
         <span className="hidden truncate font-display text-[17px] font-bold text-ink sm:inline">
           OTC Setup with Josie
         </span>

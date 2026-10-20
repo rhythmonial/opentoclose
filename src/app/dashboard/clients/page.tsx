@@ -139,7 +139,7 @@ export default async function ClientsPage() {
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
-      <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
+      <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
         Clients
       </h1>
 
@@ -148,7 +148,7 @@ export default async function ClientsPage() {
           {clientGroups.map((group) => (
             <div key={group.label}>
               <div className="mb-2 flex items-center gap-2">
-                <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+                <h3 className="text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                   {group.label}
                 </h3>
                 <form action={startSandbox}>
@@ -178,7 +178,7 @@ export default async function ClientsPage() {
               <div className="overflow-x-auto rounded-xl border border-border bg-surface">
                 <table className="w-full min-w-[640px] text-left text-sm">
                   <thead>
-                    <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase tracking-wide text-ink-faint">
+                    <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                       <th className="px-5 py-3">Business</th>
                       <th className="px-5 py-3">Stage</th>
                       <th className="px-5 py-3">Section</th>
@@ -202,7 +202,7 @@ export default async function ClientsPage() {
                         </td>
                         <td className="px-5 py-3.5">
                           <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
                               row.stage === "Complete"
                                 ? "bg-success-soft text-success"
                                 : "bg-accent-soft text-accent"
@@ -244,13 +244,13 @@ export default async function ClientsPage() {
           ))}
 
           <details className="rounded-xl border border-border bg-surface">
-            <summary className="cursor-pointer px-5 py-3.5 text-xs font-bold uppercase tracking-wide text-ink-faint">
+            <summary className="cursor-pointer px-5 py-3.5 text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
               Completed / Churned ({closedRows.length})
             </summary>
             <div className="overflow-x-auto border-t border-border-soft">
               <table className="w-full min-w-[640px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase tracking-wide text-ink-faint">
+                  <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                     <th className="px-5 py-3">Business</th>
                     <th className="px-5 py-3">Stage</th>
                     <th className="px-5 py-3">Status</th>
@@ -273,7 +273,7 @@ export default async function ClientsPage() {
                       </td>
                       <td className="px-5 py-3.5">
                         <span
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
                             row.stage === "Complete"
                               ? "bg-success-soft text-success"
                               : "bg-accent-soft text-accent"
@@ -325,7 +325,7 @@ export default async function ClientsPage() {
           <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-border bg-surface">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
-                <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase tracking-wide text-ink-faint">
+                <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                   <th className="px-5 py-3">Name</th>
                   <th className="px-5 py-3">Contact</th>
                   <th className="px-5 py-3">Source</th>

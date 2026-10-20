@@ -195,7 +195,7 @@ export default async function PortalPage() {
 
       <div className="flex flex-col items-start gap-3 px-4 pt-6 sm:px-6 sm:pt-9 lg:flex-row lg:items-start lg:justify-between lg:px-12">
         <div>
-          <h1 className="font-display text-xl font-bold text-ink sm:text-[25px]">
+          <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
             Your OTC Setup
           </h1>
           <p className="mt-1.5 text-sm text-ink-soft">
@@ -322,7 +322,7 @@ export default async function PortalPage() {
                       }
                     >
                       <summary className="flex cursor-pointer items-center justify-between gap-4">
-                        <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-ink-faint">
+                        <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                           {sectionComplete && (
                             <svg
                               width="12"
@@ -363,7 +363,7 @@ export default async function PortalPage() {
                                 <div className="text-sm font-bold text-ink">
                                   {step.title}
                                   {step.is_optional && (
-                                    <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+                                    <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-ink-faint">
                                       Optional
                                     </span>
                                   )}
@@ -378,7 +378,7 @@ export default async function PortalPage() {
 
                             const statusBadge = (
                               <span
-                                className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+                                className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
                                   status === "approved"
                                     ? "bg-success-soft text-success"
                                     : status === "returned"

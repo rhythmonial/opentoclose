@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/BrandMark";
 import Link from "next/link";
 import { stopSandbox, resetSandbox } from "@/app/dashboard/sandbox-actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
@@ -20,21 +21,7 @@ export function TopNav({
   return (
     <div className="flex h-[64px] shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-4 sm:h-[76px] sm:px-6 lg:px-12">
       <Link href="/home" className="flex min-w-0 items-center gap-2 sm:gap-3">
-        <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-accent sm:h-[34px] sm:w-[34px]">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M3 11l9-7 9 7" />
-            <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
-          </svg>
-        </div>
+        <BrandMark className="h-[30px] w-[30px] shrink-0 sm:h-[34px] sm:w-[34px]" />
         <span className="truncate font-display text-sm font-bold text-ink sm:text-[17px]">
           <span className="hidden sm:inline">OTC Setup with Josie</span>
           <span className="sm:hidden">OTC Setup</span>

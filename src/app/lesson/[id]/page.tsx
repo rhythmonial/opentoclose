@@ -202,7 +202,7 @@ export default async function LessonPage({
           </div>
         )}
 
-        <div className="mt-4 text-xs font-bold uppercase tracking-wide text-ink-faint">
+        <div className="mt-4 text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
           {step.phase ?? "General"} &middot; {step.section}
         </div>
 
@@ -210,14 +210,14 @@ export default async function LessonPage({
           <h1 className="font-display text-2xl font-bold text-ink">
             {step.title}
             {step.is_optional && (
-              <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-ink-faint">
+              <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[11px] font-bold uppercase font-caption tracking-wide text-ink-faint">
                 Optional
               </span>
             )}
           </h1>
           {(!isStaff || isSandboxing) && (
             <span
-              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
                 status === "approved"
                   ? "bg-success-soft text-success"
                   : status === "returned"
@@ -297,7 +297,7 @@ export default async function LessonPage({
 
         {(resources ?? []).length > 0 && (
           <div className="mt-7">
-            <h2 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+            <h2 className="text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
               Resources
             </h2>
             <div className="mt-2.5 flex flex-col gap-2">
