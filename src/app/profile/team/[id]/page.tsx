@@ -130,7 +130,7 @@ export default async function TeamMemberPage({
 
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
+            <h1 className="font-display text-2xl font-bold text-ink sm:text-[28px]">
               {member.name || "Pending"}
             </h1>
             <p className="mt-1 text-sm text-ink-soft">

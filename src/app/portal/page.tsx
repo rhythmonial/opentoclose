@@ -195,7 +195,7 @@ export default async function PortalPage() {
 
       <div className="flex flex-col items-start gap-3 px-4 pt-6 sm:px-6 sm:pt-9 lg:flex-row lg:items-start lg:justify-between lg:px-12">
         <div>
-          <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
+          <h1 className="font-display text-2xl font-bold text-ink sm:text-[28px]">
             Your OTC Setup
           </h1>
           <p className="mt-1.5 text-sm text-ink-soft">

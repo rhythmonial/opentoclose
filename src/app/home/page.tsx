@@ -156,7 +156,7 @@ export default async function HomePage() {
       <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
+            <h1 className="font-display text-2xl font-bold text-ink sm:text-[28px]">
               Welcome back
             </h1>
             <p className="mt-1.5 text-sm text-ink-soft">

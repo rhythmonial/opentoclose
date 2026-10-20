@@ -30,7 +30,7 @@ export default async function AdminPage({
   return (
     <main className="flex min-h-screen flex-col items-center bg-bg px-4 py-16">
       <div className="w-full max-w-lg">
-        <h1 className="font-script text-[38px] leading-tight text-ink">
+        <h1 className="font-display text-2xl font-bold text-ink">
           Internal tools
         </h1>
         <p className="mt-1.5 text-sm text-ink-soft">

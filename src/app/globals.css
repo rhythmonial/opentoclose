@@ -40,9 +40,6 @@
   --color-danger: var(--color-danger);
   --font-sans: "Josefin Sans", system-ui, sans-serif;
   --font-display: "Josefin Sans", system-ui, sans-serif;
-  /* Gellatio isn't on Google Fonts; Birthstone Bounce is the closest
-     free match until the font file is added. */
-  --font-script: "Gellatio", "Birthstone Bounce", cursive;
   --font-caption: "Poppins", system-ui, sans-serif;
 }
 

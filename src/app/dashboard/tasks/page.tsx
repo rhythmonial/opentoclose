@@ -66,7 +66,7 @@ export default async function TasksPage({
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
-      <h1 className="font-script text-[34px] leading-tight text-ink sm:text-[42px]">
+      <h1 className="font-display text-2xl font-bold text-ink sm:text-[28px]">
         Setup Tasks
       </h1>
 
