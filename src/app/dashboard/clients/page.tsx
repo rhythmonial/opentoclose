@@ -144,7 +144,107 @@ export default async function ClientsPage() {
         Clients
       </h1>
 
-      <section id="clients" className="mt-7">
+      <section className="relative mt-7">
+        <details>
+          <summary className="cursor-pointer pr-14">
+            <h2 className="inline font-display text-lg font-bold text-ink">
+              Leads ({(leads ?? []).length})
+            </h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              Everyone who&rsquo;s requested info or been added as a
+              prospect, before they become a client.
+            </p>
+          </summary>
+
+        <div className="mt-4">
+          <div className="min-w-0 overflow-x-auto rounded-xl border border-border bg-surface">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                  <th className="px-5 py-3">Name</th>
+                  <th className="px-5 py-3">Contact</th>
+                  <th className="px-5 py-3">Source</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Added</th>
+                  <th className="px-5 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {(leads ?? []).map((lead) => (
+                  <tr
+                    key={lead.id}
+                    className="border-b border-border-soft last:border-0"
+                  >
+                    <td className="px-5 py-3.5 font-semibold text-ink">
+                      {lead.name}
+                    </td>
+                    <td className="px-5 py-3.5 text-ink-soft">
+                      <div>{lead.email}</div>
+                      {lead.phone && (
+                        <div className="text-xs text-ink-faint">
+                          {lead.phone}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-5 py-3.5 text-ink-soft">
+                      <div>
+                        {lead.source === "request_info"
+                          ? "Request Info"
+                          : "Manual"}
+                      </div>
+                      {lead.heard_about && (
+                        <div className="text-xs text-ink-faint">
+                          {lead.heard_about}
+                          {lead.heard_about_detail
+                            ? ` — ${lead.heard_about_detail}`
+                            : ""}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <LeadStatusSelect leadId={lead.id} status={lead.status} />
+                    </td>
+                    <td className="px-5 py-3.5 text-xs text-ink-faint">
+                      {new Date(lead.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <form action={deleteLead}>
+                        <input type="hidden" name="lead_id" value={lead.id} />
+                        <button
+                          type="submit"
+                          className="text-xs font-medium text-danger"
+                        >
+                          Delete
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+
+                {(leads ?? []).length === 0 && (
+                  <tr>
+                    <td className="px-5 py-6 text-sm text-ink-soft" colSpan={6}>
+                      No leads yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        </details>
+        <div className="absolute right-0 top-0">
+          <AddLeadDialog />
+        </div>
+      </section>
+
+      <section id="clients" className="mt-9">
+        <h2 className="font-display text-lg font-bold text-ink">
+          Client accounts
+        </h2>
         <div className="mt-3 flex flex-col gap-6">
           {clientGroups.map((group) => (
             <div key={group.label}>
@@ -315,99 +415,6 @@ export default async function ClientsPage() {
         </div>
       </section>
 
-      <section className="mt-12">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="font-display text-lg font-bold text-ink">Leads</h2>
-            <p className="mt-1 text-sm text-ink-soft">
-              Everyone who&rsquo;s requested info or been added as a
-              prospect, before they become a client.
-            </p>
-          </div>
-          <AddLeadDialog />
-        </div>
-
-        <div className="mt-4">
-          <div className="min-w-0 overflow-x-auto rounded-xl border border-border bg-surface">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-                  <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">Contact</th>
-                  <th className="px-5 py-3">Source</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Added</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {(leads ?? []).map((lead) => (
-                  <tr
-                    key={lead.id}
-                    className="border-b border-border-soft last:border-0"
-                  >
-                    <td className="px-5 py-3.5 font-semibold text-ink">
-                      {lead.name}
-                    </td>
-                    <td className="px-5 py-3.5 text-ink-soft">
-                      <div>{lead.email}</div>
-                      {lead.phone && (
-                        <div className="text-xs text-ink-faint">
-                          {lead.phone}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-ink-soft">
-                      <div>
-                        {lead.source === "request_info"
-                          ? "Request Info"
-                          : "Manual"}
-                      </div>
-                      {lead.heard_about && (
-                        <div className="text-xs text-ink-faint">
-                          {lead.heard_about}
-                          {lead.heard_about_detail
-                            ? ` — ${lead.heard_about_detail}`
-                            : ""}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <LeadStatusSelect leadId={lead.id} status={lead.status} />
-                    </td>
-                    <td className="px-5 py-3.5 text-xs text-ink-faint">
-                      {new Date(lead.created_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <form action={deleteLead}>
-                        <input type="hidden" name="lead_id" value={lead.id} />
-                        <button
-                          type="submit"
-                          className="text-xs font-medium text-danger"
-                        >
-                          Delete
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-
-                {(leads ?? []).length === 0 && (
-                  <tr>
-                    <td className="px-5 py-6 text-sm text-ink-soft" colSpan={6}>
-                      No leads yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-      </section>
     </main>
   );
 }
