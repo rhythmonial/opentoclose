@@ -4,7 +4,8 @@ import { ClientStatusSelect } from "@/components/ClientStatusSelect";
 import { ClientOutcomeInput } from "@/components/ClientOutcomeInput";
 import { LeadStatusSelect } from "@/components/LeadStatusSelect";
 import { startSandbox } from "../sandbox-actions";
-import { addLead, deleteLead } from "../leads/actions";
+import { deleteLead } from "../leads/actions";
+import { AddLeadDialog } from "@/components/AddLeadDialog";
 import type { SandboxTier } from "@/lib/devSandbox";
 
 export default async function ClientsPage() {
@@ -315,14 +316,19 @@ export default async function ClientsPage() {
       </section>
 
       <section className="mt-12">
-        <h2 className="font-display text-lg font-bold text-ink">Leads</h2>
-        <p className="mt-1 text-sm text-ink-soft">
-          Everyone who&rsquo;s requested info or been added as a prospect,
-          before they become a client.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-display text-lg font-bold text-ink">Leads</h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              Everyone who&rsquo;s requested info or been added as a
+              prospect, before they become a client.
+            </p>
+          </div>
+          <AddLeadDialog />
+        </div>
 
-        <div className="mt-4 flex flex-col gap-6 lg:flex-row lg:gap-8">
-          <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-border bg-surface">
+        <div className="mt-4">
+          <div className="min-w-0 overflow-x-auto rounded-xl border border-border bg-surface">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
@@ -400,51 +406,6 @@ export default async function ClientsPage() {
             </table>
           </div>
 
-          <div className="w-full shrink-0 rounded-xl border border-border bg-surface p-5 lg:w-[320px]">
-            <h3 className="text-[15px] font-bold text-ink">Add a lead</h3>
-            <form action={addLead} className="mt-4 flex flex-col gap-3">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-ink-soft">Name</span>
-                <input
-                  name="name"
-                  required
-                  className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-ink-soft">Email</span>
-                <input
-                  name="email"
-                  type="email"
-                  required
-                  className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-ink-soft">
-                  Phone (optional)
-                </span>
-                <input
-                  name="phone"
-                  className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-ink-soft">Notes</span>
-                <textarea
-                  name="notes"
-                  rows={3}
-                  className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                />
-              </label>
-              <button
-                type="submit"
-                className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
-              >
-                Add lead
-              </button>
-            </form>
-          </div>
         </div>
       </section>
     </main>

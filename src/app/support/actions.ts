@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { sendEmail, SUPPORT_INBOX } from "@/lib/email";
 
 async function getActor() {
   const supabase = await createClient();
@@ -22,6 +24,25 @@ async function getActor() {
 
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
   return { supabase, userId: user.id, isStaff };
+}
+
+async function siteOrigin() {
+  const h = await headers();
+  return h.get("origin") ?? `https://${h.get("host")}`;
+}
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+async function clientLabel(supabase: Supabase, clientId: string) {
+  const { data } = await supabase
+    .from("profiles")
+    .select("email, client_accounts(name)")
+    .eq("id", clientId)
+    .single();
+  return {
+    email: data?.email ?? null,
+    label: data?.client_accounts?.name ?? data?.email ?? "A client",
+  };
 }
 
 function revalidate() {
@@ -55,6 +76,16 @@ export async function createTicket(formData: FormData) {
     .from("support_messages")
     .insert({ ticket_id: ticket.id, author_id: userId, body: message });
 
+  const client = await clientLabel(supabase, userId);
+  await sendEmail({
+    to: SUPPORT_INBOX,
+    subject: `New support question: ${subject}`,
+    heading: `${client.label} asked a question`,
+    body: message,
+    ctaLabel: "Open the support center",
+    ctaUrl: `${await siteOrigin()}/dashboard`,
+  });
+
   revalidate();
   redirect("/support?sent=1");
 }
@@ -79,6 +110,37 @@ export async function replyToTicket(formData: FormData) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", ticketId);
+
+  const { data: ticket } = await supabase
+    .from("support_tickets")
+    .select("subject, client_id")
+    .eq("id", ticketId)
+    .single();
+
+  if (ticket) {
+    const client = await clientLabel(supabase, ticket.client_id);
+    const origin = await siteOrigin();
+
+    if (isStaff && client.email) {
+      await sendEmail({
+        to: client.email,
+        subject: `Re: ${ticket.subject}`,
+        heading: "Josie’s team replied to your question",
+        body,
+        ctaLabel: "View your question",
+        ctaUrl: `${origin}/support`,
+      });
+    } else if (!isStaff) {
+      await sendEmail({
+        to: SUPPORT_INBOX,
+        subject: `New reply: ${ticket.subject}`,
+        heading: `${client.label} replied`,
+        body,
+        ctaLabel: "Open the support center",
+        ctaUrl: `${origin}/dashboard`,
+      });
+    }
+  }
 
   revalidate();
 }
