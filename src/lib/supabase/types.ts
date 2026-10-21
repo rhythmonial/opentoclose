@@ -284,6 +284,7 @@ export type Database = {
       leads: {
         Row: {
           converted_client_account_id: string | null
+          archived_at: string | null
           created_at: string
           email: string
           heard_about: string | null
@@ -298,6 +299,7 @@ export type Database = {
         }
         Insert: {
           converted_client_account_id?: string | null
+          archived_at?: string | null
           created_at?: string
           email: string
           heard_about?: string | null
@@ -312,6 +314,7 @@ export type Database = {
         }
         Update: {
           converted_client_account_id?: string | null
+          archived_at?: string | null
           created_at?: string
           email?: string
           heard_about?: string | null

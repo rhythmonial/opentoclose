@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export async function addLead(formData: FormData) {
@@ -52,5 +51,22 @@ export async function deleteLead(formData: FormData) {
   await supabase.from("leads").delete().eq("id", leadId);
 
   revalidatePath("/dashboard/clients");
-  redirect("/dashboard/leads");
+  revalidatePath("/dashboard");
+}
+
+export async function setLeadArchived(formData: FormData) {
+  const supabase = await createClient();
+  const leadId = String(formData.get("lead_id"));
+  const archived = formData.get("archived") === "true";
+
+  await supabase
+    .from("leads")
+    .update({
+      archived_at: archived ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", leadId);
+
+  revalidatePath("/dashboard/clients");
+  revalidatePath("/dashboard");
 }

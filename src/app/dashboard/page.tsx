@@ -33,7 +33,8 @@ export default async function DashboardHome() {
     supabase
       .from("leads")
       .select("*", { count: "exact", head: true })
-      .not("status", "in", "(won,lost)"),
+      .not("status", "in", "(won,lost)")
+      .is("archived_at", null),
     supabase
       .from("support_tickets")
       .select("*")

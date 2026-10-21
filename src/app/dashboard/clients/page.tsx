@@ -4,9 +4,13 @@ import { ClientStatusSelect } from "@/components/ClientStatusSelect";
 import { ClientOutcomeInput } from "@/components/ClientOutcomeInput";
 import { LeadStatusSelect } from "@/components/LeadStatusSelect";
 import { startSandbox } from "../sandbox-actions";
-import { deleteLead } from "../leads/actions";
+import { deleteLead, setLeadArchived } from "../leads/actions";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import type { Tables } from "@/lib/supabase/types";
 import { AddLeadDialog } from "@/components/AddLeadDialog";
 import type { SandboxTier } from "@/lib/devSandbox";
+
+type Lead = Tables<"leads">;
 
 export default async function ClientsPage() {
   const supabase = await createClient();
@@ -19,6 +23,7 @@ export default async function ClientsPage() {
     { data: hoursLog },
     { data: initiations },
     { data: leads },
+    { data: payments },
   ] = await Promise.all([
     supabase
       .from("client_accounts")
@@ -28,7 +33,9 @@ export default async function ClientsPage() {
       .from("profiles")
       .select("id, role, client_account_id")
       .in("role", ["client_owner", "client_admin"]),
-    supabase.from("setup_steps").select("id, path, phase, section, sort_order"),
+    supabase
+      .from("setup_steps")
+      .select("id, path, title, phase, section, sort_order"),
     supabase.from("client_step_status").select("client_id, step_id, status"),
     supabase.from("hours_log").select("client_id, hours"),
     supabase.from("setup_initiation").select("client_id, engagement_type"),
@@ -36,6 +43,7 @@ export default async function ClientsPage() {
       .from("leads")
       .select("*")
       .order("created_at", { ascending: false }),
+    supabase.from("payments").select("client_id, kind, step_id"),
   ]);
 
   // --- Clients table ---
@@ -138,20 +146,59 @@ export default async function ClientsPage() {
     },
   ];
 
-  // Free signups are linked to their client account; once that account is
-  // on a paid plan they drop out of leads and live only under Clients.
+  // Free signups are linked to their client account. A lead counts as won
+  // once marked won or once its linked account is on a paid plan; won leads
+  // list what that account has bought.
   const engagementByAccountId = new Map(
     clientRows.map((r) => [r.id, r.engagementType]),
   );
-  const manualLeads = (leads ?? []).filter(
-    (l) => !l.converted_client_account_id,
+  const accountByProfileId = new Map(
+    (profiles ?? []).map((p) => [p.id, p.client_account_id]),
   );
-  const freeLeads = (leads ?? []).filter(
-    (l) =>
-      l.converted_client_account_id &&
-      l.status !== "won" &&
-      engagementByAccountId.get(l.converted_client_account_id) === "free",
+  const stepTitleById = new Map((steps ?? []).map((s) => [s.id, s.title]));
+  const purchasesByAccount = new Map<string, string[]>();
+  for (const pay of payments ?? []) {
+    const accountId = accountByProfileId.get(pay.client_id);
+    if (!accountId) continue;
+    const label =
+      pay.kind === "setup"
+        ? "Setup"
+        : pay.kind === "diy"
+          ? "DIY"
+          : `Step: ${(pay.step_id && stepTitleById.get(pay.step_id)) ?? "removed step"}`;
+    const list = purchasesByAccount.get(accountId) ?? [];
+    if (!list.includes(label)) list.push(label);
+    purchasesByAccount.set(accountId, list);
+  }
+
+  function leadPlan(lead: Lead) {
+    return lead.converted_client_account_id
+      ? engagementByAccountId.get(lead.converted_client_account_id)
+      : undefined;
+  }
+  function isWon(lead: Lead) {
+    const plan = leadPlan(lead);
+    return lead.status === "won" || plan === "custom" || plan === "diy";
+  }
+  function purchasedFor(lead: Lead) {
+    const accountId = lead.converted_client_account_id;
+    const bought = accountId ? (purchasesByAccount.get(accountId) ?? []) : [];
+    if (bought.length > 0) return bought.join(", ");
+    const plan = leadPlan(lead);
+    if (plan === "custom") return "Setup";
+    if (plan === "diy") return "DIY";
+    return "Marked won";
+  }
+
+  const activeLeads = (leads ?? []).filter((l) => !l.archived_at);
+  const manualLeads = activeLeads.filter(
+    (l) => !l.converted_client_account_id && !isWon(l),
   );
+  const freeLeads = activeLeads.filter(
+    (l) => l.converted_client_account_id && !isWon(l),
+  );
+  const wonLeads = activeLeads.filter(isWon);
+  const archivedLeads = (leads ?? []).filter((l) => l.archived_at);
   const leadGroups = [
     { label: "Manual", rows: manualLeads, empty: "No manual leads yet." },
     {
@@ -159,9 +206,127 @@ export default async function ClientsPage() {
       rows: freeLeads,
       empty: "No free signups to upsell.",
     },
+    { label: "Won", rows: wonLeads, empty: "No won leads yet." },
   ];
-  const visibleLeads = [...manualLeads, ...freeLeads];
-  const newLeadCount = visibleLeads.filter((l) => l.status === "new").length;
+  const openLeads = [...manualLeads, ...freeLeads];
+  const newLeadCount = openLeads.filter((l) => l.status === "new").length;
+
+  function leadRow(lead: Lead) {
+    return (
+      <tr key={lead.id} className="border-b border-border-soft last:border-0">
+        <td className="px-5 py-3.5 font-semibold text-ink">
+          {lead.converted_client_account_id ? (
+            <Link
+              href={`/dashboard/clients/${lead.converted_client_account_id}`}
+              className="hover:text-accent"
+            >
+              {lead.name}
+            </Link>
+          ) : (
+            lead.name
+          )}
+        </td>
+        <td className="px-5 py-3.5 text-ink-soft">
+          <div>{lead.email}</div>
+          {lead.phone && (
+            <div className="text-xs text-ink-faint">{lead.phone}</div>
+          )}
+        </td>
+        <td className="px-5 py-3.5 text-ink-soft">
+          <div>
+            {lead.source === "request_info"
+              ? "Request Info"
+              : lead.source === "signup"
+                ? "Free signup"
+                : "Manual"}
+          </div>
+          {lead.heard_about && (
+            <div className="text-xs text-ink-faint">
+              {lead.heard_about}
+              {lead.heard_about_detail ? ` \u2014 ${lead.heard_about_detail}` : ""}
+            </div>
+          )}
+        </td>
+        <td className="px-5 py-3.5">
+          <LeadStatusSelect
+            leadId={lead.id}
+            status={isWon(lead) ? "won" : lead.status}
+          />
+          {isWon(lead) && (
+            <div className="mt-1 text-xs text-ink-soft">
+              Purchased: {purchasedFor(lead)}
+            </div>
+          )}
+        </td>
+        <td className="px-5 py-3.5 text-xs text-ink-faint">
+          {new Date(lead.created_at).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          })}
+        </td>
+        <td className="px-5 py-3.5">
+          <div className="flex items-center justify-end gap-1.5">
+            <form action={setLeadArchived}>
+              <input type="hidden" name="lead_id" value={lead.id} />
+              <input
+                type="hidden"
+                name="archived"
+                value={lead.archived_at ? "false" : "true"}
+              />
+              <button
+                type="submit"
+                title={lead.archived_at ? "Restore lead" : "Archive lead"}
+                aria-label={lead.archived_at ? "Restore lead" : "Archive lead"}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-ink"
+              >
+                {lead.archived_at ? (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                ) : (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="3" width="20" height="5" rx="1" />
+                    <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+                    <path d="M10 12h4" />
+                  </svg>
+                )}
+              </button>
+            </form>
+            <form action={deleteLead}>
+              <input type="hidden" name="lead_id" value={lead.id} />
+              <ConfirmSubmitButton
+                confirmMessage={`Delete the lead "${lead.name}"? This cannot be undone.`}
+                title="Delete lead"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-danger"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                </svg>
+              </ConfirmSubmitButton>
+            </form>
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
+  const leadTableHead = (
+    <thead>
+      <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+        <th className="px-5 py-3">Name</th>
+        <th className="px-5 py-3">Contact</th>
+        <th className="px-5 py-3">Source</th>
+        <th className="px-5 py-3">Status</th>
+        <th className="px-5 py-3">Added</th>
+        <th className="px-5 py-3" />
+      </tr>
+    </thead>
+  );
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
@@ -169,7 +334,7 @@ export default async function ClientsPage() {
         <details>
           <summary className="cursor-pointer pr-14">
             <h2 className="inline font-display text-lg font-bold text-ink">
-              Leads ({visibleLeads.length})
+              Leads ({openLeads.length})
             </h2>
             {newLeadCount > 0 && (
               <span className="ml-2 rounded-full bg-danger px-2 py-0.5 align-middle font-caption text-xs font-bold text-white">
@@ -182,19 +347,10 @@ export default async function ClientsPage() {
             </p>
           </summary>
 
-          <div className="mt-4">
+          <div className="mt-4 flex flex-col gap-4">
             <div className="min-w-0 overflow-x-auto rounded-xl border border-border bg-surface">
               <table className="w-full min-w-[640px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-                    <th className="px-5 py-3">Name</th>
-                    <th className="px-5 py-3">Contact</th>
-                    <th className="px-5 py-3">Source</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Added</th>
-                    <th className="px-5 py-3" />
-                  </tr>
-                </thead>
+                {leadTableHead}
                 <tbody>
                   {leadGroups.map((group) => [
                     <tr
@@ -222,85 +378,35 @@ export default async function ClientsPage() {
                             </td>
                           </tr>,
                         ]
-                      : []),
-                    ...group.rows.map((lead) => (
-                      <tr
-                        key={lead.id}
-                        className="border-b border-border-soft last:border-0"
-                      >
-                        <td className="px-5 py-3.5 font-semibold text-ink">
-                          {lead.converted_client_account_id ? (
-                            <Link
-                              href={`/dashboard/clients/${lead.converted_client_account_id}`}
-                              className="hover:text-accent"
-                            >
-                              {lead.name}
-                            </Link>
-                          ) : (
-                            lead.name
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5 text-ink-soft">
-                          <div>{lead.email}</div>
-                          {lead.phone && (
-                            <div className="text-xs text-ink-faint">
-                              {lead.phone}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5 text-ink-soft">
-                          <div>
-                            {lead.source === "request_info"
-                              ? "Request Info"
-                              : lead.source === "signup"
-                                ? "Free signup"
-                                : "Manual"}
-                          </div>
-                          {lead.heard_about && (
-                            <div className="text-xs text-ink-faint">
-                              {lead.heard_about}
-                              {lead.heard_about_detail
-                                ? ` — ${lead.heard_about_detail}`
-                                : ""}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <LeadStatusSelect
-                            leadId={lead.id}
-                            status={lead.status}
-                          />
-                        </td>
-                        <td className="px-5 py-3.5 text-xs text-ink-faint">
-                          {new Date(lead.created_at).toLocaleDateString(
-                            "en-US",
-                            {
-                              month: "short",
-                              day: "numeric",
-                            },
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <form action={deleteLead}>
-                            <input
-                              type="hidden"
-                              name="lead_id"
-                              value={lead.id}
-                            />
-                            <button
-                              type="submit"
-                              className="text-xs font-medium text-danger"
-                            >
-                              Delete
-                            </button>
-                          </form>
-                        </td>
-                      </tr>
-                    )),
+                      : group.rows.map(leadRow)),
                   ])}
                 </tbody>
               </table>
             </div>
+
+            <details className="rounded-xl border border-border bg-surface">
+              <summary className="cursor-pointer px-5 py-3.5 font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
+                Archived ({archivedLeads.length})
+              </summary>
+              <div className="overflow-x-auto border-t border-border-soft">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  {leadTableHead}
+                  <tbody>
+                    {archivedLeads.map(leadRow)}
+                    {archivedLeads.length === 0 && (
+                      <tr>
+                        <td
+                          className="px-5 py-4 text-sm text-ink-soft"
+                          colSpan={6}
+                        >
+                          No archived leads.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </details>
           </div>
         </details>
         <div className="absolute right-0 top-0">

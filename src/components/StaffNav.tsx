@@ -27,6 +27,7 @@ export function StaffNav({ isDev = false }: { isDev?: boolean }) {
       .from("leads")
       .select("id", { count: "exact", head: true })
       .eq("status", "new")
+      .is("archived_at", null)
       .then(({ count }) => {
         if (!cancelled) setNewLeadCount(count ?? 0);
       });
