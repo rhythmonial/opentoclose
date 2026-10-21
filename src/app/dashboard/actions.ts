@@ -91,6 +91,18 @@ export async function markUpgraded(formData: FormData) {
     .update({ engagement_type: "custom", upgrade_requested_at: null })
     .eq("client_id", clientId);
 
+  const { data: client } = await supabase
+    .from("profiles")
+    .select("client_account_id")
+    .eq("id", clientId)
+    .single();
+  if (client?.client_account_id) {
+    await supabase
+      .from("leads")
+      .update({ status: "won", updated_at: new Date().toISOString() })
+      .eq("converted_client_account_id", client.client_account_id);
+  }
+
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/clients", "layout");
 }

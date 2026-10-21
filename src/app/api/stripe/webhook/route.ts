@@ -103,6 +103,13 @@ async function fulfill(session: Stripe.Checkout.Session): Promise<string | null>
       );
     }
 
+    if (accountId) {
+      await admin
+        .from("leads")
+        .update({ status: "won", updated_at: new Date().toISOString() })
+        .eq("converted_client_account_id", accountId);
+    }
+
     const { data: paidStep } = await admin
       .from("setup_steps")
       .select("id")

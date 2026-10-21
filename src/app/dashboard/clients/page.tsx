@@ -138,7 +138,30 @@ export default async function ClientsPage() {
     },
   ];
 
-  const newLeadCount = (leads ?? []).filter((l) => l.status === "new").length;
+  // Free signups are linked to their client account; once that account is
+  // on a paid plan they drop out of leads and live only under Clients.
+  const engagementByAccountId = new Map(
+    clientRows.map((r) => [r.id, r.engagementType]),
+  );
+  const manualLeads = (leads ?? []).filter(
+    (l) => !l.converted_client_account_id,
+  );
+  const freeLeads = (leads ?? []).filter(
+    (l) =>
+      l.converted_client_account_id &&
+      l.status !== "won" &&
+      engagementByAccountId.get(l.converted_client_account_id) === "free",
+  );
+  const leadGroups = [
+    { label: "Manual", rows: manualLeads, empty: "No manual leads yet." },
+    {
+      label: "Free signups",
+      rows: freeLeads,
+      empty: "No free signups to upsell.",
+    },
+  ];
+  const visibleLeads = [...manualLeads, ...freeLeads];
+  const newLeadCount = visibleLeads.filter((l) => l.status === "new").length;
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
@@ -146,7 +169,7 @@ export default async function ClientsPage() {
         <details>
           <summary className="cursor-pointer pr-14">
             <h2 className="inline font-display text-lg font-bold text-ink">
-              Leads ({(leads ?? []).length})
+              Leads ({visibleLeads.length})
             </h2>
             {newLeadCount > 0 && (
               <span className="ml-2 rounded-full bg-danger px-2 py-0.5 align-middle font-caption text-xs font-bold text-white">
@@ -154,90 +177,131 @@ export default async function ClientsPage() {
               </span>
             )}
             <p className="mt-1 text-sm text-ink-soft">
-              Everyone who&rsquo;s requested info or been added as a
-              prospect, before they become a client.
+              Everyone who&rsquo;s requested info or been added as a prospect,
+              before they become a client.
             </p>
           </summary>
 
-        <div className="mt-4">
-          <div className="min-w-0 overflow-x-auto rounded-xl border border-border bg-surface">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-                  <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">Contact</th>
-                  <th className="px-5 py-3">Source</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Added</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {(leads ?? []).map((lead) => (
-                  <tr
-                    key={lead.id}
-                    className="border-b border-border-soft last:border-0"
-                  >
-                    <td className="px-5 py-3.5 font-semibold text-ink">
-                      {lead.name}
-                    </td>
-                    <td className="px-5 py-3.5 text-ink-soft">
-                      <div>{lead.email}</div>
-                      {lead.phone && (
-                        <div className="text-xs text-ink-faint">
-                          {lead.phone}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-ink-soft">
-                      <div>
-                        {lead.source === "request_info"
-                          ? "Request Info"
-                          : "Manual"}
-                      </div>
-                      {lead.heard_about && (
-                        <div className="text-xs text-ink-faint">
-                          {lead.heard_about}
-                          {lead.heard_about_detail
-                            ? ` — ${lead.heard_about_detail}`
-                            : ""}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <LeadStatusSelect leadId={lead.id} status={lead.status} />
-                    </td>
-                    <td className="px-5 py-3.5 text-xs text-ink-faint">
-                      {new Date(lead.created_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <form action={deleteLead}>
-                        <input type="hidden" name="lead_id" value={lead.id} />
-                        <button
-                          type="submit"
-                          className="text-xs font-medium text-danger"
-                        >
-                          Delete
-                        </button>
-                      </form>
-                    </td>
+          <div className="mt-4">
+            <div className="min-w-0 overflow-x-auto rounded-xl border border-border bg-surface">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                    <th className="px-5 py-3">Name</th>
+                    <th className="px-5 py-3">Contact</th>
+                    <th className="px-5 py-3">Source</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3">Added</th>
+                    <th className="px-5 py-3" />
                   </tr>
-                ))}
-
-                {(leads ?? []).length === 0 && (
-                  <tr>
-                    <td className="px-5 py-6 text-sm text-ink-soft" colSpan={6}>
-                      No leads yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {leadGroups.map((group) => [
+                    <tr
+                      key={group.label}
+                      className="border-b border-border-soft bg-bg"
+                    >
+                      <td
+                        colSpan={6}
+                        className="px-5 py-2 font-caption text-[11px] font-bold uppercase tracking-wide text-ink-faint"
+                      >
+                        {group.label} ({group.rows.length})
+                      </td>
+                    </tr>,
+                    ...(group.rows.length === 0
+                      ? [
+                          <tr
+                            key={`${group.label}-empty`}
+                            className="border-b border-border-soft last:border-0"
+                          >
+                            <td
+                              className="px-5 py-4 text-sm text-ink-soft"
+                              colSpan={6}
+                            >
+                              {group.empty}
+                            </td>
+                          </tr>,
+                        ]
+                      : []),
+                    ...group.rows.map((lead) => (
+                      <tr
+                        key={lead.id}
+                        className="border-b border-border-soft last:border-0"
+                      >
+                        <td className="px-5 py-3.5 font-semibold text-ink">
+                          {lead.converted_client_account_id ? (
+                            <Link
+                              href={`/dashboard/clients/${lead.converted_client_account_id}`}
+                              className="hover:text-accent"
+                            >
+                              {lead.name}
+                            </Link>
+                          ) : (
+                            lead.name
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-ink-soft">
+                          <div>{lead.email}</div>
+                          {lead.phone && (
+                            <div className="text-xs text-ink-faint">
+                              {lead.phone}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-ink-soft">
+                          <div>
+                            {lead.source === "request_info"
+                              ? "Request Info"
+                              : lead.source === "signup"
+                                ? "Free signup"
+                                : "Manual"}
+                          </div>
+                          {lead.heard_about && (
+                            <div className="text-xs text-ink-faint">
+                              {lead.heard_about}
+                              {lead.heard_about_detail
+                                ? ` — ${lead.heard_about_detail}`
+                                : ""}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <LeadStatusSelect
+                            leadId={lead.id}
+                            status={lead.status}
+                          />
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-ink-faint">
+                          {new Date(lead.created_at).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                            },
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <form action={deleteLead}>
+                            <input
+                              type="hidden"
+                              name="lead_id"
+                              value={lead.id}
+                            />
+                            <button
+                              type="submit"
+                              className="text-xs font-medium text-danger"
+                            >
+                              Delete
+                            </button>
+                          </form>
+                        </td>
+                      </tr>
+                    )),
+                  ])}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
         </details>
         <div className="absolute right-0 top-0">
           <AddLeadDialog />
@@ -254,50 +318,121 @@ export default async function ClientsPage() {
               Active and paused clients by plan: Setup / DIY / Free.
             </p>
           </summary>
-        <div className="mt-4 flex flex-col gap-6">
-          {clientGroups.map((group) => (
-            <div key={group.label}>
-              <div className="mb-2 flex items-center gap-2">
-                <h3 className="text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-                  {group.label}
-                </h3>
-                <form action={startSandbox}>
-                  <input type="hidden" name="tier" value={group.tier} />
-                  <button
-                    type="submit"
-                    title={`View as ${group.label}`}
-                    aria-label={`View as ${group.label}`}
-                    className="flex h-6 w-6 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-accent"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+          <div className="mt-4 flex flex-col gap-6">
+            {clientGroups.map((group) => (
+              <div key={group.label}>
+                <div className="mb-2 flex items-center gap-2">
+                  <h3 className="text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                    {group.label}
+                  </h3>
+                  <form action={startSandbox}>
+                    <input type="hidden" name="tier" value={group.tier} />
+                    <button
+                      type="submit"
+                      title={`View as ${group.label}`}
+                      aria-label={`View as ${group.label}`}
+                      className="flex h-6 w-6 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-accent"
                     >
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  </button>
-                </form>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
+                  </form>
+                </div>
+                <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+                  <table className="w-full min-w-[640px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                        <th className="px-5 py-3">Business</th>
+                        <th className="px-5 py-3">Stage</th>
+                        <th className="px-5 py-3">Section</th>
+                        <th className="px-5 py-3">Hours</th>
+                        <th className="px-5 py-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.rows.map((row) => (
+                        <tr
+                          key={row.id}
+                          className="border-b border-border-soft last:border-0"
+                        >
+                          <td className="p-0">
+                            <Link
+                              href={`/dashboard/clients/${row.id}`}
+                              className="block px-5 py-3.5 font-semibold text-ink hover:text-accent"
+                            >
+                              {row.name}
+                            </Link>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
+                                row.stage === "Complete"
+                                  ? "bg-success-soft text-success"
+                                  : "bg-accent-soft text-accent"
+                              }`}
+                            >
+                              {row.stage.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 text-ink-soft">
+                            {row.section}
+                          </td>
+                          <td className="px-5 py-3.5 text-ink-soft">
+                            {row.hoursUsed.toFixed(1)} /{" "}
+                            {row.hoursPurchased.toFixed(1)}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <ClientStatusSelect
+                              accountId={row.id}
+                              status={row.status}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+
+                      {group.rows.length === 0 && (
+                        <tr>
+                          <td
+                            className="px-5 py-6 text-sm text-ink-soft"
+                            colSpan={5}
+                          >
+                            No clients yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+            ))}
+
+            <details className="rounded-xl border border-border bg-surface">
+              <summary className="cursor-pointer px-5 py-3.5 text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                Completed / Churned ({closedRows.length})
+              </summary>
+              <div className="overflow-x-auto border-t border-border-soft">
                 <table className="w-full min-w-[640px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                       <th className="px-5 py-3">Business</th>
                       <th className="px-5 py-3">Stage</th>
-                      <th className="px-5 py-3">Section</th>
-                      <th className="px-5 py-3">Hours</th>
                       <th className="px-5 py-3">Status</th>
+                      <th className="px-5 py-3">Outcome</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {group.rows.map((row) => (
+                    {closedRows.map((row) => (
                       <tr
                         key={row.id}
                         className="border-b border-border-soft last:border-0"
@@ -321,107 +456,36 @@ export default async function ClientsPage() {
                             {row.stage.toUpperCase()}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 text-ink-soft">
-                          {row.section}
-                        </td>
-                        <td className="px-5 py-3.5 text-ink-soft">
-                          {row.hoursUsed.toFixed(1)} /{" "}
-                          {row.hoursPurchased.toFixed(1)}
-                        </td>
                         <td className="px-5 py-3.5">
                           <ClientStatusSelect
                             accountId={row.id}
                             status={row.status}
                           />
                         </td>
+                        <td className="px-5 py-3.5">
+                          <ClientOutcomeInput
+                            accountId={row.id}
+                            outcome={row.outcome}
+                          />
+                        </td>
                       </tr>
                     ))}
 
-                    {group.rows.length === 0 && (
+                    {closedRows.length === 0 && (
                       <tr>
                         <td
                           className="px-5 py-6 text-sm text-ink-soft"
-                          colSpan={5}
+                          colSpan={4}
                         >
-                          No clients yet.
+                          No completed or churned clients yet.
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </div>
-          ))}
-
-          <details className="rounded-xl border border-border bg-surface">
-            <summary className="cursor-pointer px-5 py-3.5 text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-              Completed / Churned ({closedRows.length})
-            </summary>
-            <div className="overflow-x-auto border-t border-border-soft">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-                    <th className="px-5 py-3">Business</th>
-                    <th className="px-5 py-3">Stage</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Outcome</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {closedRows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-b border-border-soft last:border-0"
-                    >
-                      <td className="p-0">
-                        <Link
-                          href={`/dashboard/clients/${row.id}`}
-                          className="block px-5 py-3.5 font-semibold text-ink hover:text-accent"
-                        >
-                          {row.name}
-                        </Link>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
-                            row.stage === "Complete"
-                              ? "bg-success-soft text-success"
-                              : "bg-accent-soft text-accent"
-                          }`}
-                        >
-                          {row.stage.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <ClientStatusSelect
-                          accountId={row.id}
-                          status={row.status}
-                        />
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <ClientOutcomeInput
-                          accountId={row.id}
-                          outcome={row.outcome}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-
-                  {closedRows.length === 0 && (
-                    <tr>
-                      <td
-                        className="px-5 py-6 text-sm text-ink-soft"
-                        colSpan={4}
-                      >
-                        No completed or churned clients yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </details>
-        </div>
+            </details>
+          </div>
         </details>
       </section>
     </main>
