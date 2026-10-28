@@ -15,6 +15,7 @@ import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { MoveSectionSelect } from "@/components/MoveSectionSelect";
 import { MoveStepSelect, type SectionTarget } from "@/components/MoveStepSelect";
 import { PublishToggle } from "@/components/PublishToggle";
+import { RenameButton } from "@/components/RenameButton";
 import { startSandbox } from "@/app/dashboard/sandbox-actions";
 import {
   addStep,
@@ -234,7 +235,16 @@ export default async function TasksPage({
                   <div key={phase} className="relative">
                   <details className="rounded-xl border border-border-soft bg-bg p-4">
                     <summary className="cursor-pointer pr-32 font-display text-base font-bold text-ink">
-                      {phase}{" "}
+                      {phase}
+                      <RenameButton
+                        kind="pillar"
+                        path={path}
+                        phase={rawPhase}
+                        currentName={phase}
+                        siblingNames={phaseOptions
+                          .map((o) => o.value)
+                          .filter((v) => v && v !== rawPhase)}
+                      />
                       <span className="ml-1.5 text-xs font-normal text-ink-faint">
                         ({phaseSteps.length})
                       </span>
@@ -252,7 +262,17 @@ export default async function TasksPage({
                         <div key={section} className="relative mt-4">
                         <details>
                           <summary className="cursor-pointer pr-44 text-xs font-bold uppercase font-caption leading-7 tracking-wide text-ink-faint">
-                            {section}{" "}
+                            {section}
+                            <RenameButton
+                              kind="section"
+                              path={path}
+                              phase={rawPhase}
+                              section={section}
+                              currentName={section}
+                              siblingNames={pillarSections.filter(
+                                (n) => n !== section,
+                              )}
+                            />
                             <span className="ml-1.5 text-[10px] font-normal normal-case text-ink-faint">
                               ({sectionSteps.length})
                             </span>

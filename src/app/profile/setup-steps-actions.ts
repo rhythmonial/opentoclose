@@ -419,3 +419,41 @@ export async function updateStepIsPublished(stepId: string, value: boolean) {
 
   revalidateAll();
 }
+
+export async function renamePillar(
+  path: "custom" | "express",
+  phase: string,
+  newName: string,
+) {
+  const name = newName.trim();
+  if (!name || name === phase) return;
+
+  const supabase = await createClient();
+  const query = supabase
+    .from("setup_steps")
+    .update({ phase: name })
+    .eq("path", path);
+  await (phase ? query.eq("phase", phase) : query.is("phase", null));
+
+  revalidateAll();
+}
+
+export async function renameSection(
+  path: "custom" | "express",
+  phase: string,
+  section: string,
+  newName: string,
+) {
+  const name = newName.trim();
+  if (!name || name === section) return;
+
+  const supabase = await createClient();
+  const query = supabase
+    .from("setup_steps")
+    .update({ section: name })
+    .eq("path", path)
+    .eq("section", section);
+  await (phase ? query.eq("phase", phase) : query.is("phase", null));
+
+  revalidateAll();
+}
