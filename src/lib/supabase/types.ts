@@ -380,6 +380,15 @@ export type Database = {
       }
       setup_initiation: {
         Row: {
+          email_provider: string | null
+          esign_other: string | null
+          esign_platform: string | null
+          guru_cell: string | null
+          guru_email: string | null
+          guru_first_name: string | null
+          guru_last_name: string | null
+          guru_same_as_owner: boolean
+          tms: string | null
           business_name: string
           cell_phone: string
           client_id: string
@@ -401,6 +410,15 @@ export type Database = {
           upgrade_requested_at: string | null
         }
         Insert: {
+          email_provider?: string | null
+          esign_other?: string | null
+          esign_platform?: string | null
+          guru_cell?: string | null
+          guru_email?: string | null
+          guru_first_name?: string | null
+          guru_last_name?: string | null
+          guru_same_as_owner?: boolean
+          tms?: string | null
           business_name: string
           cell_phone: string
           client_id: string
@@ -422,6 +440,15 @@ export type Database = {
           upgrade_requested_at?: string | null
         }
         Update: {
+          email_provider?: string | null
+          esign_other?: string | null
+          esign_platform?: string | null
+          guru_cell?: string | null
+          guru_email?: string | null
+          guru_first_name?: string | null
+          guru_last_name?: string | null
+          guru_same_as_owner?: boolean
+          tms?: string | null
           business_name?: string
           cell_phone?: string
           client_id?: string

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { ToolsChecklist } from "@/components/ToolsChecklist";
+import { ToolsQuestions } from "@/components/ToolsQuestions";
+import { OwnerGuruFields } from "@/components/OwnerGuruFields";
 import { StatesServicedField } from "@/components/StatesServicedField";
 import { normalizeStateName } from "@/lib/usStates";
 import { submitSetupInitiation } from "./actions";
@@ -98,44 +99,6 @@ export default async function SetupInitiationPage({
         >
         <fieldset disabled={isStaff} className="contents">
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">First name</span>
-            <input
-              name="first_name"
-              required
-              defaultValue={existing?.first_name ?? ""}
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">Last name</span>
-            <input
-              name="last_name"
-              required
-              defaultValue={existing?.last_name ?? ""}
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">Cell phone</span>
-            <input
-              name="cell_phone"
-              type="tel"
-              required
-              defaultValue={existing?.cell_phone ?? ""}
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">Email</span>
-            <input
-              name="email"
-              type="email"
-              required
-              defaultValue={existing?.email ?? user.email ?? ""}
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">
               Business, Brokerage, or Team Name
             </span>
@@ -166,7 +129,89 @@ export default async function SetupInitiationPage({
               ))}
             </select>
           </label>
-          <div className="sm:col-span-2 flex flex-col gap-1.5">
+
+          <OwnerGuruFields
+            defaultOwner={{
+              first: existing?.first_name ?? "",
+              last: existing?.last_name ?? "",
+              cell: existing?.cell_phone ?? "",
+              email: existing?.email ?? user.email ?? "",
+            }}
+            defaultGuru={{
+              first: existing?.guru_first_name ?? "",
+              last: existing?.guru_last_name ?? "",
+              cell: existing?.guru_cell ?? "",
+              email: existing?.guru_email ?? "",
+            }}
+            defaultSame={existing?.guru_same_as_owner ?? false}
+          />
+
+          <h2 className="mt-2 text-[15px] font-bold text-ink sm:col-span-2">
+            Your business
+          </h2>
+            <StatesServicedField
+              defaultStates={
+                existing?.states_serviced
+                  ? existing.states_serviced
+                      .split(",")
+                      .map((s) => normalizeStateName(s.trim()))
+                      .filter(Boolean)
+                  : []
+              }
+              defaultPriorityState={normalizeStateName(
+                existing?.priority_state ?? "",
+              )}
+            />
+          <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-3">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-ink">
+                # of under contract
+              </span>
+              <input
+                name="transactions_under_contract"
+                type="number"
+                min={0}
+                defaultValue={existing?.transactions_under_contract ?? ""}
+                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-ink">
+                # of closed this month
+              </span>
+              <input
+                name="transactions_per_month"
+                type="number"
+                min={0}
+                defaultValue={existing?.transactions_per_month ?? ""}
+                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-ink">
+                # of TCs on your team
+              </span>
+              <input
+                name="tc_count"
+                type="number"
+                min={0}
+                defaultValue={existing?.tc_count ?? ""}
+                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+              />
+            </label>
+          </div>
+
+          <h2 className="mt-2 text-[15px] font-bold text-ink sm:col-span-2">
+            Your tools
+          </h2>
+          <ToolsQuestions
+            defaultEsign={existing?.esign_platform ?? ""}
+            defaultEsignOther={existing?.esign_other ?? ""}
+            defaultTms={existing?.tms ?? ""}
+            defaultEmailProvider={existing?.email_provider ?? ""}
+          />
+
+          <div className="mt-2 sm:col-span-2 flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">
               How would you like your setup handled?
             </span>
@@ -209,69 +254,6 @@ export default async function SetupInitiationPage({
                 for your plan.
               </span>
             )}
-          </div>
-          <div className="sm:col-span-2">
-            <StatesServicedField
-              defaultStates={
-                existing?.states_serviced
-                  ? existing.states_serviced
-                      .split(",")
-                      .map((s) => normalizeStateName(s.trim()))
-                      .filter(Boolean)
-                  : []
-              }
-              defaultPriorityState={normalizeStateName(
-                existing?.priority_state ?? "",
-              )}
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-3">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-ink">
-                # of under contract
-              </span>
-              <input
-                name="transactions_under_contract"
-                type="number"
-                min={0}
-                defaultValue={existing?.transactions_under_contract ?? ""}
-                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-ink">
-                # of closed this month
-              </span>
-              <input
-                name="transactions_per_month"
-                type="number"
-                min={0}
-                defaultValue={existing?.transactions_per_month ?? ""}
-                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-ink">
-                # of TCs on your team
-              </span>
-              <input
-                name="tc_count"
-                type="number"
-                min={0}
-                defaultValue={existing?.tc_count ?? ""}
-                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-              />
-            </label>
-          </div>
-          <div className="sm:col-span-2 flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">
-              What tools/systems/platforms are you currently using for
-              Transaction Management?
-            </span>
-            <ToolsChecklist
-              defaultValues={existing?.tools_used ?? []}
-              defaultOther={existing?.tools_other ?? ""}
-            />
           </div>
 
           <button

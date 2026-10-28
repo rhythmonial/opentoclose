@@ -14,24 +14,32 @@ export async function submitSetupInitiation(formData: FormData) {
     redirect("/login");
   }
 
-  const tools = formData.getAll("tools").map(String);
-  const toolsOther = String(formData.get("tools_other") ?? "").trim();
-
-  if (tools.length === 0 && !toolsOther) {
-    redirect(
-      `/setup?error=${encodeURIComponent(
-        "Select at least one tool you're currently using, or tell us under Other.",
-      )}`,
-    );
-  }
+  const text = (key: string) => String(formData.get(key) ?? "").trim();
+  const owner = {
+    first: text("first_name"),
+    last: text("last_name"),
+    cell: text("cell_phone"),
+    email: text("email"),
+  };
+  const guruSameAsOwner = formData.get("guru_same_as_owner") === "on";
+  const esignPlatform = text("esign_platform");
 
   const { error } = await supabase.from("setup_initiation").upsert(
     {
       client_id: user.id,
-      first_name: String(formData.get("first_name") ?? "").trim(),
-      last_name: String(formData.get("last_name") ?? "").trim(),
-      cell_phone: String(formData.get("cell_phone") ?? "").trim(),
-      email: String(formData.get("email") ?? "").trim(),
+      first_name: owner.first,
+      last_name: owner.last,
+      cell_phone: owner.cell,
+      email: owner.email,
+      guru_same_as_owner: guruSameAsOwner,
+      guru_first_name: guruSameAsOwner ? owner.first : text("guru_first_name"),
+      guru_last_name: guruSameAsOwner ? owner.last : text("guru_last_name"),
+      guru_cell: guruSameAsOwner ? owner.cell : text("guru_cell"),
+      guru_email: guruSameAsOwner ? owner.email : text("guru_email"),
+      esign_platform: esignPlatform || null,
+      esign_other: esignPlatform === "Other" ? text("esign_other") || null : null,
+      tms: text("tms") || null,
+      email_provider: text("email_provider") || null,
       business_name: String(formData.get("business_name") ?? "").trim(),
       company_structure: String(formData.get("company_structure") ?? ""),
       states_serviced: String(formData.get("states_serviced") ?? "").trim(),
@@ -41,8 +49,6 @@ export async function submitSetupInitiation(formData: FormData) {
       transactions_per_month:
         Number(formData.get("transactions_per_month")) || 0,
       tc_count: Number(formData.get("tc_count")) || 0,
-      tools_used: tools,
-      tools_other: toolsOther || null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "client_id" },
