@@ -250,7 +250,7 @@ export default async function TasksPage({
                       return (
                         <div key={section} className="relative mt-4">
                         <details>
-                          <summary className="cursor-pointer pr-72 text-xs font-bold uppercase font-caption leading-7 tracking-wide text-ink-faint">
+                          <summary className="cursor-pointer pr-44 text-xs font-bold uppercase font-caption leading-7 tracking-wide text-ink-faint">
                             {section}{" "}
                             <span className="ml-1.5 text-[10px] font-normal normal-case text-ink-faint">
                               ({sectionSteps.length})

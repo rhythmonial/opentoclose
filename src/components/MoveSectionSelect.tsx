@@ -43,10 +43,10 @@ export function MoveSectionSelect({
           moveSection(formData);
         });
       }}
-      className="h-7 max-w-[160px] rounded-lg border border-border bg-surface px-2 text-xs font-medium text-ink-soft outline-none focus:border-accent disabled:opacity-50"
+      className="h-7 w-[3.75rem] shrink-0 cursor-pointer appearance-none rounded-lg border border-border bg-surface px-1.5 text-center text-xs font-medium text-ink-soft outline-none hover:text-ink focus:border-accent disabled:opacity-50"
     >
       <option value="" disabled>
-        {isPending ? "Moving…" : "Move to…"}
+        {isPending ? "…" : "Move ▾"}
       </option>
       {targets.map((p) => (
         <option key={p.value} value={p.value}>
