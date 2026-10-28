@@ -12,10 +12,9 @@ const ESIGN_PLATFORMS = [
 ];
 
 const EMAIL_PROVIDERS = [
-  "Gmail / Google Workspace",
-  "Outlook / Microsoft 365",
-  "Yahoo",
-  "iCloud",
+  "Google Workspace",
+  "Google",
+  "Outlook",
   "Other",
 ];
 
@@ -44,7 +43,7 @@ export function ToolsQuestions({
         <input
           name="tms"
           defaultValue={defaultTms}
-          placeholder="e.g. SkySlope, Dotloop, Paperless Pipeline"
+          placeholder="e.g. Open to Close, AFrame, TcDocs"
           className={controlClass}
         />
       </label>

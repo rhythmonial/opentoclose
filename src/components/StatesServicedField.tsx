@@ -142,8 +142,8 @@ export function StatesServicedField({
             ))}
           </select>
           <span className="text-xs text-ink-soft">
-            We recommend your busiest state, then repeating the same steps
-            for each additional state.
+            We recommend your busiest state, then cloning and updating
+            templates to tailor to additional state(s).
           </span>
         </label>
       ) : (

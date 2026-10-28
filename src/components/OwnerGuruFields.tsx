@@ -115,9 +115,8 @@ export function OwnerGuruFields({
             checked={same}
             onChange={(e) => {
               setSame(e.target.checked);
-              // Start from the owner's current details either way, so the
-              // fields keep what was shown when the box is unchecked.
-              setGuru(owner);
+              // Unchecking clears the copied details so the guru starts fresh.
+              setGuru({ first: "", last: "", cell: "", email: "" });
             }}
             className="h-4 w-4"
           />
