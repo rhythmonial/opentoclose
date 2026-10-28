@@ -5,20 +5,19 @@ import { createClient } from "@/lib/supabase/server";
 import { CompletedByRadios } from "@/components/CompletedByRadios";
 import { OptionalToggle } from "@/components/OptionalToggle";
 import { FutureBuildToggle } from "@/components/FutureBuildToggle";
-import { PhaseSectionPicker } from "@/components/PhaseSectionPicker";
 import { LessonTypeFields } from "@/components/LessonTypeFields";
 import { MarkdownTextarea } from "@/components/MarkdownTextarea";
 import { SaveStepButton } from "@/components/SaveStepButton";
 import { StepResourcesEditor } from "@/components/StepResourcesEditor";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
+import { AddStepDialog } from "@/components/AddStepDialog";
 import { MoveSectionSelect } from "@/components/MoveSectionSelect";
 import { MoveStepSelect, type SectionTarget } from "@/components/MoveStepSelect";
 import { PublishToggle } from "@/components/PublishToggle";
 import { RenameButton } from "@/components/RenameButton";
 import { startSandbox } from "@/app/dashboard/sandbox-actions";
 import {
-  addStep,
   updateStep,
   deleteStep,
   deletePillar,
@@ -249,6 +248,12 @@ export default async function TasksPage({
                       <span className="ml-1.5 text-xs font-normal text-ink-faint">
                         ({phaseSteps.length})
                       </span>
+                      <AddStepDialog
+                        mode="section"
+                        path={path}
+                        phase={rawPhase}
+                        where={phase}
+                      />
                     </summary>
 
 
@@ -276,6 +281,13 @@ export default async function TasksPage({
                             <span className="ml-1.5 text-[10px] font-normal normal-case text-ink-faint">
                               ({sectionSteps.length})
                             </span>
+                            <AddStepDialog
+                              mode="lesson"
+                              path={path}
+                              phase={rawPhase}
+                              section={section}
+                              where={section}
+                            />
                           </summary>
 
 
@@ -401,93 +413,9 @@ export default async function TasksPage({
               })}
             </div>
 
-            <details className="mt-3 rounded-xl border border-dashed border-border bg-bg p-5">
-              <summary className="cursor-pointer text-sm font-semibold text-accent">
-                + Add a task to the {path} path
-              </summary>
-              <form
-                action={addStep}
-                className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2"
-              >
-                <input type="hidden" name="path" value={path} />
-                <label className="col-span-2 flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-ink-soft">
-                    Key (unique, e.g. kickoff_call)
-                  </span>
-                  <input
-                    name="key"
-                    required
-                    className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                  />
-                </label>
-                <PhaseSectionPicker
-                  phases={phases}
-                  sectionsByPhase={sectionsByPhase}
-                />
-                <LessonTypeFields defaultType="lesson" />
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-ink-soft">
-                    Title
-                  </span>
-                  <input
-                    name="title"
-                    required
-                    className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-ink-soft">
-                    Description
-                  </span>
-                  <MarkdownTextarea name="description" rows={2} />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-ink-soft">
-                    Completed by
-                  </span>
-                  <select
-                    name="completed_by"
-                    defaultValue="diy"
-                    className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                  >
-                    <option value="diy">DIY</option>
-                    <option value="setup">Setup</option>
-                    <option value="both">Both</option>
-                    <option value="staff">Staff</option>
-                  </select>
-                </label>
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="is_optional"
-                      className="h-4 w-4"
-                    />
-                    <span className="text-xs font-medium text-ink-soft">
-                      Optional (can be done later)
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="is_future_build"
-                      className="h-4 w-4"
-                    />
-                    <span className="text-xs font-medium text-ink-soft">
-                      Future Build
-                    </span>
-                  </label>
-                </div>
-                <div className="col-span-2 flex items-end">
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
-                  >
-                    Add step
-                  </button>
-                </div>
-              </form>
-            </details>
+            <div className="mt-3 rounded-xl border border-dashed border-border bg-bg p-4">
+              <AddStepDialog mode="pillar" path={path} trigger="+ Add a pillar" />
+            </div>
           </section>
         );
       })()}

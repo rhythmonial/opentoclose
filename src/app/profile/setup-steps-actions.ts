@@ -12,42 +12,6 @@ function revalidateAll() {
   revalidatePath("/dashboard/clients", "layout");
 }
 
-export async function addStep(formData: FormData) {
-  const supabase = await createClient();
-  const path = String(formData.get("path")) as "custom" | "express";
-
-  const { data: maxRow } = await supabase
-    .from("setup_steps")
-    .select("sort_order")
-    .eq("path", path)
-    .order("sort_order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  await supabase.from("setup_steps").insert({
-    path,
-    phase: String(formData.get("phase") ?? "") || null,
-    section: String(formData.get("section")),
-    key: String(formData.get("key")),
-    title: String(formData.get("title")),
-    description: String(formData.get("description") ?? "") || null,
-    step_type: String(formData.get("step_type")) as
-      | "lesson"
-      | "form"
-      | "link"
-      | "configurator",
-    sort_order: (maxRow?.sort_order ?? 0) + 1,
-    completed_by: String(formData.get("completed_by") ?? "diy"),
-    is_optional: formData.get("is_optional") === "on",
-    is_future_build: formData.get("is_future_build") === "on",
-    video_url: String(formData.get("video_url") ?? "").trim() || null,
-    link_url: String(formData.get("link_url") ?? "").trim() || null,
-    estimated_hours: parseHours(formData.get("estimated_hours")),
-  });
-
-  revalidateAll();
-}
-
 export async function updateStep(formData: FormData) {
   const supabase = await createClient();
   const id = String(formData.get("id"));
@@ -473,4 +437,107 @@ export async function renameSection(
   await (phase ? query.eq("phase", phase) : query.is("phase", null));
 
   revalidateAll();
+}
+
+export type AddStepResult = { ok: true } | { ok: false; error: string };
+
+// Adds a lesson from the Setup Tasks + buttons. "lesson" adds it to the end
+// of an existing section, "section" starts a new section at the end of a
+// pillar, and "pillar" starts a new pillar at the end of the path.
+export async function addStepAt(formData: FormData): Promise<AddStepResult> {
+  const supabase = await createClient();
+  const text = (key: string) => String(formData.get(key) ?? "").trim();
+  const mode = text("mode") as "lesson" | "section" | "pillar";
+  const path = (text("path") || "custom") as "custom" | "express";
+  const phase = text("phase");
+  const section = text("section");
+  const title = text("title");
+  if (!section) return { ok: false, error: "Give the section a name." };
+  if (!title) return { ok: false, error: "Give the lesson a title." };
+  if (mode === "pillar" && !phase) {
+    return { ok: false, error: "Give the pillar a name." };
+  }
+
+  const { data: rows, error: loadError } = await supabase
+    .from("setup_steps")
+    .select("id, key, phase, section, sort_order")
+    .eq("path", path)
+    .order("sort_order");
+  if (loadError || !rows) {
+    return { ok: false, error: loadError?.message ?? "Couldn't load tasks." };
+  }
+
+  const inPhase = (r: (typeof rows)[number]) => (r.phase ?? "") === phase;
+  if (mode === "pillar" && rows.some(inPhase)) {
+    return { ok: false, error: `There's already a pillar named "${phase}".` };
+  }
+  if (mode === "section" && rows.some((r) => inPhase(r) && r.section === section)) {
+    return {
+      ok: false,
+      error: `"${section}" already exists in this pillar. Use its + to add a lesson.`,
+    };
+  }
+
+  // After the last lesson of the section (lesson) or pillar (section);
+  // a new pillar goes at the end.
+  let insertAt = rows.length;
+  if (mode !== "pillar") {
+    const matches = (r: (typeof rows)[number]) =>
+      inPhase(r) && (mode === "section" || r.section === section);
+    const last = rows.findLastIndex(matches);
+    if (last >= 0) insertAt = last + 1;
+  }
+
+  // Keys are unique per path; derive one from the title.
+  const base =
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 48) || "lesson";
+  const keys = new Set(rows.map((r) => r.key));
+  let key = base;
+  for (let n = 2; keys.has(key); n++) key = `${base}_${n}`;
+
+  // Renumber everything after the insert point so the new lesson lands in
+  // place, reusing the existing sort values plus one more at the end.
+  const sortValues = [
+    ...rows.map((r) => r.sort_order),
+    (rows.at(-1)?.sort_order ?? 0) + 1,
+  ];
+  const shifted = rows.slice(insertAt);
+  const results = await Promise.all(
+    shifted.flatMap((row, i) => {
+      const value = sortValues[insertAt + 1 + i];
+      return row.sort_order === value
+        ? []
+        : [supabase.from("setup_steps").update({ sort_order: value }).eq("id", row.id)];
+    }),
+  );
+  const shiftError = results.find((r) => r.error)?.error;
+  if (shiftError) return { ok: false, error: shiftError.message };
+
+  const { error } = await supabase.from("setup_steps").insert({
+    path,
+    phase: phase || null,
+    section,
+    key,
+    title,
+    description: text("description") || null,
+    step_type: (text("step_type") || "lesson") as
+      | "lesson"
+      | "form"
+      | "link"
+      | "configurator",
+    sort_order: sortValues[insertAt],
+    completed_by: text("completed_by") || "diy",
+    is_optional: formData.get("is_optional") === "on",
+    is_future_build: formData.get("is_future_build") === "on",
+    video_url: text("video_url") || null,
+    link_url: text("link_url") || null,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidateAll();
+  return { ok: true };
 }
