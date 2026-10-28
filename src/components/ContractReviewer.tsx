@@ -20,6 +20,8 @@ type Drag = {
 // A click without a drag adds a box this size, sitting on the click point.
 const DEFAULT_W = 0.2;
 const DEFAULT_H = 0.022;
+// Checkboxes are about 11pt square on a letter-size page.
+const CHECKBOX_W = 0.018;
 const MIN_W = 0.01;
 const MIN_H = 0.008;
 
@@ -33,6 +35,14 @@ const HANDLES: { id: Handle; className: string; cursor: string }[] = [
   { id: "sw", className: "-left-1.5 -bottom-1.5", cursor: "nesw-resize" },
   { id: "w", className: "-left-1.5 top-1/2 -translate-y-1/2", cursor: "ew-resize" },
 ];
+
+// Small boxes (checkboxes) get tiny corner handles set just outside them.
+const SMALL_CORNERS: Partial<Record<Handle, string>> = {
+  nw: "-left-2.5 -top-2.5",
+  ne: "-right-2.5 -top-2.5",
+  se: "-right-2.5 -bottom-2.5",
+  sw: "-left-2.5 -bottom-2.5",
+};
 
 const clamp = (n: number, min = 0, max = 1) => Math.min(max, Math.max(min, n));
 
@@ -57,6 +67,10 @@ export function ContractReviewer({
   const [blanks, setBlanks] = useState(initialBlanks);
   const [confirmed, setConfirmed] = useState(initialConfirmed);
   const [page, setPage] = useState(1);
+  // What a click on the page adds.
+  const [addType, setAddType] = useState<"text" | "checkbox">("text");
+  // Page height / width, to keep added checkboxes square.
+  const [aspect, setAspect] = useState(11 / 8.5);
   const [selected, setSelected] = useState<number | null>(null);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -97,6 +111,7 @@ export function ContractReviewer({
       const viewport = p.getViewport({ scale: target / base.width });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
+      setAspect(viewport.height / viewport.width);
       task = p.render({ canvas, viewport });
     });
     return () => task?.cancel();
@@ -158,7 +173,17 @@ export function ContractReviewer({
       mode === "draw"
         ? [
             ...blanks,
-            { page, kind: "manual" as const, x, y, width: 0, height: 0, label: "", after: "" },
+            {
+              page,
+              kind: "manual" as const,
+              type: addType,
+              x,
+              y,
+              width: 0,
+              height: 0,
+              label: "",
+              after: "",
+            },
           ]
         : blanks;
     if (mode === "draw") setBlanks(list);
@@ -224,16 +249,20 @@ export function ContractReviewer({
         setSelected(null);
         return;
       }
-      // A plain click: drop in a standard-size box resting on that spot.
+      // A plain click: drop in a standard-size box at that spot (a line
+      // resting on it, or a checkbox centered on it).
       if (plainClick) {
+        const checkbox = drawn.type === "checkbox";
+        const w = checkbox ? CHECKBOX_W : DEFAULT_W;
+        const h = checkbox ? CHECKBOX_W / aspect : DEFAULT_H;
         next = blanks.map((b, i) =>
           i === d.index
             ? {
                 ...b,
-                x: clamp(d.startX, 0, 1 - DEFAULT_W),
-                y: clamp(d.startY - DEFAULT_H * 0.75, 0, 1 - DEFAULT_H),
-                width: DEFAULT_W,
-                height: DEFAULT_H,
+                x: clamp(checkbox ? d.startX - w / 2 : d.startX, 0, 1 - w),
+                y: clamp(d.startY - (checkbox ? h / 2 : h * 0.75), 0, 1 - h),
+                width: w,
+                height: h,
               }
             : b,
         );
@@ -315,12 +344,45 @@ export function ContractReviewer({
       </div>
 
       <p className="text-sm text-ink-soft">
-        Check that every spot someone fills in on this page is highlighted.
-        Missing one? Click on the page to add a box, or click and drag to
-        draw one. Drag a box to move it, drag its edges to stretch it, and
-        select a box then press <span className="font-semibold">&times;</span>{" "}
-        or Delete to remove it.
+        Check that every spot someone fills in or checks on this page is
+        highlighted. Missing one? Choose what to add, then click on the page,
+        or click and drag to draw it. Drag a box to move it, drag its edges
+        to stretch it, and select a box then press{" "}
+        <span className="font-semibold">&times;</span> or Delete to remove it.
       </p>
+
+      <div className="flex items-center gap-2 text-xs font-semibold">
+        <span className="text-ink-soft">Clicking adds:</span>
+        {(
+          [
+            { value: "text", label: "Blank line" },
+            { value: "checkbox", label: "Checkbox" },
+          ] as const
+        ).map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            aria-pressed={addType === opt.value}
+            onClick={() => setAddType(opt.value)}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 ${
+              addType === opt.value
+                ? "border-accent bg-accent text-white"
+                : "border-border bg-surface text-ink-soft"
+            }`}
+          >
+            {opt.value === "text" ? (
+              <svg width="14" height="10" viewBox="0 0 14 10" aria-hidden>
+                <path d="M1 8h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden>
+                <rect x="1" y="1" width="9" height="9" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
+              </svg>
+            )}
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
       <div className="relative overflow-hidden rounded-lg border border-border bg-white">
         {loadError ? (
@@ -364,7 +426,9 @@ export function ContractReviewer({
                     >
                       {isSelected && (
                         <>
-                          {HANDLES.map((h) => (
+                          {HANDLES.filter(
+                            (h) => !(b.width < 0.04 || b.height < 0.03) || SMALL_CORNERS[h.id],
+                          ).map((h) => (
                             <span
                               key={h.id}
                               onPointerDown={(e) => {
@@ -372,7 +436,11 @@ export function ContractReviewer({
                                 startDrag(e, "resize", b.index, h.id);
                               }}
                               style={{ cursor: h.cursor }}
-                              className={`absolute h-3 w-3 rounded-sm border border-white bg-accent ${h.className}`}
+                              className={`absolute rounded-sm border border-white bg-accent ${
+                                b.width < 0.04 || b.height < 0.03
+                                  ? `h-2 w-2 ${SMALL_CORNERS[h.id]}`
+                                  : `h-3 w-3 ${h.className}`
+                              }`}
                             />
                           ))}
                           <button
