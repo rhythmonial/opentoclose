@@ -130,6 +130,56 @@ export type Database = {
           },
         ]
       }
+      contract_documents: {
+        Row: {
+          blank_count: number
+          blanks: Json
+          client_account_id: string
+          created_at: string
+          file_name: string
+          file_size: number | null
+          id: string
+          is_scanned: boolean
+          page_count: number | null
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          blank_count?: number
+          blanks?: Json
+          client_account_id: string
+          created_at?: string
+          file_name: string
+          file_size?: number | null
+          id?: string
+          is_scanned?: boolean
+          page_count?: number | null
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          blank_count?: number
+          blanks?: Json
+          client_account_id?: string
+          created_at?: string
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          is_scanned?: boolean
+          page_count?: number | null
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_documents_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dev_sandbox_step_status: {
         Row: {
           id: string

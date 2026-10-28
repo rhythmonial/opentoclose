@@ -19,6 +19,8 @@ import {
 import { logHours, logTimedHours, deleteClientAccount } from "./actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { InitiationSummary } from "@/components/InitiationSummary";
+import { SavedContractDoc } from "@/components/SavedContractDoc";
+import type { ContractBlank } from "@/lib/contractBlanks";
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
   free: "Free",
@@ -135,6 +137,25 @@ export default async function ClientDetailPage({
             .maybeSingle()
         : Promise.resolve({ data: null }),
     ]);
+
+  // Contract PDFs the client uploaded, with links that work for an hour.
+  const { data: contractDocs } = await supabase
+    .from("contract_documents")
+    .select("*")
+    .eq("client_account_id", account.id)
+    .order("created_at");
+  const { data: contractUrls } =
+    contractDocs && contractDocs.length > 0
+      ? await supabase.storage
+          .from("contract-docs")
+          .createSignedUrls(
+            contractDocs.map((d) => d.storage_path),
+            60 * 60,
+          )
+      : { data: [] };
+  const contractUrlByPath = new Map(
+    (contractUrls ?? []).map((u) => [u.path, u.signedUrl] as const),
+  );
 
   const purchasedStepIds = new Set(
     (stepPurchases ?? []).map((p) => p.step_id).filter(Boolean),
@@ -258,6 +279,38 @@ export default async function ClientDetailPage({
         initiation={initiation}
         otcPassword={otcCredentials?.password ?? null}
       />
+
+      <details className="mt-4 rounded-xl border border-border bg-surface">
+        <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-2 px-5 py-3.5">
+          <span className="text-[15px] font-bold text-ink">
+            Contract Documents ({contractDocs?.length ?? 0})
+          </span>
+          <span className="text-xs text-ink-faint">
+            {contractDocs && contractDocs.length > 0
+              ? `${contractDocs.reduce((n, d) => n + d.blank_count, 0)} blanks found`
+              : "None uploaded yet"}
+          </span>
+        </summary>
+        {contractDocs && contractDocs.length > 0 && (
+          <div className="flex flex-col gap-3 border-t border-border-soft px-5 py-4">
+            {contractDocs.map((doc) => (
+              <SavedContractDoc
+                key={doc.id}
+                fileName={doc.file_name}
+                url={contractUrlByPath.get(doc.storage_path) ?? null}
+                pageCount={doc.page_count ?? 0}
+                blanks={doc.blanks as ContractBlank[]}
+                isScanned={doc.is_scanned}
+                uploadedOn={new Date(doc.created_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              />
+            ))}
+          </div>
+        )}
+      </details>
 
       <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-border bg-surface p-5">
