@@ -530,6 +530,7 @@ export type Database = {
           instructions: string | null
           is_future_build: boolean
           is_optional: boolean
+          is_published: boolean
           key: string
           link_url: string | null
           path: Database["public"]["Enums"]["setup_path"]
@@ -549,6 +550,7 @@ export type Database = {
           instructions?: string | null
           is_future_build?: boolean
           is_optional?: boolean
+          is_published?: boolean
           key: string
           link_url?: string | null
           path: Database["public"]["Enums"]["setup_path"]
@@ -568,6 +570,7 @@ export type Database = {
           instructions?: string | null
           is_future_build?: boolean
           is_optional?: boolean
+          is_published?: boolean
           key?: string
           link_url?: string | null
           path?: Database["public"]["Enums"]["setup_path"]

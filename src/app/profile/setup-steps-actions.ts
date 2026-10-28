@@ -409,3 +409,13 @@ export async function moveStep(formData: FormData) {
 
   revalidateAll();
 }
+
+export async function updateStepIsPublished(stepId: string, value: boolean) {
+  const supabase = await createClient();
+  await supabase
+    .from("setup_steps")
+    .update({ is_published: value })
+    .eq("id", stepId);
+
+  revalidateAll();
+}

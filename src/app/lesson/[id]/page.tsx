@@ -257,6 +257,11 @@ export default async function LessonPage({
         <div className="mt-1.5 flex items-start justify-between gap-4">
           <h1 className="font-display text-2xl font-bold text-ink">
             {step.title}
+            {isStaff && !step.is_published && (
+              <span className="ml-2 rounded-full bg-ink-faint/15 px-2 py-0.5 align-middle font-caption text-[11px] font-bold uppercase tracking-wide text-ink-soft">
+                Hidden from clients
+              </span>
+            )}
             {step.is_optional && (
               <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[11px] font-bold uppercase font-caption tracking-wide text-ink-faint">
                 Optional

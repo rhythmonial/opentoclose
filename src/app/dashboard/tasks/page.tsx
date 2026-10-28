@@ -14,6 +14,7 @@ import { SortableGroup } from "@/components/dnd/SortableGroup";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { MoveSectionSelect } from "@/components/MoveSectionSelect";
 import { MoveStepSelect, type SectionTarget } from "@/components/MoveStepSelect";
+import { PublishToggle } from "@/components/PublishToggle";
 import { startSandbox } from "@/app/dashboard/sandbox-actions";
 import {
   addStep,
@@ -564,6 +565,7 @@ function StepEditPanel({
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:hidden">
               {moveSelect}
+              <PublishToggle stepId={step.id} value={step.is_published} />
               <a
                 href={stepClientHref(step)}
                 target="_blank"
@@ -597,6 +599,7 @@ function StepEditPanel({
         </div>
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
           {moveSelect}
+          <PublishToggle stepId={step.id} value={step.is_published} />
           <a
             href={stepClientHref(step)}
             target="_blank"

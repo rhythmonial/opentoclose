@@ -353,6 +353,11 @@ export default async function PortalPage() {
                               <div className="min-w-0 flex-1">
                                 <div className="text-sm font-bold text-ink">
                                   {step.title}
+                                  {isStaff && !step.is_published && (
+                                    <span className="ml-2 rounded-full bg-ink-faint/15 px-2 py-0.5 font-caption text-[10px] font-bold uppercase tracking-wide text-ink-soft">
+                                      Hidden
+                                    </span>
+                                  )}
                                   {step.is_optional && (
                                     <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-ink-faint">
                                       Optional
