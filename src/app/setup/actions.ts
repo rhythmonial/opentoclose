@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 import { startPlanCheckout } from "@/app/checkout/actions";
 import { getSandboxTier } from "@/lib/devSandbox";
@@ -52,7 +53,7 @@ export async function submitSetupInitiation(formData: FormData) {
   const owner = {
     first: text("first_name"),
     last: text("last_name"),
-    cell: text("cell_phone"),
+    cell: formatPhone(text("cell_phone")),
     email: text("email"),
   };
   const guruSameAsOwner = formData.get("guru_same_as_owner") === "on";
@@ -68,7 +69,7 @@ export async function submitSetupInitiation(formData: FormData) {
       guru_same_as_owner: guruSameAsOwner,
       guru_first_name: guruSameAsOwner ? owner.first : text("guru_first_name"),
       guru_last_name: guruSameAsOwner ? owner.last : text("guru_last_name"),
-      guru_cell: guruSameAsOwner ? owner.cell : text("guru_cell"),
+      guru_cell: guruSameAsOwner ? owner.cell : formatPhone(text("guru_cell")),
       guru_email: guruSameAsOwner ? owner.email : text("guru_email"),
       esign_platform: esignPlatform || null,
       esign_other: esignPlatform === "Other" ? text("esign_other") || null : null,

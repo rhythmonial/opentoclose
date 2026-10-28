@@ -1,4 +1,5 @@
 import type { Tables } from "@/lib/supabase/types";
+import { formatPhone } from "@/lib/phone";
 
 type Initiation = Tables<"setup_initiation">;
 
@@ -36,7 +37,11 @@ function contact(
   return (
     <>
       <div className="font-semibold">{name || "—"}</div>
-      {cell && <div className="text-ink-soft">{cell}</div>}
+      {cell && (
+        <div className="text-ink-soft">
+          {formatPhone(cell).length === 12 ? formatPhone(cell) : cell}
+        </div>
+      )}
       {email && (
         <a href={`mailto:${email}`} className="text-accent">
           {email}

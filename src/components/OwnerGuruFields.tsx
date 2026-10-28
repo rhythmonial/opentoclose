@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { formatPhone } from "@/lib/phone";
 
 type Contact = { first: string; last: string; cell: string; email: string };
+
 
 const inputClass =
   "rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent";
@@ -22,29 +24,46 @@ function ContactInputs({
   onChange: (next: Contact) => void;
   readOnly?: boolean;
 }) {
-  const field = (key: keyof Contact, title: string, type = "text") => (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium text-ink">
-        {prefix} {title}
-      </span>
-      <input
-        name={names[key]}
-        type={type}
-        required
-        readOnly={readOnly}
-        value={value[key]}
-        onChange={(e) => onChange({ ...value, [key]: e.target.value })}
-        className={inputClass}
-      />
-    </label>
-  );
+  const field = (key: keyof Contact, title: string, type = "text") => {
+    const isPhone = type === "tel";
+    return (
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-ink">
+          {prefix} {title}
+        </span>
+        <input
+          name={names[key]}
+          type={type}
+          required
+          readOnly={readOnly}
+          value={value[key]}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              [key]: isPhone ? formatPhone(e.target.value) : e.target.value,
+            })
+          }
+          {...(isPhone
+            ? {
+                inputMode: "numeric" as const,
+                autoComplete: "tel-national",
+                placeholder: "727-554-6666",
+                pattern: "\\d{3}-\\d{3}-\\d{4}",
+                title: "Enter a 10-digit phone number, like 727-554-6666",
+              }
+            : {})}
+          className={inputClass}
+        />
+      </label>
+    );
+  };
 
   return (
     <fieldset className="contents">
       <legend className="sr-only">{label}</legend>
       {field("first", "First Name")}
       {field("last", "Last Name")}
-      {field("cell", "Cell", "tel")}
+      {field("cell", "Cell Phone", "tel")}
       {field("email", "Email", "email")}
     </fieldset>
   );
@@ -59,8 +78,14 @@ export function OwnerGuruFields({
   defaultGuru: Contact;
   defaultSame: boolean;
 }) {
-  const [owner, setOwner] = useState(defaultOwner);
-  const [guru, setGuru] = useState(defaultGuru);
+  const [owner, setOwner] = useState({
+    ...defaultOwner,
+    cell: formatPhone(defaultOwner.cell),
+  });
+  const [guru, setGuru] = useState({
+    ...defaultGuru,
+    cell: formatPhone(defaultGuru.cell),
+  });
   const [same, setSame] = useState(defaultSame);
 
   return (
