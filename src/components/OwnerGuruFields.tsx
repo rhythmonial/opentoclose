@@ -81,14 +81,19 @@ export function OwnerGuruFields({
         onChange={setOwner}
       />
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 sm:col-span-2">
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 sm:col-span-2">
         <h2 className="text-[15px] font-bold text-ink">OTC Guru</h2>
         <label className="flex items-center gap-2 text-sm text-ink">
           <input
             type="checkbox"
             name="guru_same_as_owner"
             checked={same}
-            onChange={(e) => setSame(e.target.checked)}
+            onChange={(e) => {
+              setSame(e.target.checked);
+              // Start from the owner's current details either way, so the
+              // fields keep what was shown when the box is unchecked.
+              setGuru(owner);
+            }}
             className="h-4 w-4"
           />
           Same as team owner

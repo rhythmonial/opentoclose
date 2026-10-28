@@ -18,6 +18,7 @@ import {
 } from "../../actions";
 import { logHours, logTimedHours, deleteClientAccount } from "./actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { InitiationSummary } from "@/components/InitiationSummary";
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
   free: "Free",
@@ -114,7 +115,7 @@ export default async function ClientDetailPage({
       owner
         ? supabase
             .from("setup_initiation")
-            .select("engagement_type, upgrade_requested_at")
+            .select("*")
             .eq("client_id", owner.id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
@@ -244,6 +245,8 @@ export default async function ClientDetailPage({
           </form>
         </div>
       )}
+
+      <InitiationSummary initiation={initiation} />
 
       <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-border bg-surface p-5">
