@@ -13,6 +13,7 @@ import { StepResourcesEditor } from "@/components/StepResourcesEditor";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { MoveSectionSelect } from "@/components/MoveSectionSelect";
+import { MoveStepSelect, type SectionTarget } from "@/components/MoveStepSelect";
 import { startSandbox } from "@/app/dashboard/sandbox-actions";
 import {
   addStep,
@@ -170,6 +171,21 @@ export default async function TasksPage({
         const phaseOptions = Array.from(
           new Set(pathSteps.map((s) => s.phase ?? "")),
         ).map((value) => ({ value, label: value || "General" }));
+        const sectionTargets: SectionTarget[] = [];
+        for (const s of pathSteps) {
+          const phase = s.phase ?? "";
+          if (
+            !sectionTargets.some(
+              (t) => t.phase === phase && t.section === s.section,
+            )
+          ) {
+            sectionTargets.push({
+              phase,
+              phaseLabel: phase || "General",
+              section: s.section,
+            });
+          }
+        }
         const sectionsByPhase: Record<string, string[]> = {};
         for (const phase of phases) {
           sectionsByPhase[phase] = Array.from(
@@ -254,6 +270,7 @@ export default async function TasksPage({
                                     }
                                     phases={phases}
                                     sectionsByPhase={sectionsByPhase}
+                                    sectionTargets={sectionTargets}
                                   />
                                 ),
                               }))}
@@ -506,12 +523,24 @@ function StepEditPanel({
   resources,
   phases,
   sectionsByPhase,
+  sectionTargets,
 }: {
   step: SetupStep;
   resources: StepResource[];
   phases: string[];
   sectionsByPhase: Record<string, string[]>;
+  sectionTargets: SectionTarget[];
 }) {
+  const moveSelect = (
+    <MoveStepSelect
+      stepId={step.id}
+      stepTitle={step.title}
+      currentPhase={step.phase ?? ""}
+      currentSection={step.section}
+      targets={sectionTargets}
+    />
+  );
+
   return (
     <details className="rounded-lg border border-border bg-surface px-4 py-2 open:pb-4">
       <summary className="flex cursor-pointer flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -519,6 +548,9 @@ function StepEditPanel({
           <div className="flex items-start justify-between gap-3 sm:block">
             <div className="text-sm font-bold text-ink">
               {step.title}
+              <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 align-middle text-[10px] font-bold uppercase font-caption tracking-wide text-accent">
+                {step.step_type}
+              </span>
               {step.is_optional && (
                 <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-ink-faint">
                   Optional
@@ -531,9 +563,7 @@ function StepEditPanel({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:hidden">
-              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-accent">
-                {step.step_type}
-              </span>
+              {moveSelect}
               <a
                 href={stepClientHref(step)}
                 target="_blank"
@@ -566,9 +596,7 @@ function StepEditPanel({
           </div>
         </div>
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
-          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-accent">
-            {step.step_type}
-          </span>
+          {moveSelect}
           <a
             href={stepClientHref(step)}
             target="_blank"

@@ -340,3 +340,72 @@ export async function moveSectionOrder(formData: FormData) {
 
   revalidateAll();
 }
+
+export async function moveStep(formData: FormData) {
+  const supabase = await createClient();
+  const stepId = String(formData.get("step_id"));
+  const toPhase = String(formData.get("to_phase") ?? "");
+  const toSection = String(formData.get("to_section"));
+
+  const { data: step } = await supabase
+    .from("setup_steps")
+    .select("id, path, phase, section")
+    .eq("id", stepId)
+    .single();
+  if (!step) return;
+  if ((step.phase ?? "") === toPhase && step.section === toSection) return;
+
+  const { data: rows } = await supabase
+    .from("setup_steps")
+    .select("id, phase, section, sort_order")
+    .eq("path", step.path)
+    .order("sort_order");
+  if (!rows) return;
+
+  // Put the step at the end of the target section (or the end of the target
+  // pillar if the section is new to it), then renumber so pillar and
+  // section order stay intact.
+  const rest = rows.filter((r) => r.id !== stepId);
+  const moving = rows.find((r) => r.id === stepId)!;
+  let insertAt = -1;
+  for (let i = rest.length - 1; i >= 0; i--) {
+    if ((rest[i].phase ?? "") === toPhase && rest[i].section === toSection) {
+      insertAt = i + 1;
+      break;
+    }
+  }
+  if (insertAt < 0) {
+    for (let i = rest.length - 1; i >= 0; i--) {
+      if ((rest[i].phase ?? "") === toPhase) {
+        insertAt = i + 1;
+        break;
+      }
+    }
+  }
+  if (insertAt < 0) insertAt = rest.length;
+
+  const ordered = [
+    ...rest.slice(0, insertAt),
+    moving,
+    ...rest.slice(insertAt),
+  ];
+  const sortValues = rows.map((r) => r.sort_order).sort((a, b) => a - b);
+
+  await Promise.all(
+    ordered.flatMap((row, index) => {
+      const isMoved = row.id === stepId;
+      if (!isMoved && row.sort_order === sortValues[index]) return [];
+      return [
+        supabase
+          .from("setup_steps")
+          .update({
+            sort_order: sortValues[index],
+            ...(isMoved ? { phase: toPhase || null, section: toSection } : {}),
+          })
+          .eq("id", row.id),
+      ];
+    }),
+  );
+
+  revalidateAll();
+}
