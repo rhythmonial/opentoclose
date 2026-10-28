@@ -220,7 +220,7 @@ export default async function TasksPage({
             </h3>
 
             <div className="mt-3 flex flex-col gap-3">
-              {visiblePhases.map((phase) => {
+              {visiblePhases.map((phase, phasePosition) => {
                 const phaseSteps = visiblePathSteps.filter(
                   (s) => (s.phase ?? "General") === phase,
                 );
@@ -232,10 +232,11 @@ export default async function TasksPage({
                 const phaseIndex = phases.indexOf(phase);
 
                 return (
-                  <div key={phase} className="relative">
+                  // Keyed by position so renaming a pillar or section keeps
+                  // it open instead of remounting it.
+                  <div key={phasePosition} className="relative">
                   <details className="rounded-xl border border-border-soft bg-bg p-4">
                     <summary className="cursor-pointer pr-32 font-display text-base font-bold text-ink">
-                      {phase}
                       <RenameButton
                         kind="pillar"
                         path={path}
@@ -251,7 +252,7 @@ export default async function TasksPage({
                     </summary>
 
 
-                    {sections.map((section) => {
+                    {sections.map((section, sectionPosition) => {
                       const sectionSteps = phaseSteps.filter(
                         (s) => s.section === section,
                       );
@@ -259,10 +260,9 @@ export default async function TasksPage({
                       const sectionIndex = pillarSections.indexOf(section);
 
                       return (
-                        <div key={section} className="relative mt-4">
+                        <div key={sectionPosition} className="relative mt-4">
                         <details>
                           <summary className="cursor-pointer pr-44 text-xs font-bold uppercase font-caption leading-7 tracking-wide text-ink-faint">
-                            {section}
                             <RenameButton
                               kind="section"
                               path={path}
@@ -562,7 +562,6 @@ function StepEditPanel({
         <div className="min-w-0 flex-1 lg:flex lg:items-center lg:gap-5">
           <div className="flex items-start justify-between gap-3 sm:block">
             <div className="text-sm font-bold text-ink">
-              {step.title}
               <RenameButton
                 kind="lesson"
                 stepId={step.id}
