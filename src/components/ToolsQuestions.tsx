@@ -95,7 +95,7 @@ export function ToolsQuestions({
       {esign === "Other" && (
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-ink">
-            Which e-sign platform?
+            Other E-sign Platform
           </span>
           <input
             name="esign_other"

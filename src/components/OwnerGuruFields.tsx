@@ -89,9 +89,7 @@ export function OwnerGuruFields({
 
   return (
     <>
-      <h2 className="mt-2 text-[15px] font-bold text-ink sm:col-span-2">
-        Team Owner
-      </h2>
+      <hr className="my-2 border-border sm:col-span-2" />
       <ContactInputs
         prefix="Team Owner"
         label="Team Owner"
@@ -105,9 +103,9 @@ export function OwnerGuruFields({
         onChange={setOwner}
       />
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 sm:col-span-2">
-        <h2 className="text-[15px] font-bold text-ink">OTC Guru</h2>
-        <label className="flex items-center gap-2 text-sm text-ink">
+      <hr className="my-2 border-border sm:col-span-2" />
+      <div className="sm:col-span-2">
+        <label className="inline-flex items-center gap-2 text-sm text-ink">
           <input
             type="checkbox"
             name="guru_same_as_owner"
@@ -119,7 +117,7 @@ export function OwnerGuruFields({
             }}
             className="h-4 w-4"
           />
-          Same as team owner
+          OTC Guru is the same as Team Owner
         </label>
       </div>
       <ContactInputs
