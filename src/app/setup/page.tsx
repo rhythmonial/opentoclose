@@ -242,7 +242,6 @@ export default async function SetupInitiationPage({
             defaultPlan={defaultEngagementType}
             defaultOtcUsername={existing?.otc_username ?? ""}
             otcPasswordSaved={existing?.otc_password_set ?? false}
-            showCheckoutNote={!hasPaidPlan}
           />
 
           <button

@@ -12,12 +12,10 @@ export function PlanChoice({
   defaultPlan,
   defaultOtcUsername,
   otcPasswordSaved,
-  showCheckoutNote,
 }: {
   defaultPlan: "diy" | "custom";
   defaultOtcUsername: string;
   otcPasswordSaved: boolean;
-  showCheckoutNote: boolean;
 }) {
   const [plan, setPlan] = useState(defaultPlan);
 
@@ -94,13 +92,6 @@ export function PlanChoice({
             setup. Only our team can see it.
           </span>
         </div>
-      )}
-
-      {showCheckoutNote && (
-        <span className="text-xs text-ink-soft">
-          After you submit, you&rsquo;ll go to secure checkout to pay for your
-          plan.
-        </span>
       )}
     </div>
   );
