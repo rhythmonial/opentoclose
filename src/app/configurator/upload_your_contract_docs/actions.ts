@@ -117,7 +117,7 @@ export async function finishContractDocs() {
   redirect("/portal");
 }
 
-const KINDS = new Set(["field", "underscore", "line", "checkbox", "manual"]);
+const KINDS = new Set(["field", "underscore", "line", "checkbox", "box", "manual"]);
 const clamp = (n: unknown) => Math.min(1, Math.max(0, Number(n) || 0));
 
 // Saves a client's review of one document: the boxes after their edits and

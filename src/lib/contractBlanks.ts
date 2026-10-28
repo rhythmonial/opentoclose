@@ -7,7 +7,7 @@ export type ContractBlank = {
   page: number;
   // How it was found. "manual" boxes are ones the client drew while
   // reviewing.
-  kind: "field" | "underscore" | "line" | "checkbox" | "manual";
+  kind: "field" | "underscore" | "line" | "checkbox" | "box" | "manual";
   // What gets filled in: written text, or a mark in a box. Older saved
   // blanks may not have it; treat those as text.
   type?: "text" | "checkbox";
@@ -31,7 +31,13 @@ export type ContractAnalysis = {
 };
 
 type Box = { left: number; right: number; top: number; bottom: number };
-type TextBox = Box & { str: string; size: number; symbol: boolean };
+type TextBox = Box & {
+  str: string;
+  size: number;
+  symbol: boolean;
+  // CSS font closest to the PDF's, for measuring where characters fall.
+  font: string;
+};
 type Found = Box & Omit<ContractBlank, "page" | "x" | "y" | "width" | "height">;
 
 type Matrix = [number, number, number, number, number, number];
@@ -55,12 +61,13 @@ const BRACKET_BOXES = /\[(?:\s{1,3}|_{1,3})\]/g;
 // Checkbox size range, in points.
 const BOX_MIN = 5;
 const BOX_MAX = 20;
-const isSquare = (b: Box) => {
+const isBoxShaped = (b: Box) => {
   const w = b.right - b.left;
   const h = b.bottom - b.top;
   return (
     w >= BOX_MIN && w <= BOX_MAX && h >= BOX_MIN && h <= BOX_MAX &&
-    Math.abs(w - h) <= Math.max(1.5, 0.25 * Math.max(w, h))
+    // Not always square: Google Docs checkboxes are about 11.7 x 8.7pt.
+    Math.max(w, h) / Math.min(w, h) <= 1.6
   );
 };
 // Lines shorter than this (in points) are usually underlines or rules in
@@ -148,6 +155,7 @@ async function analyzePage(
       str: item.str,
       size,
       symbol: SYMBOL_FONT.test(`${fontName(item.fontName)} ${family}`),
+      font: cssFont(fontName(item.fontName) || family),
     });
   }
 
@@ -156,15 +164,15 @@ async function analyzePage(
   // 1. Runs of underscores typed into the text.
   for (const t of text) {
     if (!t.str.includes("___") && !t.str.includes("_ _ _")) continue;
-    const perChar = (t.right - t.left) / t.str.length;
+    const xAt = positioner(t);
     const runs = [...t.str.matchAll(UNDERSCORES)];
     let previousEnd = 0;
     runs.forEach((match, i) => {
       const start = match.index ?? 0;
       const end = start + match[0].length;
       const nextStart = runs[i + 1]?.index ?? t.str.length;
-      const left = t.left + start * perChar;
-      const right = t.left + end * perChar;
+      const left = xAt(start);
+      const right = xAt(end);
       found.push({
         kind: "underscore",
         type: "text",
@@ -182,12 +190,12 @@ async function analyzePage(
 
   // 1b. Checkbox characters (☐, Wingdings/ZapfDingbats boxes) and [ ].
   for (const t of text) {
-    const chars = [...t.str];
-    const perChar = (t.right - t.left) / chars.length;
-    const side = Math.min(t.size * 0.8, Math.max(perChar, t.size * 0.6));
-    const addBox = (index: number, length: number) => {
-      const left = t.left + index * perChar;
-      const right = Math.max(left + side, t.left + (index + length) * perChar);
+    const xAt = positioner(t);
+    const side = t.size * 0.75;
+    // start/end are UTF-16 offsets into t.str.
+    const addBox = (start: number, end: number) => {
+      const left = xAt(start);
+      const right = Math.max(left + side, xAt(end));
       found.push({
         kind: "checkbox",
         type: "checkbox",
@@ -196,21 +204,27 @@ async function analyzePage(
         top: t.bottom - side,
         bottom: t.bottom + side * 0.1,
         label: "",
-        after: cleanAfter(firstOption(chars.slice(index + length).join(""))),
+        after: cleanAfter(firstOption(t.str.slice(end))),
       });
     };
-    chars.forEach((ch, i) => {
-      if (BOX_CHARS.has(ch) || (t.symbol && SYMBOL_BOX_CHARS.has(ch))) addBox(i, 1);
-    });
+    let offset = 0;
+    for (const ch of t.str) {
+      if (BOX_CHARS.has(ch) || (t.symbol && SYMBOL_BOX_CHARS.has(ch))) {
+        addBox(offset, offset + ch.length);
+      }
+      offset += ch.length;
+    }
     for (const match of t.str.matchAll(BRACKET_BOXES)) {
-      const start = [...t.str.slice(0, match.index ?? 0)].length;
-      addBox(start, [...match[0]].length);
+      const start = match.index ?? 0;
+      addBox(start, start + match[0].length);
     }
   }
 
   // 2. Drawn horizontal lines (strokes, or thin filled rectangles). Vertical
   // ones are kept to spot table grids, short ones to spot drawn checkboxes.
   const verticals: Box[] = [];
+  // Outlined rectangles big enough to write in, e.g. initials boxes.
+  const rects: Box[] = [];
   const shortH: Box[] = [];
   const shortV: Box[] = [];
   const strokes = new Set([
@@ -289,7 +303,7 @@ async function analyzePage(
         // when it's a frame (a square with a smaller square cut out);
         // solid ones are bullets.
         if (
-          isSquare(box) &&
+          isBoxShaped(box) &&
           (strokes.has(paint) ||
             boxes.some(
               (inner) =>
@@ -301,6 +315,14 @@ async function analyzePage(
             ))
         ) {
           found.push({ kind: "checkbox", type: "checkbox", ...box, label: "", after: "" });
+        } else if (
+          strokes.has(paint) &&
+          width >= 20 &&
+          width <= 300 &&
+          height >= 12 &&
+          height <= 45
+        ) {
+          rects.push(box);
         }
         if (
           box.bottom - box.top <= 3 &&
@@ -370,6 +392,21 @@ async function analyzePage(
       blank.kind !== "line" ||
       (!isUnderline(blank, text) && !isGridLine(blank, verticals)),
   );
+  // An outlined rectangle is a write-in box (like initials) when it's
+  // empty: no words, and no line or blank kept inside it (those are frames
+  // around something we already have). Runs after the cleanup above, since
+  // a box drawn as a little table has a grid line inside that gets dropped.
+  const inside = (b: Box, outer: Box) => {
+    const cx = (b.left + b.right) / 2;
+    const cy = (b.top + b.bottom) / 2;
+    return cx > outer.left && cx < outer.right && cy > outer.top && cy < outer.bottom;
+  };
+  for (const rect of rects) {
+    if (text.some((t) => hasWords(t) && inside(t, rect))) continue;
+    if (kept.some((f) => f.type !== "checkbox" && inside(f, rect))) continue;
+    kept.push({ kind: "box", type: "text", ...rect, label: "", after: "" });
+  }
+
   for (const blank of kept) {
     // Symbol-font text is checkbox glyphs, not words.
     const row = text.filter((t) => !t.symbol && sameRow(t, blank));
@@ -423,6 +460,42 @@ async function analyzePage(
   }
 
   return { text, found: kept };
+}
+
+// Maps a PDF font name (e.g. "BAAAAA+ArialMT", "Times-Bold") to the closest
+// CSS font, so text can be measured the way it was laid out.
+function cssFont(pdfName: string) {
+  const name = pdfName.replace(/^[A-Z]{6}\+/, "");
+  const family = /courier|mono/i.test(name)
+    ? "'Courier New', monospace"
+    : /times|serif|georgia|garamond|cambria/i.test(name) && !/sans/i.test(name)
+      ? "'Times New Roman', Times, serif"
+      : "Arial, Helvetica, sans-serif";
+  const weight = /bold|black|heavy/i.test(name) ? "bold " : "";
+  const style = /italic|oblique/i.test(name) ? "italic " : "";
+  return `${style}${weight}100px ${family}`;
+}
+
+let measureContext: CanvasRenderingContext2D | null | undefined;
+
+// Returns where the character at a given offset into a text run starts on
+// the page. Characters differ in width (an underscore is wider than an
+// "i"), so this measures the run in a matching font and scales it to the
+// run's real width; without a canvas it assumes equal widths.
+function positioner(t: TextBox) {
+  const width = t.right - t.left;
+  if (measureContext === undefined) {
+    measureContext =
+      typeof document === "undefined"
+        ? null
+        : document.createElement("canvas").getContext("2d");
+  }
+  const ctx = measureContext;
+  if (!ctx) return (i: number) => t.left + (i / t.str.length) * width;
+  ctx.font = t.font;
+  const total = ctx.measureText(t.str).width;
+  if (!total) return (i: number) => t.left + (i / t.str.length) * width;
+  return (i: number) => t.left + (ctx.measureText(t.str.slice(0, i)).width / total) * width;
 }
 
 // Splits a pdf.js path buffer (DrawOPS-encoded) into subpaths of points.
@@ -491,7 +564,7 @@ function sameRow(t: TextBox, blank: Box) {
 // The same spot often shows up twice (a field drawn over a line, or
 // underscores with a line under them); keep one, preferring real fields.
 function dedupe(found: Found[]) {
-  const rank = { field: 0, checkbox: 1, underscore: 2, line: 3, manual: 4 } as const;
+  const rank = { field: 0, checkbox: 1, underscore: 2, line: 3, box: 4, manual: 5 } as const;
   const sorted = [...found].sort((a, b) => rank[a.kind] - rank[b.kind]);
   const kept: Found[] = [];
   for (const blank of sorted) {
