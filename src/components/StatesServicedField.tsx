@@ -123,7 +123,7 @@ export function StatesServicedField({
         )}
       </div>
 
-      {selected.length > 1 ? (
+      {selected.length > 1 && (
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-ink">
             Which state will you set up first?
@@ -150,8 +150,6 @@ export function StatesServicedField({
             templates to tailor to additional state(s).
           </span>
         </label>
-      ) : (
-        <div className="hidden sm:block" />
       )}
     </>
   );

@@ -38,7 +38,7 @@ export function ToolsQuestions({
     <>
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-ink">
-          Transaction management software
+          Transaction Management Software
         </span>
         <input
           name="tms"
@@ -94,7 +94,7 @@ export function ToolsQuestions({
           <option value="Other">Other</option>
         </select>
       </label>
-      {esign === "Other" ? (
+      {esign === "Other" && (
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-ink">
             Which e-sign platform?
@@ -106,8 +106,6 @@ export function ToolsQuestions({
             className={controlClass}
           />
         </label>
-      ) : (
-        <div className="hidden sm:block" />
       )}
     </>
   );
