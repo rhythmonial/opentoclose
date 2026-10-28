@@ -159,25 +159,6 @@ export default async function SetupInitiationPage({
             />
           </label>
 
-          <OwnerGuruFields
-            defaultOwner={{
-              first: existing?.first_name ?? "",
-              last: existing?.last_name ?? "",
-              cell: existing?.cell_phone ?? "",
-              email: existing?.email ?? user.email ?? "",
-            }}
-            defaultGuru={{
-              first: existing?.guru_first_name ?? "",
-              last: existing?.guru_last_name ?? "",
-              cell: existing?.guru_cell ?? "",
-              email: existing?.guru_email ?? "",
-            }}
-            defaultSame={existing?.guru_same_as_owner ?? false}
-          />
-
-          <h2 className="mt-2 text-[15px] font-bold text-ink sm:col-span-2">
-            Your business
-          </h2>
           <StatesServicedField
             defaultStates={
               existing?.states_serviced
@@ -196,6 +177,22 @@ export default async function SetupInitiationPage({
             defaultEsignOther={existing?.esign_other ?? ""}
             defaultTms={existing?.tms ?? ""}
             defaultEmailProvider={existing?.email_provider ?? ""}
+          />
+
+          <OwnerGuruFields
+            defaultOwner={{
+              first: existing?.first_name ?? "",
+              last: existing?.last_name ?? "",
+              cell: existing?.cell_phone ?? "",
+              email: existing?.email ?? user.email ?? "",
+            }}
+            defaultGuru={{
+              first: existing?.guru_first_name ?? "",
+              last: existing?.guru_last_name ?? "",
+              cell: existing?.guru_cell ?? "",
+              email: existing?.guru_email ?? "",
+            }}
+            defaultSame={existing?.guru_same_as_owner ?? false}
           />
 
           <PlanChoice

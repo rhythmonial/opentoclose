@@ -49,7 +49,7 @@ export function ToolsQuestions({
         />
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-ink">Email provider</span>
+        <span className="text-sm font-medium text-ink">Email Provider</span>
         <select
           name="email_provider"
           required
@@ -73,9 +73,7 @@ export function ToolsQuestions({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-ink">
-          Which e-sign platform do you use?
-        </span>
+        <span className="text-sm font-medium text-ink">E-sign Platform</span>
         <select
           name="esign_platform"
           required

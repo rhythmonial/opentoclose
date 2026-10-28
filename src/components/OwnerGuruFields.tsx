@@ -89,7 +89,7 @@ export function OwnerGuruFields({
 
   return (
     <>
-      <h2 className="text-[15px] font-bold text-ink sm:col-span-2">
+      <h2 className="mt-2 text-[15px] font-bold text-ink sm:col-span-2">
         Team Owner
       </h2>
       <ContactInputs
