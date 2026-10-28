@@ -204,7 +204,7 @@ export default async function SetupInitiationPage({
           <MissingFieldsNotice />
           <button
             type="submit"
-            className="mt-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 sm:col-span-2"
+            className="mt-2 justify-self-center rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50 sm:col-span-2"
           >
             {hasPaidPlan
               ? isUpdate
