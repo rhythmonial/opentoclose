@@ -22,6 +22,7 @@ import {
   deleteSection,
   reorderSteps,
   updateHourlyRate,
+  movePillar,
 } from "@/app/profile/setup-steps-actions";
 import type { Tables } from "@/lib/supabase/types";
 import { stepClientHref } from "@/lib/stepHref";
@@ -209,23 +210,54 @@ export default async function TasksPage({
                 );
 
                 const rawPhase = phaseSteps[0]?.phase ?? "";
+                const phaseIndex = phases.indexOf(phase);
 
                 return (
                   <details
                     key={phase}
                     className="relative rounded-xl border border-border-soft bg-bg p-4"
                   >
-                    <summary className="cursor-pointer pr-10 font-display text-base font-bold text-ink">
+                    <summary className="cursor-pointer pr-32 font-display text-base font-bold text-ink">
                       {phase}{" "}
                       <span className="ml-1.5 text-xs font-normal text-ink-faint">
                         ({phaseSteps.length})
                       </span>
                     </summary>
 
-                    <form
-                      action={deletePillar}
-                      className="absolute right-4 top-4"
-                    >
+                    <div className="absolute right-4 top-4 flex items-center gap-1.5">
+                      <form action={movePillar}>
+                        <input type="hidden" name="path" value={path} />
+                        <input type="hidden" name="phase" value={rawPhase} />
+                        <input type="hidden" name="direction" value="up" />
+                        <button
+                          type="submit"
+                          disabled={phaseIndex === 0}
+                          title={`Move ${phase} up`}
+                          aria-label={`Move ${phase} up`}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-ink disabled:opacity-30"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m18 15-6-6-6 6" />
+                          </svg>
+                        </button>
+                      </form>
+                      <form action={movePillar}>
+                        <input type="hidden" name="path" value={path} />
+                        <input type="hidden" name="phase" value={rawPhase} />
+                        <input type="hidden" name="direction" value="down" />
+                        <button
+                          type="submit"
+                          disabled={phaseIndex === phases.length - 1}
+                          title={`Move ${phase} down`}
+                          aria-label={`Move ${phase} down`}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-ink disabled:opacity-30"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </button>
+                      </form>
+                      <form action={deletePillar}>
                       <input type="hidden" name="path" value={path} />
                       <input type="hidden" name="phase" value={rawPhase} />
                       <ConfirmSubmitButton
@@ -251,6 +283,7 @@ export default async function TasksPage({
                         </svg>
                       </ConfirmSubmitButton>
                     </form>
+                    </div>
 
                     {sections.map((section) => {
                       const sectionSteps = phaseSteps.filter(

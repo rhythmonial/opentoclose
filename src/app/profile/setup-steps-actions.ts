@@ -239,3 +239,53 @@ export async function moveSection(formData: FormData) {
 
   revalidateAll();
 }
+
+export async function movePillar(formData: FormData) {
+  const supabase = await createClient();
+  const path = String(formData.get("path")) as "custom" | "express";
+  const phase = String(formData.get("phase") ?? "");
+  const direction = formData.get("direction") === "up" ? -1 : 1;
+
+  const { data: rows } = await supabase
+    .from("setup_steps")
+    .select("id, phase, sort_order")
+    .eq("path", path)
+    .order("sort_order");
+  if (!rows) return;
+
+  // Pillars appear in the order of their first step; swap this pillar's
+  // block of steps with its neighbor's and renumber.
+  const pillars: string[] = [];
+  const stepsByPillar = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const key = row.phase ?? "";
+    if (!stepsByPillar.has(key)) {
+      pillars.push(key);
+      stepsByPillar.set(key, []);
+    }
+    stepsByPillar.get(key)!.push(row);
+  }
+
+  const from = pillars.indexOf(phase);
+  const to = from + direction;
+  if (from < 0 || to < 0 || to >= pillars.length) return;
+  [pillars[from], pillars[to]] = [pillars[to], pillars[from]];
+
+  const ordered = pillars.flatMap((p) => stepsByPillar.get(p)!);
+  const sortValues = rows.map((r) => r.sort_order).sort((a, b) => a - b);
+
+  await Promise.all(
+    ordered.flatMap((row, index) =>
+      row.sort_order === sortValues[index]
+        ? []
+        : [
+            supabase
+              .from("setup_steps")
+              .update({ sort_order: sortValues[index] })
+              .eq("id", row.id),
+          ],
+    ),
+  );
+
+  revalidateAll();
+}
