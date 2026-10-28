@@ -115,17 +115,6 @@ export default async function SetupInitiationPage({
         <fieldset className="contents">
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">
-              Business, Brokerage, or Team Name
-            </span>
-            <input
-              name="business_name"
-              required
-              defaultValue={existing?.business_name ?? account?.name ?? ""}
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">
               Company Structure
             </span>
             <select
@@ -143,6 +132,17 @@ export default async function SetupInitiationPage({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-ink">
+              Business, Brokerage, or Team Name
+            </span>
+            <input
+              name="business_name"
+              required
+              defaultValue={existing?.business_name ?? account?.name ?? ""}
+              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+            />
           </label>
 
           <OwnerGuruFields
