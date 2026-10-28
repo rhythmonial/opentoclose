@@ -494,12 +494,6 @@ function StepEditPanel({
               </a>
             </div>
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] lg:mt-0">
-            <CompletedByRadios stepId={step.id} value={step.completed_by} />
-            <span className="text-ink-faint">|</span>
-            <OptionalToggle stepId={step.id} value={step.is_optional} />
-            <FutureBuildToggle stepId={step.id} value={step.is_future_build} />
-          </div>
         </div>
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
           {moveSelect}
@@ -528,6 +522,13 @@ function StepEditPanel({
           </a>
         </div>
       </summary>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-soft pt-3 text-[13px]">
+        <CompletedByRadios stepId={step.id} value={step.completed_by} />
+        <span className="text-ink-faint">|</span>
+        <OptionalToggle stepId={step.id} value={step.is_optional} />
+        <FutureBuildToggle stepId={step.id} value={step.is_future_build} />
+      </div>
 
       {step.instructions && (
         <details className="mt-4 rounded-lg border border-border-soft bg-bg p-3.5">
