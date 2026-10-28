@@ -59,3 +59,9 @@ form[data-attempted]
   border-color: var(--color-danger);
   background-color: #fdf1f0;
 }
+
+/* Brand navy for checked radios and checkboxes instead of browser blue. */
+input[type="radio"],
+input[type="checkbox"] {
+  accent-color: var(--color-accent);
+}
