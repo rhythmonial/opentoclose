@@ -5,7 +5,8 @@ import { loadPdfjs } from "@/lib/pdfjs";
 // the page (top-left origin), so they work at any render size.
 export type ContractBlank = {
   page: number;
-  kind: "field" | "underscore" | "line";
+  // "manual" boxes are ones the client drew while reviewing.
+  kind: "field" | "underscore" | "line" | "manual";
   x: number;
   y: number;
   width: number;
@@ -338,7 +339,7 @@ function sameRow(t: TextBox, blank: Box) {
 // The same spot often shows up twice (a field drawn over a line, or
 // underscores with a line under them); keep one, preferring real fields.
 function dedupe(found: Found[]) {
-  const rank = { field: 0, underscore: 1, line: 2 } as const;
+  const rank = { field: 0, underscore: 1, line: 2, manual: 3 } as const;
   const sorted = [...found].sort((a, b) => rank[a.kind] - rank[b.kind]);
   const kept: Found[] = [];
   for (const blank of sorted) {

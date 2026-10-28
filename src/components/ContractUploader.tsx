@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { openPdf } from "@/lib/pdfjs";
 import { analyzeContract, type ContractAnalysis } from "@/lib/contractBlanks";
 import { saveContractDocument } from "@/app/configurator/upload_your_contract_docs/actions";
-import { ContractPreview } from "@/components/ContractPreview";
+import { ContractReviewer } from "@/components/ContractReviewer";
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
@@ -182,8 +182,7 @@ export function ContractUploader({
               <span className="text-sm text-danger">{item.error}</span>
             ) : item.status === "done" && item.analysis ? (
               <span className="text-sm text-ink-soft">
-                {item.analysis.pageCount} page{item.analysis.pageCount === 1 ? "" : "s"} &middot;{" "}
-                {item.analysis.blanks.length} blank{item.analysis.blanks.length === 1 ? "" : "s"} found
+                {item.analysis.pageCount} page{item.analysis.pageCount === 1 ? "" : "s"}
               </span>
             ) : (
               <span className="text-sm text-ink-faint">{item.progress ?? "Waiting…"}</span>
@@ -196,15 +195,15 @@ export function ContractUploader({
             </p>
           )}
           {item.status === "done" && item.analysis?.hasText && item.bytes && (
-            <details className="mt-3">
+            <details open className="mt-3">
               <summary className="cursor-pointer text-sm font-semibold text-accent">
-                Review blanks
+                Review pages
               </summary>
               <div className="mt-3">
-                <ContractPreview
+                <ContractReviewer
                   source={item.bytes}
-                  blanks={item.analysis.blanks}
                   pageCount={item.analysis.pageCount}
+                  initialBlanks={item.analysis.blanks}
                 />
               </div>
             </details>

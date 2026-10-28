@@ -56,6 +56,10 @@ export default async function UploadContractDocsPage() {
             60 * 60,
           )
       : { data: [] };
+  // Scans can't be reviewed; everything else needs every page confirmed.
+  const toReview = (docs ?? []).filter((d) => !d.is_scanned && !d.reviewed_at);
+  const firstToReview = toReview[0];
+
   const urlByPath = new Map(
     (signed ?? []).map((s) => [s.path, s.signedUrl] as const),
   );
@@ -112,6 +116,9 @@ export default async function UploadContractDocsPage() {
               {docs.map((doc) => (
                 <SavedContractDoc
                   key={doc.id}
+                  id={doc.id}
+                  confirmedPages={doc.confirmed_pages}
+                  defaultOpen={doc.id === firstToReview?.id}
                   fileName={doc.file_name}
                   url={urlByPath.get(doc.storage_path) ?? null}
                   pageCount={doc.page_count ?? 0}
@@ -132,13 +139,24 @@ export default async function UploadContractDocsPage() {
               ))}
             </div>
 
-            <form action={finishContractDocs} className="mt-6 flex justify-center">
+            <form
+              action={finishContractDocs}
+              className="mt-6 flex flex-col items-center gap-2"
+            >
               <button
                 type="submit"
-                className="rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white"
+                disabled={toReview.length > 0}
+                className="rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
               >
                 I&rsquo;m Done Uploading
               </button>
+              {toReview.length > 0 && (
+                <span className="text-xs text-ink-faint">
+                  Confirm every page of{" "}
+                  {toReview.length === 1 ? "your document" : `all ${toReview.length} documents`}{" "}
+                  to finish.
+                </span>
+              )}
             </form>
           </section>
         )}

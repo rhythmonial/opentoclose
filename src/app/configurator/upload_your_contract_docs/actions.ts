@@ -116,3 +116,57 @@ export async function finishContractDocs() {
 
   redirect("/portal");
 }
+
+const KINDS = new Set(["field", "underscore", "line", "manual"]);
+const clamp = (n: unknown) => Math.min(1, Math.max(0, Number(n) || 0));
+
+// Saves a client's review of one document: the boxes after their edits and
+// which pages they've confirmed. Once every page is confirmed the document
+// counts as reviewed.
+export async function saveContractReview(input: {
+  id: string;
+  blanks: ContractBlank[];
+  confirmedPages: number[];
+}): Promise<SaveResult> {
+  const supabase = await createClient();
+
+  const { data: doc } = await supabase
+    .from("contract_documents")
+    .select("page_count")
+    .eq("id", input.id)
+    .single();
+  if (!doc) return { ok: false, error: "Document not found." };
+  const pages = doc.page_count ?? 0;
+
+  const blanks: ContractBlank[] = input.blanks
+    .slice(0, 3000)
+    .filter((b) => KINDS.has(b.kind) && b.page >= 1 && b.page <= pages)
+    .map((b) => ({
+      page: Math.trunc(b.page),
+      kind: b.kind,
+      x: clamp(b.x),
+      y: clamp(b.y),
+      width: clamp(b.width),
+      height: clamp(b.height),
+      label: String(b.label ?? "").slice(0, 120),
+      after: String(b.after ?? "").slice(0, 120),
+      ...(b.fieldName ? { fieldName: String(b.fieldName).slice(0, 120) } : {}),
+    }));
+  const confirmed = [...new Set(input.confirmedPages.map(Math.trunc))]
+    .filter((n) => n >= 1 && n <= pages)
+    .sort((a, b) => a - b);
+
+  const { error } = await supabase
+    .from("contract_documents")
+    .update({
+      blanks,
+      blank_count: blanks.length,
+      confirmed_pages: confirmed,
+      reviewed_at: pages > 0 && confirmed.length === pages ? new Date().toISOString() : null,
+    })
+    .eq("id", input.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(PAGE);
+  return { ok: true };
+}

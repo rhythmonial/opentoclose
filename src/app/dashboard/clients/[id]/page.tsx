@@ -287,7 +287,7 @@ export default async function ClientDetailPage({
           </span>
           <span className="text-xs text-ink-faint">
             {contractDocs && contractDocs.length > 0
-              ? `${contractDocs.reduce((n, d) => n + d.blank_count, 0)} blanks found`
+              ? `${contractDocs.filter((d) => d.reviewed_at).length} of ${contractDocs.length} reviewed`
               : "None uploaded yet"}
           </span>
         </summary>
@@ -296,6 +296,8 @@ export default async function ClientDetailPage({
             {contractDocs.map((doc) => (
               <SavedContractDoc
                 key={doc.id}
+                id={doc.id}
+                confirmedPages={doc.confirmed_pages}
                 fileName={doc.file_name}
                 url={contractUrlByPath.get(doc.storage_path) ?? null}
                 pageCount={doc.page_count ?? 0}

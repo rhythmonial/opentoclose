@@ -135,12 +135,14 @@ export type Database = {
           blank_count: number
           blanks: Json
           client_account_id: string
+          confirmed_pages: number[]
           created_at: string
           file_name: string
           file_size: number | null
           id: string
           is_scanned: boolean
           page_count: number | null
+          reviewed_at: string | null
           storage_path: string
           uploaded_by: string | null
         }
@@ -148,12 +150,14 @@ export type Database = {
           blank_count?: number
           blanks?: Json
           client_account_id: string
+          confirmed_pages?: number[]
           created_at?: string
           file_name: string
           file_size?: number | null
           id?: string
           is_scanned?: boolean
           page_count?: number | null
+          reviewed_at?: string | null
           storage_path: string
           uploaded_by?: string | null
         }
@@ -161,12 +165,14 @@ export type Database = {
           blank_count?: number
           blanks?: Json
           client_account_id?: string
+          confirmed_pages?: number[]
           created_at?: string
           file_name?: string
           file_size?: number | null
           id?: string
           is_scanned?: boolean
           page_count?: number | null
+          reviewed_at?: string | null
           storage_path?: string
           uploaded_by?: string | null
         }
