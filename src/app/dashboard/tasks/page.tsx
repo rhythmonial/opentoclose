@@ -453,6 +453,28 @@ function StepEditPanel({
                 stepId={step.id}
                 currentName={step.title}
               />
+              <a
+                href={stepClientHref(step)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="View as the client sees it"
+                aria-label="View as the client sees it"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-md align-middle text-ink-faint hover:bg-bg hover:text-ink"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </a>
               <span className="ml-1 rounded-full bg-accent-soft px-2 py-0.5 align-middle text-[10px] font-bold uppercase font-caption tracking-wide text-accent">
                 {step.step_type}
               </span>
@@ -470,56 +492,12 @@ function StepEditPanel({
             <div className="flex shrink-0 items-center gap-2 sm:hidden">
               {moveSelect}
               <PublishToggle stepId={step.id} value={step.is_published} />
-              <a
-                href={stepClientHref(step)}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="View as the client sees it"
-                aria-label="View as the client sees it"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border text-ink"
-              >
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </a>
             </div>
           </div>
         </div>
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
           {moveSelect}
           <PublishToggle stepId={step.id} value={step.is_published} />
-          <a
-            href={stepClientHref(step)}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View as the client sees it"
-            aria-label="View as the client sees it"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border text-ink"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </a>
         </div>
       </summary>
 
