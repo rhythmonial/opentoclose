@@ -6,6 +6,7 @@ import { OwnerGuruFields } from "@/components/OwnerGuruFields";
 import { StatesServicedField } from "@/components/StatesServicedField";
 import { normalizeStateName } from "@/lib/usStates";
 import { submitSetupInitiation } from "./actions";
+import { getSandboxTier } from "@/lib/devSandbox";
 
 const COMPANY_STRUCTURES = [
   "Brokerage",
@@ -18,9 +19,9 @@ const COMPANY_STRUCTURES = [
 export default async function SetupInitiationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; plan?: string }>;
+  searchParams: Promise<{ error?: string; plan?: string; tested?: string }>;
 }) {
-  const { error, plan } = await searchParams;
+  const { error, plan, tested } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,6 +45,7 @@ export default async function SetupInitiationPage({
   ]);
 
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
+  const sandboxTier = isStaff ? await getSandboxTier() : null;
 
   const { data: account } = profile?.client_account_id
     ? await supabase
@@ -67,16 +69,29 @@ export default async function SetupInitiationPage({
     <main className="flex flex-1 items-center justify-center bg-bg px-4 py-12">
       <div className="w-full max-w-2xl">
         <Link
-          href={isStaff ? "/dashboard/tasks" : "/home"}
+          href={isStaff ? (sandboxTier ? "/portal" : "/dashboard/tasks") : "/home"}
           className="text-sm font-medium text-accent"
         >
-          &larr; {isStaff ? "Back to editor" : "Back to your dashboard"}
+          &larr;{" "}
+          {isStaff
+            ? sandboxTier
+              ? "Back to your setup"
+              : "Back to editor"
+            : "Back to your dashboard"}
         </Link>
 
         {isStaff && (
           <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
-            Previewing this step the way a client sees it &mdash; actions
-            are disabled here.
+            Test mode &mdash; fill this out and submit to try it. Nothing is
+            saved and there&rsquo;s no checkout.
+          </div>
+        )}
+
+        {isStaff && tested && (
+          <div className="mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success">
+            Test submission received. A real client would now go to checkout
+            for {tested === "diy" ? "DIY ($19)" : "Setup ($999)"}
+            {sandboxTier ? ", and this step is marked complete in your sandbox." : "."}
           </div>
         )}
 
@@ -97,7 +112,7 @@ export default async function SetupInitiationPage({
           action={submitSetupInitiation}
           className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2"
         >
-        <fieldset disabled={isStaff} className="contents">
+        <fieldset className="contents">
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">
               Business, Brokerage, or Team Name
