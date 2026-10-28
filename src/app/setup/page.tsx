@@ -5,6 +5,7 @@ import { ToolsQuestions } from "@/components/ToolsQuestions";
 import { OwnerGuruFields } from "@/components/OwnerGuruFields";
 import { StatesServicedField } from "@/components/StatesServicedField";
 import { PlanChoice } from "@/components/PlanChoice";
+import { RevealWhenFilled } from "@/components/RevealWhenFilled";
 import { normalizeStateName } from "@/lib/usStates";
 import { submitSetupInitiation } from "./actions";
 import { getSandboxTier } from "@/lib/devSandbox";
@@ -173,87 +174,99 @@ export default async function SetupInitiationPage({
             defaultSame={existing?.guru_same_as_owner ?? false}
           />
 
-          <h2 className="mt-2 text-[15px] font-bold text-ink sm:col-span-2">
-            Your business
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-3">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-ink">
-                # of under contract
-              </span>
-              <input
-                name="transactions_under_contract"
-                type="number"
-                min={0}
-                defaultValue={existing?.transactions_under_contract ?? ""}
-                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+          <RevealWhenFilled
+            fields={["guru_email"]}
+            initiallyShown={Boolean(existing?.guru_email)}
+          >
+            <h2 className="mt-2 text-[15px] font-bold text-ink sm:col-span-2">
+              Your business
+            </h2>
+            <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-3">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-ink">
+                  # of under contract
+                </span>
+                <input
+                  name="transactions_under_contract"
+                  type="number"
+                  min={0}
+                  defaultValue={existing?.transactions_under_contract ?? ""}
+                  className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-ink">
+                  # of closed this month
+                </span>
+                <input
+                  name="transactions_per_month"
+                  type="number"
+                  min={0}
+                  defaultValue={existing?.transactions_per_month ?? ""}
+                  className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-ink">
+                  # of TCs on your team
+                </span>
+                <input
+                  name="tc_count"
+                  type="number"
+                  min={0}
+                  defaultValue={existing?.tc_count ?? ""}
+                  className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
+                />
+              </label>
+            </div>
+              <StatesServicedField
+                defaultStates={
+                  existing?.states_serviced
+                    ? existing.states_serviced
+                        .split(",")
+                        .map((s) => normalizeStateName(s.trim()))
+                        .filter(Boolean)
+                    : []
+                }
+                defaultPriorityState={normalizeStateName(
+                  existing?.priority_state ?? "",
+                )}
               />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-ink">
-                # of closed this month
-              </span>
-              <input
-                name="transactions_per_month"
-                type="number"
-                min={0}
-                defaultValue={existing?.transactions_per_month ?? ""}
-                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-ink">
-                # of TCs on your team
-              </span>
-              <input
-                name="tc_count"
-                type="number"
-                min={0}
-                defaultValue={existing?.tc_count ?? ""}
-                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-              />
-            </label>
-          </div>
-            <StatesServicedField
-              defaultStates={
-                existing?.states_serviced
-                  ? existing.states_serviced
-                      .split(",")
-                      .map((s) => normalizeStateName(s.trim()))
-                      .filter(Boolean)
-                  : []
-              }
-              defaultPriorityState={normalizeStateName(
-                existing?.priority_state ?? "",
-              )}
+          </RevealWhenFilled>
+
+          <RevealWhenFilled
+            fields={["guru_email", "states_serviced"]}
+            initiallyShown={Boolean(
+              existing?.guru_email && existing.states_serviced,
+            )}
+          >
+            <h2 className="mt-2 text-[15px] font-bold text-ink sm:col-span-2">
+              Your tools
+            </h2>
+            <ToolsQuestions
+              defaultEsign={existing?.esign_platform ?? ""}
+              defaultEsignOther={existing?.esign_other ?? ""}
+              defaultTms={existing?.tms ?? ""}
+              defaultEmailProvider={existing?.email_provider ?? ""}
             />
 
-          <h2 className="mt-2 text-[15px] font-bold text-ink sm:col-span-2">
-            Your tools
-          </h2>
-          <ToolsQuestions
-            defaultEsign={existing?.esign_platform ?? ""}
-            defaultEsignOther={existing?.esign_other ?? ""}
-            defaultTms={existing?.tms ?? ""}
-            defaultEmailProvider={existing?.email_provider ?? ""}
-          />
+            <PlanChoice
+              defaultPlan={defaultEngagementType}
+              defaultOtcUsername={existing?.otc_username ?? ""}
+              otcPasswordSaved={existing?.otc_password_set ?? false}
+            />
 
-          <PlanChoice
-            defaultPlan={defaultEngagementType}
-            defaultOtcUsername={existing?.otc_username ?? ""}
-            otcPasswordSaved={existing?.otc_password_set ?? false}
-          />
-
-          <button
-            type="submit"
-            className="mt-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 sm:col-span-2"
-          >
-            {hasPaidPlan
-              ? isUpdate
-                ? "Save changes"
-                : "Submit"
-              : "Continue to payment"}
-          </button>
+            <button
+              type="submit"
+              className="mt-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 sm:col-span-2"
+            >
+              {hasPaidPlan
+                ? isUpdate
+                  ? "Save changes"
+                  : "Submit"
+                : "Continue to payment"}
+            </button>
+          </RevealWhenFilled>
         </fieldset>
         </form>
       </div>
