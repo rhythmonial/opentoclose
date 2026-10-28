@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import {
   DndContext,
   closestCenter,
@@ -24,6 +24,9 @@ export function SortableGroup({
   items: { id: string; node: ReactNode }[];
   onReorder: (orderedIds: string[]) => void | Promise<void>;
 }) {
+  // A stable id keeps dnd-kit's accessibility ids the same on server and
+  // client, avoiding a hydration mismatch.
+  const dndId = useId();
   const idsKey = items.map((i) => i.id).join(",");
   const [trackedKey, setTrackedKey] = useState(idsKey);
   const [order, setOrder] = useState(items.map((i) => i.id));
@@ -51,6 +54,7 @@ export function SortableGroup({
 
   return (
     <DndContext
+      id={dndId}
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragEnd={handleDragEnd}

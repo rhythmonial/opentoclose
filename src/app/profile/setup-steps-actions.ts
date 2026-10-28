@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import type { TablesUpdate } from "@/lib/supabase/types";
 
 function revalidateAll() {
   revalidatePath("/dashboard/tasks");
@@ -51,24 +52,37 @@ export async function updateStep(formData: FormData) {
   const supabase = await createClient();
   const id = String(formData.get("id"));
 
-  await supabase
-    .from("setup_steps")
-    .update({
-      phase: String(formData.get("phase") ?? "") || null,
-      section: String(formData.get("section")),
-      title: String(formData.get("title")),
-      description: String(formData.get("description") ?? "") || null,
-      instructions: String(formData.get("instructions") ?? "") || null,
-      step_type: String(formData.get("step_type")) as
-        | "lesson"
-        | "form"
-        | "link"
-        | "configurator",
-      video_url: String(formData.get("video_url") ?? "").trim() || null,
-      link_url: String(formData.get("link_url") ?? "").trim() || null,
-      estimated_hours: parseHours(formData.get("estimated_hours")),
-    })
-    .eq("id", id);
+  // Only fields present on the edit form are written, so fields edited
+  // elsewhere (title via rename, pillar/section via move) aren't blanked.
+  const text = (key: string) => String(formData.get(key) ?? "").trim() || null;
+  const update: TablesUpdate<"setup_steps"> = {};
+  if (formData.has("step_type")) {
+    update.step_type = String(formData.get("step_type")) as NonNullable<
+      TablesUpdate<"setup_steps">["step_type"]
+    >;
+  }
+  if (formData.has("description")) update.description = text("description");
+  if (formData.has("instructions")) update.instructions = text("instructions");
+  if (formData.has("video_url")) update.video_url = text("video_url");
+  if (formData.has("link_url")) update.link_url = text("link_url");
+  if (formData.has("title")) update.title = String(formData.get("title"));
+  if (formData.has("phase")) update.phase = text("phase");
+  if (formData.has("section")) update.section = String(formData.get("section"));
+  if (formData.has("estimated_hours")) {
+    update.estimated_hours = parseHours(formData.get("estimated_hours"));
+  }
+
+  await supabase.from("setup_steps").update(update).eq("id", id);
+
+  revalidateAll();
+}
+
+export async function renameStep(stepId: string, newTitle: string) {
+  const title = newTitle.trim();
+  if (!title) return;
+
+  const supabase = await createClient();
+  await supabase.from("setup_steps").update({ title }).eq("id", stepId);
 
   revalidateAll();
 }

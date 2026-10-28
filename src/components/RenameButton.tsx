@@ -1,22 +1,28 @@
 "use client";
 
 import { useTransition } from "react";
-import { renamePillar, renameSection } from "@/app/profile/setup-steps-actions";
+import {
+  renamePillar,
+  renameSection,
+  renameStep,
+} from "@/app/profile/setup-steps-actions";
 
 export function RenameButton({
   kind,
-  path,
-  phase,
+  path = "custom",
+  phase = "",
   section,
+  stepId,
   currentName,
-  siblingNames,
+  siblingNames = [],
 }: {
-  kind: "pillar" | "section";
-  path: "custom" | "express";
-  phase: string;
+  kind: "pillar" | "section" | "lesson";
+  path?: "custom" | "express";
+  phase?: string;
   section?: string;
+  stepId?: string;
   currentName: string;
-  siblingNames: string[];
+  siblingNames?: string[];
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -43,6 +49,8 @@ export function RenameButton({
         startTransition(async () => {
           if (kind === "pillar") {
             await renamePillar(path, phase, next);
+          } else if (kind === "lesson") {
+            await renameStep(stepId ?? "", next);
           } else {
             await renameSection(path, phase, section ?? "", next);
           }

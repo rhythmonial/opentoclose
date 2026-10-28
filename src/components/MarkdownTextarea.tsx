@@ -25,11 +25,13 @@ export function MarkdownTextarea({
   defaultValue = "",
   rows = 3,
   placeholder,
+  form,
 }: {
   name: string;
   defaultValue?: string;
   rows?: number;
   placeholder?: string;
+  form?: string;
 }) {
   const [value, setValue] = useState(defaultValue);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -131,6 +133,7 @@ export function MarkdownTextarea({
       <textarea
         ref={ref}
         name={name}
+        form={form}
         rows={rows}
         value={value}
         onChange={(e) => setValue(e.target.value)}

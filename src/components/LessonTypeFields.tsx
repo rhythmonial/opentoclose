@@ -14,11 +14,13 @@ export function LessonTypeFields({
   defaultLinkUrl,
   defaultVideoUrl,
   stepKey,
+  showVideoUrl = true,
 }: {
   defaultType: string;
   defaultLinkUrl?: string | null;
   defaultVideoUrl?: string | null;
   stepKey?: string;
+  showVideoUrl?: boolean;
 }) {
   const [type, setType] = useState(defaultType);
 
@@ -53,7 +55,7 @@ export function LessonTypeFields({
         </label>
       )}
 
-      {type === "lesson" && (
+      {showVideoUrl && type === "lesson" && (
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-soft">Video URL</span>
           <input

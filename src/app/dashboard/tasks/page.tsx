@@ -289,8 +289,6 @@ export default async function TasksPage({
                                     resources={
                                       resourcesByStep.get(step.id) ?? []
                                     }
-                                    phases={phases}
-                                    sectionsByPhase={sectionsByPhase}
                                     sectionTargets={sectionTargets}
                                   />
                                 ),
@@ -542,14 +540,10 @@ export default async function TasksPage({
 function StepEditPanel({
   step,
   resources,
-  phases,
-  sectionsByPhase,
   sectionTargets,
 }: {
   step: SetupStep;
   resources: StepResource[];
-  phases: string[];
-  sectionsByPhase: Record<string, string[]>;
   sectionTargets: SectionTarget[];
 }) {
   const moveSelect = (
@@ -569,7 +563,12 @@ function StepEditPanel({
           <div className="flex items-start justify-between gap-3 sm:block">
             <div className="text-sm font-bold text-ink">
               {step.title}
-              <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 align-middle text-[10px] font-bold uppercase font-caption tracking-wide text-accent">
+              <RenameButton
+                kind="lesson"
+                stepId={step.id}
+                currentName={step.title}
+              />
+              <span className="ml-1 rounded-full bg-accent-soft px-2 py-0.5 align-middle text-[10px] font-bold uppercase font-caption tracking-wide text-accent">
                 {step.step_type}
               </span>
               {step.is_optional && (
@@ -668,77 +667,65 @@ function StepEditPanel({
       <form
         id={`step-form-${step.id}`}
         action={updateStep}
-        className="mt-4 grid grid-cols-1 gap-3 border-t border-border-soft pt-4 sm:grid-cols-2"
+        className="mt-3 grid grid-cols-1 gap-3 border-t border-border-soft pt-3 sm:grid-cols-2"
       >
         <input type="hidden" name="id" value={step.id} />
-        <PhaseSectionPicker
-          phases={phases}
-          sectionsByPhase={sectionsByPhase}
-          defaultPhase={step.phase ?? ""}
-          defaultSection={step.section}
-        />
         <LessonTypeFields
           defaultType={step.step_type}
           defaultLinkUrl={step.link_url}
           defaultVideoUrl={step.video_url}
           stepKey={step.key}
+          showVideoUrl={false}
         />
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-ink-soft">Title</span>
-          <input
-            name="title"
-            defaultValue={step.title}
-            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-          />
-        </label>
-        <label className="flex flex-col gap-1.5">
+        <label className="flex flex-col gap-1.5 sm:col-span-2">
           <span className="text-xs font-medium text-ink-soft">Description</span>
           <MarkdownTextarea
             name="description"
-            rows={2}
+            rows={3}
             defaultValue={step.description ?? ""}
-          />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-ink-soft">
-            Hours if our team does it (for DIY/Free purchase)
-          </span>
-          <input
-            name="estimated_hours"
-            type="number"
-            min="0"
-            step="0.25"
-            defaultValue={step.estimated_hours ?? ""}
-            placeholder="Not for sale"
-            className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-          />
-        </label>
-        <label className="flex flex-col gap-1.5 sm:col-span-2">
-          <span className="text-xs font-medium text-ink-soft">
-            Setup Instructions (what the setup team needs to do for this task)
-          </span>
-          <MarkdownTextarea
-            name="instructions"
-            rows={6}
-            defaultValue={step.instructions ?? ""}
           />
         </label>
       </form>
 
-      <div className="mt-4 flex flex-col items-stretch gap-4 border-t border-border-soft pt-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {step.step_type === "lesson" && (
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-ink-soft">Video URL</span>
+            <input
+              form={`step-form-${step.id}`}
+              name="video_url"
+              defaultValue={step.video_url ?? ""}
+              placeholder="https://..."
+              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            />
+          </label>
+        )}
+        <div className="min-w-0">
           <span className="text-xs font-medium text-ink-soft">
             Resource links
           </span>
-          <div className="mt-2">
+          <div className="mt-1.5">
             <StepResourcesEditor
               stepId={step.id}
               initialResources={resources}
             />
           </div>
         </div>
+      </div>
 
-        <div className="flex items-center justify-end gap-2 sm:shrink-0">
+      <label className="mt-3 flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-ink-soft">
+          Setup Instructions (what the setup team needs to do for this task)
+        </span>
+        <MarkdownTextarea
+          name="instructions"
+          rows={6}
+          defaultValue={step.instructions ?? ""}
+          form={`step-form-${step.id}`}
+        />
+      </label>
+
+      <div className="mt-3 flex items-center justify-end gap-2 border-t border-border-soft pt-3">
           <SaveStepButton formId={`step-form-${step.id}`} />
           <form action={deleteStep}>
             <input type="hidden" name="id" value={step.id} />
@@ -765,7 +752,6 @@ function StepEditPanel({
               </svg>
             </ConfirmSubmitButton>
           </form>
-        </div>
       </div>
     </details>
   );
