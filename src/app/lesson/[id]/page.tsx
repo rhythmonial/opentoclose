@@ -4,7 +4,8 @@ import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
-import { getVideoEmbedUrl } from "@/lib/videoEmbed";
+import { getVideoSource } from "@/lib/videoEmbed";
+import { VideoPlayer } from "@/components/VideoPlayer";
 import {
   effectiveOwner,
   type EngagementType,
@@ -190,7 +191,7 @@ export default async function LessonPage({
   // (locked if Free) — only a plain, non-sandboxing staff preview always
   // sees everything unlocked.
   const canViewContent = (isStaff && !isSandboxing) || !isFreeTier;
-  const embedUrl = step.video_url ? getVideoEmbedUrl(step.video_url) : null;
+  const videoSource = step.video_url ? getVideoSource(step.video_url) : null;
   const isApproved = status === "approved";
 
   const isPaidStep = step.key === "setup_paid";
@@ -306,15 +307,12 @@ export default async function LessonPage({
                   Sign up to watch this video
                 </span>
               </div>
-            ) : embedUrl ? (
-              <div className="aspect-video overflow-hidden rounded-xl border border-border bg-black">
-                <iframe
-                  src={embedUrl}
-                  className="h-full w-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
+            ) : videoSource ? (
+              <VideoPlayer
+                source={videoSource}
+                thumbnail={step.video_thumbnail_url}
+                title={step.title}
+              />
             ) : (
               <a
                 href={step.video_url}

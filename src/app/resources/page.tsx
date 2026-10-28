@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { StaffNav } from "@/components/StaffNav";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
-import { getVideoEmbedUrl } from "@/lib/videoEmbed";
+import { getVideoSource } from "@/lib/videoEmbed";
+import { VideoPlayer } from "@/components/VideoPlayer";
 import type { EngagementType } from "@/lib/stepOwnership";
 import {
   RESOURCE_CATEGORIES,
@@ -173,7 +174,7 @@ export default async function ResourcesPage({
               </details>
             ))
           : (items ?? []).map((item) => {
-              const embedUrl = item.url ? getVideoEmbedUrl(item.url) : null;
+              const videoSource = item.url ? getVideoSource(item.url) : null;
 
               return (
                 <div
@@ -206,15 +207,12 @@ export default async function ResourcesPage({
                         </svg>
                         Locked
                       </div>
-                    ) : embedUrl ? (
-                      <div className="mt-3 aspect-video max-w-3xl overflow-hidden rounded-lg border border-border bg-black">
-                        <iframe
-                          src={embedUrl}
-                          className="h-full w-full"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      </div>
+                    ) : videoSource ? (
+                      <VideoPlayer
+                        source={videoSource}
+                        title={item.title}
+                        className="mt-3 max-w-3xl"
+                      />
                     ) : (
                       <a
                         href={item.url}

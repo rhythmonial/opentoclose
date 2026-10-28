@@ -64,6 +64,9 @@ export async function updateStep(formData: FormData) {
   if (formData.has("description")) update.description = text("description");
   if (formData.has("instructions")) update.instructions = text("instructions");
   if (formData.has("video_url")) update.video_url = text("video_url");
+  if (formData.has("video_thumbnail_url")) {
+    update.video_thumbnail_url = text("video_thumbnail_url");
+  }
   if (formData.has("link_url")) update.link_url = text("link_url");
   if (formData.has("title")) update.title = String(formData.get("title"));
   if (formData.has("phase")) update.phase = text("phase");

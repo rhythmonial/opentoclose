@@ -599,6 +599,7 @@ export type Database = {
           step_type: Database["public"]["Enums"]["step_type"]
           title: string
           video_url: string | null
+          video_thumbnail_url: string | null
         }
         Insert: {
           completed_by?: string
@@ -619,6 +620,7 @@ export type Database = {
           step_type: Database["public"]["Enums"]["step_type"]
           title: string
           video_url?: string | null
+          video_thumbnail_url?: string | null
         }
         Update: {
           completed_by?: string
@@ -639,6 +641,7 @@ export type Database = {
           step_type?: Database["public"]["Enums"]["step_type"]
           title?: string
           video_url?: string | null
+          video_thumbnail_url?: string | null
         }
         Relationships: []
       }

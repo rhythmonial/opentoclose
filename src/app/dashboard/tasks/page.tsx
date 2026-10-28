@@ -688,16 +688,30 @@ function StepEditPanel({
 
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {step.step_type === "lesson" && (
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-ink-soft">Video URL</span>
-            <input
-              form={`step-form-${step.id}`}
-              name="video_url"
-              defaultValue={step.video_url ?? ""}
-              placeholder="https://..."
-              className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-ink-soft">Video URL</span>
+              <input
+                form={`step-form-${step.id}`}
+                name="video_url"
+                defaultValue={step.video_url ?? ""}
+                placeholder="YouTube, Vimeo, Loom, Google Drive, or .mp4 link"
+                className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-ink-soft">
+                Video thumbnail URL (optional)
+              </span>
+              <input
+                form={`step-form-${step.id}`}
+                name="video_thumbnail_url"
+                defaultValue={step.video_thumbnail_url ?? ""}
+                placeholder="Image link shown before the video plays"
+                className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+              />
+            </label>
+          </div>
         )}
         <div className="min-w-0">
           <span className="text-xs font-medium text-ink-soft">
