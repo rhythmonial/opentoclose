@@ -54,8 +54,8 @@ export function PlanChoice({
       </div>
       <p className="text-xs text-ink-soft">
         {plan === "diy"
-          ? "You complete every step yourself, using our checklist and videos as your guide. You can upgrade to Setup later."
-          : "This is a 10-hour bundle which covers both your 1-on-1 Zoom sessions and behind-the-scenes implementation work. Unlike flat-fee services, our approach is transparent and flexible — you’re only billed for actual hours worked. We believe this is the fairest way to deliver a setup that’s truly customized to your business, without overcharging for unused hours or vague deliverables."}
+          ? "For the DIY setup, you complete every step yourself, using our checklist and videos as your guide. You can upgrade to Setup later."
+          : "The Setup is a 10-hour bundle which covers both your 1-on-1 Zoom sessions and behind-the-scenes implementation work. Unlike flat-fee services, our approach is transparent and flexible — you’re only billed for actual hours worked. We believe this is the fairest way to deliver a setup that’s truly customized to your business, without overcharging for unused hours or vague deliverables."}
       </p>
 
       {plan === "custom" && (
