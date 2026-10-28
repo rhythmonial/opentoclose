@@ -17,11 +17,10 @@ type Drag = {
   hadSelection: boolean;
 };
 
-// A click without a drag adds a box this size, sitting on the click point.
-const DEFAULT_W = 0.2;
-const DEFAULT_H = 0.022;
-// Checkboxes are about 11pt square on a letter-size page.
-const CHECKBOX_W = 0.018;
+// Sizes in points: a blank line's box is as tall as the ones detection
+// adds (see contractBlanks), and a click adds a checkbox this big.
+const LINE_PTS = 12;
+const CHECKBOX_PTS = 11;
 const MIN_W = 0.01;
 const MIN_H = 0.008;
 
@@ -67,10 +66,8 @@ export function ContractReviewer({
   const [blanks, setBlanks] = useState(initialBlanks);
   const [confirmed, setConfirmed] = useState(initialConfirmed);
   const [page, setPage] = useState(1);
-  // What a click on the page adds.
-  const [addType, setAddType] = useState<"text" | "checkbox">("text");
-  // Page height / width, to keep added checkboxes square.
-  const [aspect, setAspect] = useState(11 / 8.5);
+  // Page size in points (letter until the page loads), for sizing new boxes.
+  const [pageSize, setPageSize] = useState({ width: 612, height: 792 });
   const [selected, setSelected] = useState<number | null>(null);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -111,7 +108,7 @@ export function ContractReviewer({
       const viewport = p.getViewport({ scale: target / base.width });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      setAspect(viewport.height / viewport.width);
+      setPageSize({ width: base.width, height: base.height });
       task = p.render({ canvas, viewport });
     });
     return () => task?.cancel();
@@ -176,7 +173,7 @@ export function ContractReviewer({
             {
               page,
               kind: "manual" as const,
-              type: addType,
+              type: "text" as const,
               x,
               y,
               width: 0,
@@ -208,12 +205,15 @@ export function ContractReviewer({
     const o = d.origin;
     let box = { x: o.x, y: o.y, width: o.width, height: o.height };
 
+    const isText = o.type !== "checkbox";
     if (d.mode === "draw") {
+      // Dragging draws a blank line: only its length follows the pointer.
+      const h = LINE_PTS / pageSize.height;
       box = {
         x: Math.min(d.startX, x),
-        y: Math.min(d.startY, y),
+        y: clamp(d.startY - h * 0.8, 0, 1 - h),
         width: Math.abs(dx),
-        height: Math.abs(dy),
+        height: h,
       };
     } else if (d.mode === "move") {
       box.x = clamp(o.x + dx, 0, 1 - o.width);
@@ -226,11 +226,14 @@ export function ContractReviewer({
         box.width = right - box.x;
       }
       if (d.handle.includes("e")) box.width = clamp(o.width + dx, MIN_W, 1 - o.x);
-      if (d.handle.includes("n")) {
+      // Blank lines only get longer or shorter, never taller.
+      if (!isText && d.handle.includes("n")) {
         box.y = clamp(o.y + dy, 0, bottom - MIN_H);
         box.height = bottom - box.y;
       }
-      if (d.handle.includes("s")) box.height = clamp(o.height + dy, MIN_H, 1 - o.y);
+      if (!isText && d.handle.includes("s")) {
+        box.height = clamp(o.height + dy, MIN_H, 1 - o.y);
+      }
     }
 
     setBlanks((all) => all.map((b, i) => (i === d.index ? { ...b, ...box } : b)));
@@ -243,37 +246,31 @@ export function ContractReviewer({
     let next = blanks;
     if (d.mode === "draw") {
       const drawn = blanks[d.index];
-      const plainClick = drawn.width < MIN_W && drawn.height < MIN_H;
+      const plainClick = drawn.width < MIN_W;
       if (plainClick && d.hadSelection) {
         setBlanks(blanks.filter((_, i) => i !== d.index));
         setSelected(null);
         return;
       }
-      // A plain click: drop in a standard-size box at that spot (a line
-      // resting on it, or a checkbox centered on it).
+      // A plain click adds a checkbox centered on that spot; a drag has
+      // already drawn a blank line.
       if (plainClick) {
-        const checkbox = drawn.type === "checkbox";
-        const w = checkbox ? CHECKBOX_W : DEFAULT_W;
-        const h = checkbox ? CHECKBOX_W / aspect : DEFAULT_H;
+        const w = CHECKBOX_PTS / pageSize.width;
+        const h = CHECKBOX_PTS / pageSize.height;
         next = blanks.map((b, i) =>
           i === d.index
             ? {
                 ...b,
-                x: clamp(checkbox ? d.startX - w / 2 : d.startX, 0, 1 - w),
-                y: clamp(d.startY - (checkbox ? h / 2 : h * 0.75), 0, 1 - h),
+                type: "checkbox" as const,
+                x: clamp(d.startX - w / 2, 0, 1 - w),
+                y: clamp(d.startY - h / 2, 0, 1 - h),
                 width: w,
                 height: h,
               }
             : b,
         );
-      } else {
-        next = blanks.map((b, i) =>
-          i === d.index
-            ? { ...b, width: Math.max(b.width, MIN_W), height: Math.max(b.height, MIN_H) }
-            : b,
-        );
+        setBlanks(next);
       }
-      setBlanks(next);
     }
     commit(next, confirmed);
   }
@@ -345,44 +342,11 @@ export function ContractReviewer({
 
       <p className="text-sm text-ink-soft">
         Check that every spot someone fills in or checks on this page is
-        highlighted. Missing one? Choose what to add, then click on the page,
-        or click and drag to draw it. Drag a box to move it, drag its edges
-        to stretch it, and select a box then press{" "}
+        highlighted. Missing a checkbox? Click where it is. Missing a blank
+        line? Click and drag along it. Drag a box to move it, drag its ends
+        to make it longer or shorter, and select a box then press{" "}
         <span className="font-semibold">&times;</span> or Delete to remove it.
       </p>
-
-      <div className="flex items-center gap-2 text-xs font-semibold">
-        <span className="text-ink-soft">Clicking adds:</span>
-        {(
-          [
-            { value: "text", label: "Blank line" },
-            { value: "checkbox", label: "Checkbox" },
-          ] as const
-        ).map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            aria-pressed={addType === opt.value}
-            onClick={() => setAddType(opt.value)}
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 ${
-              addType === opt.value
-                ? "border-accent bg-accent text-white"
-                : "border-border bg-surface text-ink-soft"
-            }`}
-          >
-            {opt.value === "text" ? (
-              <svg width="14" height="10" viewBox="0 0 14 10" aria-hidden>
-                <path d="M1 8h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
-            ) : (
-              <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden>
-                <rect x="1" y="1" width="9" height="9" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
-              </svg>
-            )}
-            {opt.label}
-          </button>
-        ))}
-      </div>
 
       <div className="relative overflow-hidden rounded-lg border border-border bg-white">
         {loadError ? (
@@ -426,8 +390,10 @@ export function ContractReviewer({
                     >
                       {isSelected && (
                         <>
-                          {HANDLES.filter(
-                            (h) => !(b.width < 0.04 || b.height < 0.03) || SMALL_CORNERS[h.id],
+                          {/* Blank lines stretch from their ends only;
+                              checkboxes get small corner handles. */}
+                          {HANDLES.filter((h) =>
+                            b.type === "checkbox" ? SMALL_CORNERS[h.id] : h.id === "e" || h.id === "w",
                           ).map((h) => (
                             <span
                               key={h.id}
@@ -437,7 +403,7 @@ export function ContractReviewer({
                               }}
                               style={{ cursor: h.cursor }}
                               className={`absolute rounded-sm border border-white bg-accent ${
-                                b.width < 0.04 || b.height < 0.03
+                                b.type === "checkbox"
                                   ? `h-2 w-2 ${SMALL_CORNERS[h.id]}`
                                   : `h-3 w-3 ${h.className}`
                               }`}
