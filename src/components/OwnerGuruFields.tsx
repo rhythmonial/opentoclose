@@ -90,6 +90,9 @@ export function OwnerGuruFields({
   return (
     <>
       <hr className="my-2 border-border sm:col-span-2" />
+      <h2 className="text-[15px] font-bold text-ink sm:col-span-2">
+        Your Team&rsquo;s Decision Maker
+      </h2>
       <ContactInputs
         prefix="Team Owner"
         label="Team Owner"
