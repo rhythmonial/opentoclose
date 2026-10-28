@@ -119,9 +119,6 @@ export default async function SetupInitiationPage({
           className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2"
         >
         <fieldset className="contents">
-          <h2 className="text-[15px] font-bold text-ink sm:col-span-2">
-            Your Business Details
-          </h2>
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">
               Company Structure

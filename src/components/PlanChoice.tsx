@@ -27,7 +27,7 @@ export function PlanChoice({
         className="grid grid-cols-1 gap-3 sm:grid-cols-2"
       >
         <label className={optionClass}>
-          <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <span className="flex items-center justify-center gap-2 text-sm font-semibold text-ink">
             <input
               type="radio"
               name="engagement_type"
@@ -40,7 +40,7 @@ export function PlanChoice({
           </span>
         </label>
         <label className={optionClass}>
-          <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <span className="flex items-center justify-center gap-2 text-sm font-semibold text-ink">
             <input
               type="radio"
               name="engagement_type"
