@@ -11,7 +11,7 @@ import { MarkdownTextarea } from "@/components/MarkdownTextarea";
 import { SaveStepButton } from "@/components/SaveStepButton";
 import { StepResourcesEditor } from "@/components/StepResourcesEditor";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
-import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { MoveSectionSelect } from "@/components/MoveSectionSelect";
 import { MoveStepSelect, type SectionTarget } from "@/components/MoveStepSelect";
 import { PublishToggle } from "@/components/PublishToggle";
@@ -350,28 +350,7 @@ export default async function TasksPage({
                               name="section"
                               value={section}
                             />
-                            <ConfirmSubmitButton
-                              confirmMessage={`Delete the "${section}" section and all ${sectionSteps.length} task(s) in it? This cannot be undone.`}
-                              title={`Delete the ${section} section`}
-                              className="flex h-7 w-7 items-center justify-center rounded-lg border border-border text-danger"
-                            >
-                              <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M3 6h18" />
-                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                                <path d="M10 11v6" />
-                                <path d="M14 11v6" />
-                              </svg>
-                            </ConfirmSubmitButton>
+                            <ConfirmDeleteButton title={`Delete the ${section} section`} size="sm" />
                           </form>
                           </div>
                         </div>
@@ -414,28 +393,7 @@ export default async function TasksPage({
                       <form action={deletePillar}>
                       <input type="hidden" name="path" value={path} />
                       <input type="hidden" name="phase" value={rawPhase} />
-                      <ConfirmSubmitButton
-                        confirmMessage={`Delete the "${phase}" pillar and all ${phaseSteps.length} task(s) in it? This cannot be undone.`}
-                        title={`Delete the ${phase} pillar`}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-danger"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M3 6h18" />
-                          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                          <path d="M10 11v6" />
-                          <path d="M14 11v6" />
-                        </svg>
-                      </ConfirmSubmitButton>
+                      <ConfirmDeleteButton title={`Delete the ${phase} pillar`} size="md" />
                     </form>
                     </div>
                   </div>
@@ -742,28 +700,7 @@ function StepEditPanel({
           <SaveStepButton formId={`step-form-${step.id}`} />
           <form action={deleteStep}>
             <input type="hidden" name="id" value={step.id} />
-            <ConfirmSubmitButton
-              confirmMessage={`Delete the task "${step.title}"? This cannot be undone.`}
-              title="Delete this task"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-danger"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 6h18" />
-                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                <path d="M10 11v6" />
-                <path d="M14 11v6" />
-              </svg>
-            </ConfirmSubmitButton>
+            <ConfirmDeleteButton title="Delete this task" size="lg" />
           </form>
       </div>
     </details>
