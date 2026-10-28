@@ -53,9 +53,16 @@ export function PlanChoice({
         </label>
       </div>
       <p className="mt-1 text-center text-sm text-ink-soft">
-        {plan === "diy"
-          ? "For the DIY setup, you complete every step yourself, using our checklist and videos as your guide. You can upgrade to Setup later."
-          : "The Setup is a 10-hour bundle which covers both your 1-on-1 Zoom sessions and behind-the-scenes implementation work. Unlike flat-fee services, our approach is transparent and flexible — you’re only billed for actual hours worked. We believe this is the fairest way to deliver a setup that’s truly customized to your business, without overcharging for unused hours or vague deliverables."}
+        {plan === "diy" ? (
+          <>
+            For the DIY setup, you complete every step yourself, using our
+            checklist and videos as your guide.
+            <br />
+            You can upgrade to Setup later.
+          </>
+        ) : (
+          "The Setup is a 10-hour bundle which covers both your 1-on-1 Zoom sessions and behind-the-scenes implementation work. Unlike flat-fee services, our approach is transparent and flexible — you’re only billed for actual hours worked. We believe this is the fairest way to deliver a setup that’s truly customized to your business, without overcharging for unused hours or vague deliverables."
+        )}
       </p>
 
       {plan === "custom" && (
@@ -85,7 +92,7 @@ export function PlanChoice({
               </span>
             )}
           </label>
-          <span className="text-xs text-ink-soft sm:col-span-2">
+          <span className="text-center text-xs text-ink-soft sm:col-span-2">
             Your Open to Close login lets our team sign in and build your
             setup. Only our team can see it.
           </span>
