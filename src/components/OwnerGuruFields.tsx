@@ -29,7 +29,7 @@ function ContactInputs({
     return (
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-ink">
-          {prefix} {title}
+          {`${prefix}'s ${title}`}
         </span>
         <input
           name={names[key]}

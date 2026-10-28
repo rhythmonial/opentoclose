@@ -11,7 +11,7 @@ import { submitSetupInitiation } from "./actions";
 import { getSandboxTier } from "@/lib/devSandbox";
 
 const COMPANY_STRUCTURES = [
-  "Brokerage",
+  "Real Estate Brokerage",
   "Real Estate Team",
   "Independent TC",
   "Team of TC's",
@@ -19,6 +19,7 @@ const COMPANY_STRUCTURES = [
 
 // Earlier answers, so returning clients keep their pick.
 const RENAMED_STRUCTURES: Record<string, string> = {
+  Brokerage: "Real Estate Brokerage",
   "RE Team": "Real Estate Team",
   "TC Team": "Team of TC's",
   "Individual TC": "Independent TC",
