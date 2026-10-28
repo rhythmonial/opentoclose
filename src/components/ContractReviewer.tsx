@@ -61,6 +61,7 @@ export function ContractReviewer({
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "error" | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
@@ -263,6 +264,8 @@ export function ContractReviewer({
       if (nextPage) {
         setPage(nextPage);
         setSelected(null);
+        // Start the next page from its top, not where this one was confirmed.
+        rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }
   }
@@ -273,7 +276,7 @@ export function ContractReviewer({
   const pageConfirmed = confirmed.includes(page);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div ref={rootRef} className="flex scroll-mt-4 flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5">
           {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
