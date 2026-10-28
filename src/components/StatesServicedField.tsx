@@ -47,7 +47,11 @@ export function StatesServicedField({
 
   return (
     <>
-      <div ref={wrapperRef} className="relative flex flex-col gap-1.5">
+      <div
+        ref={wrapperRef}
+        data-states-field
+        className="relative flex flex-col gap-1.5"
+      >
         <span className="text-sm font-medium text-ink">
           What state(s) do you service?
         </span>

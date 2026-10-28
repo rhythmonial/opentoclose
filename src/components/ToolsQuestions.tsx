@@ -42,6 +42,7 @@ export function ToolsQuestions({
         </span>
         <input
           name="tms"
+          required
           defaultValue={defaultTms}
           placeholder="e.g. Open to Close, AFrame, TcDocs"
           className={controlClass}

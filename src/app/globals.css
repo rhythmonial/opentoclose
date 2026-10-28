@@ -48,3 +48,14 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
+
+/* After a blocked submit (see MissingFieldsNotice), outline what's missing.
+   The states dropdown keeps its value in a hidden input, so its button is
+   highlighted instead. */
+form[data-attempted] :is(input, select, textarea):invalid,
+form[data-attempted]
+  [data-states-field]:has(input[name="states_serviced"]:invalid)
+  > button {
+  border-color: var(--color-danger);
+  background-color: #fdf1f0;
+}

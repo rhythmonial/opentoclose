@@ -117,9 +117,16 @@ export function InitiationSummary({
               )
             }
           />
-          <Field label="Under contract" value={initiation.transactions_under_contract} />
-          <Field label="Closed this month" value={initiation.transactions_per_month} />
-          <Field label="TCs on team" value={initiation.tc_count} />
+          {/* No longer asked; still shown for clients who answered earlier. */}
+          {initiation.transactions_under_contract !== null && (
+            <Field label="Under contract" value={initiation.transactions_under_contract} />
+          )}
+          {initiation.transactions_per_month !== null && (
+            <Field label="Closed this month" value={initiation.transactions_per_month} />
+          )}
+          {initiation.tc_count !== null && (
+            <Field label="TCs on team" value={initiation.tc_count} />
+          )}
           <Field
             label="E-sign platform"
             value={
