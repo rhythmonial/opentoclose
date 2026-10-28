@@ -105,6 +105,9 @@ export function OwnerGuruFields({
 
       <hr className="my-2 border-border sm:col-span-2" />
       <div className="flex flex-col gap-2 text-sm text-ink-soft sm:col-span-2">
+        <h2 className="text-[15px] font-bold text-ink">
+          Your Team&rsquo;s OTC Guru
+        </h2>
         <p>
           The &ldquo;OTC Guru (in training)&rdquo; will most likely be someone
           who is in it for the long haul and is serious about the success of
