@@ -122,6 +122,9 @@ export default async function SetupInitiationPage({
           className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2"
         >
         <fieldset className="contents">
+          <h2 className="text-[15px] font-bold text-ink sm:col-span-2">
+            Your Business Details
+          </h2>
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">
               Company Structure
@@ -195,6 +198,10 @@ export default async function SetupInitiationPage({
             defaultSame={existing?.guru_same_as_owner ?? false}
           />
 
+          <hr className="my-2 border-border sm:col-span-2" />
+          <h2 className="text-center text-[15px] font-bold text-ink sm:col-span-2">
+            Your OTC Setup
+          </h2>
           <PlanChoice
             defaultPlan={defaultEngagementType}
             defaultOtcUsername={existing?.otc_username ?? ""}

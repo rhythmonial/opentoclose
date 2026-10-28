@@ -20,7 +20,7 @@ export function PlanChoice({
   const [plan, setPlan] = useState(defaultPlan);
 
   return (
-    <div className="mt-2 flex flex-col gap-1.5 sm:col-span-2">
+    <div className="flex flex-col gap-1.5 sm:col-span-2">
       <span className="text-sm font-medium text-ink">
         How would you like your setup handled?
       </span>
