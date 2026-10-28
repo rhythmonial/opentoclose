@@ -94,8 +94,8 @@ export function OwnerGuruFields({
         Your Team&rsquo;s Decision Maker
       </h2>
       <ContactInputs
-        prefix="Team Owner"
-        label="Team Owner"
+        prefix="Decision Maker"
+        label="Decision Maker"
         names={{
           first: "first_name",
           last: "last_name",
@@ -145,7 +145,7 @@ export function OwnerGuruFields({
             }}
             className="h-4 w-4"
           />
-          OTC Guru is the same as Team Owner
+          OTC Guru is the same as Decision Maker
         </label>
       </div>
       <ContactInputs

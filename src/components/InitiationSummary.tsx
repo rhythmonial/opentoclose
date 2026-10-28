@@ -81,7 +81,7 @@ export function InitiationSummary({
             value={PLAN_LABEL[initiation.engagement_type] ?? initiation.engagement_type}
           />
           <Field
-            label="Team owner"
+            label="Decision maker"
             value={contact(
               initiation.first_name,
               initiation.last_name,
@@ -93,7 +93,7 @@ export function InitiationSummary({
             label="OTC Guru"
             value={
               initiation.guru_same_as_owner
-                ? "Same as team owner"
+                ? "Same as decision maker"
                 : contact(
                     initiation.guru_first_name,
                     initiation.guru_last_name,
