@@ -37,10 +37,6 @@ export function PlanChoice({
             />
             DIY ($19)
           </span>
-          <span className="text-xs text-ink-soft">
-            You complete every step yourself, using our checklist and videos
-            as your guide. You can upgrade to Setup later.
-          </span>
         </label>
         <label className={optionClass}>
           <span className="flex items-center gap-2 text-sm font-semibold text-ink">
@@ -54,11 +50,13 @@ export function PlanChoice({
             />
             Setup ($999)
           </span>
-          <span className="text-xs text-ink-soft">
-            Our team builds the steps assigned to us. A 10-hour bundle.
-          </span>
         </label>
       </div>
+      <p className="text-xs text-ink-soft">
+        {plan === "diy"
+          ? "You complete every step yourself, using our checklist and videos as your guide. You can upgrade to Setup later."
+          : "This is a 10-hour bundle which covers both your 1-on-1 Zoom sessions and behind-the-scenes implementation work. Unlike flat-fee services, our approach is transparent and flexible — you’re only billed for actual hours worked. We believe this is the fairest way to deliver a setup that’s truly customized to your business, without overcharging for unused hours or vague deliverables."}
+      </p>
 
       {plan === "custom" && (
         <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
