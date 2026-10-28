@@ -11,11 +11,17 @@ import { getSandboxTier } from "@/lib/devSandbox";
 
 const COMPANY_STRUCTURES = [
   "Brokerage",
-  "RE Team",
-  "TC Team",
-  "Individual TC",
-  "Individual",
+  "Real Estate Team",
+  "Team of TC's",
+  "Independent TC",
 ];
+
+// Earlier answers, so returning clients keep their pick.
+const RENAMED_STRUCTURES: Record<string, string> = {
+  "RE Team": "Real Estate Team",
+  "TC Team": "Team of TC's",
+  "Individual TC": "Independent TC",
+};
 
 export default async function SetupInitiationPage({
   searchParams,
@@ -121,7 +127,12 @@ export default async function SetupInitiationPage({
             <select
               name="company_structure"
               required
-              defaultValue={existing?.company_structure ?? ""}
+              defaultValue={
+                RENAMED_STRUCTURES[existing?.company_structure ?? ""] ??
+                (COMPANY_STRUCTURES.includes(existing?.company_structure ?? "")
+                  ? existing?.company_structure
+                  : "")
+              }
               className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
             >
               <option value="" disabled>
