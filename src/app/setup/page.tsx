@@ -12,8 +12,8 @@ import { getSandboxTier } from "@/lib/devSandbox";
 const COMPANY_STRUCTURES = [
   "Brokerage",
   "Real Estate Team",
-  "Team of TC's",
   "Independent TC",
+  "Team of TC's",
 ];
 
 // Earlier answers, so returning clients keep their pick.
