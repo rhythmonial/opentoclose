@@ -5,7 +5,7 @@ import { useState } from "react";
 type Contact = { first: string; last: string; cell: string; email: string };
 
 const inputClass =
-  "rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent read-only:bg-bg read-only:text-ink-soft";
+  "rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent";
 
 function ContactInputs({
   prefix,

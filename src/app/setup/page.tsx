@@ -149,19 +149,6 @@ export default async function SetupInitiationPage({
           <h2 className="mt-2 text-[15px] font-bold text-ink sm:col-span-2">
             Your business
           </h2>
-            <StatesServicedField
-              defaultStates={
-                existing?.states_serviced
-                  ? existing.states_serviced
-                      .split(",")
-                      .map((s) => normalizeStateName(s.trim()))
-                      .filter(Boolean)
-                  : []
-              }
-              defaultPriorityState={normalizeStateName(
-                existing?.priority_state ?? "",
-              )}
-            />
           <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-3">
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-ink">
@@ -200,6 +187,19 @@ export default async function SetupInitiationPage({
               />
             </label>
           </div>
+            <StatesServicedField
+              defaultStates={
+                existing?.states_serviced
+                  ? existing.states_serviced
+                      .split(",")
+                      .map((s) => normalizeStateName(s.trim()))
+                      .filter(Boolean)
+                  : []
+              }
+              defaultPriorityState={normalizeStateName(
+                existing?.priority_state ?? "",
+              )}
+            />
 
           <h2 className="mt-2 text-[15px] font-bold text-ink sm:col-span-2">
             Your tools

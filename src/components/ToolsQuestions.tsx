@@ -39,6 +39,36 @@ export function ToolsQuestions({
     <>
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-ink">
+          Transaction management software
+        </span>
+        <input
+          name="tms"
+          defaultValue={defaultTms}
+          placeholder="e.g. SkySlope, Dotloop, Paperless Pipeline"
+          className={controlClass}
+        />
+      </label>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-ink">Email provider</span>
+        <select
+          name="email_provider"
+          required
+          defaultValue={defaultEmailProvider}
+          className={controlClass}
+        >
+          <option value="" disabled>
+            Select one
+          </option>
+          {EMAIL_PROVIDERS.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-ink">
           Which e-sign platform do you use?
         </span>
         <select
@@ -74,36 +104,6 @@ export function ToolsQuestions({
       ) : (
         <div className="hidden sm:block" />
       )}
-
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-ink">
-          Transaction management software
-        </span>
-        <input
-          name="tms"
-          defaultValue={defaultTms}
-          placeholder="e.g. SkySlope, Dotloop, Paperless Pipeline"
-          className={controlClass}
-        />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-ink">Email provider</span>
-        <select
-          name="email_provider"
-          required
-          defaultValue={defaultEmailProvider}
-          className={controlClass}
-        >
-          <option value="" disabled>
-            Select one
-          </option>
-          {EMAIL_PROVIDERS.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-      </label>
     </>
   );
 }
