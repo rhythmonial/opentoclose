@@ -21,10 +21,11 @@ export function PlanChoice({
 
   return (
     <div className="flex flex-col gap-1.5 sm:col-span-2">
-      <span className="text-sm font-medium text-ink">
-        How would you like your setup handled?
-      </span>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div
+        role="radiogroup"
+        aria-label="How would you like your setup handled?"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+      >
         <label className={optionClass}>
           <span className="flex items-center gap-2 text-sm font-semibold text-ink">
             <input

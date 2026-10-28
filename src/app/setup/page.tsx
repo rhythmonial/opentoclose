@@ -107,9 +107,6 @@ export default async function SetupInitiationPage({
         <h1 className="mt-3 font-display text-2xl font-bold text-ink">
           {isUpdate ? "Update your setup initiation details" : "Setup Initiation"}
         </h1>
-        <p className="mt-1.5 text-sm text-ink-soft">
-          Tell us about your business so we can get your setup started.
-        </p>
 
         {error && (
           <div className="mt-5 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
