@@ -23,6 +23,7 @@ import {
   reorderSteps,
   updateHourlyRate,
   movePillar,
+  moveSectionOrder,
 } from "@/app/profile/setup-steps-actions";
 import type { Tables } from "@/lib/supabase/types";
 import { stepClientHref } from "@/lib/stepHref";
@@ -289,10 +290,12 @@ export default async function TasksPage({
                       const sectionSteps = phaseSteps.filter(
                         (s) => s.section === section,
                       );
+                      const pillarSections = sectionsByPhase[phase] ?? [];
+                      const sectionIndex = pillarSections.indexOf(section);
 
                       return (
                         <details key={section} className="relative mt-4">
-                          <summary className="cursor-pointer pr-48 text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                          <summary className="cursor-pointer pr-72 text-xs font-bold uppercase font-caption leading-7 tracking-wide text-ink-faint">
                             {section}{" "}
                             <span className="ml-1.5 text-[10px] font-normal normal-case text-ink-faint">
                               ({sectionSteps.length})
@@ -306,6 +309,40 @@ export default async function TasksPage({
                               section={section}
                               phases={phaseOptions}
                             />
+                            <form action={moveSectionOrder}>
+                              <input type="hidden" name="path" value={path} />
+                              <input type="hidden" name="phase" value={rawPhase} />
+                              <input type="hidden" name="section" value={section} />
+                              <input type="hidden" name="direction" value="up" />
+                              <button
+                                type="submit"
+                                disabled={sectionIndex <= 0}
+                                title={`Move ${section} up`}
+                                aria-label={`Move ${section} up`}
+                                className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-surface text-ink-soft hover:text-ink disabled:opacity-30"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="m18 15-6-6-6 6" />
+                                </svg>
+                              </button>
+                            </form>
+                            <form action={moveSectionOrder}>
+                              <input type="hidden" name="path" value={path} />
+                              <input type="hidden" name="phase" value={rawPhase} />
+                              <input type="hidden" name="section" value={section} />
+                              <input type="hidden" name="direction" value="down" />
+                              <button
+                                type="submit"
+                                disabled={sectionIndex === pillarSections.length - 1}
+                                title={`Move ${section} down`}
+                                aria-label={`Move ${section} down`}
+                                className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-surface text-ink-soft hover:text-ink disabled:opacity-30"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="m6 9 6 6 6-6" />
+                                </svg>
+                              </button>
+                            </form>
                             <form action={deleteSection}>
                             <input type="hidden" name="path" value={path} />
                             <input
@@ -475,11 +512,11 @@ function StepEditPanel({
   sectionsByPhase: Record<string, string[]>;
 }) {
   return (
-    <details className="rounded-xl border border-border bg-surface p-5">
-      <summary className="flex cursor-pointer flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <div className="min-w-0 flex-1">
+    <details className="rounded-lg border border-border bg-surface px-4 py-2 open:pb-4">
+      <summary className="flex cursor-pointer flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="min-w-0 flex-1 lg:flex lg:items-center lg:gap-5">
           <div className="flex items-start justify-between gap-3 sm:block">
-            <div className="text-[15px] font-bold text-ink">
+            <div className="text-sm font-bold text-ink">
               {step.title}
               {step.is_optional && (
                 <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-ink-faint">
@@ -493,7 +530,7 @@ function StepEditPanel({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:hidden">
-              <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase font-caption tracking-wide text-accent">
+              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-accent">
                 {step.step_type}
               </span>
               <a
@@ -502,7 +539,7 @@ function StepEditPanel({
                 rel="noopener noreferrer"
                 title="View as the client sees it"
                 aria-label="View as the client sees it"
-                className="flex shrink-0 items-center justify-center rounded-lg border border-border px-2.5 py-2 text-ink"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border text-ink"
               >
                 <svg
                   width="15"
@@ -520,7 +557,7 @@ function StepEditPanel({
               </a>
             </div>
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] lg:mt-0">
             <CompletedByRadios stepId={step.id} value={step.completed_by} />
             <span className="text-ink-faint">|</span>
             <OptionalToggle stepId={step.id} value={step.is_optional} />
@@ -528,7 +565,7 @@ function StepEditPanel({
           </div>
         </div>
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
-          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold uppercase font-caption tracking-wide text-accent">
+          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-accent">
             {step.step_type}
           </span>
           <a
@@ -537,11 +574,11 @@ function StepEditPanel({
             rel="noopener noreferrer"
             title="View as the client sees it"
             aria-label="View as the client sees it"
-            className="flex shrink-0 items-center justify-center rounded-lg border border-border px-2.5 py-2 text-ink"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border text-ink"
           >
             <svg
-              width="15"
-              height="15"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -659,8 +696,8 @@ function StepEditPanel({
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-danger"
             >
               <svg
-                width="15"
-                height="15"
+                width="14"
+                height="14"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"

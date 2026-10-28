@@ -56,7 +56,7 @@ export function SortableGroup({
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={order} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-1.5">
           {order.map((id) => (
             <SortableRow key={id} id={id}>
               {byId.get(id)}
@@ -85,7 +85,7 @@ function SortableRow({ id, children }: { id: string; children: ReactNode }) {
         {...listeners}
         type="button"
         aria-label="Drag to reorder"
-        className="mt-3 flex shrink-0 cursor-grab touch-none items-center text-ink-faint active:cursor-grabbing"
+        className="mt-2 flex shrink-0 cursor-grab touch-none items-center text-ink-faint active:cursor-grabbing"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <circle cx="8" cy="6" r="1.6" />
