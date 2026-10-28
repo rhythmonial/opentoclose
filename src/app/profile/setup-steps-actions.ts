@@ -181,3 +181,61 @@ export async function updateHourlyRate(formData: FormData) {
 
   revalidatePath("/dashboard/tasks");
 }
+
+export async function moveSection(formData: FormData) {
+  const supabase = await createClient();
+  const path = String(formData.get("path")) as "custom" | "express";
+  const fromPhase = String(formData.get("from_phase") ?? "");
+  const toPhase = String(formData.get("to_phase") ?? "");
+  const section = String(formData.get("section"));
+  if (fromPhase === toPhase) return;
+
+  const { data: rows } = await supabase
+    .from("setup_steps")
+    .select("id, phase, section, sort_order")
+    .eq("path", path)
+    .order("sort_order");
+  if (!rows) return;
+
+  const isMoving = (r: (typeof rows)[number]) =>
+    (r.phase ?? "") === fromPhase && r.section === section;
+  const moving = rows.filter(isMoving);
+  if (moving.length === 0) return;
+  const rest = rows.filter((r) => !isMoving(r));
+
+  // Pillars are ordered by their steps' sort_order, so the moved section
+  // goes to the end of the target pillar and everything is renumbered.
+  let insertAt = rest.length;
+  for (let i = rest.length - 1; i >= 0; i--) {
+    if ((rest[i].phase ?? "") === toPhase) {
+      insertAt = i + 1;
+      break;
+    }
+  }
+  const ordered = [
+    ...rest.slice(0, insertAt),
+    ...moving,
+    ...rest.slice(insertAt),
+  ];
+  const sortValues = rows.map((r) => r.sort_order).sort((a, b) => a - b);
+  const movingIds = new Set(moving.map((r) => r.id));
+
+  await Promise.all(
+    ordered.flatMap((row, index) => {
+      const sortOrder = sortValues[index];
+      const phaseChanged = movingIds.has(row.id);
+      if (!phaseChanged && row.sort_order === sortOrder) return [];
+      return [
+        supabase
+          .from("setup_steps")
+          .update({
+            sort_order: sortOrder,
+            ...(phaseChanged ? { phase: toPhase || null } : {}),
+          })
+          .eq("id", row.id),
+      ];
+    }),
+  );
+
+  revalidateAll();
+}

@@ -12,6 +12,7 @@ import { SaveStepButton } from "@/components/SaveStepButton";
 import { StepResourcesEditor } from "@/components/StepResourcesEditor";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { MoveSectionSelect } from "@/components/MoveSectionSelect";
 import { startSandbox } from "@/app/dashboard/sandbox-actions";
 import {
   addStep,
@@ -164,6 +165,9 @@ export default async function TasksPage({
         const phases = Array.from(
           new Set(pathSteps.map((s) => s.phase ?? "General")),
         );
+        const phaseOptions = Array.from(
+          new Set(pathSteps.map((s) => s.phase ?? "")),
+        ).map((value) => ({ value, label: value || "General" }));
         const sectionsByPhase: Record<string, string[]> = {};
         for (const phase of phases) {
           sectionsByPhase[phase] = Array.from(
@@ -255,17 +259,21 @@ export default async function TasksPage({
 
                       return (
                         <details key={section} className="relative mt-4">
-                          <summary className="cursor-pointer pr-10 text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                          <summary className="cursor-pointer pr-48 text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                             {section}{" "}
                             <span className="ml-1.5 text-[10px] font-normal normal-case text-ink-faint">
                               ({sectionSteps.length})
                             </span>
                           </summary>
 
-                          <form
-                            action={deleteSection}
-                            className="absolute right-0 top-0"
-                          >
+                          <div className="absolute right-0 top-0 flex items-center gap-2">
+                            <MoveSectionSelect
+                              path={path}
+                              fromPhase={rawPhase}
+                              section={section}
+                              phases={phaseOptions}
+                            />
+                            <form action={deleteSection}>
                             <input type="hidden" name="path" value={path} />
                             <input
                               type="hidden"
@@ -300,6 +308,7 @@ export default async function TasksPage({
                               </svg>
                             </ConfirmSubmitButton>
                           </form>
+                          </div>
 
                           <div className="mt-2">
                             <SortableGroup
