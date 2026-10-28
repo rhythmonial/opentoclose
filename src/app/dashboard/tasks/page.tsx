@@ -214,10 +214,8 @@ export default async function TasksPage({
                 const phaseIndex = phases.indexOf(phase);
 
                 return (
-                  <details
-                    key={phase}
-                    className="relative rounded-xl border border-border-soft bg-bg p-4"
-                  >
+                  <div key={phase} className="relative">
+                  <details className="rounded-xl border border-border-soft bg-bg p-4">
                     <summary className="cursor-pointer pr-32 font-display text-base font-bold text-ink">
                       {phase}{" "}
                       <span className="ml-1.5 text-xs font-normal text-ink-faint">
@@ -225,66 +223,6 @@ export default async function TasksPage({
                       </span>
                     </summary>
 
-                    <div className="absolute right-4 top-4 flex items-center gap-1.5">
-                      <form action={movePillar}>
-                        <input type="hidden" name="path" value={path} />
-                        <input type="hidden" name="phase" value={rawPhase} />
-                        <input type="hidden" name="direction" value="up" />
-                        <button
-                          type="submit"
-                          disabled={phaseIndex === 0}
-                          title={`Move ${phase} up`}
-                          aria-label={`Move ${phase} up`}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-ink disabled:opacity-30"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="m18 15-6-6-6 6" />
-                          </svg>
-                        </button>
-                      </form>
-                      <form action={movePillar}>
-                        <input type="hidden" name="path" value={path} />
-                        <input type="hidden" name="phase" value={rawPhase} />
-                        <input type="hidden" name="direction" value="down" />
-                        <button
-                          type="submit"
-                          disabled={phaseIndex === phases.length - 1}
-                          title={`Move ${phase} down`}
-                          aria-label={`Move ${phase} down`}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-ink disabled:opacity-30"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="m6 9 6 6 6-6" />
-                          </svg>
-                        </button>
-                      </form>
-                      <form action={deletePillar}>
-                      <input type="hidden" name="path" value={path} />
-                      <input type="hidden" name="phase" value={rawPhase} />
-                      <ConfirmSubmitButton
-                        confirmMessage={`Delete the "${phase}" pillar and all ${phaseSteps.length} task(s) in it? This cannot be undone.`}
-                        title={`Delete the ${phase} pillar`}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-danger"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M3 6h18" />
-                          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                          <path d="M10 11v6" />
-                          <path d="M14 11v6" />
-                        </svg>
-                      </ConfirmSubmitButton>
-                    </form>
-                    </div>
 
                     {sections.map((section) => {
                       const sectionSteps = phaseSteps.filter(
@@ -294,7 +232,8 @@ export default async function TasksPage({
                       const sectionIndex = pillarSections.indexOf(section);
 
                       return (
-                        <details key={section} className="relative mt-4">
+                        <div key={section} className="relative mt-4">
+                        <details>
                           <summary className="cursor-pointer pr-72 text-xs font-bold uppercase font-caption leading-7 tracking-wide text-ink-faint">
                             {section}{" "}
                             <span className="ml-1.5 text-[10px] font-normal normal-case text-ink-faint">
@@ -302,6 +241,26 @@ export default async function TasksPage({
                             </span>
                           </summary>
 
+
+                          <div className="mt-2">
+                            <SortableGroup
+                              items={sectionSteps.map((step) => ({
+                                id: step.id,
+                                node: (
+                                  <StepEditPanel
+                                    step={step}
+                                    resources={
+                                      resourcesByStep.get(step.id) ?? []
+                                    }
+                                    phases={phases}
+                                    sectionsByPhase={sectionsByPhase}
+                                  />
+                                ),
+                              }))}
+                              onReorder={reorderSteps}
+                            />
+                          </div>
+                        </details>
                           <div className="absolute right-0 top-0 flex items-center gap-2">
                             <MoveSectionSelect
                               path={path}
@@ -379,29 +338,71 @@ export default async function TasksPage({
                             </ConfirmSubmitButton>
                           </form>
                           </div>
-
-                          <div className="mt-2">
-                            <SortableGroup
-                              items={sectionSteps.map((step) => ({
-                                id: step.id,
-                                node: (
-                                  <StepEditPanel
-                                    step={step}
-                                    resources={
-                                      resourcesByStep.get(step.id) ?? []
-                                    }
-                                    phases={phases}
-                                    sectionsByPhase={sectionsByPhase}
-                                  />
-                                ),
-                              }))}
-                              onReorder={reorderSteps}
-                            />
-                          </div>
-                        </details>
+                        </div>
                       );
                     })}
                   </details>
+                    <div className="absolute right-4 top-4 flex items-center gap-1.5">
+                      <form action={movePillar}>
+                        <input type="hidden" name="path" value={path} />
+                        <input type="hidden" name="phase" value={rawPhase} />
+                        <input type="hidden" name="direction" value="up" />
+                        <button
+                          type="submit"
+                          disabled={phaseIndex === 0}
+                          title={`Move ${phase} up`}
+                          aria-label={`Move ${phase} up`}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-ink disabled:opacity-30"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m18 15-6-6-6 6" />
+                          </svg>
+                        </button>
+                      </form>
+                      <form action={movePillar}>
+                        <input type="hidden" name="path" value={path} />
+                        <input type="hidden" name="phase" value={rawPhase} />
+                        <input type="hidden" name="direction" value="down" />
+                        <button
+                          type="submit"
+                          disabled={phaseIndex === phases.length - 1}
+                          title={`Move ${phase} down`}
+                          aria-label={`Move ${phase} down`}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-ink disabled:opacity-30"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </button>
+                      </form>
+                      <form action={deletePillar}>
+                      <input type="hidden" name="path" value={path} />
+                      <input type="hidden" name="phase" value={rawPhase} />
+                      <ConfirmSubmitButton
+                        confirmMessage={`Delete the "${phase}" pillar and all ${phaseSteps.length} task(s) in it? This cannot be undone.`}
+                        title={`Delete the ${phase} pillar`}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-danger"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M3 6h18" />
+                          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                          <path d="M10 11v6" />
+                          <path d="M14 11v6" />
+                        </svg>
+                      </ConfirmSubmitButton>
+                    </form>
+                    </div>
+                  </div>
                 );
               })}
             </div>
