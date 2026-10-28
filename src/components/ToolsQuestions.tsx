@@ -13,7 +13,7 @@ const ESIGN_PLATFORMS = [
 
 const EMAIL_PROVIDERS = [
   "Google Workspace",
-  "Google",
+  "Google (Gmail)",
   "Outlook",
   "Other",
 ];
@@ -52,7 +52,12 @@ export function ToolsQuestions({
         <select
           name="email_provider"
           required
-          defaultValue={defaultEmailProvider}
+          defaultValue={
+            // Earlier answers used plain "Google".
+            defaultEmailProvider === "Google"
+              ? "Google (Gmail)"
+              : defaultEmailProvider
+          }
           className={controlClass}
         >
           <option value="" disabled>
