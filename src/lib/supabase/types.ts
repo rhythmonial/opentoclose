@@ -104,6 +104,32 @@ export type Database = {
           },
         ]
       }
+      otc_credentials: {
+        Row: {
+          client_id: string
+          password: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          password: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          password?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "otc_credentials_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dev_sandbox_step_status: {
         Row: {
           id: string
@@ -388,6 +414,8 @@ export type Database = {
           guru_first_name: string | null
           guru_last_name: string | null
           guru_same_as_owner: boolean
+          otc_password_set: boolean
+          otc_username: string | null
           tms: string | null
           business_name: string
           cell_phone: string
@@ -418,6 +446,8 @@ export type Database = {
           guru_first_name?: string | null
           guru_last_name?: string | null
           guru_same_as_owner?: boolean
+          otc_password_set?: boolean
+          otc_username?: string | null
           tms?: string | null
           business_name: string
           cell_phone: string
@@ -448,6 +478,8 @@ export type Database = {
           guru_first_name?: string | null
           guru_last_name?: string | null
           guru_same_as_owner?: boolean
+          otc_password_set?: boolean
+          otc_username?: string | null
           tms?: string | null
           business_name?: string
           cell_phone?: string
@@ -875,6 +907,7 @@ export type Database = {
       is_staff: { Args: never; Returns: boolean }
       my_client_account_id: { Args: never; Returns: string }
       run_legacy_cleanup: { Args: never; Returns: string }
+      save_otc_password: { Args: { p_password: string }; Returns: undefined }
       run_legacy_cleanup_test: { Args: never; Returns: string }
     }
     Enums: {

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ToolsQuestions } from "@/components/ToolsQuestions";
 import { OwnerGuruFields } from "@/components/OwnerGuruFields";
 import { StatesServicedField } from "@/components/StatesServicedField";
+import { PlanChoice } from "@/components/PlanChoice";
 import { normalizeStateName } from "@/lib/usStates";
 import { submitSetupInitiation } from "./actions";
 import { getSandboxTier } from "@/lib/devSandbox";
@@ -57,12 +58,12 @@ export default async function SetupInitiationPage({
 
   const isUpdate = Boolean(existing);
   const paidPlan = existing?.engagement_type ?? "free";
-  const defaultEngagementType =
+  const defaultEngagementType: "diy" | "custom" =
     paidPlan === "custom" || paidPlan === "diy"
       ? paidPlan
-      : plan === "diy"
-        ? "diy"
-        : "custom";
+      : plan === "setup" || plan === "custom"
+        ? "custom"
+        : "diy";
   const hasPaidPlan = paidPlan === "custom" || paidPlan === "diy";
 
   return (
@@ -226,50 +227,12 @@ export default async function SetupInitiationPage({
             defaultEmailProvider={existing?.email_provider ?? ""}
           />
 
-          <div className="mt-2 sm:col-span-2 flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">
-              How would you like your setup handled?
-            </span>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex cursor-pointer flex-col gap-1 rounded-lg border border-border bg-surface px-3.5 py-3 has-[:checked]:border-accent has-[:checked]:bg-accent-soft">
-                <span className="flex items-center gap-2 text-sm font-semibold text-ink">
-                  <input
-                    type="radio"
-                    name="engagement_type"
-                    value="custom"
-                    defaultChecked={defaultEngagementType === "custom"}
-                    className="h-4 w-4"
-                  />
-                  Setup ($999)
-                </span>
-                <span className="text-xs text-ink-soft">
-                  Our team builds the steps assigned to us. A 10-hour bundle.
-                </span>
-              </label>
-              <label className="flex cursor-pointer flex-col gap-1 rounded-lg border border-border bg-surface px-3.5 py-3 has-[:checked]:border-accent has-[:checked]:bg-accent-soft">
-                <span className="flex items-center gap-2 text-sm font-semibold text-ink">
-                  <input
-                    type="radio"
-                    name="engagement_type"
-                    value="diy"
-                    defaultChecked={defaultEngagementType === "diy"}
-                    className="h-4 w-4"
-                  />
-                  DIY ($19)
-                </span>
-                <span className="text-xs text-ink-soft">
-                  You complete every step yourself, using our checklist and
-                  videos as your guide. You can upgrade to Setup later.
-                </span>
-              </label>
-            </div>
-            {!hasPaidPlan && (
-              <span className="text-xs text-ink-soft">
-                After you submit, you&rsquo;ll go to secure checkout to pay
-                for your plan.
-              </span>
-            )}
-          </div>
+          <PlanChoice
+            defaultPlan={defaultEngagementType}
+            defaultOtcUsername={existing?.otc_username ?? ""}
+            otcPasswordSaved={existing?.otc_password_set ?? false}
+            showCheckoutNote={!hasPaidPlan}
+          />
 
           <button
             type="submit"

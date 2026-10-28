@@ -90,6 +90,7 @@ export default async function ClientDetailPage({
     { data: hoursLog },
     { data: initiation },
     { data: stepPurchases },
+    { data: otcCredentials },
   ] =
     await Promise.all([
       owner
@@ -126,6 +127,13 @@ export default async function ClientDetailPage({
             .eq("client_id", owner.id)
             .eq("kind", "step")
         : Promise.resolve({ data: [] }),
+      owner
+        ? supabase
+            .from("otc_credentials")
+            .select("password")
+            .eq("client_id", owner.id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
   const purchasedStepIds = new Set(
@@ -246,7 +254,10 @@ export default async function ClientDetailPage({
         </div>
       )}
 
-      <InitiationSummary initiation={initiation} />
+      <InitiationSummary
+        initiation={initiation}
+        otcPassword={otcCredentials?.password ?? null}
+      />
 
       <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-border bg-surface p-5">

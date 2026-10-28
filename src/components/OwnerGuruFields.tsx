@@ -47,7 +47,6 @@ function ContactInputs({
             ? {
                 inputMode: "numeric" as const,
                 autoComplete: "tel-national",
-                placeholder: "727-554-6666",
                 pattern: "\\d{3}-\\d{3}-\\d{4}",
                 title: "Enter a 10-digit phone number, like 727-554-6666",
               }

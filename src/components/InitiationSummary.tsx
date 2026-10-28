@@ -53,8 +53,10 @@ function contact(
 
 export function InitiationSummary({
   initiation,
+  otcPassword,
 }: {
   initiation: Initiation | null;
+  otcPassword: string | null;
 }) {
   return (
     <details open className="mt-5 rounded-xl border border-border bg-surface">
@@ -128,6 +130,24 @@ export function InitiationSummary({
           />
           <Field label="Transaction management" value={initiation.tms} />
           <Field label="Email provider" value={initiation.email_provider} />
+          {(initiation.otc_username || otcPassword) && (
+            <Field
+              label="OTC login"
+              value={
+                <>
+                  <div>{initiation.otc_username ?? "—"}</div>
+                  {otcPassword && (
+                    <details className="text-ink-soft">
+                      <summary className="cursor-pointer text-accent">
+                        Show password
+                      </summary>
+                      <span className="font-mono text-ink">{otcPassword}</span>
+                    </details>
+                  )}
+                </>
+              }
+            />
+          )}
           {(initiation.tools_used.length > 0 || initiation.tools_other) && (
             <Field
               label="Tools (earlier form)"

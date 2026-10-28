@@ -58,6 +58,7 @@ export async function submitSetupInitiation(formData: FormData) {
   };
   const guruSameAsOwner = formData.get("guru_same_as_owner") === "on";
   const esignPlatform = text("esign_platform");
+  const chosen = formData.get("engagement_type") === "diy" ? "diy" : "custom";
 
   const { error } = await supabase.from("setup_initiation").upsert(
     {
@@ -75,6 +76,7 @@ export async function submitSetupInitiation(formData: FormData) {
       esign_other: esignPlatform === "Other" ? text("esign_other") || null : null,
       tms: text("tms") || null,
       email_provider: text("email_provider") || null,
+      ...(chosen === "custom" ? { otc_username: text("otc_username") || null } : {}),
       business_name: String(formData.get("business_name") ?? "").trim(),
       company_structure: String(formData.get("company_structure") ?? ""),
       states_serviced: String(formData.get("states_serviced") ?? "").trim(),
@@ -91,6 +93,17 @@ export async function submitSetupInitiation(formData: FormData) {
 
   if (error) {
     redirect(`/setup?error=${encodeURIComponent(error.message)}`);
+  }
+
+  // Not trimmed: spaces can be part of a password.
+  const otcPassword = String(formData.get("otc_password") ?? "");
+  if (chosen === "custom" && otcPassword) {
+    const { error: passwordError } = await supabase.rpc("save_otc_password", {
+      p_password: otcPassword,
+    });
+    if (passwordError) {
+      redirect(`/setup?error=${encodeURIComponent(passwordError.message)}`);
+    }
   }
 
   const { data: profile } = await supabase
@@ -128,7 +141,6 @@ export async function submitSetupInitiation(formData: FormData) {
 
   // The plan only changes once Stripe confirms payment (see the webhook),
   // so send them to checkout unless they already have this plan or better.
-  const chosen = formData.get("engagement_type") === "diy" ? "diy" : "custom";
   const { data: current } = await supabase
     .from("setup_initiation")
     .select("engagement_type")
