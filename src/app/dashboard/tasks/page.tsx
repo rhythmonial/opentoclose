@@ -26,6 +26,7 @@ import {
   updateHourlyRate,
   movePillar,
   moveSectionOrder,
+  restoreStep,
 } from "@/app/profile/setup-steps-actions";
 import type { Tables } from "@/lib/supabase/types";
 import { stepClientHref } from "@/lib/stepHref";
@@ -37,9 +38,9 @@ type StepResource = Tables<"setup_step_resources">;
 export default async function TasksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ stepFilter?: string }>;
+  searchParams: Promise<{ stepFilter?: string; error?: string }>;
 }) {
-  const { stepFilter } = await searchParams;
+  const { stepFilter, error } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -73,12 +74,40 @@ export default async function TasksPage({
 
   const hourlyRate = await getHourlyRate();
 
+  // The most recent lessons deleted and not restored since.
+  const { data: deletions } = await supabase
+    .from("setup_content_history")
+    .select("row_id, old_row, changed_at")
+    .eq("table_name", "setup_steps")
+    .eq("operation", "DELETE")
+    .order("changed_at", { ascending: false })
+    .limit(200);
+  const liveIds = new Set((steps ?? []).map((s) => s.id));
+  const seen = new Set<string>();
+  const recentlyDeleted = (deletions ?? []).filter((d) => {
+    if (liveIds.has(d.row_id) || seen.has(d.row_id)) return false;
+    seen.add(d.row_id);
+    return true;
+  });
+
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-bold text-ink sm:text-[28px]">
           Setup Tasks
         </h1>
+        <div className="flex flex-wrap items-center gap-2">
+        <a
+          href="/dashboard/tasks/backup"
+          download
+          title="Download every lesson and resource link as a file"
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-ink-soft hover:text-ink"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+          </svg>
+          Download backup
+        </a>
         <form
           action={updateHourlyRate}
           className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2"
@@ -105,7 +134,14 @@ export default async function TasksPage({
             Save
           </button>
         </form>
+        </div>
       </div>
+
+      {error && (
+        <div className="mt-4 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
+          {error}
+        </div>
+      )}
 
       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-ink-soft">
@@ -419,6 +455,58 @@ export default async function TasksPage({
           </section>
         );
       })()}
+
+      <details className="mt-8 rounded-xl border border-border bg-surface">
+        <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-2 px-5 py-3.5">
+          <span className="text-[15px] font-bold text-ink">
+            Recently deleted ({recentlyDeleted.length})
+          </span>
+          <span className="text-xs text-ink-faint">
+            Restore a deleted lesson with its links and client progress
+          </span>
+        </summary>
+        {recentlyDeleted.length === 0 ? (
+          <p className="border-t border-border-soft px-5 py-4 text-sm text-ink-soft">
+            Nothing deleted recently.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border-soft border-t border-border-soft">
+            {recentlyDeleted.map((d) => {
+              const old = d.old_row as Partial<SetupStep>;
+              return (
+                <li
+                  key={d.row_id}
+                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-ink">
+                      {old.title ?? "Untitled lesson"}
+                    </p>
+                    <p className="text-xs text-ink-faint">
+                      {old.phase || "General"} &rsaquo; {old.section} &middot; Deleted{" "}
+                      {new Date(d.changed_at).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                  <form action={restoreStep}>
+                    <input type="hidden" name="id" value={d.row_id} />
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-accent px-3 py-1.5 text-xs font-semibold text-accent hover:bg-accent-soft"
+                    >
+                      Restore
+                    </button>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </details>
     </main>
   );
 }

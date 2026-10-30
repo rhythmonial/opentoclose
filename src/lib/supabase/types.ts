@@ -130,6 +130,60 @@ export type Database = {
           },
         ]
       }
+      setup_content_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          id: number
+          old_row: Json
+          operation: string
+          row_id: string
+          table_name: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: never
+          old_row: Json
+          operation: string
+          row_id: string
+          table_name: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: never
+          old_row?: Json
+          operation?: string
+          row_id?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
+      setup_content_snapshots: {
+        Row: {
+          id: number
+          note: string | null
+          resources: Json
+          steps: Json
+          taken_at: string
+        }
+        Insert: {
+          id?: never
+          note?: string | null
+          resources: Json
+          steps: Json
+          taken_at?: string
+        }
+        Update: {
+          id?: never
+          note?: string | null
+          resources?: Json
+          steps?: Json
+          taken_at?: string
+        }
+        Relationships: []
+      }
       contract_documents: {
         Row: {
           blank_count: number
@@ -967,6 +1021,7 @@ export type Database = {
       my_client_account_id: { Args: never; Returns: string }
       run_legacy_cleanup: { Args: never; Returns: string }
       save_otc_password: { Args: { p_password: string }; Returns: undefined }
+      restore_setup_step: { Args: { p_step_id: string }; Returns: undefined }
       run_legacy_cleanup_test: { Args: never; Returns: string }
     }
     Enums: {

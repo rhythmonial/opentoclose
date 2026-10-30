@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { TablesUpdate } from "@/lib/supabase/types";
 
@@ -540,4 +541,19 @@ export async function addStepAt(formData: FormData): Promise<AddStepResult> {
 
   revalidateAll();
   return { ok: true };
+}
+
+// Brings back a deleted lesson (see restore_setup_step in the
+// setup_content_history migration), with its resource links and the client
+// progress and submissions deleted along with it.
+export async function restoreStep(formData: FormData) {
+  const supabase = await createClient();
+  const id = String(formData.get("id"));
+
+  const { error } = await supabase.rpc("restore_setup_step", { p_step_id: id });
+  if (error) {
+    redirect(`/dashboard/tasks?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidateAll();
 }
