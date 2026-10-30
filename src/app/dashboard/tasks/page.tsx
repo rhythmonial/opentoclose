@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { CompletedByRadios } from "@/components/CompletedByRadios";
 import { OptionalToggle } from "@/components/OptionalToggle";
@@ -596,25 +595,17 @@ function StepEditPanel({
         <FutureBuildToggle stepId={step.id} value={step.is_future_build} />
       </div>
 
-      {step.instructions && (
-        <details className="mt-4 rounded-lg border border-border-soft bg-bg p-3.5">
-          <summary className="cursor-pointer text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-            Setup Instructions
-          </summary>
-          <div
-            className="mt-3 text-sm leading-relaxed text-ink-soft
-              [&_h1]:mt-3 [&_h1]:font-display [&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-ink
-              [&_h2]:mt-3 [&_h2]:font-display [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-ink
-              [&_h3]:mt-2 [&_h3]:font-bold [&_h3]:text-ink
-              [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
-              [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
-              [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
-              [&_li]:mt-1 first:[&>*]:mt-0"
-          >
-            <ReactMarkdown>{step.instructions}</ReactMarkdown>
-          </div>
-        </details>
-      )}
+      <label className="mt-3 flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-ink-soft">
+          Setup Instructions (what the setup team needs to do for this task)
+        </span>
+        <MarkdownTextarea
+          name="instructions"
+          rows={6}
+          defaultValue={step.instructions ?? ""}
+          form={`step-form-${step.id}`}
+        />
+      </label>
 
       <form
         id={`step-form-${step.id}`}
@@ -678,18 +669,6 @@ function StepEditPanel({
           </div>
         </div>
       </div>
-
-      <label className="mt-3 flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-ink-soft">
-          Setup Instructions (what the setup team needs to do for this task)
-        </span>
-        <MarkdownTextarea
-          name="instructions"
-          rows={6}
-          defaultValue={step.instructions ?? ""}
-          form={`step-form-${step.id}`}
-        />
-      </label>
 
       <div className="mt-3 flex items-center justify-end gap-2 border-t border-border-soft pt-3">
           <SaveStepButton formId={`step-form-${step.id}`} />
