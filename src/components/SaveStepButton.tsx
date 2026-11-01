@@ -10,6 +10,8 @@ export function SaveStepButton({ formId }: { formId: string }) {
   async function handleClick() {
     const form = document.getElementById(formId) as HTMLFormElement | null;
     if (!form) return;
+    // Points at anything required that's missing, like a video's thumbnail.
+    if (!form.reportValidity()) return;
     setStatus("saving");
     await updateStep(new FormData(form));
     // Lets the lesson panel know its fields are saved now.

@@ -530,3 +530,15 @@ export async function restoreStep(formData: FormData) {
 
   revalidateAll();
 }
+
+// Switches a step between a lesson and a configurator (the type tag in the
+// lesson header).
+export async function updateStepType(stepId: string, type: string) {
+  const supabase = await createClient();
+  await supabase
+    .from("setup_steps")
+    .update({ step_type: type === "configurator" ? "configurator" : "lesson" })
+    .eq("id", stepId);
+
+  revalidateAll();
+}

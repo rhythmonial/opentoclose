@@ -77,7 +77,7 @@ export function LessonPanel({
 
   async function saveAndClose() {
     const form = document.getElementById(formId) as HTMLFormElement | null;
-    if (!form) return;
+    if (!form || !form.reportValidity()) return;
     setSaving(true);
     await updateStep(new FormData(form));
     form.dispatchEvent(new Event(LESSON_SAVED_EVENT));

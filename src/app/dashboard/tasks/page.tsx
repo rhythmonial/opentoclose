@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { StaffToggle } from "@/components/StaffToggle";
 import { LessonPanel } from "@/components/LessonPanel";
-import { LessonTypeFields } from "@/components/LessonTypeFields";
+import { LessonTypeSelect } from "@/components/LessonTypeSelect";
+import { VideoFields } from "@/components/VideoFields";
 import { MarkdownTextarea } from "@/components/MarkdownTextarea";
 import { SaveStepButton } from "@/components/SaveStepButton";
 import { StepResourcesEditor } from "@/components/StepResourcesEditor";
@@ -529,9 +530,7 @@ function StepEditPanel({
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               </a>
-              <span className="ml-1 rounded-full bg-accent-soft px-2 py-0.5 align-middle text-[10px] font-bold uppercase font-caption tracking-wide text-accent">
-                {step.step_type}
-              </span>
+              <LessonTypeSelect stepId={step.id} value={step.step_type} />
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:hidden">
               {moveSelect}
@@ -547,14 +546,27 @@ function StepEditPanel({
       }
     >
 
-      {/* Description on top, then the lesson type and its resource links side
-          by side, then the setup team's instructions. */}
+      {/* A lesson's video and thumbnail on top, then the description, its
+          resource links, and the setup team's instructions. */}
       <form
         id={`step-form-${step.id}`}
         action={updateStep}
-        className="mt-3 border-t border-border-soft pt-3"
+        className="mt-3 flex flex-col gap-3 border-t border-border-soft pt-3"
       >
         <input type="hidden" name="id" value={step.id} />
+        <VideoFields
+          formId={`step-form-${step.id}`}
+          defaultVideoUrl={step.video_url}
+          defaultThumbnailUrl={step.video_thumbnail_url}
+          active={step.step_type === "lesson"}
+        />
+        {step.step_type !== "lesson" && (
+          <p className="text-xs text-ink-faint">
+            {step.key === "setup_initiation"
+              ? "Configurator: opens the Setup Initiation form at /setup."
+              : `Configurator: opens a custom-built page at /configurator/${step.key}.`}
+          </p>
+        )}
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-soft">Description</span>
           <MarkdownTextarea
@@ -565,25 +577,10 @@ function StepEditPanel({
         </label>
       </form>
 
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <LessonTypeFields
-          defaultType={step.step_type}
-          defaultVideoUrl={step.video_url}
-          defaultThumbnailUrl={step.video_thumbnail_url}
-          stepKey={step.key}
-          formId={`step-form-${step.id}`}
-          showThumbnail
-        />
-        <div className="min-w-0">
-          <span className="text-xs font-medium text-ink-soft">
-            Resource links
-          </span>
-          <div className="mt-1.5">
-            <StepResourcesEditor
-              stepId={step.id}
-              initialResources={resources}
-            />
-          </div>
+      <div className="mt-3 min-w-0">
+        <span className="text-xs font-medium text-ink-soft">Resource links</span>
+        <div className="mt-1.5">
+          <StepResourcesEditor stepId={step.id} initialResources={resources} />
         </div>
       </div>
 
