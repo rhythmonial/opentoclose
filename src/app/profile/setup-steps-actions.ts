@@ -22,9 +22,8 @@ export async function updateStep(formData: FormData) {
   const text = (key: string) => String(formData.get(key) ?? "").trim() || null;
   const update: TablesUpdate<"setup_steps"> = {};
   if (formData.has("step_type")) {
-    update.step_type = String(formData.get("step_type")) as NonNullable<
-      TablesUpdate<"setup_steps">["step_type"]
-    >;
+    update.step_type =
+      formData.get("step_type") === "configurator" ? "configurator" : "lesson";
   }
   if (formData.has("description")) update.description = text("description");
   if (formData.has("instructions")) update.instructions = text("instructions");
@@ -32,7 +31,6 @@ export async function updateStep(formData: FormData) {
   if (formData.has("video_thumbnail_url")) {
     update.video_thumbnail_url = text("video_thumbnail_url");
   }
-  if (formData.has("link_url")) update.link_url = text("link_url");
   if (formData.has("title")) update.title = String(formData.get("title"));
   if (formData.has("phase")) update.phase = text("phase");
   if (formData.has("section")) update.section = String(formData.get("section"));
@@ -55,31 +53,13 @@ export async function renameStep(stepId: string, newTitle: string) {
   revalidateAll();
 }
 
-export async function updateStepCompletedBy(stepId: string, value: string) {
+// Marks a step as one our team handles ("staff") or one the client does
+// ("both": every plan sees and completes it).
+export async function updateStepIsStaff(stepId: string, isStaff: boolean) {
   const supabase = await createClient();
   await supabase
     .from("setup_steps")
-    .update({ completed_by: value })
-    .eq("id", stepId);
-
-  revalidateAll();
-}
-
-export async function updateStepIsOptional(stepId: string, value: boolean) {
-  const supabase = await createClient();
-  await supabase
-    .from("setup_steps")
-    .update({ is_optional: value })
-    .eq("id", stepId);
-
-  revalidateAll();
-}
-
-export async function updateStepIsFutureBuild(stepId: string, value: boolean) {
-  const supabase = await createClient();
-  await supabase
-    .from("setup_steps")
-    .update({ is_future_build: value })
+    .update({ completed_by: isStaff ? "staff" : "both" })
     .eq("id", stepId);
 
   revalidateAll();
@@ -525,17 +505,10 @@ export async function addStepAt(formData: FormData): Promise<AddStepResult> {
     key,
     title,
     description: text("description") || null,
-    step_type: (text("step_type") || "lesson") as
-      | "lesson"
-      | "form"
-      | "link"
-      | "configurator",
+    step_type: text("step_type") === "configurator" ? "configurator" : "lesson",
     sort_order: sortValues[insertAt],
-    completed_by: text("completed_by") || "diy",
-    is_optional: formData.get("is_optional") === "on",
-    is_future_build: formData.get("is_future_build") === "on",
+    completed_by: formData.get("is_staff") === "on" ? "staff" : "both",
     video_url: text("video_url") || null,
-    link_url: text("link_url") || null,
   });
   if (error) return { ok: false, error: error.message };
 

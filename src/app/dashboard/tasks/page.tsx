@@ -1,9 +1,6 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { CompletedByRadios } from "@/components/CompletedByRadios";
-import { OptionalToggle } from "@/components/OptionalToggle";
-import { FutureBuildToggle } from "@/components/FutureBuildToggle";
+import { StaffToggle } from "@/components/StaffToggle";
 import { LessonTypeFields } from "@/components/LessonTypeFields";
 import { MarkdownTextarea } from "@/components/MarkdownTextarea";
 import { SaveStepButton } from "@/components/SaveStepButton";
@@ -37,9 +34,9 @@ type StepResource = Tables<"setup_step_resources">;
 export default async function TasksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ stepFilter?: string; error?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
-  const { stepFilter, error } = await searchParams;
+  const { error } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -168,35 +165,6 @@ export default async function TasksPage({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {(
-          [
-            { value: "required", label: "Required" },
-            { value: "optional", label: "Optional Only" },
-            { value: "future", label: "Future Build Only" },
-            {
-              value: "optional_future",
-              label: "All Optional/Future Build",
-            },
-          ] as const
-        ).map((opt) => (
-          <Link
-            key={opt.value}
-            href={
-              opt.value === "required"
-                ? "/dashboard/tasks"
-                : `/dashboard/tasks?stepFilter=${opt.value}`
-            }
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-              (stepFilter ?? "required") === opt.value
-                ? "bg-accent text-white"
-                : "border border-border text-ink-soft"
-            }`}
-          >
-            {opt.label}
-          </Link>
-        ))}
-      </div>
 
       {(() => {
         const path = "custom";
@@ -233,23 +201,15 @@ export default async function TasksPage({
           );
         }
 
-        const visiblePathSteps = pathSteps.filter((s) => {
-          if (stepFilter === "optional") return s.is_optional;
-          if (stepFilter === "future") return s.is_future_build;
-          if (stepFilter === "optional_future")
-            return s.is_optional || s.is_future_build;
-          return !s.is_optional && !s.is_future_build;
-        });
-        const visiblePhases = phases.filter((phase) =>
-          visiblePathSteps.some((s) => (s.phase ?? "General") === phase),
-        );
+        const visiblePathSteps = pathSteps;
+        const visiblePhases = phases;
 
         return (
           <section key={path} className="mt-6">
             <h3 className="font-display text-base font-bold capitalize text-ink">
               {path} path{" "}
               <span className="text-sm font-normal text-ink-faint">
-                ({visiblePathSteps.length} of {pathSteps.length} steps)
+                ({pathSteps.length} steps)
               </span>
             </h3>
 
@@ -540,6 +500,10 @@ function StepEditPanel({
                 stepId={step.id}
                 currentName={step.title}
               />
+              <StaffToggle
+                stepId={step.id}
+                value={step.completed_by === "staff"}
+              />
               <a
                 href={stepClientHref(step)}
                 target="_blank"
@@ -565,16 +529,6 @@ function StepEditPanel({
               <span className="ml-1 rounded-full bg-accent-soft px-2 py-0.5 align-middle text-[10px] font-bold uppercase font-caption tracking-wide text-accent">
                 {step.step_type}
               </span>
-              {step.is_optional && (
-                <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-ink-faint">
-                  Optional
-                </span>
-              )}
-              {step.is_future_build && (
-                <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-accent">
-                  Future Build
-                </span>
-              )}
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:hidden">
               {moveSelect}
@@ -588,11 +542,44 @@ function StepEditPanel({
         </div>
       </summary>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-soft pt-3 text-[13px]">
-        <CompletedByRadios stepId={step.id} value={step.completed_by} />
-        <span className="text-ink-faint">|</span>
-        <OptionalToggle stepId={step.id} value={step.is_optional} />
-        <FutureBuildToggle stepId={step.id} value={step.is_future_build} />
+      {/* Description on top, then the lesson type and its resource links side
+          by side, then the setup team's instructions. */}
+      <form
+        id={`step-form-${step.id}`}
+        action={updateStep}
+        className="mt-3 border-t border-border-soft pt-3"
+      >
+        <input type="hidden" name="id" value={step.id} />
+        <label className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-ink-soft">Description</span>
+          <MarkdownTextarea
+            name="description"
+            rows={3}
+            defaultValue={step.description ?? ""}
+          />
+        </label>
+      </form>
+
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <LessonTypeFields
+          defaultType={step.step_type}
+          defaultVideoUrl={step.video_url}
+          defaultThumbnailUrl={step.video_thumbnail_url}
+          stepKey={step.key}
+          formId={`step-form-${step.id}`}
+          showThumbnail
+        />
+        <div className="min-w-0">
+          <span className="text-xs font-medium text-ink-soft">
+            Resource links
+          </span>
+          <div className="mt-1.5">
+            <StepResourcesEditor
+              stepId={step.id}
+              initialResources={resources}
+            />
+          </div>
+        </div>
       </div>
 
       <label className="mt-3 flex flex-col gap-1.5">
@@ -606,69 +593,6 @@ function StepEditPanel({
           form={`step-form-${step.id}`}
         />
       </label>
-
-      <form
-        id={`step-form-${step.id}`}
-        action={updateStep}
-        className="mt-3 grid grid-cols-1 gap-3 border-t border-border-soft pt-3 sm:grid-cols-2"
-      >
-        <input type="hidden" name="id" value={step.id} />
-        <LessonTypeFields
-          defaultType={step.step_type}
-          defaultLinkUrl={step.link_url}
-          defaultVideoUrl={step.video_url}
-          stepKey={step.key}
-          showVideoUrl={false}
-        />
-        <label className="flex flex-col gap-1.5 sm:col-span-2">
-          <span className="text-xs font-medium text-ink-soft">Description</span>
-          <MarkdownTextarea
-            name="description"
-            rows={3}
-            defaultValue={step.description ?? ""}
-          />
-        </label>
-      </form>
-
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {step.step_type === "lesson" && (
-          <div className="flex flex-col gap-3">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-ink-soft">Video URL</span>
-              <input
-                form={`step-form-${step.id}`}
-                name="video_url"
-                defaultValue={step.video_url ?? ""}
-                placeholder="YouTube, Vimeo, Loom, Google Drive, or .mp4 link"
-                className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-ink-soft">
-                Video thumbnail URL (optional)
-              </span>
-              <input
-                form={`step-form-${step.id}`}
-                name="video_thumbnail_url"
-                defaultValue={step.video_thumbnail_url ?? ""}
-                placeholder="Image link shown before the video plays"
-                className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-              />
-            </label>
-          </div>
-        )}
-        <div className="min-w-0">
-          <span className="text-xs font-medium text-ink-soft">
-            Resource links
-          </span>
-          <div className="mt-1.5">
-            <StepResourcesEditor
-              stepId={step.id}
-              initialResources={resources}
-            />
-          </div>
-        </div>
-      </div>
 
       <div className="mt-3 flex items-center justify-end gap-2 border-t border-border-soft pt-3">
           <SaveStepButton formId={`step-form-${step.id}`} />

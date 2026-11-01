@@ -128,32 +128,15 @@ export function AddStepDialog({
                   className={inputClass}
                 />
               </label>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <LessonTypeFields defaultType="lesson" />
-              </div>
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-ink-soft">Description</span>
                 <MarkdownTextarea name="description" rows={3} />
               </label>
-              <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-ink-soft">Completed by</span>
-                  <select name="completed_by" defaultValue="diy" className={inputClass}>
-                    <option value="diy">DIY</option>
-                    <option value="setup">Setup</option>
-                    <option value="both">Both</option>
-                    <option value="staff">Staff</option>
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 pb-2.5 text-xs font-medium text-ink-soft">
-                  <input type="checkbox" name="is_optional" className="h-4 w-4" />
-                  Optional
-                </label>
-                <label className="flex items-center gap-2 pb-2.5 text-xs font-medium text-ink-soft">
-                  <input type="checkbox" name="is_future_build" className="h-4 w-4" />
-                  Future Build
-                </label>
-              </div>
+              <LessonTypeFields defaultType="lesson" />
+              <label className="flex items-center gap-2 text-xs font-medium text-ink-soft">
+                <input type="checkbox" name="is_staff" className="h-4 w-4" />
+                Staff &mdash; our team handles this step
+              </label>
 
               <p className="text-xs text-ink-faint">
                 New lessons start switched Off, so clients won&rsquo;t see it

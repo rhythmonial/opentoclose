@@ -5,7 +5,6 @@ import { TopNav } from "@/components/TopNav";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
 import {
   effectiveOwner,
-  isClientVisible,
   type EngagementType,
   type PlanType,
 } from "@/lib/stepOwnership";
@@ -98,12 +97,9 @@ export default async function HomePage({
     (statuses ?? []).map((s) => [s.step_id, s.status]),
   );
 
+  // The client's own tasks; the ones our team handles aren't theirs to do.
   const requiredTasks = (allSteps ?? []).filter(
-    (s) =>
-      isClientVisible(s.completed_by, plan) &&
-      effectiveOwner(s.completed_by, plan) === "client" &&
-      !s.is_optional &&
-      !s.is_future_build,
+    (s) => effectiveOwner(s.completed_by, plan) === "client",
   );
   const completedCount = requiredTasks.filter(
     (s) => statusByStep.get(s.id) === "approved",

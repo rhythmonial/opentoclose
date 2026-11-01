@@ -15,6 +15,7 @@ import { toggleLessonComplete } from "../actions";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
 import { startPlanCheckout, startStepCheckout } from "@/app/checkout/actions";
 import { getHourlyRate } from "@/lib/hourlyRate";
+import { stepClientHref } from "@/lib/stepHref";
 import { PLAN_PRICES, formatDollars, stepPriceCents } from "@/lib/pricing";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -76,8 +77,9 @@ export default async function LessonPage({
     notFound();
   }
 
-  if ((step.step_type === "form" || step.step_type === "link") && step.link_url) {
-    redirect(step.link_url);
+  // Configurators (like Initiate Your Setup) are their own pages.
+  if (step.step_type === "configurator") {
+    redirect(stepClientHref(step));
   }
 
   const { data: resources } = await supabase
@@ -199,7 +201,7 @@ export default async function LessonPage({
   const canBuyStep =
     clientPlan !== null &&
     clientPlan !== "custom" &&
-    (step.completed_by === "setup" || step.completed_by === "both") &&
+    step.completed_by !== "staff" &&
     estimatedHours > 0 &&
     !isApproved &&
     !isPurchased &&
@@ -261,11 +263,6 @@ export default async function LessonPage({
             {isStaff && !step.is_published && (
               <span className="ml-2 rounded-full bg-ink-faint/15 px-2 py-0.5 align-middle font-caption text-[11px] font-bold uppercase tracking-wide text-ink-soft">
                 Hidden from clients
-              </span>
-            )}
-            {step.is_optional && (
-              <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[11px] font-bold uppercase font-caption tracking-wide text-ink-faint">
-                Optional
               </span>
             )}
           </h1>

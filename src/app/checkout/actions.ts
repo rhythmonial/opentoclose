@@ -100,7 +100,7 @@ export async function startStepCheckout(formData: FormData) {
     .single();
 
   const hours = Number(step?.estimated_hours ?? 0);
-  if (!step || hours <= 0 || !["setup", "both"].includes(step.completed_by)) {
+  if (!step || hours <= 0 || step.completed_by === "staff") {
     redirect(
       `${returnTo}?error=${encodeURIComponent("This step isn't available to purchase.")}`,
     );

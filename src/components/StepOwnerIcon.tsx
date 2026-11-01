@@ -33,7 +33,7 @@ export function StepOwnerIcon({ completedBy }: { completedBy: string }) {
   if (completedBy === "staff") {
     return (
       <span
-        title="Always staff (payment, approval, etc. — not affected by engagement type)"
+        title="Our team handles this step"
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-navy text-white"
       >
         {WRENCH}
@@ -41,31 +41,9 @@ export function StepOwnerIcon({ completedBy }: { completedBy: string }) {
     );
   }
 
-  if (completedBy === "setup") {
-    return (
-      <span
-        title="Staff for Setup clients — the client does this themselves if they're DIY"
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-warning-soft text-warning"
-      >
-        {WRENCH}
-      </span>
-    );
-  }
-
-  if (completedBy === "diy") {
-    return (
-      <span
-        title="DIY only — hidden from the Setup view, since staff handles the equivalent work"
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-border-soft text-ink-soft"
-      >
-        {PERSON}
-      </span>
-    );
-  }
-
   return (
     <span
-      title="Completed by client — shown under both Setup and DIY"
+      title="The client completes this step"
       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent"
     >
       {PERSON}

@@ -446,11 +446,6 @@ export default async function ClientDetailPage({
                                                 Purchased
                                               </span>
                                             )}
-                                            {step.is_optional && (
-                                              <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-ink-faint">
-                                                Optional
-                                              </span>
-                                            )}
                                           </div>
                                         </div>
                                       </div>

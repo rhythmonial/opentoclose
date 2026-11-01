@@ -4,34 +4,18 @@ import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import {
   effectiveOwner,
-  isClientVisible,
   type EngagementType,
   type PlanType,
 } from "@/lib/stepOwnership";
 import { StaffNav } from "@/components/StaffNav";
-import { stepClientHref, isExternalStepLink } from "@/lib/stepHref";
-import { toggleLessonComplete } from "@/app/lesson/actions";
+import { stepClientHref } from "@/lib/stepHref";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
 
 const HOURS_PER_BUNDLE = 10;
 
-function isRequiredStep(step: {
-  is_optional: boolean;
-  is_future_build: boolean;
-}): boolean {
-  return !step.is_optional && !step.is_future_build;
-}
-
-// Required -> red, optional -> yellow, future build -> green; anything
-// complete falls back to the neutral grey row.
-function stepRowClass(
-  step: { is_optional: boolean; is_future_build: boolean },
-  isApproved: boolean,
-): string {
-  if (isApproved) return "border-border-soft bg-bg";
-  if (step.is_future_build) return "border-success/40 bg-success-soft";
-  if (step.is_optional) return "border-warning/50 bg-warning-soft";
-  return "border-danger/30 bg-danger/5";
+// Every step is required: red until it's done, then the neutral grey row.
+function stepRowClass(isApproved: boolean): string {
+  return isApproved ? "border-border-soft bg-bg" : "border-danger/30 bg-danger/5";
 }
 
 export default async function PortalPage() {
@@ -138,21 +122,16 @@ export default async function PortalPage() {
     )
     .slice(0, 8);
 
-  // Setup clients see Setup + Both steps; DIY and Free see DIY + Both.
-  // Staff-only steps never show here.
-  const visibleSteps = (allSteps ?? []).filter((s) =>
-    isClientVisible(s.completed_by, plan),
-  );
-  const steps = visibleSteps;
+  // Every plan sees every step, including the ones our team handles.
+  const steps = allSteps ?? [];
 
   // Only the section holding the client's next task starts expanded: the
-  // first unfinished required step after their last completed one (falling
-  // back to the earliest unfinished required step, then any unfinished step).
+  // first unfinished step after their last completed one (falling back to
+  // the earliest unfinished step).
   const isDone = (s: { id: string }) => statusByStep.get(s.id) === "approved";
   const lastDoneIndex = steps.findLastIndex(isDone);
   const nextStep =
-    steps.find((s, i) => i > lastDoneIndex && isRequiredStep(s) && !isDone(s)) ??
-    steps.find((s) => isRequiredStep(s) && !isDone(s)) ??
+    steps.find((s, i) => i > lastDoneIndex && !isDone(s)) ??
     steps.find((s) => !isDone(s));
   const currentPhase = nextStep ? (nextStep.phase ?? "General") : null;
   const currentSection = nextStep?.section ?? null;
@@ -219,15 +198,7 @@ export default async function PortalPage() {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-medium text-ink-soft">
             <span className="flex items-center gap-1.5">
               <span className="h-3 w-3 -translate-y-0.5 rounded border border-navy bg-danger/5" />
-              Required
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 -translate-y-0.5 rounded border border-navy bg-warning-soft" />
-              Optional
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 -translate-y-0.5 rounded border border-navy bg-success-soft" />
-              Future build
+              To do
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-3 w-3 -translate-y-0.5 rounded border border-navy bg-bg" />
@@ -236,7 +207,7 @@ export default async function PortalPage() {
           </div>
 
           {(() => {
-            const all = visibleSteps;
+            const all = steps;
             const phaseList = Array.from(
               new Set(all.map((s) => s.phase ?? "General")),
             );
@@ -251,7 +222,7 @@ export default async function PortalPage() {
               const sections = Array.from(
                 new Set(phaseSteps.map((s) => s.section)),
               );
-              const requiredPhaseSteps = phaseSteps.filter(isRequiredStep);
+              const requiredPhaseSteps = phaseSteps;
               const completeCount = requiredPhaseSteps.filter(
                 (s) => statusByStep.get(s.id) === "approved",
               ).length;
@@ -297,8 +268,7 @@ export default async function PortalPage() {
                       const visibleSectionSteps = visiblePhaseSteps.filter(
                         (s) => s.section === section,
                       );
-                      const sectionRequired =
-                        sectionSteps.filter(isRequiredStep);
+                      const sectionRequired = sectionSteps;
                       const sectionCompleteCount = sectionRequired.filter(
                         (s) => statusByStep.get(s.id) === "approved",
                       ).length;
@@ -341,7 +311,6 @@ export default async function PortalPage() {
                             const status =
                               statusByStep.get(step.id) ?? "not_started";
                             const href = stepClientHref(step);
-                            const isExternal = isExternalStepLink(step);
                             const isApproved = status === "approved";
                             const isClientManaged =
                               effectiveOwner(
@@ -358,11 +327,6 @@ export default async function PortalPage() {
                                       Hidden
                                     </span>
                                   )}
-                                  {step.is_optional && (
-                                    <span className="ml-2 rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-ink-faint">
-                                      Optional
-                                    </span>
-                                  )}
                                 </div>
                                 {step.description && (
                                   <div className="text-xs text-ink-soft">
@@ -372,86 +336,30 @@ export default async function PortalPage() {
                               </div>
                             );
 
-                            if (isExternal) {
-                              return (
-                                <div
-                                  key={step.id}
-                                  className={`flex flex-col items-start gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:gap-4 ${stepRowClass(step, isApproved)}`}
-                                >
-                                  <a
-                                    href={href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-full min-w-0 sm:w-auto sm:flex-1"
-                                  >
-                                    {titleBlock}
-                                  </a>
-                                  <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
-                                    {isClientManaged ? (
-                                      isStaff && !isSandboxing ? (
-                                        <button
-                                          type="button"
-                                          disabled
-                                          title="Actions are disabled while viewing/previewing"
-                                          className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold opacity-50 ${
-                                            isApproved
-                                              ? "border border-border text-ink"
-                                              : "bg-accent text-white"
-                                          }`}
-                                        >
-                                          {isApproved ? "Undo" : "Mark Complete"}
-                                        </button>
-                                      ) : (
-                                        <form action={toggleLessonComplete}>
-                                          <input
-                                            type="hidden"
-                                            name="step_id"
-                                            value={step.id}
-                                          />
-                                          <input
-                                            type="hidden"
-                                            name="currently_approved"
-                                            value={String(isApproved)}
-                                          />
-                                          <button
-                                            type="submit"
-                                            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold ${
-                                              isApproved
-                                                ? "border border-border text-ink"
-                                                : "bg-accent text-white"
-                                            }`}
-                                          >
-                                            {isApproved ? "Undo" : "Mark Complete"}
-                                          </button>
-                                        </form>
-                                      )
-                                    ) : (
-                                      <span className="shrink-0 text-xs font-medium text-ink-faint">
-                                        Handled by our team
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            }
-
                             return (
                               <Link
                                 key={step.id}
                                 href={href}
-                                className={`flex flex-col items-start gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:gap-4 ${stepRowClass(step, isApproved)}`}
+                                className={`flex flex-col items-start gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:gap-4 ${stepRowClass(isApproved)}`}
                               >
                                 <div className="w-full min-w-0 sm:w-auto sm:flex-1">
                                   {titleBlock}
                                 </div>
                                 <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
-                                  <span className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
-                                    {status === "not_started"
-                                      ? "Start"
-                                      : status === "approved"
-                                        ? "Update"
-                                        : "Continue"}
-                                  </span>
+                                  {isClientManaged ? (
+                                    <span className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
+                                      {status === "not_started"
+                                        ? "Start"
+                                        : status === "approved"
+                                          ? "Update"
+                                          : "Continue"}
+                                    </span>
+                                  ) : (
+                                    // Our team checks these off; clients can read along.
+                                    <span className="shrink-0 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-ink-soft">
+                                      {isApproved ? "Done by our team" : "Our team handles this"}
+                                    </span>
+                                  )}
                                 </div>
                               </Link>
                             );
