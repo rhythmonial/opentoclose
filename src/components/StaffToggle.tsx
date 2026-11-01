@@ -17,12 +17,15 @@ export function StaffToggle({
 
   return (
     <label
-      title="Our team handles this step"
-      className="ml-1.5 inline-flex items-center gap-1 align-middle text-xs font-medium text-ink-soft"
+      title={checked ? "Our team handles this step" : "Mark as a step our team handles"}
+      className="ml-1.5 inline-flex cursor-pointer items-center align-middle"
       onClick={(e) => e.stopPropagation()}
     >
+      {/* The real checkbox stays for keyboards and screen readers; the
+          square beside it shows an S when checked. */}
       <input
         type="checkbox"
+        aria-label="Staff: our team handles this step"
         checked={checked}
         disabled={saving}
         onChange={async (e) => {
@@ -32,9 +35,16 @@ export function StaffToggle({
           await updateStepIsStaff(stepId, next);
           setSaving(false);
         }}
-        className="h-3.5 w-3.5"
+        className="peer sr-only"
       />
-      Staff
+      <span
+        aria-hidden
+        className={`flex h-4 w-4 items-center justify-center rounded border text-[10px] font-bold leading-none peer-focus-visible:ring-2 peer-focus-visible:ring-accent/40 ${
+          checked ? "border-accent bg-accent text-white" : "border-ink-faint bg-surface"
+        } ${saving ? "opacity-60" : ""}`}
+      >
+        {checked ? "S" : ""}
+      </span>
     </label>
   );
 }
