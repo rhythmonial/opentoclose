@@ -51,32 +51,32 @@ export function LessonTypeFields({
       </label>
 
       {type === "lesson" ? (
-        <>
-          <label className="flex flex-col gap-1.5">
+        <div className={showThumbnail ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : ""}>
+          <label className="flex min-w-0 flex-col gap-1.5">
             <span className="text-xs font-medium text-ink-soft">Video URL</span>
             <input
               name="video_url"
               form={formId}
               defaultValue={defaultVideoUrl ?? ""}
-              placeholder="YouTube, Vimeo, Loom, Google Drive, or .mp4 link"
+              placeholder="YouTube, Vimeo, Loom, Drive, or .mp4"
               className={inputClass}
             />
           </label>
           {showThumbnail && (
-            <label className="flex flex-col gap-1.5">
+            <label className="flex min-w-0 flex-col gap-1.5">
               <span className="text-xs font-medium text-ink-soft">
-                Video thumbnail URL (optional)
+                Thumbnail URL (optional)
               </span>
               <input
                 name="video_thumbnail_url"
                 form={formId}
                 defaultValue={defaultThumbnailUrl ?? ""}
-                placeholder="Image link shown before the video plays"
+                placeholder="Image shown before it plays"
                 className={inputClass}
               />
             </label>
           )}
-        </>
+        </div>
       ) : (
         <p className="text-xs text-ink-faint">
           {stepKey === "setup_initiation"
