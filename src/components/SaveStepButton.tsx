@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { updateStep } from "@/app/profile/setup-steps-actions";
+import { LESSON_SAVED_EVENT } from "@/components/LessonPanel";
 
 export function SaveStepButton({ formId }: { formId: string }) {
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -11,6 +12,8 @@ export function SaveStepButton({ formId }: { formId: string }) {
     if (!form) return;
     setStatus("saving");
     await updateStep(new FormData(form));
+    // Lets the lesson panel know its fields are saved now.
+    form.dispatchEvent(new Event(LESSON_SAVED_EVENT));
     setStatus("saved");
     setTimeout(() => setStatus("idle"), 2000);
   }

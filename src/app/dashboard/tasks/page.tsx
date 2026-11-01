@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { StaffToggle } from "@/components/StaffToggle";
+import { LessonPanel } from "@/components/LessonPanel";
 import { LessonTypeFields } from "@/components/LessonTypeFields";
 import { MarkdownTextarea } from "@/components/MarkdownTextarea";
 import { SaveStepButton } from "@/components/SaveStepButton";
@@ -490,8 +491,10 @@ function StepEditPanel({
   );
 
   return (
-    <details className="rounded-lg border border-border bg-surface px-4 py-2 open:pb-4">
-      <summary className="flex cursor-pointer flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <LessonPanel
+      formId={`step-form-${step.id}`}
+      summary={
+        <>
         <div className="min-w-0 flex-1 lg:flex lg:items-center lg:gap-5">
           <div className="flex items-start justify-between gap-3 sm:block">
             <div className="text-sm font-bold text-ink">
@@ -540,7 +543,9 @@ function StepEditPanel({
           {moveSelect}
           <PublishToggle stepId={step.id} value={step.is_published} />
         </div>
-      </summary>
+        </>
+      }
+    >
 
       {/* Description on top, then the lesson type and its resource links side
           by side, then the setup team's instructions. */}
@@ -601,6 +606,6 @@ function StepEditPanel({
             <ConfirmDeleteButton title="Delete this task" size="lg" />
           </form>
       </div>
-    </details>
+    </LessonPanel>
   );
 }
