@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSandboxTier } from "@/lib/devSandbox";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { WorkflowDocCard } from "@/components/WorkflowDocCard";
+import { isComplete, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldsTester } from "@/components/WorkflowFieldsTester";
 import { finishWorkflowFields } from "./actions";
 
@@ -60,7 +61,11 @@ export default async function AssignWorkflowFieldsPage() {
   const urlByPath = new Map(
     (signed ?? []).map((s) => [s.path, s.signedUrl] as const),
   );
-  const pickedCount = (docs ?? []).reduce((n, d) => n + d.workflow_field_ids.length, 0);
+  const fieldsOf = (d: { workflow_fields: unknown }) =>
+    Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : [];
+  const picked = (docs ?? []).flatMap(fieldsOf);
+  const pickedCount = picked.length;
+  const needsAnswer = picked.filter((f) => !isComplete(f)).length;
 
   return (
     <main className="flex flex-1 justify-center bg-bg px-4 py-12">
@@ -129,7 +134,7 @@ export default async function AssignWorkflowFieldsPage() {
                     url={url}
                     pageCount={doc.page_count ?? 0}
                     blanks={doc.blanks as ContractBlank[]}
-                    selected={doc.workflow_field_ids}
+                    fields={fieldsOf(doc)}
                     reviewed={Boolean(doc.reviewed_at)}
                     defaultOpen={i === 0}
                   />
@@ -142,15 +147,22 @@ export default async function AssignWorkflowFieldsPage() {
               >
                 <button
                   type="submit"
-                  disabled={pickedCount === 0}
+                  disabled={pickedCount === 0 || needsAnswer > 0}
                   className="rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   I&rsquo;m Done Picking Fields
                 </button>
-                {pickedCount === 0 && (
+                {pickedCount === 0 ? (
                   <span className="text-xs text-ink-faint">
                     Pick at least one field to finish.
                   </span>
+                ) : (
+                  needsAnswer > 0 && (
+                    <span className="text-xs text-danger">
+                      {needsAnswer} field{needsAnswer === 1 ? " still needs" : "s still need"} an
+                      answer. They&rsquo;re outlined in red.
+                    </span>
+                  )
                 )}
               </form>
             </div>

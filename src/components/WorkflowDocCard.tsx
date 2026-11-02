@@ -1,6 +1,7 @@
 "use client";
 
 import type { ContractBlank } from "@/lib/contractBlanks";
+import type { WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldPicker } from "@/components/WorkflowFieldPicker";
 import { saveWorkflowFields } from "@/app/configurator/assign_your_workflow_fields/actions";
 
@@ -11,7 +12,7 @@ export function WorkflowDocCard({
   url,
   pageCount,
   blanks,
-  selected,
+  fields,
   reviewed,
   defaultOpen,
 }: {
@@ -20,7 +21,7 @@ export function WorkflowDocCard({
   url: string;
   pageCount: number;
   blanks: ContractBlank[];
-  selected: string[];
+  fields: WorkflowField[];
   reviewed: boolean;
   defaultOpen: boolean;
 }) {
@@ -43,8 +44,8 @@ export function WorkflowDocCard({
           source={url}
           pageCount={pageCount}
           blanks={blanks}
-          initialSelected={selected}
-          onSave={(ids) => saveWorkflowFields(id, ids)}
+          initialFields={fields}
+          onSave={(picked) => saveWorkflowFields(id, picked)}
         />
       </div>
     </details>

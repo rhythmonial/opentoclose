@@ -48,7 +48,7 @@ export function WorkflowFieldsTester() {
           source={file.bytes}
           pageCount={file.analysis.pageCount}
           blanks={file.analysis.blanks}
-          initialSelected={[]}
+          initialFields={[]}
         />
       )}
     </div>

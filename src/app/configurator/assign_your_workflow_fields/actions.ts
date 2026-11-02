@@ -4,15 +4,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ContractBlank } from "@/lib/contractBlanks";
+import { cleanWorkflowFields, isComplete, type WorkflowField } from "@/lib/workflowFields";
 
 const STEP_KEY = "assign_your_workflow_fields";
 const PAGE = `/configurator/${STEP_KEY}`;
 
-// Saves which of a document's fields the client wants their workflow to
-// track. Only ids of fields that still exist on the document are kept.
+// Saves the fields the client picked for their workflow on a document,
+// with each one's type. Only fields that still exist on it are kept.
 export async function saveWorkflowFields(
   documentId: string,
-  fieldIds: string[],
+  fields: WorkflowField[],
 ): Promise<{ ok: boolean; error?: string }> {
   const supabase = await createClient();
 
@@ -24,14 +25,15 @@ export async function saveWorkflowFields(
   if (!doc) return { ok: false, error: "Document not found." };
 
   const existing = new Set(
-    (doc.blanks as ContractBlank[]).map((b) => b.id).filter(Boolean),
+    (doc.blanks as ContractBlank[]).map((b) => b.id).filter((id): id is string => Boolean(id)),
   );
-  const kept = [...new Set(fieldIds)].filter((id) => existing.has(id));
+  const kept = cleanWorkflowFields(fields, existing);
 
   const { error } = await supabase
     .from("contract_documents")
     .update({
-      workflow_field_ids: kept,
+      workflow_fields: kept,
+      workflow_field_ids: kept.map((f) => f.id),
       workflow_fields_updated_at: new Date().toISOString(),
     })
     .eq("id", documentId);
@@ -61,6 +63,13 @@ export async function finishWorkflowFields() {
         .eq("id", profile.client_account_id)
         .single()
     : { data: null };
+
+  // Every picked field needs its type (and follow-up) answered first.
+  const { data: docs } = await supabase.from("contract_documents").select("workflow_fields");
+  const picked = (docs ?? []).flatMap((d) =>
+    Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : [],
+  );
+  if (picked.length === 0 || picked.some((f) => !isComplete(f))) redirect(PAGE);
 
   const { data: step } = await supabase
     .from("setup_steps")

@@ -200,6 +200,7 @@ export type Database = {
           storage_path: string
           uploaded_by: string | null
           workflow_field_ids: string[]
+          workflow_fields: Json
           workflow_fields_updated_at: string | null
         }
         Insert: {
@@ -217,6 +218,7 @@ export type Database = {
           storage_path: string
           uploaded_by?: string | null
           workflow_field_ids?: string[]
+          workflow_fields?: Json
           workflow_fields_updated_at?: string | null
         }
         Update: {
@@ -234,6 +236,7 @@ export type Database = {
           storage_path?: string
           uploaded_by?: string | null
           workflow_field_ids?: string[]
+          workflow_fields?: Json
           workflow_fields_updated_at?: string | null
         }
         Relationships: [
