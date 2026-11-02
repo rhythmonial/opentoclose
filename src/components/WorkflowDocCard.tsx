@@ -1,0 +1,52 @@
+"use client";
+
+import type { ContractBlank } from "@/lib/contractBlanks";
+import { WorkflowFieldPicker } from "@/components/WorkflowFieldPicker";
+import { saveWorkflowFields } from "@/app/configurator/assign_your_workflow_fields/actions";
+
+// One uploaded contract in Assign Your Workflow Fields.
+export function WorkflowDocCard({
+  id,
+  fileName,
+  url,
+  pageCount,
+  blanks,
+  selected,
+  reviewed,
+  defaultOpen,
+}: {
+  id: string;
+  fileName: string;
+  url: string;
+  pageCount: number;
+  blanks: ContractBlank[];
+  selected: string[];
+  reviewed: boolean;
+  defaultOpen: boolean;
+}) {
+  return (
+    <details open={defaultOpen} className="rounded-xl border border-border bg-surface p-4">
+      <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2">
+        <span className="min-w-0 truncate text-sm font-semibold text-ink">{fileName}</span>
+        <span className="text-xs text-ink-faint">
+          {pageCount} page{pageCount === 1 ? "" : "s"} &middot; {blanks.length} fields
+        </span>
+      </summary>
+      {!reviewed && (
+        <p className="mt-3 rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">
+          This document&rsquo;s review isn&rsquo;t finished yet, so some fields
+          may be missing. Finish it in Upload Your Contracts to add them.
+        </p>
+      )}
+      <div className="mt-3">
+        <WorkflowFieldPicker
+          source={url}
+          pageCount={pageCount}
+          blanks={blanks}
+          initialSelected={selected}
+          onSave={(ids) => saveWorkflowFields(id, ids)}
+        />
+      </div>
+    </details>
+  );
+}

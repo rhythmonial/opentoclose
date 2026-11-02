@@ -99,8 +99,12 @@ export function ContractReviewer({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!doc || !canvas) return;
-    let task: { cancel: () => void } | null = null;
+    // Cleanup can run before the page has loaded (or twice in dev), so a
+    // flag stops a late render from drawing over a newer one.
+    let cancelled = false;
+    let task: { cancel: () => void; promise: Promise<void> } | null = null;
     doc.getPage(page).then((p) => {
+      if (cancelled) return;
       // Render at a fixed, sharp width and let CSS scale it to fit; the
       // container may not have its final width yet when this runs.
       const base = p.getViewport({ scale: 1 });
@@ -110,8 +114,13 @@ export function ContractReviewer({
       canvas.height = viewport.height;
       setPageSize({ width: base.width, height: base.height });
       task = p.render({ canvas, viewport });
+      // A cancelled render rejects; that's expected.
+      task.promise.catch(() => {});
     });
-    return () => task?.cancel();
+    return () => {
+      cancelled = true;
+      task?.cancel();
+    };
   }, [doc, page]);
 
   // Save shortly after the last change, so dragging doesn't save every frame.
@@ -171,6 +180,7 @@ export function ContractReviewer({
         ? [
             ...blanks,
             {
+              id: crypto.randomUUID(),
               page,
               kind: "manual" as const,
               type: "text" as const,

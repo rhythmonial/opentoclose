@@ -199,6 +199,8 @@ export type Database = {
           reviewed_at: string | null
           storage_path: string
           uploaded_by: string | null
+          workflow_field_ids: string[]
+          workflow_fields_updated_at: string | null
         }
         Insert: {
           blank_count?: number
@@ -214,6 +216,8 @@ export type Database = {
           reviewed_at?: string | null
           storage_path: string
           uploaded_by?: string | null
+          workflow_field_ids?: string[]
+          workflow_fields_updated_at?: string | null
         }
         Update: {
           blank_count?: number
@@ -229,6 +233,8 @@ export type Database = {
           reviewed_at?: string | null
           storage_path?: string
           uploaded_by?: string | null
+          workflow_field_ids?: string[]
+          workflow_fields_updated_at?: string | null
         }
         Relationships: [
           {

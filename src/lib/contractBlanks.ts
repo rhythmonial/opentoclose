@@ -4,6 +4,9 @@ import { loadPdfjs } from "@/lib/pdfjs";
 // A fill-in spot found in a contract. Position and size are fractions of
 // the page (top-left origin), so they work at any render size.
 export type ContractBlank = {
+  // Stable id, so later steps (like picking workflow fields) can refer to
+  // a field even as boxes are added or removed around it.
+  id?: string;
   page: number;
   // How it was found. "manual" boxes are ones the client drew while
   // reviewing.
@@ -91,6 +94,7 @@ export async function analyzeContract(
     const viewport = page.getViewport({ scale: 1 });
     for (const blank of dedupe(found)) {
       blanks.push({
+        id: crypto.randomUUID(),
         page: n,
         kind: blank.kind,
         type: blank.type ?? "text",

@@ -142,6 +142,10 @@ export async function saveContractReview(input: {
     .slice(0, 3000)
     .filter((b) => KINDS.has(b.kind) && b.page >= 1 && b.page <= pages)
     .map((b) => ({
+      id:
+        typeof b.id === "string" && /^[0-9a-f-]{36}$/i.test(b.id)
+          ? b.id
+          : crypto.randomUUID(),
       page: Math.trunc(b.page),
       kind: b.kind,
       type: b.type === "checkbox" ? ("checkbox" as const) : ("text" as const),
