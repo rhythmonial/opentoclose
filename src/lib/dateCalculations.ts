@@ -2,29 +2,55 @@ import { OTC_FIELD_IDS } from "@/lib/otcFields";
 import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
 
 // How a date field is worked out, as OTC's Date Calculation asks: so many
-// (calendar or business) days before or after another date. The days are a
-// set number, or a blank on the contract the agent fills in, recorded as the
-// number field it goes in.
+// (calendar or business) days after or before another date, or the same day
+// as it. The days are a set number, or a blank on the contract the agent
+// fills in, recorded as the number field it goes in. Then how weekends and
+// federal holidays move it (null is N/A).
 export type DateCalc = {
   otc_field: string;
   enabled: boolean;
   days: number | null;
   days_on_contract: boolean;
   number_field: string | null;
-  time_frame: "calendar_days" | "business_days" | null;
+  time_frame: TimeFrame | null;
   direction: "before" | "after" | null;
   relative_to: string | null;
+  weekend_roll: "back" | "forward" | null;
+  holiday_roll: "back" | "forward" | null;
+  federal_holidays: "count" | "skip" | null;
 };
 
+export type TimeFrame =
+  | "business_days"
+  | "calendar_days"
+  | "calendar_days_skip_weekend"
+  | "same_day";
+
+// As OTC lists them.
 export const TIME_FRAMES = [
-  { value: "calendar_days", label: "Calendar Days" },
-  { value: "business_days", label: "Business Days" },
+  { value: "business_days", label: "Business Day(s)" },
+  { value: "calendar_days", label: "Calendar Day(s)" },
+  { value: "calendar_days_skip_weekend", label: "Calendar Day(s) - Skip landing weekend day(s)" },
+  { value: "same_day", label: "Same Day As" },
 ] as const;
 
 export const DIRECTIONS = [
-  { value: "before", label: "Before" },
   { value: "after", label: "After" },
+  { value: "before", label: "Before" },
 ] as const;
+
+export const ROLLS = [
+  { value: "back", label: "Roll Back" },
+  { value: "forward", label: "Roll Forward" },
+] as const;
+
+export const FEDERAL_HOLIDAYS = [
+  { value: "count", label: "Count Federal Holidays" },
+  { value: "skip", label: "Skip Federal Holidays" },
+] as const;
+
+// "Same Day As" has no days to count or direction to go.
+export const isSameDay = (c: Pick<DateCalc, "time_frame">) => c.time_frame === "same_day";
 
 export const emptyCalc = (otcField: string): DateCalc => ({
   otc_field: otcField,
@@ -35,13 +61,18 @@ export const emptyCalc = (otcField: string): DateCalc => ({
   time_frame: null,
   direction: null,
   relative_to: null,
+  weekend_roll: null,
+  holiday_roll: null,
+  federal_holidays: null,
 });
 
 // Whether a checked date has everything it needs.
 export function calcComplete(c: DateCalc) {
   if (!c.enabled) return true;
+  if (!c.time_frame || !c.relative_to) return false;
+  if (isSameDay(c)) return true;
   const days = c.days_on_contract ? Boolean(c.number_field) : c.days !== null;
-  return days && Boolean(c.time_frame && c.direction && c.relative_to);
+  return days && Boolean(c.direction);
 }
 
 // An OTC field id we'll store: a built-in one or one the client added.
@@ -63,13 +94,16 @@ export function cleanCalc(raw: Partial<DateCalc>): DateCalc | null {
     days,
     days_on_contract: raw.days_on_contract === true,
     number_field: validFieldId(raw.number_field) ? raw.number_field : null,
-    time_frame:
-      raw.time_frame === "calendar_days" || raw.time_frame === "business_days"
-        ? raw.time_frame
-        : null,
+    time_frame: TIME_FRAMES.some((t) => t.value === raw.time_frame)
+      ? (raw.time_frame as TimeFrame)
+      : null,
     direction: raw.direction === "before" || raw.direction === "after" ? raw.direction : null,
     relative_to:
       validFieldId(raw.relative_to) && raw.relative_to !== raw.otc_field ? raw.relative_to : null,
+    weekend_roll: raw.weekend_roll === "back" || raw.weekend_roll === "forward" ? raw.weekend_roll : null,
+    holiday_roll: raw.holiday_roll === "back" || raw.holiday_roll === "forward" ? raw.holiday_roll : null,
+    federal_holidays:
+      raw.federal_holidays === "count" || raw.federal_holidays === "skip" ? raw.federal_holidays : null,
   };
 }
 

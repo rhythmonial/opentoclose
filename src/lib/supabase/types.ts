@@ -196,6 +196,9 @@ export type Database = {
           direction: string | null
           relative_to: string | null
           updated_at: string
+          weekend_roll: string | null
+          holiday_roll: string | null
+          federal_holidays: string | null
         }
         Insert: {
           client_account_id: string
@@ -208,6 +211,9 @@ export type Database = {
           direction?: string | null
           relative_to?: string | null
           updated_at?: string
+          weekend_roll?: string | null
+          holiday_roll?: string | null
+          federal_holidays?: string | null
         }
         Update: {
           client_account_id?: string
@@ -220,6 +226,9 @@ export type Database = {
           direction?: string | null
           relative_to?: string | null
           updated_at?: string
+          weekend_roll?: string | null
+          holiday_roll?: string | null
+          federal_holidays?: string | null
         }
         Relationships: [
           {

@@ -5,7 +5,10 @@ import {
   calcComplete,
   DIRECTIONS,
   emptyCalc,
+  FEDERAL_HOLIDAYS,
+  isSameDay,
   matchingNumberField,
+  ROLLS,
   TIME_FRAMES,
   type DateCalc,
 } from "@/lib/dateCalculations";
@@ -23,9 +26,10 @@ const inputClass =
   "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent disabled:cursor-not-allowed";
 
 // Select Your Date Fields: every Open to Close date field, faded until it's
-// checked. A checked date asks how it's calculated: so many days (a set
-// number, or a blank on the contract recorded as the number field it goes
-// in), calendar or business days, before or after which other date.
+// checked. A checked date asks what OTC's Date Calculation asks: so many
+// days (a set number, or a blank on the contract recorded as the number
+// field it goes in) of which time frame, after or before which other date
+// (or the same day as it), and how weekends and federal holidays move it.
 export function DateFieldsConfigurator({
   accountId,
   dates,
@@ -141,12 +145,22 @@ export function DateFieldsConfigurator({
             {items.map((d) => {
               const c = calcFor(d.id);
               const on = c.enabled;
+              const sameDay = isSameDay(c);
               const missing = (v: unknown) => on && (v === null || v === "");
+              // Days and When don't apply to "Same Day As".
+              const missingCount = (v: unknown) => !sameDay && missing(v);
               const labelClass = (bad: boolean) =>
                 `text-xs font-semibold ${bad ? "text-danger" : "text-ink-soft"}`;
               const daysText = c.days_on_contract
                 ? `[${numberName(c.number_field) || "number field"}]`
                 : (c.days ?? "__");
+              const extras = [
+                c.weekend_roll && `Weekends: ${ROLLS.find((r) => r.value === c.weekend_roll)!.label}`,
+                c.holiday_roll &&
+                  `Federal holidays: ${ROLLS.find((r) => r.value === c.holiday_roll)!.label}`,
+                c.federal_holidays &&
+                  FEDERAL_HOLIDAYS.find((r) => r.value === c.federal_holidays)!.label,
+              ].filter(Boolean);
               return (
                 <div
                   key={d.id}
@@ -181,8 +195,11 @@ export function DateFieldsConfigurator({
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       {c.days_on_contract ? (
                         <label className="flex flex-col gap-1">
-                          <span className={labelClass(missing(c.number_field))}>Number Field</span>
+                          <span className={labelClass(missingCount(c.number_field))}>
+                            Number Field
+                          </span>
                           <select
+                            disabled={sameDay}
                             value={c.number_field ?? ""}
                             onChange={(e) => update(d.id, { number_field: e.target.value || null })}
                             className={inputClass}
@@ -193,8 +210,9 @@ export function DateFieldsConfigurator({
                         </label>
                       ) : (
                         <label className="flex flex-col gap-1">
-                          <span className={labelClass(missing(c.days))}>Days</span>
+                          <span className={labelClass(missingCount(c.days))}>Days</span>
                           <input
+                            disabled={sameDay}
                             type="number"
                             min={0}
                             max={3650}
@@ -230,8 +248,9 @@ export function DateFieldsConfigurator({
                         </select>
                       </label>
                       <label className="flex flex-col gap-1">
-                        <span className={labelClass(missing(c.direction))}>When</span>
+                        <span className={labelClass(missingCount(c.direction))}>When</span>
                         <select
+                          disabled={sameDay}
                           value={c.direction ?? ""}
                           onChange={(e) =>
                             update(d.id, {
@@ -253,6 +272,7 @@ export function DateFieldsConfigurator({
                     <label className="flex w-fit items-center gap-2 text-sm text-ink-soft">
                       <input
                         type="checkbox"
+                        disabled={sameDay}
                         checked={c.days_on_contract}
                         onChange={(e) =>
                           update(d.id, {
@@ -280,12 +300,48 @@ export function DateFieldsConfigurator({
                       </select>
                     </label>
 
+                    <div className="grid grid-cols-1 gap-3 border-t border-border pt-3 sm:grid-cols-3">
+                      {(
+                        [
+                          ["weekend_roll", "Weekend Roll", ROLLS],
+                          ["holiday_roll", "Federal Holiday Roll", ROLLS],
+                          ["federal_holidays", "Skip Federal Holidays", FEDERAL_HOLIDAYS],
+                        ] as const
+                      ).map(([key, label, choices]) => (
+                        <label key={key} className="flex flex-col gap-1">
+                          <span className={labelClass(false)}>{label}</span>
+                          <select
+                            value={c[key] ?? ""}
+                            onChange={(e) => update(d.id, { [key]: e.target.value || null })}
+                            className={inputClass}
+                          >
+                            <option value="">N/A</option>
+                            {choices.map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ))}
+                    </div>
+
                     {on && (
                       <p className="text-sm text-ink-soft">
-                        <span className="font-semibold text-ink">{d.name}</span> = {daysText}{" "}
-                        {TIME_FRAMES.find((t) => t.value === c.time_frame)?.label ?? "__"}{" "}
-                        {DIRECTIONS.find((t) => t.value === c.direction)?.label ?? "__"}{" "}
-                        {nameOf(c.relative_to) || "__"}
+                        <span className="font-semibold text-ink">{d.name}</span> ={" "}
+                        {sameDay ? (
+                          <>Same Day As {nameOf(c.relative_to) || "__"}</>
+                        ) : (
+                          <>
+                            {daysText}{" "}
+                            {TIME_FRAMES.find((t) => t.value === c.time_frame)?.label ?? "__"}{" "}
+                            {DIRECTIONS.find((t) => t.value === c.direction)?.label ?? "__"}{" "}
+                            {nameOf(c.relative_to) || "__"}
+                          </>
+                        )}
+                        {extras.length > 0 && (
+                          <span className="text-ink-faint"> &middot; {extras.join(" · ")}</span>
+                        )}
                       </p>
                     )}
                   </fieldset>
