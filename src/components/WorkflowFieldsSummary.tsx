@@ -132,16 +132,13 @@ export function WorkflowFieldsSummary({ docs }: { docs: SummaryDoc[] }) {
                 </p>
               )}
               <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full min-w-[34rem] text-left text-sm">
+                <table className="w-full min-w-[28rem] text-left text-sm">
                   <thead className="bg-bg text-xs text-ink-soft">
                     <tr>
                       <th className="px-3 py-2 font-semibold">Line</th>
                       <th className="px-3 py-2 font-semibold">Page</th>
-                      <th className="px-3 py-2 font-semibold">
-                        Contract field
-                      </th>
+                      <th className="px-3 py-2 font-semibold">Field</th>
                       <th className="px-3 py-2 font-semibold">Type</th>
-                      <th className="px-3 py-2 font-semibold">Open to Close</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -158,12 +155,8 @@ export function WorkflowFieldsSummary({ docs }: { docs: SummaryDoc[] }) {
                           <td className="px-3 py-2 text-ink-soft">
                             {first.page}
                           </td>
-                          <td className="px-3 py-2 text-ink">
-                            {fieldLabel(first)}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-2 text-ink-soft">
-                            {typeLabel(f)}
-                          </td>
+                          {/* The field they picked; until it has one, the
+                              contract's wording, to help find it. */}
                           <td className="px-3 py-2 text-ink">
                             {name ? (
                               <>
@@ -180,12 +173,17 @@ export function WorkflowFieldsSummary({ docs }: { docs: SummaryDoc[] }) {
                                   </span>
                                 )}
                               </>
-                            ) : null}
+                            ) : (
+                              <span className="text-ink-faint">{fieldLabel(first)}</span>
+                            )}
                             {!isComplete(f) && (
                               <span className="text-xs font-semibold text-danger">
-                                {name ? " · " : ""}Needs an answer
+                                {" · "}Needs an answer
                               </span>
                             )}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 text-ink-soft">
+                            {typeLabel(f)}
                           </td>
                         </tr>
                       );
