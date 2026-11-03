@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { openPdf } from "@/lib/pdfjs";
-import type { ContractBlank } from "@/lib/contractBlanks";
+import { tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 type Drag = {
@@ -47,7 +47,8 @@ const clamp = (n: number, min = 0, max = 1) => Math.min(max, Math.max(min, n));
 
 // Lets a client check every page of a contract: the blanks we found are
 // highlighted, and they can add boxes (click or drag on the page), move and
-// stretch them, remove wrong ones, and confirm each page. Changes go to
+// stretch them, remove wrong ones, link boxes that are one answer
+// (shift+click them, then Link), and confirm each page. Changes go to
 // `onSave` shortly after each edit; without it, edits stay on this screen.
 export function ContractReviewer({
   source,
@@ -69,6 +70,9 @@ export function ContractReviewer({
   // Page size in points (letter until the page loads), for sizing new boxes.
   const [pageSize, setPageSize] = useState({ width: 612, height: 792 });
   const [selected, setSelected] = useState<number | null>(null);
+  // Boxes shift+clicked to be linked together (indexes into blanks).
+  const [linking, setLinking] = useState<number[]>([]);
+  const [hoverGroup, setHoverGroup] = useState<string | null>(null);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "error" | null>(null);
@@ -135,26 +139,61 @@ export function ContractReviewer({
   }
 
   function changeBlanks(next: ContractBlank[]) {
-    setBlanks(next);
-    commit(next, confirmed);
+    const tidy = tidyGroups(next);
+    setBlanks(tidy);
+    commit(tidy, confirmed);
   }
 
   function removeSelected() {
     if (selected === null) return;
     changeBlanks(blanks.filter((_, i) => i !== selected));
     setSelected(null);
+    setLinking([]);
+  }
+
+  // Shift+click adds a box to (or takes it out of) the ones to link,
+  // starting from the box already selected.
+  function toggleLinking(index: number) {
+    const base = linking.length > 0 ? linking : selected !== null ? [selected] : [];
+    setLinking(base.includes(index) ? base.filter((i) => i !== index) : [...base, index]);
+    setSelected(null);
+  }
+
+  // Links the shift+clicked boxes, along with anything already linked to
+  // them, as one answer.
+  function linkSelected() {
+    const joining = new Set(linking.map((i) => blanks[i]?.group).filter(Boolean));
+    const group = crypto.randomUUID();
+    changeBlanks(
+      blanks.map((b, i) =>
+        linking.includes(i) || (b.group && joining.has(b.group)) ? { ...b, group } : b,
+      ),
+    );
+    setLinking([]);
+  }
+
+  function unlink(group: string) {
+    changeBlanks(
+      blanks.map((b) => {
+        if (b.group !== group) return b;
+        const rest = { ...b };
+        delete rest.group;
+        return rest;
+      }),
+    );
   }
 
   useEffect(() => {
-    if (selected === null) return;
+    if (selected === null && linking.length === 0) return;
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest("input, textarea, select, [contenteditable]")) return;
-      if (e.key === "Delete" || e.key === "Backspace") {
+      if (selected !== null && (e.key === "Delete" || e.key === "Backspace")) {
         e.preventDefault();
         removeSelected();
       } else if (e.key === "Escape") {
         setSelected(null);
+        setLinking([]);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -300,6 +339,7 @@ export function ContractReviewer({
       if (nextPage) {
         setPage(nextPage);
         setSelected(null);
+        setLinking([]);
         // Start the next page from its top, not where this one was confirmed.
         rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
@@ -310,6 +350,17 @@ export function ContractReviewer({
     .map((b, index) => ({ ...b, index }))
     .filter((b) => b.page === page);
   const pageConfirmed = confirmed.includes(page);
+  const selectedGroup = selected !== null ? blanks[selected]?.group : undefined;
+  const groupSize = (g: string) => blanks.filter((b) => b.group === g).length;
+  // Each link on this page is lettered A, B, C... in reading order, and
+  // the letter shows on its first box.
+  const groupLetters = new Map<string, string>();
+  const firstOfGroup = new Set<number>();
+  for (const b of [...onPage].sort((a, c) => a.y - c.y || a.x - c.x)) {
+    if (!b.group || groupLetters.has(b.group)) continue;
+    groupLetters.set(b.group, String.fromCharCode(65 + (groupLetters.size % 26)));
+    firstOfGroup.add(b.index);
+  }
 
   return (
     <div ref={rootRef} className="flex scroll-mt-4 flex-col gap-3">
@@ -322,6 +373,7 @@ export function ContractReviewer({
               onClick={() => {
                 setPage(n);
                 setSelected(null);
+                setLinking([]);
               }}
               className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-semibold ${
                 n === page
@@ -356,7 +408,56 @@ export function ContractReviewer({
         line? Click and drag along it. Drag a box to move it, drag its ends
         to make it longer or shorter, and select a box then press{" "}
         <span className="font-semibold">&times;</span> or Delete to remove it.
+        If one answer runs across more than one line, hold{" "}
+        <span className="font-semibold">Shift</span> and click each of its
+        boxes, then click Link.
       </p>
+
+      {(linking.length > 0 || selectedGroup) && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent-soft bg-accent-soft/40 px-3 py-2 text-sm">
+          {linking.length > 0 ? (
+            <>
+              <span className="text-ink">
+                {linking.length} box{linking.length === 1 ? "" : "es"} selected
+                {linking.length < 2 && " · Shift+click another box to link it"}
+              </span>
+              <span className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setLinking([])}
+                  className="rounded-md px-3 py-1 text-xs font-semibold text-ink-soft"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={linking.length < 2}
+                  onClick={linkSelected}
+                  className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                >
+                  Link as one answer
+                </button>
+              </span>
+            </>
+          ) : (
+            selectedGroup && (
+              <>
+                <span className="text-ink">
+                  This box is linked with {groupSize(selectedGroup) - 1} other
+                  {groupSize(selectedGroup) === 2 ? "" : "s"} as one answer.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => unlink(selectedGroup)}
+                  className="rounded-md border border-border bg-surface px-3 py-1 text-xs font-semibold text-ink-soft"
+                >
+                  Unlink
+                </button>
+              </>
+            )
+          )}
+        </div>
+      )}
 
       <div className="relative overflow-hidden rounded-lg border border-border bg-white">
         {loadError ? (
@@ -370,6 +471,7 @@ export function ContractReviewer({
                 ref={overlayRef}
                 onPointerDown={(e) => {
                   if (e.button !== 0) return;
+                  setLinking([]);
                   startDrag(e, "draw", blanks.length);
                 }}
                 onPointerMove={onPointerMove}
@@ -379,17 +481,32 @@ export function ContractReviewer({
               >
                 {onPage.map((b) => {
                   const isSelected = selected === b.index;
+                  const isLinking = linking.includes(b.index);
+                  const lit = b.group && (b.group === hoverGroup || b.group === selectedGroup);
                   return (
                     <div
                       key={b.index}
                       onPointerDown={(e) => {
                         if (e.button !== 0) return;
+                        if (e.shiftKey) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleLinking(b.index);
+                          return;
+                        }
+                        setLinking([]);
                         startDrag(e, "move", b.index);
                       }}
+                      onPointerEnter={() => setHoverGroup(b.group ?? null)}
+                      onPointerLeave={() => setHoverGroup(null)}
                       className={`absolute cursor-move rounded-sm border-2 ${
                         isSelected
                           ? "z-10 border-accent bg-accent/15"
-                          : "border-gold bg-gold/25 hover:bg-gold/40"
+                          : isLinking
+                            ? "z-10 border-dashed border-accent bg-accent/25"
+                            : b.group
+                              ? `border-success ${lit ? "bg-success/40" : "bg-success/20"}`
+                              : "border-gold bg-gold/25 hover:bg-gold/40"
                       }`}
                       style={{
                         left: `${b.x * 100}%`,
@@ -398,6 +515,14 @@ export function ContractReviewer({
                         height: `${b.height * 100}%`,
                       }}
                     >
+                      {b.group && firstOfGroup.has(b.index) && (
+                        <span className="pointer-events-none absolute -left-0.5 -top-3.5 flex items-center gap-0.5 whitespace-nowrap rounded bg-success px-1 py-px text-[9px] font-bold leading-tight text-white">
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden>
+                            <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+                          </svg>
+                          {groupLetters.get(b.group)}
+                        </span>
+                      )}
                       {isSelected && (
                         <>
                           {/* Blank lines stretch from their ends only;

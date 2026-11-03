@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { ContractBlank } from "@/lib/contractBlanks";
+import { tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 
 const STEP_KEY = "upload_your_contract_docs";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -138,12 +138,13 @@ export async function saveContractReview(input: {
   if (!doc) return { ok: false, error: "Document not found." };
   const pages = doc.page_count ?? 0;
 
-  const blanks: ContractBlank[] = input.blanks
+  const uuid = /^[0-9a-f-]{36}$/i;
+  const blanks: ContractBlank[] = tidyGroups(input.blanks
     .slice(0, 3000)
     .filter((b) => KINDS.has(b.kind) && b.page >= 1 && b.page <= pages)
     .map((b) => ({
       id:
-        typeof b.id === "string" && /^[0-9a-f-]{36}$/i.test(b.id)
+        typeof b.id === "string" && uuid.test(b.id)
           ? b.id
           : crypto.randomUUID(),
       page: Math.trunc(b.page),
@@ -156,7 +157,8 @@ export async function saveContractReview(input: {
       label: String(b.label ?? "").slice(0, 120),
       after: String(b.after ?? "").slice(0, 120),
       ...(b.fieldName ? { fieldName: String(b.fieldName).slice(0, 120) } : {}),
-    }));
+      ...(typeof b.group === "string" && uuid.test(b.group) ? { group: b.group } : {}),
+    })));
   const confirmed = [...new Set(input.confirmedPages.map(Math.trunc))]
     .filter((n) => n >= 1 && n <= pages)
     .sort((a, b) => a - b);

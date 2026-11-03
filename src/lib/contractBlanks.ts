@@ -24,7 +24,22 @@ export type ContractBlank = {
   after: string;
   // Name of the fillable field, when the PDF has one.
   fieldName?: string;
+  // Boxes the client linked as one answer (like a description that wraps
+  // onto a second line) share this id.
+  group?: string;
 };
+
+// Drops a link that has fewer than two boxes left in it.
+export function tidyGroups(blanks: ContractBlank[]): ContractBlank[] {
+  const counts = new Map<string, number>();
+  for (const b of blanks) if (b.group) counts.set(b.group, (counts.get(b.group) ?? 0) + 1);
+  return blanks.map((b) => {
+    if (!b.group || (counts.get(b.group) ?? 0) >= 2) return b;
+    const rest = { ...b };
+    delete rest.group;
+    return rest;
+  });
+}
 
 export type ContractAnalysis = {
   pageCount: number;

@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ContractBlank } from "@/lib/contractBlanks";
-import { cleanWorkflowFields, isComplete, type WorkflowField } from "@/lib/workflowFields";
+import {
+  cleanWorkflowFields,
+  isActive,
+  isComplete,
+  workflowKeys,
+  type WorkflowField,
+} from "@/lib/workflowFields";
 
 const STEP_KEY = "assign_your_workflow_fields";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -24,16 +30,13 @@ export async function saveWorkflowFields(
     .single();
   if (!doc) return { ok: false, error: "Document not found." };
 
-  const existing = new Set(
-    (doc.blanks as ContractBlank[]).map((b) => b.id).filter((id): id is string => Boolean(id)),
-  );
-  const kept = cleanWorkflowFields(fields, existing);
+  const kept = cleanWorkflowFields(fields, workflowKeys(doc.blanks as ContractBlank[]));
 
   const { error } = await supabase
     .from("contract_documents")
     .update({
       workflow_fields: kept,
-      workflow_field_ids: kept.map((f) => f.id),
+      workflow_field_ids: kept.filter(isActive).map((f) => f.id),
       workflow_fields_updated_at: new Date().toISOString(),
     })
     .eq("id", documentId);
@@ -66,9 +69,9 @@ export async function finishWorkflowFields() {
 
   // Every picked field needs its type (and follow-up) answered first.
   const { data: docs } = await supabase.from("contract_documents").select("workflow_fields");
-  const picked = (docs ?? []).flatMap((d) =>
-    Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : [],
-  );
+  const picked = (docs ?? [])
+    .flatMap((d) => (Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : []))
+    .filter(isActive);
   if (picked.length === 0 || picked.some((f) => !isComplete(f))) redirect(PAGE);
 
   const { data: step } = await supabase

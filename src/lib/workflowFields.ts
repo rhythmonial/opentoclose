@@ -10,8 +10,12 @@ export type WorkflowFieldType =
   | "choice";
 
 export type WorkflowField = {
-  // The contract field's id (see ContractBlank.id).
+  // The contract field's key: its box id, or its link id when the client
+  // linked several boxes as one answer (see workflowKeys).
   id: string;
+  // Taken out of the workflow (shown grayed out). Its answers are kept so
+  // restoring it brings them back.
+  removed?: boolean;
   type?: WorkflowFieldType;
   // Decimals are money or a percentage.
   decimal_format?: "currency" | "percentage";
@@ -55,8 +59,10 @@ export function fieldTag(field: WorkflowField): string {
   return FIELD_TYPES.find((t) => t.value === field.type)?.tag ?? "?";
 }
 
-// Whether every question for this field has been answered.
+// Whether every question for this field has been answered. A removed field
+// has nothing left to answer.
 export function isComplete(field: WorkflowField): boolean {
+  if (field.removed) return true;
   if (!field.type) return false;
   if (field.type === "decimal") return Boolean(field.decimal_format);
   if (field.type === "choice") {
@@ -65,27 +71,52 @@ export function isComplete(field: WorkflowField): boolean {
   return true;
 }
 
+// A field the workflow tracks (picked and not removed).
+export const isActive = (field: WorkflowField) => !field.removed;
+
+// Maps each box id, and each link id, to the key its workflow field is
+// saved under: linked boxes share their link's key.
+export function workflowKeys(blanks: { id?: string; group?: string }[]): Map<string, string> {
+  const keys = new Map<string, string>();
+  for (const b of blanks) {
+    if (!b.id) continue;
+    const key = b.group ?? b.id;
+    keys.set(b.id, key);
+    keys.set(key, key);
+  }
+  return keys;
+}
+
 const TYPES = new Set(FIELD_TYPES.map((t) => t.value));
 
-// Keeps only well-formed picks (used before saving). A choice option loses
-// its question when that question is no longer picked.
-export function cleanWorkflowFields(raw: unknown, allowedIds: Set<string>): WorkflowField[] {
+// Keeps only well-formed picks (used before saving, and on load), saved
+// under their current key (see workflowKeys), so a box that has since been
+// linked carries its answers over. A choice option loses its question when
+// that question is no longer picked.
+export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): WorkflowField[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
   const out: WorkflowField[] = [];
   for (const item of raw) {
     const f = item as Partial<WorkflowField> | null;
-    if (!f || typeof f.id !== "string" || !allowedIds.has(f.id) || seen.has(f.id)) continue;
-    seen.add(f.id);
+    const key = f && typeof f.id === "string" ? keys.get(f.id) : undefined;
+    if (!f || !key || seen.has(key)) continue;
+    seen.add(key);
     const type = TYPES.has(f.type as WorkflowFieldType) ? f.type : undefined;
-    const clean: WorkflowField = { id: f.id, ...(type ? { type } : {}) };
+    const clean: WorkflowField = {
+      id: key,
+      ...(f.removed === true ? { removed: true } : {}),
+      ...(type ? { type } : {}),
+    };
     if (type === "decimal" && (f.decimal_format === "currency" || f.decimal_format === "percentage")) {
       clean.decimal_format = f.decimal_format;
     }
     if (type === "choice" && (f.choice_role === "question" || f.choice_role === "option")) {
       clean.choice_role = f.choice_role;
       if (f.choice_role === "option" && typeof f.question_id === "string") {
-        clean.question_id = f.question_id.slice(0, 80);
+        clean.question_id = f.question_id.startsWith(NEW_QUESTION_PREFIX)
+          ? f.question_id.slice(0, 80)
+          : (keys.get(f.question_id) ?? f.question_id);
         if (f.question_id.startsWith(NEW_QUESTION_PREFIX) && typeof f.question_text === "string") {
           clean.question_text = f.question_text.trim().slice(0, 200);
         }
@@ -93,7 +124,9 @@ export function cleanWorkflowFields(raw: unknown, allowedIds: Set<string>): Work
     }
     out.push(clean);
   }
-  const questions = new Set(out.filter((f) => f.choice_role === "question").map((f) => f.id));
+  const questions = new Set(
+    out.filter((f) => isActive(f) && f.choice_role === "question").map((f) => f.id),
+  );
   for (const f of out) {
     if (!f.question_id) continue;
     const ok = f.question_id.startsWith(NEW_QUESTION_PREFIX)

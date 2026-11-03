@@ -4,9 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { PdfPageCanvas, usePdfDocument } from "@/components/PdfPageCanvas";
 import {
+  cleanWorkflowFields,
   fieldTag,
+  isActive,
   isComplete,
   NEW_QUESTION_PREFIX,
+  workflowKeys,
   type WorkflowField,
 } from "@/lib/workflowFields";
 
@@ -23,8 +26,10 @@ function fieldLabel(b: ContractBlank) {
 
 // Shows a contract page by page with every field from the review outlined.
 // Clicking a field drops down a menu of workflow field types; choosing one
-// adds it to the workflow. A choice option is tied to a choice question. Changes go to `onSave` shortly after each one; without it, they
-// stay on this screen.
+// adds it to the workflow. Removing one grays it out until it's restored.
+// Boxes linked in the review act as one field. A choice option is tied to a
+// choice question. Changes go to `onSave` shortly after each one; without
+// it, they stay on this screen.
 export function WorkflowFieldPicker({
   source,
   pageCount,
@@ -41,29 +46,46 @@ export function WorkflowFieldPicker({
   const { doc, error } = usePdfDocument(source);
   const [page, setPage] = useState(1);
   const [picks, setPicks] = useState(
-    () => new Map(initialFields.map((f) => [f.id, f] as const)),
+    () =>
+      new Map(
+        cleanWorkflowFields(initialFields, workflowKeys(blanks)).map((f) => [f.id, f] as const),
+      ),
   );
+  // The box that was clicked (its menu opens under it).
   const [openId, setOpenId] = useState<string | null>(null);
+  const [hoverKey, setHoverKey] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"saving" | "saved" | "error" | null>(null);
   const timer = useRef<number | null>(null);
 
-  const fields = blanks.filter((b): b is Field => Boolean(b.id));
+  const fields = blanks
+    .filter((b): b is Field => Boolean(b.id))
+    .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
+  const keyOf = (b: Field) => b.group ?? b.id;
+  // The boxes behind each field, in reading order.
+  const members = new Map<string, Field[]>();
+  for (const b of fields) members.set(keyOf(b), [...(members.get(keyOf(b)) ?? []), b]);
+  const labelOf = (key: string) => {
+    const first = members.get(key)?.[0];
+    return first ? fieldLabel(first) : "Unlabeled field";
+  };
+
   const onPage = fields.filter((b) => b.page === page);
-  const pickedOn = (n: number) => fields.filter((b) => b.page === n && picks.has(b.id));
-  const incomplete = [...picks.values()].filter((f) => !isComplete(f)).length;
+  const active = [...picks.values()].filter(isActive);
+  const pickedOn = (n: number) =>
+    active.filter((f) => members.get(f.id)?.some((b) => b.page === n));
+  const incomplete = active.filter((f) => !isComplete(f)).length;
   const open = onPage.find((b) => b.id === openId) ?? null;
-  const byId = new Map(fields.map((b) => [b.id, b] as const));
 
   // Choice questions picked so far (fields marked as a question, and ones
   // typed in for an option), most recent first.
   const questions: { id: string; text: string }[] = [];
   const seenQuestions = new Set<string>();
-  for (const f of picks.values()) {
+  for (const f of active) {
     if (f.type !== "choice") continue;
     let q: { id: string; text: string } | null = null;
     if (f.choice_role === "question") {
-      const b = byId.get(f.id);
-      q = { id: f.id, text: b ? `Page ${b.page}: ${fieldLabel(b)}` : "Choice question" };
+      const first = members.get(f.id)?.[0];
+      q = { id: f.id, text: first ? `Page ${first.page}: ${fieldLabel(first)}` : "Choice question" };
     } else if (f.question_id?.startsWith(NEW_QUESTION_PREFIX) && f.question_text) {
       q = { id: f.question_id, text: f.question_text };
     }
@@ -84,19 +106,21 @@ export function WorkflowFieldPicker({
     }, 600);
   }
 
-  function setField(id: string, field: WorkflowField | null) {
+  function setField(key: string, field: WorkflowField | null) {
     const next = new Map(picks);
-    if (field) next.set(id, field);
-    else next.delete(id);
-    // A field that stops being a choice question leaves its options
-    // needing a new one.
-    if (picks.get(id)?.choice_role === "question" && field?.choice_role !== "question") {
-      for (const [key, f] of next) {
-        if (f.question_id === id) {
+    if (field) next.set(key, field);
+    else next.delete(key);
+    // A field that stops being a choice question (changed or removed)
+    // leaves its options needing a new one.
+    const isQuestion = (f?: WorkflowField | null) =>
+      Boolean(f && isActive(f) && f.choice_role === "question");
+    if (isQuestion(picks.get(key)) && !isQuestion(field)) {
+      for (const [k, f] of next) {
+        if (f.question_id === key) {
           const rest = { ...f };
           delete rest.question_id;
           delete rest.question_text;
-          next.set(key, rest);
+          next.set(k, rest);
         }
       }
     }
@@ -114,7 +138,7 @@ export function WorkflowFieldPicker({
         <div className="flex flex-wrap gap-1.5">
           {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => {
             const picked = pickedOn(n);
-            const needsAnswer = picked.some((b) => !isComplete(picks.get(b.id)!));
+            const needsAnswer = picked.some((f) => !isComplete(f));
             return (
               <button
                 key={n}
@@ -149,7 +173,7 @@ export function WorkflowFieldPicker({
           })}
         </div>
         <span className="text-xs text-ink-faint">
-          {picks.size} workflow field{picks.size === 1 ? "" : "s"} picked
+          {active.length} workflow field{active.length === 1 ? "" : "s"} picked
           {incomplete > 0 && (
             <span className="font-semibold text-danger">
               {" "}
@@ -164,8 +188,8 @@ export function WorkflowFieldPicker({
 
       <p className="text-sm text-ink-soft">
         Click each field your team needs to track during a transaction and
-        choose what kind of field it is. Click a picked field to change it or
-        take it back out.
+        choose what kind of field it is. Fields you don&rsquo;t need can be
+        removed; they&rsquo;re grayed out, and clicking one lets you restore it.
       </p>
 
       <div className="relative overflow-hidden rounded-lg border border-border bg-white">
@@ -178,29 +202,54 @@ export function WorkflowFieldPicker({
             <PdfPageCanvas doc={doc} page={page} />
             <div className="absolute inset-0">
               {onPage.map((b) => {
-                const pick = picks.get(b.id);
+                const key = keyOf(b);
+                const pick = picks.get(key);
+                const removed = Boolean(pick?.removed);
+                const picked = Boolean(pick && !removed);
                 const done = pick ? isComplete(pick) : false;
-                const label = fieldLabel(b);
+                const linked = (members.get(key)?.length ?? 0) > 1;
+                // The tag goes on the field's first box on this page.
+                const showTag = members.get(key)?.find((m) => m.page === page)?.id === b.id;
+                const label = labelOf(key);
                 const answers = pick?.question_id
                   ? questions.find((q) => q.id === pick.question_id)?.text
                   : undefined;
+                const isOpen = open !== null && keyOf(open) === key;
                 return (
                   <button
                     key={b.id}
                     type="button"
                     data-workflow-field
-                    onClick={() => setOpenId(openId === b.id ? null : b.id)}
-                    aria-pressed={Boolean(pick)}
-                    aria-expanded={openId === b.id}
-                    aria-label={`${label}${pick ? `: ${fieldTag(pick)}` : ""}`}
-                    title={answers ? `${label} (option for ${answers})` : label}
+                    onClick={() => setOpenId(isOpen ? null : b.id)}
+                    onPointerEnter={() => linked && setHoverKey(key)}
+                    onPointerLeave={() => setHoverKey(null)}
+                    aria-pressed={picked}
+                    aria-expanded={isOpen}
+                    aria-label={`${label}${linked ? " (linked lines)" : ""}${
+                      removed ? ": removed" : pick ? `: ${fieldTag(pick)}` : ""
+                    }`}
+                    title={
+                      removed
+                        ? `${label} (removed)`
+                        : answers
+                          ? `${label} (option for ${answers})`
+                          : label
+                    }
                     className={`absolute rounded-sm border-2 transition-colors ${
-                      !pick
-                        ? "border-gold/70 bg-gold/10 hover:bg-gold/30"
-                        : done
-                          ? "border-accent bg-accent/30"
-                          : "border-danger bg-danger/15"
-                    } ${openId === b.id ? "ring-2 ring-accent ring-offset-1" : ""}`}
+                      removed
+                        ? "border-zinc-400 bg-zinc-400/40 hover:bg-zinc-400/55"
+                        : !pick
+                          ? "border-gold/70 bg-gold/10 hover:bg-gold/30"
+                          : done
+                            ? "border-accent bg-accent/30"
+                            : "border-danger bg-danger/15"
+                    } ${
+                      isOpen
+                        ? "ring-2 ring-accent ring-offset-1"
+                        : hoverKey === key
+                          ? "ring-2 ring-accent/50"
+                          : ""
+                    }`}
                     style={{
                       left: `${b.x * 100}%`,
                       top: `${b.y * 100}%`,
@@ -208,7 +257,7 @@ export function WorkflowFieldPicker({
                       height: `${b.height * 100}%`,
                     }}
                   >
-                    {pick && (
+                    {picked && pick && showTag && (
                       <span
                         className={`pointer-events-none absolute -top-3.5 left-0 whitespace-nowrap rounded px-1 py-px text-[9px] font-bold leading-tight text-white ${
                           done ? "bg-accent" : "bg-danger"
@@ -224,12 +273,13 @@ export function WorkflowFieldPicker({
 
               {open && (
                 <FieldTypeMenu
-                  key={open.id}
+                  key={keyOf(open)}
                   blank={open}
-                  label={fieldLabel(open)}
-                  value={picks.get(open.id) ?? null}
+                  fieldKey={keyOf(open)}
+                  label={labelOf(keyOf(open))}
+                  value={picks.get(keyOf(open)) ?? null}
                   questions={questions}
-                  onChange={(f) => setField(open.id, f)}
+                  onChange={(f) => setField(keyOf(open), f)}
                   onClose={() => setOpenId(null)}
                 />
               )}
@@ -250,6 +300,10 @@ export function WorkflowFieldPicker({
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-4 rounded-sm border-2 border-danger bg-danger/15" />
           Needs an answer
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-4 rounded-sm border-2 border-zinc-400 bg-zinc-400/40" />
+          Removed
         </span>
       </div>
     </div>
@@ -286,13 +340,16 @@ function Check({ on }: { on: boolean }) {
 // the bottom. A choice option then asks which question it answers.
 function FieldTypeMenu({
   blank,
+  fieldKey,
   label,
   value,
   questions,
   onChange,
   onClose,
 }: {
+  // The box that was clicked, and the key of the field it belongs to.
   blank: Field;
+  fieldKey: string;
   label: string;
   value: WorkflowField | null;
   // Choice questions picked so far, most recent first.
@@ -346,7 +403,7 @@ function FieldTypeMenu({
   }
 
   function choose(field: Omit<WorkflowField, "id">) {
-    onChange({ id: blank.id, ...field });
+    onChange({ id: fieldKey, ...field });
     onClose();
   }
 
@@ -364,7 +421,7 @@ function FieldTypeMenu({
   };
 
   const isOption = value?.type === "choice" && value.choice_role === "option";
-  const others = questions.filter((q) => q.id !== blank.id);
+  const others = questions.filter((q) => q.id !== fieldKey);
 
   return (
     <div
@@ -375,7 +432,30 @@ function FieldTypeMenu({
       style={style}
       className="absolute z-20 flex w-60 flex-col rounded-lg border border-border bg-surface p-1 text-left shadow-lg"
     >
-      {view === "types" ? (
+      {value?.removed ? (
+        // A removed field only offers to come back, with its answers.
+        <button
+          type="button"
+          role="menuitem"
+          data-menu-item
+          onClick={() => {
+            if (value.type) {
+              const restored = { ...value };
+              delete restored.removed;
+              onChange(restored);
+            } else {
+              onChange(null);
+            }
+            onClose();
+          }}
+          className={`${itemClass} font-semibold text-accent`}
+        >
+          <span aria-hidden className="w-3.5 shrink-0">
+            &#8634;
+          </span>
+          Restore to workflow
+        </button>
+      ) : view === "types" ? (
         <>
           {MENU.map((item) => {
             const on =
@@ -411,14 +491,14 @@ function FieldTypeMenu({
               &rsaquo;
             </span>
           </button>
-          {/* Always last; on a field that isn't picked it just closes. */}
+          {/* Always last. The field stays on the page, grayed out. */}
           <div className="my-1 border-t border-border" />
           <button
             type="button"
             role="menuitem"
             data-menu-item
             onClick={() => {
-              if (value) onChange(null);
+              onChange({ ...(value ?? { id: fieldKey }), removed: true });
               onClose();
             }}
             className={`${itemClass} text-danger hover:bg-danger/10 focus:bg-danger/10`}
