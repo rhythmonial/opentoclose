@@ -12,13 +12,86 @@ export type OtcSection = {
   fields: { name: string; kind: Kind }[];
 };
 
+// Contact fields are filled by a contact in one of these roles (OTC's
+// Settings > Contact Roles), not by a field in the Field Editor.
+export const CONTACT_ROLES_SECTION = "contact-roles";
+
+// Names cut off in OTC's settings list are filled in with our best guess
+// and marked "(confirm)" in a comment.
+const CONTACT_ROLES = [
+  "Appraiser",
+  "Attorney",
+  "CC on ALL Attorney Emails",
+  "BCC on ALL Attorney Emails",
+  "Buyer",
+  "CC on ALL Buyer Emails",
+  "BCC on ALL Buyer Emails",
+  "Buyer's Agent Transaction Coordinator", // (confirm)
+  "Buyer's Agent",
+  "Buyer's Co Agent",
+  "CC on ALL Buyer Agent Emails",
+  "BCC on ALL Buyer Agent Emails",
+  "Cleaning Company",
+  "Escrow Officer",
+  "Escrow Officer Assistant",
+  "CC on ALL Escrow Emails",
+  "BCC on ALL Escrow Emails",
+  "Handyman",
+  "HOA Contact",
+  "Home Inspector",
+  "Home Inspector Recommended", // (confirm)
+  "Home Protection Plan", // (confirm)
+  "Homeowners Insurance", // (confirm)
+  "Home Protection Plan Company", // (confirm)
+  "Home Protection Plan Representative", // (confirm)
+  "Landlord",
+  "Lender",
+  "Lender Assistant",
+  "Lender Processor",
+  "CC on ALL Lender Emails",
+  "BCC on ALL Lender Emails",
+  "Listing Agent Transaction Coordinator", // (confirm)
+  "Listing Agent",
+  "Listing Co Agent",
+  "CC on ALL Listing Agent Emails",
+  "BCC on ALL Listing Agent Emails",
+  "Photographer",
+  "Referral Agent",
+  "Referral Company",
+  "Seller",
+  "CC on ALL Seller Emails",
+  "BCC on ALL Seller Emails",
+  "Septic Inspector",
+  "Septic Inspector Recommended", // (confirm)
+  "Sign Installation Company", // (confirm)
+  "Stager",
+  "Tenant",
+  "Termite Inspector",
+  "Termite Inspector Recommended", // (confirm)
+  "Title Officer",
+  "Title Officer Assistant",
+  "Utility Concierge Company", // (confirm)
+  "Well Inspector",
+  "Well Inspector Recommended", // (confirm)
+  "Videographer",
+];
+
 export const OTC_SECTIONS: OtcSection[] = [
+  {
+    id: CONTACT_ROLES_SECTION,
+    group: "Contact Roles",
+    name: "Contact Roles",
+    fields: CONTACT_ROLES.map((name) => ({ name, kind: "contact" as const })),
+  },
   {
     id: "commission-details",
     group: "Commission Details",
     name: "Commission Details",
     fields: [
-      { name: "Listing Side Commission Flat Fee or Percentage", kind: "choice" },
+      {
+        name: "Listing Side Commission Flat Fee or Percentage",
+        kind: "choice",
+      },
       { name: "Buyer Side Commission Flat Fee or Percentage", kind: "choice" },
       { name: "Listing Side Commission - Flat Fee", kind: "currency" },
       { name: "Listing Side Commission - Percentage", kind: "percentage" },
@@ -141,12 +214,22 @@ export type OtcField = {
 };
 
 export const OTC_FIELDS: OtcField[] = OTC_SECTIONS.flatMap((s) =>
-  s.fields.map((f) => ({ id: `${s.id}/${slug(f.name)}`, name: f.name, sectionId: s.id, kind: f.kind })),
+  s.fields.map((f) => ({
+    id: `${s.id}/${slug(f.name)}`,
+    name: f.name,
+    sectionId: s.id,
+    kind: f.kind,
+  })),
 );
+
+// A contact role, as opposed to a field.
+export const isContactRole = (f: { sectionId: string }) =>
+  f.sectionId === CONTACT_ROLES_SECTION;
 
 export const OTC_FIELD_IDS = new Set(OTC_FIELDS.map((f) => f.id));
 export const OTC_SECTION_IDS = new Set(OTC_SECTIONS.map((s) => s.id));
-export const sectionById = (id: string) => OTC_SECTIONS.find((s) => s.id === id);
+export const sectionById = (id: string) =>
+  OTC_SECTIONS.find((s) => s.id === id);
 
 // Whether an OTC field is the same kind as a workflow field type.
 export function kindMatches(

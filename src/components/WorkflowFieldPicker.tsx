@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { PdfPageCanvas, usePdfDocument } from "@/components/PdfPageCanvas";
-import { kindMatches, OTC_FIELDS, OTC_SECTIONS, sectionById, type OtcField } from "@/lib/otcFields";
+import {
+  CONTACT_ROLES_SECTION,
+  isContactRole,
+  kindMatches,
+  OTC_FIELDS,
+  OTC_SECTIONS,
+  sectionById,
+  type OtcField,
+} from "@/lib/otcFields";
 import {
   cleanWorkflowFields,
   fieldTag,
@@ -25,7 +33,10 @@ function fieldLabel(b: ContractBlank) {
   const name = (t?: string) => (t && !/^\d+$/.test(t.trim()) ? t : "");
   const label = name(b.label);
   const after = name(b.after);
-  return (b.type === "checkbox" ? after || label : label || after) || "Unlabeled field";
+  return (
+    (b.type === "checkbox" ? after || label : label || after) ||
+    "Unlabeled field"
+  );
 }
 
 // Shows a contract page by page with every field from the review outlined.
@@ -55,13 +66,17 @@ export function WorkflowFieldPicker({
   const [picks, setPicks] = useState(
     () =>
       new Map(
-        cleanWorkflowFields(initialFields, workflowKeys(blanks)).map((f) => [f.id, f] as const),
+        cleanWorkflowFields(initialFields, workflowKeys(blanks)).map(
+          (f) => [f.id, f] as const,
+        ),
       ),
   );
   // The box that was clicked (its menu opens under it).
   const [openId, setOpenId] = useState<string | null>(null);
   const [hoverKey, setHoverKey] = useState<string | null>(null);
-  const [saveState, setSaveState] = useState<"saving" | "saved" | "error" | null>(null);
+  const [saveState, setSaveState] = useState<
+    "saving" | "saved" | "error" | null
+  >(null);
   const timer = useRef<number | null>(null);
 
   const fields = blanks
@@ -70,7 +85,8 @@ export function WorkflowFieldPicker({
   const keyOf = (b: Field) => b.group ?? b.id;
   // The boxes behind each field, in reading order.
   const members = new Map<string, Field[]>();
-  for (const b of fields) members.set(keyOf(b), [...(members.get(keyOf(b)) ?? []), b]);
+  for (const b of fields)
+    members.set(keyOf(b), [...(members.get(keyOf(b)) ?? []), b]);
   const labelOf = (key: string) => {
     const first = members.get(key)?.[0];
     return first ? fieldLabel(first) : "Unlabeled field";
@@ -90,7 +106,8 @@ export function WorkflowFieldPicker({
       (f, i, all) => all.findIndex((g) => g.id === f.id) === i,
     ),
   ];
-  const otcName = (id?: string) => (id ? otcFields.find((f) => f.id === id)?.name : undefined);
+  const otcName = (id?: string) =>
+    id ? otcFields.find((f) => f.id === id)?.name : undefined;
 
   // Choice questions picked so far (fields marked as a question, and ones
   // typed in for an option), most recent first.
@@ -107,7 +124,10 @@ export function WorkflowFieldPicker({
           otcName(f.otc_field) ??
           (first ? `Page ${first.page}: ${fieldLabel(first)}` : "Choice field"),
       };
-    } else if (f.question_id?.startsWith(NEW_QUESTION_PREFIX) && f.question_text) {
+    } else if (
+      f.question_id?.startsWith(NEW_QUESTION_PREFIX) &&
+      f.question_text
+    ) {
       q = { id: f.question_id, text: f.question_text };
     }
     if (q && !seenQuestions.has(q.id)) {
@@ -203,7 +223,9 @@ export function WorkflowFieldPicker({
           )}
           {saveState === "saving" && " · Saving…"}
           {saveState === "saved" && " · Saved"}
-          {saveState === "error" && <span className="text-danger"> · Couldn&rsquo;t save</span>}
+          {saveState === "error" && (
+            <span className="text-danger"> · Couldn&rsquo;t save</span>
+          )}
         </span>
       </div>
 
@@ -230,7 +252,8 @@ export function WorkflowFieldPicker({
                 const done = pick ? isComplete(pick) : false;
                 const linked = (members.get(key)?.length ?? 0) > 1;
                 // The tag goes on the field's first box on this page.
-                const showTag = members.get(key)?.find((m) => m.page === page)?.id === b.id;
+                const showTag =
+                  members.get(key)?.find((m) => m.page === page)?.id === b.id;
                 const label = labelOf(key);
                 const answers = pick?.question_id
                   ? questions.find((q) => q.id === pick.question_id)?.text
@@ -336,7 +359,11 @@ export function WorkflowFieldPicker({
 
 export type ChoiceQuestion = { id: string; text: string };
 
-type MenuItem = { label: string; help: string; field: Omit<WorkflowField, "id"> };
+type MenuItem = {
+  label: string;
+  help: string;
+  field: Omit<WorkflowField, "id">;
+};
 
 // Each type, with the help shown while it's hovered.
 const MENU: MenuItem[] = [
@@ -365,7 +392,11 @@ const MENU: MenuItem[] = [
     help: "This will appear as a percentage. Example: 30%",
     field: { type: "decimal", decimal_format: "percentage" },
   },
-  { label: "Date", help: "This is a typical date field.", field: { type: "date" } },
+  {
+    label: "Date",
+    help: "This is a typical date field.",
+    field: { type: "date" },
+  },
   {
     label: "Number",
     help: "This will appear as a number without commas or dashes and is designed to work with the Date Calculation tool.",
@@ -419,7 +450,9 @@ function FieldTypeMenu({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState<"types" | "questions" | "new" | "otc" | "otc-new">(
+  const [view, setView] = useState<
+    "types" | "questions" | "new" | "otc" | "otc-new"
+  >(
     value?.choice_role === "option" && !value.question_id
       ? "questions"
       : value && !value.removed && needsOtcField(value) && !value.otc_field
@@ -439,7 +472,11 @@ function FieldTypeMenu({
     const onPointer = (e: PointerEvent) => {
       const target = e.target as HTMLElement;
       // Clicking another field switches to it (its own click handles that).
-      if (ref.current?.contains(target) || target.closest("[data-workflow-field]")) return;
+      if (
+        ref.current?.contains(target) ||
+        target.closest("[data-workflow-field]")
+      )
+        return;
       close();
     };
     const onKey = (e: KeyboardEvent) => {
@@ -463,11 +500,16 @@ function FieldTypeMenu({
 
   function onMenuKey(e: React.KeyboardEvent) {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-    const items = [...(ref.current?.querySelectorAll<HTMLElement>("[data-menu-item]") ?? [])];
+    const items = [
+      ...(ref.current?.querySelectorAll<HTMLElement>("[data-menu-item]") ?? []),
+    ];
     if (items.length === 0) return;
     e.preventDefault();
     const i = items.indexOf(document.activeElement as HTMLElement);
-    const next = e.key === "ArrowDown" ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+    const next =
+      e.key === "ArrowDown"
+        ? (i + 1) % items.length
+        : (i - 1 + items.length) % items.length;
     items[next].focus();
   }
 
@@ -502,7 +544,9 @@ function FieldTypeMenu({
     onClose();
   }
 
-  const assigned = value?.otc_field ? otcFields.find((f) => f.id === value.otc_field) : undefined;
+  const assigned = value?.otc_field
+    ? otcFields.find((f) => f.id === value.otc_field)
+    : undefined;
 
   // Open below the field, or above it near the bottom of the page, and keep
   // it on the page sideways.
@@ -563,10 +607,16 @@ function FieldTypeMenu({
                 onClick={() => setView("otc")}
                 className={`${itemClass} flex-col !items-start gap-0`}
               >
-                <span className="text-[11px] font-medium text-ink-faint">OTC field</span>
+                <span className="text-[11px] font-medium text-ink-faint">
+                  {isContactRole(assigned) ? "Contact role" : "OTC field"}
+                </span>
                 <span className="flex w-full items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate font-semibold">{assigned.name}</span>
-                  <span className="text-xs font-semibold text-accent">Change</span>
+                  <span className="min-w-0 flex-1 truncate font-semibold">
+                    {assigned.name}
+                  </span>
+                  <span className="text-xs font-semibold text-accent">
+                    Change
+                  </span>
                 </span>
               </button>
               <div className="my-1 border-t border-border" />
@@ -586,7 +636,10 @@ function FieldTypeMenu({
                 data-menu-item
                 onClick={() => choose(item.field)}
                 onPointerEnter={() => setHelp(item.help)}
-                onFocus={(e) => e.currentTarget.matches(":focus-visible") && setHelp(item.help)}
+                onFocus={(e) =>
+                  e.currentTarget.matches(":focus-visible") &&
+                  setHelp(item.help)
+                }
                 className={itemClass}
               >
                 <Check on={on} />
@@ -601,7 +654,10 @@ function FieldTypeMenu({
             data-menu-item
             onClick={() => setView("questions")}
             onPointerEnter={() => setHelp(CHOICE_OPTION_HELP)}
-            onFocus={(e) => e.currentTarget.matches(":focus-visible") && setHelp(CHOICE_OPTION_HELP)}
+            onFocus={(e) =>
+              e.currentTarget.matches(":focus-visible") &&
+              setHelp(CHOICE_OPTION_HELP)
+            }
             className={itemClass}
           >
             <Check on={isOption} />
@@ -662,7 +718,9 @@ function FieldTypeMenu({
                       type: "choice",
                       choice_role: "option",
                       question_id: q.id,
-                      ...(q.id.startsWith(NEW_QUESTION_PREFIX) ? { question_text: q.text } : {}),
+                      ...(q.id.startsWith(NEW_QUESTION_PREFIX)
+                        ? { question_text: q.text }
+                        : {}),
                     })
                   }
                   className={itemClass}
@@ -710,7 +768,9 @@ function FieldTypeMenu({
           }}
         >
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-ink-soft">New choice field</span>
+            <span className="text-xs font-medium text-ink-soft">
+              New choice field
+            </span>
             <input
               value={newQuestion}
               onChange={(e) => setNewQuestion(e.target.value)}
@@ -746,7 +806,14 @@ function FieldTypeMenu({
         />
       ) : (
         <NewOtcFieldForm
-          defaultName={label === "Unlabeled field" ? "" : label.replace(/[:\s]+$/, "")}
+          // A contract's label (like "BUYER: The undersigned") makes a fine
+          // field name, but not a contact role.
+          defaultName={
+            value?.type === "contact" || label === "Unlabeled field"
+              ? ""
+              : label.replace(/[:\s]+$/, "")
+          }
+          contact={value?.type === "contact"}
           onAdd={(name, sectionId) =>
             assignOtc({
               id: `${NEW_OTC_PREFIX}${crypto.randomUUID()}`,
@@ -791,14 +858,22 @@ function OtcFieldList({
   const [query, setQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
   const q = query.trim().toLowerCase();
-  const suggested = otcFields.filter((f) => kindMatches(f.kind, value.type, value.decimal_format));
-  const sectionName = (f: OtcField) => sectionById(f.sectionId)?.name ?? "Your new fields";
+  // A contact is one of the contact roles; every other type is a field.
+  const isContact = value.type === "contact";
+  const pool = otcFields.filter((f) => isContactRole(f) === isContact);
+  const suggested = isContact
+    ? []
+    : pool.filter((f) => kindMatches(f.kind, value.type, value.decimal_format));
+  const sectionName = (f: OtcField) =>
+    sectionById(f.sectionId)?.name ?? "Your new fields";
   const list = q
-    ? otcFields.filter(
-        (f) => f.name.toLowerCase().includes(q) || sectionName(f).toLowerCase().includes(q),
+    ? pool.filter(
+        (f) =>
+          f.name.toLowerCase().includes(q) ||
+          sectionName(f).toLowerCase().includes(q),
       )
     : showAll || suggested.length === 0
-      ? otcFields
+      ? pool
       : suggested;
 
   // Grouped by section, in the order OTC shows them; new fields without a
@@ -826,15 +901,17 @@ function OtcFieldList({
         &lsaquo; Field type
       </button>
       <p className="px-2.5 pb-1.5 pt-1 text-xs font-medium text-ink-soft">
-        Which Open to Close field does this fill?
+        {isContact
+          ? "Which contact role is this in Open to Close?"
+          : "Which Open to Close field does this fill?"}
       </p>
       <div className="px-1.5 pb-1.5">
         <input
           data-autofocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search OTC fields"
-          aria-label="Search OTC fields"
+          placeholder={isContact ? "Search contact roles" : "Search OTC fields"}
+          aria-label={isContact ? "Search contact roles" : "Search OTC fields"}
           className="w-full rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
         />
       </div>
@@ -871,7 +948,9 @@ function OtcFieldList({
           </div>
         ))}
         {list.length === 0 && (
-          <p className="px-2.5 py-1.5 text-xs text-ink-faint">No OTC fields match.</p>
+          <p className="px-2.5 py-1.5 text-xs text-ink-faint">
+            {isContact ? "No contact roles match." : "No OTC fields match."}
+          </p>
         )}
       </div>
       {!q && suggested.length > 0 && (
@@ -894,7 +973,7 @@ function OtcFieldList({
         <span aria-hidden className="w-3.5 shrink-0">
           +
         </span>
-        Add a new OTC field
+        {isContact ? "Add a new contact role" : "Add a new OTC field"}
       </button>
     </>
   );
@@ -904,16 +983,22 @@ function OtcFieldList({
 // built-in ones.
 function NewOtcFieldForm({
   defaultName,
+  contact,
   onAdd,
   onBack,
 }: {
   defaultName: string;
+  // A new contact role, which has no section to choose.
+  contact: boolean;
   onAdd: (name: string, sectionId: string) => void;
   onBack: () => void;
 }) {
   const [name, setName] = useState(defaultName);
-  const [sectionId, setSectionId] = useState("");
-  const groups = [...new Set(OTC_SECTIONS.map((s) => s.group))];
+  const [sectionId, setSectionId] = useState(
+    contact ? CONTACT_ROLES_SECTION : "",
+  );
+  const sections = OTC_SECTIONS.filter((s) => s.id !== CONTACT_ROLES_SECTION);
+  const groups = [...new Set(sections.map((s) => s.group))];
   const ready = name.trim() && sectionId;
 
   return (
@@ -925,37 +1010,49 @@ function NewOtcFieldForm({
       }}
     >
       <label className="flex flex-col gap-1">
-        <span className="text-xs font-medium text-ink-soft">New OTC field name</span>
+        <span className="text-xs font-medium text-ink-soft">
+          {contact ? "New contact role" : "New OTC field name"}
+        </span>
         <input
           data-autofocus
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={120}
-          placeholder="e.g. Home Warranty Company"
+          placeholder={contact ? "e.g. Surveyor" : "e.g. Home Warranty Company"}
           className="rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
         />
       </label>
-      <label className="flex flex-col gap-1">
-        <span className="text-xs font-medium text-ink-soft">Section it goes in</span>
-        <select
-          value={sectionId}
-          onChange={(e) => setSectionId(e.target.value)}
-          className="rounded-md border border-border bg-bg px-2 py-1.5 text-sm text-ink outline-none focus:border-accent"
-        >
-          <option value="">Choose a section&hellip;</option>
-          {groups.map((g) => (
-            <optgroup key={g} label={g}>
-              {OTC_SECTIONS.filter((s) => s.group === g).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-      </label>
+      {!contact && (
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-ink-soft">
+            Section it goes in
+          </span>
+          <select
+            value={sectionId}
+            onChange={(e) => setSectionId(e.target.value)}
+            className="rounded-md border border-border bg-bg px-2 py-1.5 text-sm text-ink outline-none focus:border-accent"
+          >
+            <option value="">Choose a section&hellip;</option>
+            {groups.map((g) => (
+              <optgroup key={g} label={g}>
+                {sections
+                  .filter((s) => s.group === g)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="flex items-center justify-between">
-        <button type="button" onClick={onBack} className="text-xs font-semibold text-ink-soft">
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-xs font-semibold text-ink-soft"
+        >
           &lsaquo; Back
         </button>
         <button
@@ -963,7 +1060,7 @@ function NewOtcFieldForm({
           disabled={!ready}
           className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
         >
-          Add field
+          {contact ? "Add role" : "Add field"}
         </button>
       </div>
     </form>
