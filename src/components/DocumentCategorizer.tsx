@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   CUSTOM_PREFIX,
   SIDES,
@@ -137,6 +138,16 @@ export function DocumentCategorizer({
           >
             Add document
           </button>
+          <span className="text-xs text-ink-faint">or</span>
+          {/* The file itself goes into their setup through Upload Your
+              Contracts. */}
+          <Link
+            href="/configurator/upload_your_contract_docs"
+            title="Upload a document to your setup in the Upload Your Contracts lesson"
+            className="rounded-lg border border-accent px-4 py-1.5 text-sm font-semibold text-accent hover:bg-accent-soft/40"
+          >
+            Upload documents
+          </Link>
         </form>
         <span className="text-xs text-ink-faint">
           {done} of {docs.length} document{docs.length === 1 ? "" : "s"} categorized
@@ -148,8 +159,8 @@ export function DocumentCategorizer({
 
       {docs.length === 0 && (
         <p className="rounded-xl border border-border bg-surface p-5 text-sm text-ink-soft">
-          No documents yet. Upload your contracts in Upload Your Contracts, or add your
-          documents above by name.
+          No documents yet. Upload them to your setup with <span className="font-semibold">Upload documents</span>{" "}
+          (in the Upload Your Contracts lesson), or add them above by name.
         </p>
       )}
 
