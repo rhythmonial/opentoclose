@@ -240,6 +240,63 @@ export type Database = {
           },
         ]
       }
+      document_categories: {
+        Row: {
+          id: string
+          client_account_id: string
+          name: string
+          color: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_account_id: string
+          name: string
+          color?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          client_account_id?: string
+          name?: string
+          color?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      prep_documents: {
+        Row: {
+          id: string
+          client_account_id: string
+          contract_document_id: string | null
+          name: string
+          categories: string[]
+          sides: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_account_id: string
+          contract_document_id?: string | null
+          name: string
+          categories?: string[]
+          sides?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_account_id?: string
+          contract_document_id?: string | null
+          name?: string
+          categories?: string[]
+          sides?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contract_documents: {
         Row: {
           blank_count: number
