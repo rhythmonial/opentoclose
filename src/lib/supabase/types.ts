@@ -384,6 +384,63 @@ export type Database = {
         }
         Relationships: []
       }
+      client_task_plans: {
+        Row: {
+          id: string
+          client_account_id: string
+          side: string
+          template: string
+          name: string
+          notes: string
+          critical: boolean
+          recurring: boolean
+          due_days: number | null
+          time_frame: string | null
+          timing: string | null
+          date_field: string
+          parent_task: string
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_account_id: string
+          side: string
+          template: string
+          name: string
+          notes?: string
+          critical?: boolean
+          recurring?: boolean
+          due_days?: number | null
+          time_frame?: string | null
+          timing?: string | null
+          date_field?: string
+          parent_task?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_account_id?: string
+          side?: string
+          template?: string
+          name?: string
+          notes?: string
+          critical?: boolean
+          recurring?: boolean
+          due_days?: number | null
+          time_frame?: string | null
+          timing?: string | null
+          date_field?: string
+          parent_task?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contract_documents: {
         Row: {
           blank_count: number
