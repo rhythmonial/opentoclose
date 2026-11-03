@@ -297,6 +297,45 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_imports: {
+        Row: {
+          id: string
+          client_account_id: string
+          file_name: string
+          storage_path: string
+          columns: string[]
+          row_count: number
+          mapping: Json
+          uploaded_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_account_id: string
+          file_name: string
+          storage_path: string
+          columns?: string[]
+          row_count?: number
+          mapping?: Json
+          uploaded_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_account_id?: string
+          file_name?: string
+          storage_path?: string
+          columns?: string[]
+          row_count?: number
+          mapping?: Json
+          uploaded_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contract_documents: {
         Row: {
           blank_count: number
