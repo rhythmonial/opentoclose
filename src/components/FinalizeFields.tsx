@@ -7,7 +7,10 @@ import {
   kindMatches,
   OTC_FIELDS,
   OTC_SECTIONS,
+  isSystemRequired,
+  requiredRank,
   sectionById,
+  SYSTEM_REQUIRED_LABEL,
   type OtcField,
 } from "@/lib/otcFields";
 import {
@@ -17,7 +20,12 @@ import {
   otcTargetOf,
   type WorkflowField,
 } from "@/lib/workflowFields";
-import { inContractOrder, typeLabel, type SummaryDoc } from "@/components/WorkflowFieldsSummary";
+import {
+  inContractOrder,
+  SystemRequiredChecklist,
+  typeLabel,
+  type SummaryDoc,
+} from "@/components/WorkflowFieldsSummary";
 import { NewOtcFieldForm, OtcFieldList } from "@/components/OtcFieldList";
 import { reassignFields } from "@/app/configurator/finalize_your_fields/actions";
 
@@ -75,9 +83,10 @@ export function FinalizeFields({
   const otcFields = [...OTC_FIELDS, ...added];
   const otcById = new Map(otcFields.map((f) => [f.id, f] as const));
 
-  // Groups by OTC field, in the order each first appears on the contracts;
-  // fields not assigned yet come last.
-  const groups = new Map<string, Row[]>();
+  // Groups by OTC field: system required ones first (in their order), then
+  // the rest in the order each first appears on the contracts; fields not
+  // assigned yet come last.
+  const byTarget = new Map<string, Row[]>();
   const unassigned: Row[] = [];
   for (const r of rows) {
     const target = otcTargetOf(r.field);
@@ -85,8 +94,11 @@ export function FinalizeFields({
       unassigned.push(r);
       continue;
     }
-    groups.set(target, [...(groups.get(target) ?? []), r]);
+    byTarget.set(target, [...(byTarget.get(target) ?? []), r]);
   }
+  const groups = new Map(
+    [...byTarget].sort(([a], [b]) => requiredRank(a) - requiredRank(b)),
+  );
   const uses = (id: string) => groups.get(id)?.length ?? 0;
   const multiDoc = docs.length > 1;
 
@@ -209,14 +221,19 @@ export function FinalizeFields({
       f.name.toLowerCase().includes(q) ||
       (sectionById(f.sectionId)?.name ?? "").toLowerCase().includes(q),
   );
-  // Contact roles go last, after the fields.
+  // System required fields lead; contact roles go last, after the fields.
   const order = new Map(
     OTC_SECTIONS.map((s, i) => [s.id, isContactRole({ sectionId: s.id }) ? 900 : i] as const),
   );
   const panelSections = new Map<string, OtcField[]>();
+  const required = panelFields
+    .filter((f) => isSystemRequired(f.id))
+    .sort((a, b) => requiredRank(a.id) - requiredRank(b.id));
+  if (required.length > 0) panelSections.set(SYSTEM_REQUIRED_LABEL, required);
   for (const f of [...panelFields].sort(
     (a, b) => (order.get(a.sectionId) ?? 999) - (order.get(b.sectionId) ?? 999),
   )) {
+    if (isSystemRequired(f.id)) continue;
     const name = sectionById(f.sectionId)?.name ?? "Your new fields";
     panelSections.set(name, [...(panelSections.get(name) ?? []), f]);
   }
@@ -230,6 +247,7 @@ export function FinalizeFields({
             {pending ? "Saving…" : `${groups.size} OTC fields · ${rows.length} contract fields`}
           </span>
         </div>
+        <SystemRequiredChecklist fields={rows.map((r) => r.field)} onJump={jumpTo} />
         {error && (
           <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
             {error}
@@ -261,6 +279,11 @@ export function FinalizeFields({
                 <div className="min-w-0">
                   <p className="font-semibold text-ink">
                     {name}
+                    {isSystemRequired(target) && (
+                      <span className="ml-1.5 rounded bg-accent-soft px-1 py-px align-middle text-[10px] font-bold uppercase text-accent">
+                        Required
+                      </span>
+                    )}
                     {otc?.isNew && (
                       <span className="ml-1.5 rounded bg-gold/20 px-1 py-px align-middle text-[10px] font-bold uppercase text-ink">
                         New

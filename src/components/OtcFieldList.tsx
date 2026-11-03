@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { CONTACT_ROLES_SECTION, OTC_SECTIONS, sectionById, type OtcField } from "@/lib/otcFields";
+import {
+  CONTACT_ROLES_SECTION,
+  isSystemRequired,
+  OTC_SECTIONS,
+  requiredRank,
+  sectionById,
+  SYSTEM_REQUIRED_LABEL,
+  type OtcField,
+} from "@/lib/otcFields";
 
 export const itemClass =
   "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm text-ink hover:bg-accent-soft/50 focus-visible:bg-accent-soft/50 focus:outline-none";
@@ -75,14 +83,21 @@ export function OtcFieldList({
       ? pool
       : suggested;
 
-  // Grouped by section, in the order OTC shows them; new fields without a
-  // section come last. Recently used ones lead when not searching.
+  // System required fields lead, then recently used ones (when not
+  // searching), then the rest grouped by section in the order OTC shows
+  // them; new fields without a section come last.
   const order = new Map(OTC_SECTIONS.map((s, i) => [s.id, i] as const));
   const sections = new Map<string, OtcField[]>();
-  if (!q && recent.length > 0) sections.set("Recently used", recent);
+  const required = list
+    .filter((f) => isSystemRequired(f.id))
+    .sort((a, b) => requiredRank(a.id) - requiredRank(b.id));
+  if (required.length > 0) sections.set(SYSTEM_REQUIRED_LABEL, required);
+  const recentRest = recent.filter((f) => !isSystemRequired(f.id));
+  if (!q && recentRest.length > 0) sections.set("Recently used", recentRest);
   for (const f of [...list].sort(
     (a, b) => (order.get(a.sectionId) ?? 999) - (order.get(b.sectionId) ?? 999),
   )) {
+    if (isSystemRequired(f.id)) continue;
     const key = sectionName(f);
     sections.set(key, [...(sections.get(key) ?? []), f]);
   }

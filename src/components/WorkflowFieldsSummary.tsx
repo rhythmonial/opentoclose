@@ -1,9 +1,15 @@
 import { fieldLabel, type ContractBlank } from "@/lib/contractBlanks";
-import { isContactRole, OTC_FIELDS, sectionById } from "@/lib/otcFields";
+import {
+  isContactRole,
+  OTC_FIELDS,
+  sectionById,
+  SYSTEM_REQUIRED_FIELDS,
+} from "@/lib/otcFields";
 import {
   isActive,
   isComplete,
   newOtcFieldsFrom,
+  otcTargetOf,
   type WorkflowField,
 } from "@/lib/workflowFields";
 
@@ -55,6 +61,74 @@ const KIND_LABELS: Record<string, string> = {
   number: "Number",
   choice: "Choice",
 };
+
+// The fields Open to Close requires on every transaction, checked off as
+// the client assigns them from their contracts.
+export function SystemRequiredChecklist({
+  fields,
+  onJump,
+}: {
+  fields: WorkflowField[];
+  // When given, assigned ones are buttons that jump to where they're used.
+  onJump?: (otcId: string) => void;
+}) {
+  const used = new Set(
+    fields.filter(isActive).map(otcTargetOf).filter(Boolean),
+  );
+  const done = SYSTEM_REQUIRED_FIELDS.filter((f) => used.has(f.id)).length;
+  return (
+    <div className="rounded-lg border border-border bg-bg p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+          System required fields
+        </h3>
+        <span className="text-xs text-ink-soft">
+          {done} of {SYSTEM_REQUIRED_FIELDS.length} on your contracts
+        </span>
+      </div>
+      <p className="mt-0.5 text-xs text-ink-soft">
+        Open to Close requires these on every transaction. Assign them
+        wherever they appear on your contracts.
+      </p>
+      <ul className="mt-2 flex flex-wrap gap-1.5">
+        {SYSTEM_REQUIRED_FIELDS.map((f) => {
+          const on = used.has(f.id);
+          const chip = (
+            <>
+              <span aria-hidden className={on ? "text-accent" : "text-ink-faint"}>
+                {on ? "✓" : "○"}
+              </span>
+              {f.name}
+              <span className="sr-only">
+                {on ? " (assigned)" : " (not assigned yet)"}
+              </span>
+            </>
+          );
+          const cls = `flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs ${
+            on
+              ? "border-accent/40 bg-accent-soft/40 font-semibold text-ink"
+              : "border-border bg-surface text-ink-soft"
+          }`;
+          return (
+            <li key={f.id}>
+              {on && onJump ? (
+                <button
+                  type="button"
+                  onClick={() => onJump(f.id)}
+                  className={`${cls} hover:border-accent`}
+                >
+                  {chip}
+                </button>
+              ) : (
+                <span className={cls}>{chip}</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 function Chips({ items }: { items: string[] }) {
   return (
@@ -111,6 +185,10 @@ export function WorkflowFieldsSummary({ docs }: { docs: SummaryDoc[] }) {
         contract, then the fields, contact roles and choice options you&rsquo;ve
         added. We&rsquo;ll use these when we build your account.
       </p>
+
+      <div className="mt-4">
+        <SystemRequiredChecklist fields={active} />
+      </div>
 
       <div className="mt-4 flex flex-col gap-4">
         <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">

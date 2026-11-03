@@ -440,3 +440,30 @@ export function kindMatches(
   if (type === "decimal") return kind === decimalFormat;
   return kind === type;
 }
+
+// Fields Open to Close requires on every transaction, in the order they're
+// listed. They lead every list of OTC fields.
+export const SYSTEM_REQUIRED_LABEL = "System required";
+export const SYSTEM_REQUIRED_IDS = [
+  "address/address",
+  "address/city",
+  "address/state",
+  "address/zip",
+  "critical-details/contract-status",
+  "critical-details/client-type",
+];
+export const SYSTEM_REQUIRED_FIELDS: OtcField[] = SYSTEM_REQUIRED_IDS.map(
+  (id) => {
+    const f = OTC_FIELDS.find((x) => x.id === id);
+    if (!f) throw new Error(`System required field ${id} isn't in the catalog`);
+    return f;
+  },
+);
+export const isSystemRequired = (id: string) =>
+  SYSTEM_REQUIRED_IDS.includes(id);
+// Sorts system required fields first (in their order), leaving the rest
+// where they were.
+export const requiredRank = (id: string) => {
+  const i = SYSTEM_REQUIRED_IDS.indexOf(id);
+  return i === -1 ? SYSTEM_REQUIRED_IDS.length : i;
+};
