@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import {
   BREAK,
+  withBlankLines,
   fromSample,
   isEdited,
   SIDE_LABELS,
@@ -52,7 +53,6 @@ export function EmailTemplatesConfigurator({
   const [query, setQuery] = useState("");
   const [side, setSide] = useState<TemplateSide | "all">("all");
   const [onlyUsed, setOnlyUsed] = useState(false);
-  const [showBreaks, setShowBreaks] = useState(false);
   const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
 
   const [importing, setImporting] = useState(false);
@@ -236,14 +236,6 @@ export function EmailTemplatesConfigurator({
               />
               Only ones I&rsquo;m using
             </label>
-            <label className="flex items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={showBreaks}
-                onChange={(e) => setShowBreaks(e.target.checked)}
-              />
-              Show ADDABREAK markers
-            </label>
             <span className="text-xs text-ink-faint">
               Using {used} of {items.length}
               {status === "saving" && " · Saving…"}
@@ -340,7 +332,7 @@ export function EmailTemplatesConfigurator({
                     />
                   ) : (
                     <>
-                      <EmailPreview template={t} showBreaks={showBreaks} />
+                      <EmailPreview template={t} />
                       <div className="mt-3 flex flex-wrap items-center gap-3">
                         <button
                           type="button"
@@ -438,10 +430,11 @@ function Inline({ text }: { text: string }) {
   );
 }
 
-// A body as it reads in an email: ADDABREAK lines start new paragraphs,
+// A body as it reads in an email: blank lines (or old ADDABREAK lines)
+// start new paragraphs,
 // runs of lines starting "-" are a list, and an OTC contact block
 // ([START_CONTACT] ... [END_CONTACT]) shows as a contact card.
-function Body({ body, showBreaks }: { body: string; showBreaks: boolean }) {
+function Body({ body }: { body: string }) {
   const blocks: string[][] = [[]];
   for (const raw of body.split("\n")) {
     const line = raw.trim();
@@ -455,16 +448,7 @@ function Body({ body, showBreaks }: { body: string; showBreaks: boolean }) {
   return (
     <div className="flex flex-col gap-3 text-sm leading-relaxed text-ink">
       {nonEmpty.map((lines, i) => (
-        <Fragment key={i}>
-          {showBreaks && i > 0 && (
-            <span className="-my-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
-              <span className="h-px flex-1 border-t border-dashed border-border" />
-              {BREAK}
-              <span className="h-px flex-1 border-t border-dashed border-border" />
-            </span>
-          )}
-          <Block lines={lines} />
-        </Fragment>
+        <Block key={i} lines={lines} />
       ))}
     </div>
   );
@@ -525,7 +509,7 @@ function Block({ lines }: { lines: string[] }) {
   );
 }
 
-function EmailPreview({ template: t, showBreaks }: { template: EmailTemplate; showBreaks: boolean }) {
+function EmailPreview({ template: t }: { template: EmailTemplate }) {
   const row = (label: string, values: string[]) =>
     values.length === 0 ? null : (
       <div className="flex gap-2">
@@ -554,7 +538,7 @@ function EmailPreview({ template: t, showBreaks }: { template: EmailTemplate; sh
         </p>
       </div>
       <div className="px-4 py-4">
-        <Body body={t.body} showBreaks={showBreaks} />
+        <Body body={t.body} />
       </div>
     </div>
   );
@@ -583,7 +567,7 @@ function TemplateEditor({
       onSubmit={async (e) => {
         e.preventDefault();
         setSaving(true);
-        await onSave(draft);
+        await onSave({ ...draft, body: withBlankLines(draft.body) });
         setSaving(false);
       }}
     >
@@ -615,7 +599,8 @@ function TemplateEditor({
           className={`${inputClass} font-mono text-[13px] leading-relaxed`}
         />
         <span className="text-xs text-ink-faint">
-          Put {BREAK} on its own line where a blank line goes. Merge fields look like{" "}
+          Leave a blank line between paragraphs; that&rsquo;s how they come through in Open
+          to Close. Merge fields look like{" "}
           <code className="rounded bg-bg px-1">{"{{closing_date}}"}</code>.
         </span>
       </label>

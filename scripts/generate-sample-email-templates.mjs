@@ -45,7 +45,15 @@ for (const row of r) {
     clientEmails++;
     [to, cc, bcc] = [to, cc, bcc].map((list) => list.filter((x) => !AGENTS.has(x)));
   }
-  const body = row[5].replace(/\r\n/g, "\n").replace(/[ \t]+$/gm, "").trim();
+  // ADDABREAK lines become real blank lines (OTC's import keeps those).
+  const body = row[5]
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+$/gm, "")
+    .split("\n")
+    .map((line) => (line.trim() === "ADDABREAK" ? "" : line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
   out.push({ key, title, subject: row[4].trim(), body, include: false, to, cc, bcc });
 }
 console.error("templates", out.length, "| client emails", clientEmails, "| no To:", out.filter((o) => !o.to.length).map((o) => o.key).join(", "));
@@ -57,9 +65,9 @@ fs.writeFileSync(outFile, `// Sample email templates for the Sample Email Templa
 // title and wording; everyone an email goes to also gets their "CC on ALL
 // ... Emails" role beside them (on To for To, on Cc for Cc); and an email
 // to one side's client leaves out both agents (we're one of them, the
-// other is the co-op). ADDABREAK lines mark
-// where a blank line goes during setup. Generated from the sheet; edit the
-// sheet and regenerate rather than by hand.
+// other is the co-op). The sheet's ADDABREAK lines are real blank lines
+// here. Generated from the sheet; edit the sheet and regenerate rather
+// than by hand.
 
 export type SampleEmailTemplate = {
   key: string;

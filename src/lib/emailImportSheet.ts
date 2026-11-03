@@ -3,7 +3,7 @@
 // out in its layout.
 import Papa from "papaparse";
 import type { ContactTable } from "@/lib/contactFiles";
-import type { EmailTemplate } from "@/lib/emailTemplates";
+import { withBlankLines, type EmailTemplate } from "@/lib/emailTemplates";
 
 export const IMPORT_COLUMNS = [
   "Title ( template name )",
@@ -46,7 +46,7 @@ export function readImportSheet(table: ContactTable): ImportedTemplate[] {
     .map((row) => ({
       title: get(row, col.title).trim(),
       subject: get(row, col.subject).trim(),
-      body: get(row, col.body).replace(/\r\n/g, "\n").trim(),
+      body: withBlankLines(get(row, col.body)).trim(),
       to: list(get(row, col.to)),
       cc: list(get(row, col.cc)),
       bcc: list(get(row, col.bcc)),
@@ -62,7 +62,7 @@ export function toImportCsv(templates: ImportedTemplate[]) {
     ...templates.map((t) => [
       t.title,
       t.subject,
-      t.body,
+      withBlankLines(t.body),
       t.to.join(", "),
       t.cc.join(", "),
       t.bcc.join(", "),

@@ -16,7 +16,20 @@ export type EmailTemplate = {
   files: string[];
 };
 
+// The sample sheet marked paragraph breaks with ADDABREAK lines, because
+// blank lines seemed to get lost on the way into OTC. OTC's import keeps
+// real blank lines, so templates use those; any ADDABREAK line (in old
+// copies or imported sheets) becomes one.
 export const BREAK = "ADDABREAK";
+
+export function withBlankLines(body: string) {
+  return body
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => (line.trim() === BREAK ? "" : line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
 
 // Copy roles: who else gets every email a role gets (OTC Settings > Contact
 // Roles). Only offered as email recipients, not as contact fields.
