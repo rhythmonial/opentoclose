@@ -229,3 +229,45 @@ export function newOtcFieldsFrom(fields: WorkflowField[]): OtcField[] {
   }
   return [...out.values()];
 }
+
+// What a workflow field is assigned to in OTC: a choice option's choice
+// field, or anything else's OTC field (or contact role).
+export const otcTargetOf = (f: WorkflowField) =>
+  f.type === "choice" && f.choice_role === "option" ? f.question_id : f.otc_field;
+
+// Points a workflow field at another OTC field (`to`). Moving to a built-in
+// OTC field also takes on that field's type, so a field always matches the
+// one it fills; a new field keeps the type it has.
+export function reassignTo(f: WorkflowField, to: OtcField): WorkflowField {
+  const next: WorkflowField = { ...f };
+  if (f.type === "choice" && f.choice_role === "option") {
+    next.question_id = to.id;
+    delete next.question_text;
+    delete next.question_section;
+    if (to.isNew) {
+      next.question_text = to.name;
+      if (to.sectionId) next.question_section = to.sectionId;
+    }
+    return next;
+  }
+  next.otc_field = to.id;
+  delete next.otc_field_name;
+  delete next.otc_section;
+  if (to.isNew) {
+    next.otc_field_name = to.name;
+    if (to.sectionId) next.otc_section = to.sectionId;
+    return next;
+  }
+  delete next.decimal_format;
+  delete next.choice_role;
+  if (to.kind === "currency" || to.kind === "percentage") {
+    next.type = "decimal";
+    next.decimal_format = to.kind;
+  } else if (to.kind === "choice") {
+    next.type = "choice";
+    next.choice_role = "question";
+  } else if (to.kind) {
+    next.type = to.kind;
+  }
+  return next;
+}

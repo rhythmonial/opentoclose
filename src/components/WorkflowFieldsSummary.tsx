@@ -15,7 +15,7 @@ export type SummaryDoc = {
 };
 
 // The workflow field type, as the field menu names it.
-function typeLabel(f: WorkflowField) {
+export function typeLabel(f: WorkflowField) {
   if (f.type === "decimal") {
     return f.decimal_format === "percentage"
       ? "Decimal Percent"
@@ -29,7 +29,7 @@ function typeLabel(f: WorkflowField) {
 // A document's workflow fields in the order they appear on the contract
 // (by the first box of each, top to bottom and left to right on each page),
 // with the contract's text for each.
-function inContractOrder(doc: SummaryDoc) {
+export function inContractOrder(doc: SummaryDoc) {
   const boxes = doc.blanks
     .filter((b) => b.id)
     .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
