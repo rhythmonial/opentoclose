@@ -28,6 +28,9 @@ export type WorkflowField = {
   // (with its wording in question_text).
   question_id?: string;
   question_text?: string;
+  // For an option whose choice field the client is adding to OTC (a
+  // NEW_OTC_PREFIX question_id): the section it goes in.
+  question_section?: string;
   // The Open to Close field it fills: a built-in one (see otcFields), or a
   // NEW_OTC_PREFIX id for one the client is adding, with its name and the
   // section it goes in.
@@ -129,11 +132,24 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
     if (type === "choice" && (f.choice_role === "question" || f.choice_role === "option")) {
       clean.choice_role = f.choice_role;
       if (f.choice_role === "option" && typeof f.question_id === "string") {
-        clean.question_id = f.question_id.startsWith(NEW_QUESTION_PREFIX)
-          ? f.question_id.slice(0, 80)
-          : (keys.get(f.question_id) ?? f.question_id);
-        if (f.question_id.startsWith(NEW_QUESTION_PREFIX) && typeof f.question_text === "string") {
+        // An OTC choice field, one the client is adding, or (saved before
+        // options were tied to OTC fields) a choice field picked on the
+        // contract or a question typed in.
+        const isNew =
+          f.question_id.startsWith(NEW_QUESTION_PREFIX) || f.question_id.startsWith(NEW_OTC_PREFIX);
+        clean.question_id =
+          isNew || OTC_FIELD_IDS.has(f.question_id)
+            ? f.question_id.slice(0, 80)
+            : (keys.get(f.question_id) ?? f.question_id);
+        if (isNew && typeof f.question_text === "string") {
           clean.question_text = f.question_text.trim().slice(0, 200);
+        }
+        if (
+          f.question_id.startsWith(NEW_OTC_PREFIX) &&
+          typeof f.question_section === "string" &&
+          OTC_SECTION_IDS.has(f.question_section)
+        ) {
+          clean.question_section = f.question_section;
         }
       }
     }
@@ -159,12 +175,14 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
   );
   for (const f of out) {
     if (!f.question_id) continue;
-    const ok = f.question_id.startsWith(NEW_QUESTION_PREFIX)
-      ? Boolean(f.question_text)
-      : questions.has(f.question_id);
+    const ok =
+      f.question_id.startsWith(NEW_QUESTION_PREFIX) || f.question_id.startsWith(NEW_OTC_PREFIX)
+        ? Boolean(f.question_text)
+        : OTC_FIELD_IDS.has(f.question_id) || questions.has(f.question_id);
     if (!ok) {
       delete f.question_id;
       delete f.question_text;
+      delete f.question_section;
     }
   }
   return out;
@@ -175,6 +193,20 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
 export function newOtcFieldsFrom(fields: WorkflowField[]): OtcField[] {
   const out = new Map<string, OtcField>();
   for (const f of fields) {
+    // A choice field added from one of its options.
+    if (
+      f.question_id?.startsWith(NEW_OTC_PREFIX) &&
+      f.question_text &&
+      !out.has(f.question_id)
+    ) {
+      out.set(f.question_id, {
+        id: f.question_id,
+        name: f.question_text,
+        sectionId: f.question_section ?? "",
+        kind: "choice",
+        isNew: true,
+      });
+    }
     if (!f.otc_field?.startsWith(NEW_OTC_PREFIX) || !f.otc_field_name || out.has(f.otc_field)) {
       continue;
     }

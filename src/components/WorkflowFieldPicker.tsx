@@ -18,7 +18,6 @@ import {
   isActive,
   isComplete,
   NEW_OTC_PREFIX,
-  NEW_QUESTION_PREFIX,
   needsOtcField,
   newOtcFieldsFrom,
   workflowKeys,
@@ -109,31 +108,31 @@ export function WorkflowFieldPicker({
   const otcName = (id?: string) =>
     id ? otcFields.find((f) => f.id === id)?.name : undefined;
 
-  // Choice questions picked so far (fields marked as a question, and ones
-  // typed in for an option), most recent first.
-  const questions: { id: string; text: string }[] = [];
-  const seenQuestions = new Set<string>();
+  // The name of the choice field an option belongs to: an OTC choice field,
+  // or (saved before options were tied to OTC fields) a choice field picked
+  // on the contract or a question typed in.
+  const choiceName = (id?: string) => {
+    if (!id) return undefined;
+    const otc = otcName(id);
+    if (otc) return otc;
+    const legacy = picks.get(id);
+    if (legacy) {
+      const first = members.get(id)?.[0];
+      return otcName(legacy.otc_field) ?? (first ? `Page ${first.page}: ${fieldLabel(first)}` : undefined);
+    }
+    return [...picks.values()].find((f) => f.question_id === id && f.question_text)?.question_text;
+  };
+
+  // OTC choice fields used on this contract (by a choice field or an
+  // option), most recent first.
+  const recentChoices: string[] = [];
   for (const f of active) {
-    if (f.type !== "choice") continue;
-    let q: { id: string; text: string } | null = null;
-    if (f.choice_role === "question") {
-      const first = members.get(f.id)?.[0];
-      q = {
-        id: f.id,
-        text:
-          otcName(f.otc_field) ??
-          (first ? `Page ${first.page}: ${fieldLabel(first)}` : "Choice field"),
-      };
-    } else if (
-      f.question_id?.startsWith(NEW_QUESTION_PREFIX) &&
-      f.question_text
-    ) {
-      q = { id: f.question_id, text: f.question_text };
-    }
-    if (q && !seenQuestions.has(q.id)) {
-      seenQuestions.add(q.id);
-      questions.unshift(q);
-    }
+    const id =
+      f.type !== "choice" ? undefined : f.choice_role === "question" ? f.otc_field : f.question_id;
+    if (!id || !otcFields.some((o) => o.id === id)) continue;
+    const at = recentChoices.indexOf(id);
+    if (at >= 0) recentChoices.splice(at, 1);
+    recentChoices.unshift(id);
   }
 
   function update(next: Map<string, WorkflowField>) {
@@ -255,9 +254,7 @@ export function WorkflowFieldPicker({
                 const showTag =
                   members.get(key)?.find((m) => m.page === page)?.id === b.id;
                 const label = labelOf(key);
-                const answers = pick?.question_id
-                  ? questions.find((q) => q.id === pick.question_id)?.text
-                  : undefined;
+                const answers = choiceName(pick?.question_id);
                 const isOpen = open !== null && keyOf(open) === key;
                 return (
                   <button
@@ -324,7 +321,7 @@ export function WorkflowFieldPicker({
                   fieldKey={keyOf(open)}
                   label={labelOf(keyOf(open))}
                   value={picks.get(keyOf(open)) ?? null}
-                  questions={questions}
+                  recentChoices={recentChoices}
                   otcFields={otcFields}
                   onChange={(f) => setField(keyOf(open), f)}
                   onClose={() => setOpenId(null)}
@@ -357,7 +354,6 @@ export function WorkflowFieldPicker({
   );
 }
 
-export type ChoiceQuestion = { id: string; text: string };
 
 type MenuItem = {
   label: string;
@@ -431,7 +427,7 @@ function FieldTypeMenu({
   fieldKey,
   label,
   value,
-  questions,
+  recentChoices,
   otcFields,
   onChange,
   onClose,
@@ -441,8 +437,8 @@ function FieldTypeMenu({
   fieldKey: string;
   label: string;
   value: WorkflowField | null;
-  // Choice questions picked so far, most recent first.
-  questions: ChoiceQuestion[];
+  // OTC choice fields used on this contract, most recent first.
+  recentChoices: string[];
   // Open to Close fields it can be assigned to: the built-in ones and any
   // the client has added.
   otcFields: OtcField[];
@@ -459,7 +455,6 @@ function FieldTypeMenu({
         ? "otc"
         : "types",
   );
-  const [newQuestion, setNewQuestion] = useState("");
   const [help, setHelp] = useState<string | null>(null);
   // Kept current so the listeners below are set up once, when it opens.
   const closeRef = useRef(onClose);
@@ -562,7 +557,21 @@ function FieldTypeMenu({
   };
 
   const isOption = value?.type === "choice" && value.choice_role === "option";
-  const others = questions.filter((q) => q.id !== fieldKey);
+  const isContact = value?.type === "contact";
+  const otcPool = otcFields.filter((f) => isContactRole(f) === isContact);
+  const choicePool = otcFields.filter((f) => !isContactRole(f) && f.kind === "choice");
+  const recentChoiceFields = recentChoices
+    .map((id) => choicePool.find((f) => f.id === id))
+    .filter((f): f is OtcField => Boolean(f));
+
+  function chooseChoiceField(field: OtcField) {
+    choose({
+      type: "choice",
+      choice_role: "option",
+      question_id: field.id,
+      ...(field.isNew ? { question_text: field.name, question_section: field.sectionId } : {}),
+    });
+  }
 
   return (
     <div
@@ -690,116 +699,54 @@ function FieldTypeMenu({
           </p>
         </>
       ) : view === "questions" ? (
-        <>
-          <button
-            type="button"
-            role="menuitem"
-            data-menu-item
-            onClick={() => setView("types")}
-            className={`${itemClass} text-xs font-semibold text-ink-soft`}
-          >
-            &lsaquo; Back
-          </button>
-          <p className="px-2.5 pb-1 pt-1.5 text-xs font-medium text-ink-soft">
-            Which choice field is this an option for?
-          </p>
-          <div className="max-h-56 overflow-y-auto">
-            {others.map((q) => {
-              const on = isOption && value?.question_id === q.id;
-              return (
-                <button
-                  key={q.id}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={on}
-                  data-menu-item
-                  onClick={() =>
-                    choose({
-                      type: "choice",
-                      choice_role: "option",
-                      question_id: q.id,
-                      ...(q.id.startsWith(NEW_QUESTION_PREFIX)
-                        ? { question_text: q.text }
-                        : {}),
-                    })
-                  }
-                  className={itemClass}
-                >
-                  <Check on={on} />
-                  <span className="min-w-0 flex-1 truncate" title={q.text}>
-                    {q.text}
-                  </span>
-                </button>
-              );
-            })}
-            {others.length === 0 && (
-              <p className="px-2.5 py-1.5 text-xs text-ink-faint">
-                No choice fields yet.
-              </p>
-            )}
-          </div>
-          <div className="my-1 border-t border-border" />
-          <button
-            type="button"
-            role="menuitem"
-            data-menu-item
-            onClick={() => setView("new")}
-            className={`${itemClass} font-semibold text-accent`}
-          >
-            <span aria-hidden className="w-3.5 shrink-0">
-              +
-            </span>
-            Add a new choice field
-          </button>
-        </>
+        <OtcFieldList
+          title="Which choice field is this an option for?"
+          backLabel="Field type"
+          pool={choicePool}
+          recent={recentChoiceFields}
+          selectedId={isOption ? value?.question_id : undefined}
+          searchPlaceholder="Search choice fields"
+          emptyText="No choice fields match."
+          addLabel="Add a new choice field"
+          onPick={chooseChoiceField}
+          onAddNew={() => setView("new")}
+          onBack={() => setView("types")}
+        />
       ) : view === "new" ? (
-        <form
-          className="flex flex-col gap-2 p-1.5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const text = newQuestion.trim();
-            if (!text) return;
-            choose({
-              type: "choice",
-              choice_role: "option",
-              question_id: `${NEW_QUESTION_PREFIX}${crypto.randomUUID()}`,
-              question_text: text,
-            });
-          }}
-        >
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-ink-soft">
-              New choice field
-            </span>
-            <input
-              value={newQuestion}
-              onChange={(e) => setNewQuestion(e.target.value)}
-              maxLength={200}
-              placeholder="e.g. Financing type"
-              className="rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => setView("questions")}
-              className="text-xs font-semibold text-ink-soft"
-            >
-              &lsaquo; Back
-            </button>
-            <button
-              type="submit"
-              disabled={!newQuestion.trim()}
-              className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
-            >
-              Add
-            </button>
-          </div>
-        </form>
+        <NewOtcFieldForm
+          defaultName=""
+          kind="choice"
+          onAdd={(name, sectionId) =>
+            chooseChoiceField({
+              id: `${NEW_OTC_PREFIX}${crypto.randomUUID()}`,
+              name,
+              sectionId,
+              isNew: true,
+            })
+          }
+          onBack={() => setView("questions")}
+        />
       ) : view === "otc" && value ? (
         <OtcFieldList
-          value={value}
-          otcFields={otcFields}
+          title={
+            isContact
+              ? "Which contact role is this in Open to Close?"
+              : "Which Open to Close field does this fill?"
+          }
+          backLabel="Field type"
+          pool={otcPool}
+          suggested={
+            isContact
+              ? []
+              : otcPool.filter((f) => kindMatches(f.kind, value.type, value.decimal_format))
+          }
+          suggestedLabel={`Suggested for ${
+            TYPE_NAMES[(value.type === "decimal" ? value.decimal_format : value.type) ?? ""] ?? ""
+          } fields`}
+          selectedId={value.otc_field}
+          searchPlaceholder={isContact ? "Search contact roles" : "Search OTC fields"}
+          emptyText={isContact ? "No contact roles match." : "No OTC fields match."}
+          addLabel={isContact ? "Add a new contact role" : "Add a new OTC field"}
           onPick={assignOtc}
           onAddNew={() => setView("otc-new")}
           onBack={() => setView("types")}
@@ -813,7 +760,7 @@ function FieldTypeMenu({
               ? ""
               : label.replace(/[:\s]+$/, "")
           }
-          contact={value?.type === "contact"}
+          kind={value?.type === "contact" ? "contact" : "field"}
           onAdd={(name, sectionId) =>
             assignOtc({
               id: `${NEW_OTC_PREFIX}${crypto.randomUUID()}`,
@@ -843,14 +790,33 @@ const TYPE_NAMES: Record<string, string> = {
 // Which Open to Close field a workflow field fills: the ones that match its
 // type first, a search, and a way to add a new one.
 function OtcFieldList({
-  value,
-  otcFields,
+  title,
+  backLabel,
+  pool,
+  suggested = [],
+  suggestedLabel,
+  recent = [],
+  selectedId,
+  searchPlaceholder,
+  emptyText,
+  addLabel,
   onPick,
   onAddNew,
   onBack,
 }: {
-  value: WorkflowField;
-  otcFields: OtcField[];
+  title: string;
+  backLabel: string;
+  // Everything that can be picked.
+  pool: OtcField[];
+  // Shown first, with a way to show the whole pool.
+  suggested?: OtcField[];
+  suggestedLabel?: string;
+  // Used recently; listed at the top.
+  recent?: OtcField[];
+  selectedId?: string;
+  searchPlaceholder: string;
+  emptyText: string;
+  addLabel: string;
   onPick: (field: OtcField) => void;
   onAddNew: () => void;
   onBack: () => void;
@@ -858,12 +824,6 @@ function OtcFieldList({
   const [query, setQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
   const q = query.trim().toLowerCase();
-  // A contact is one of the contact roles; every other type is a field.
-  const isContact = value.type === "contact";
-  const pool = otcFields.filter((f) => isContactRole(f) === isContact);
-  const suggested = isContact
-    ? []
-    : pool.filter((f) => kindMatches(f.kind, value.type, value.decimal_format));
   const sectionName = (f: OtcField) =>
     sectionById(f.sectionId)?.name ?? "Your new fields";
   const list = q
@@ -877,17 +837,16 @@ function OtcFieldList({
       : suggested;
 
   // Grouped by section, in the order OTC shows them; new fields without a
-  // section come last.
+  // section come last. Recently used ones lead when not searching.
   const order = new Map(OTC_SECTIONS.map((s, i) => [s.id, i] as const));
   const sections = new Map<string, OtcField[]>();
+  if (!q && recent.length > 0) sections.set("Recently used", recent);
   for (const f of [...list].sort(
     (a, b) => (order.get(a.sectionId) ?? 999) - (order.get(b.sectionId) ?? 999),
   )) {
     const key = sectionName(f);
     sections.set(key, [...(sections.get(key) ?? []), f]);
   }
-
-  const kind = value.type === "decimal" ? value.decimal_format : value.type;
 
   return (
     <>
@@ -898,28 +857,22 @@ function OtcFieldList({
         onClick={onBack}
         className={`${itemClass} text-xs font-semibold text-ink-soft`}
       >
-        &lsaquo; Field type
+        &lsaquo; {backLabel}
       </button>
-      <p className="px-2.5 pb-1.5 pt-1 text-xs font-medium text-ink-soft">
-        {isContact
-          ? "Which contact role is this in Open to Close?"
-          : "Which Open to Close field does this fill?"}
-      </p>
+      <p className="px-2.5 pb-1.5 pt-1 text-xs font-medium text-ink-soft">{title}</p>
       <div className="px-1.5 pb-1.5">
         <input
           data-autofocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={isContact ? "Search contact roles" : "Search OTC fields"}
-          aria-label={isContact ? "Search contact roles" : "Search OTC fields"}
+          placeholder={searchPlaceholder}
+          aria-label={searchPlaceholder}
           className="w-full rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
         />
       </div>
       {!q && suggested.length > 0 && (
         <p className="px-2.5 pb-1 text-[11px] text-ink-faint">
-          {showAll
-            ? "All OTC fields"
-            : `Suggested for ${kind ? TYPE_NAMES[kind] : ""} fields`}
+          {showAll ? "All OTC fields" : suggestedLabel}
         </p>
       )}
       <div className="max-h-60 overflow-y-auto">
@@ -929,7 +882,7 @@ function OtcFieldList({
               {section}
             </p>
             {items.map((f) => {
-              const on = value.otc_field === f.id;
+              const on = selectedId === f.id;
               return (
                 <button
                   key={f.id}
@@ -948,9 +901,7 @@ function OtcFieldList({
           </div>
         ))}
         {list.length === 0 && (
-          <p className="px-2.5 py-1.5 text-xs text-ink-faint">
-            {isContact ? "No contact roles match." : "No OTC fields match."}
-          </p>
+          <p className="px-2.5 py-1.5 text-xs text-ink-faint">{emptyText}</p>
         )}
       </div>
       {!q && suggested.length > 0 && (
@@ -973,7 +924,7 @@ function OtcFieldList({
         <span aria-hidden className="w-3.5 shrink-0">
           +
         </span>
-        {isContact ? "Add a new contact role" : "Add a new OTC field"}
+        {addLabel}
       </button>
     </>
   );
@@ -983,19 +934,20 @@ function OtcFieldList({
 // built-in ones.
 function NewOtcFieldForm({
   defaultName,
-  contact,
+  kind,
   onAdd,
   onBack,
 }: {
   defaultName: string;
-  // A new contact role, which has no section to choose.
-  contact: boolean;
+  // A contact role (which has no section to choose), a choice field, or
+  // any other field.
+  kind: "contact" | "choice" | "field";
   onAdd: (name: string, sectionId: string) => void;
   onBack: () => void;
 }) {
   const [name, setName] = useState(defaultName);
   const [sectionId, setSectionId] = useState(
-    contact ? CONTACT_ROLES_SECTION : "",
+    kind === "contact" ? CONTACT_ROLES_SECTION : "",
   );
   const sections = OTC_SECTIONS.filter((s) => s.id !== CONTACT_ROLES_SECTION);
   const groups = [...new Set(sections.map((s) => s.group))];
@@ -1011,18 +963,28 @@ function NewOtcFieldForm({
     >
       <label className="flex flex-col gap-1">
         <span className="text-xs font-medium text-ink-soft">
-          {contact ? "New contact role" : "New OTC field name"}
+          {kind === "contact"
+            ? "New contact role"
+            : kind === "choice"
+              ? "New choice field name"
+              : "New OTC field name"}
         </span>
         <input
           data-autofocus
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={120}
-          placeholder={contact ? "e.g. Surveyor" : "e.g. Home Warranty Company"}
+          placeholder={
+            kind === "contact"
+              ? "e.g. Surveyor"
+              : kind === "choice"
+                ? "e.g. Survey Required"
+                : "e.g. Home Warranty Company"
+          }
           className="rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
         />
       </label>
-      {!contact && (
+      {kind !== "contact" && (
         <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-ink-soft">
             Section it goes in
@@ -1060,7 +1022,7 @@ function NewOtcFieldForm({
           disabled={!ready}
           className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
         >
-          {contact ? "Add role" : "Add field"}
+          {kind === "contact" ? "Add role" : "Add field"}
         </button>
       </div>
     </form>
