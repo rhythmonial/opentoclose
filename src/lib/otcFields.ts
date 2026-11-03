@@ -467,3 +467,69 @@ export const requiredRank = (id: string) => {
   const i = SYSTEM_REQUIRED_IDS.indexOf(id);
   return i === -1 ? SYSTEM_REQUIRED_IDS.length : i;
 };
+
+// Other names a field goes by on contracts and in other states, shown
+// beside it and matched by searches (e.g. searching "Effective Date" finds
+// Acceptance Date). By field id.
+export const OTC_FIELD_ALIASES: Record<string, string[]> = {
+  "critical-details/acceptance-date": [
+    "Contract Date",
+    "Effective Date",
+    "Mutual Acceptance Date",
+    "Binding Agreement Date",
+    "Ratification Date",
+    "Execution Date",
+  ],
+  "critical-details/closing-date": ["Settlement Date", "Close of Escrow (COE)"],
+  "critical-details/purchase-amount": ["Purchase Price", "Sales Price", "Contract Price"],
+  "critical-details/possession-date": ["Occupancy Date", "Move-in Date"],
+  "critical-details/final-walkthough-date": ["Final Walk-through Date"],
+  "critical-details/seller-concessions": ["Seller Credit", "Seller Contribution"],
+  "property-details/tax-id": ["Parcel Number", "APN", "PIN"],
+  "earnest-money-details/earnest-money-amount": [
+    "Deposit",
+    "Escrow Deposit",
+    "Good Faith Deposit",
+    "Binder",
+  ],
+  "earnest-money-details/earnest-money-held-by": ["Escrow Holder", "Escrow Agent"],
+  "inspection-details/inspection-period-date": [
+    "Due Diligence Date",
+    "Inspection Contingency Date",
+    "Option Period End Date",
+  ],
+  "inspection-details/inspection-period-days": ["Due Diligence Period", "Option Period"],
+  "financing-details/loan-approval-due-date": [
+    "Financing Contingency Date",
+    "Loan Commitment Date",
+  ],
+  "appraisal-details/appraisal-due-date": ["Appraisal Contingency Date"],
+  "disclosures-and-addendums/seller-disclosure-due-date": ["Disclosure Delivery Date"],
+  "cancellation-termination/termination-date": ["Cancellation Date"],
+  "closing-details/deed-recorded-date": ["Recording Date"],
+  "critical-listing-details/listing-price": ["List Price", "Asking Price"],
+  "critical-listing-details/listing-agreement-expiration-date": ["Listing Expiration Date"],
+  "hoa-details/is-there-an-hoa": ["POA", "Association", "Condo Association"],
+  "home-warranty-details/home-warranty-offered": ["Home Protection Plan"],
+};
+
+// The fields a client can select in Select OTC Fields: every field from the
+// OTC catalog (not contact roles), by section.
+export const SELECTABLE_SECTIONS = OTC_SECTIONS.filter(
+  (s) => s.id !== CONTACT_ROLES_SECTION && s.fields.length > 0,
+);
+
+const SELECTABLE_IDS = new Set(
+  SELECTABLE_SECTIONS.flatMap((s) => s.fields.map((f) => `${s.id}/${slug(f.name)}`)),
+);
+
+// A client's checked fields: known, selectable ones only, in catalog order,
+// always including the system required fields.
+export function cleanOtcSelection(raw: unknown): string[] {
+  const picked = new Set(Array.isArray(raw) ? raw.map(String) : []);
+  for (const id of SYSTEM_REQUIRED_IDS) picked.add(id);
+  return OTC_FIELDS.filter((f) => SELECTABLE_IDS.has(f.id) && picked.has(f.id)).map((f) => f.id);
+}
+
+// How a field's name becomes the last part of its id.
+export const slugOf = slug;
