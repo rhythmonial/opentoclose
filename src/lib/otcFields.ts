@@ -1,8 +1,9 @@
 import type { WorkflowFieldType } from "@/lib/workflowFields";
 
 // The fields that come with an Open to Close account, by group and section
-// as they appear in OTC's Field Editor. The type on each is our best match
-// for it, used to suggest fields when a client picks a field type.
+// as they appear in OTC's Field Editor, with their types (used to suggest
+// fields when a client picks a field type). "currency" is OTC's Decimal
+// Dollar type.
 type Kind = WorkflowFieldType | "currency" | "percentage";
 
 export type OtcSection = {
@@ -76,6 +77,322 @@ const CONTACT_ROLES = [
   "Videographer",
 ];
 
+// From OTC_FIELDS - Sheet1.csv (OTC's Field Editor: group, section, field,
+// type). "Decimal Currency" there is OTC's Decimal Dollar type.
+const FIELD_SECTIONS: [
+  group: string,
+  section: string,
+  fields: [name: string, kind: Kind][],
+][] = [
+  [
+    "Address",
+    "Address",
+    [
+      ["Address", "text"],
+      ["Unit Number", "text"],
+      ["City", "text"],
+      ["State", "choice"],
+      ["Zip", "text"],
+      ["County", "choice"],
+      ["Country", "text"],
+    ],
+  ],
+  [
+    "Address",
+    "Submission Details",
+    [
+      ["Intake Date", "date"],
+      ["Submitting Agents Full Name", "text"],
+      ["Last Day of the Year", "date"],
+    ],
+  ],
+  [
+    "Transaction",
+    "Critical Details",
+    [
+      ["Contract Status", "choice"],
+      ["Client Type", "choice"],
+      ["Acceptance Date", "date"],
+      ["Final Walkthough Date", "date"],
+      ["Possession Date", "date"],
+      ["Closing Date", "date"],
+      ["Purchase Amount", "currency"],
+      ["Are there any seller paid closing costs", "choice"],
+      ["Seller Concessions", "currency"],
+    ],
+  ],
+  [
+    "Transaction",
+    "Property Details",
+    [
+      ["Property Type", "choice"],
+      ["Property Occupant Type", "choice"],
+      ["Is House Built Prior to 1978", "choice"],
+      ["Year Built", "number"],
+      ["MLS Number", "text"],
+      ["Tax ID", "text"],
+      ["Legal Description", "text_area"],
+    ],
+  ],
+  [
+    "Transaction",
+    "Earnest Money Details",
+    [
+      ["Earnest Money Amount", "currency"],
+      ["Earnest Money Held By", "choice"],
+      ["Earnest Money Due - Date", "date"],
+      ["Earnest Money Due - Days", "number"],
+      ["Earnest Money Delivery Status", "choice"],
+      ["Earnest Money Receipt Date", "date"],
+      ["Additional Deposit Amount Due", "date"],
+      ["Additional Deposit Amount Due Receipt Date", "date"],
+    ],
+  ],
+  [
+    "Transaction",
+    "Disclosures & Addendums",
+    [
+      ["Will Seller Disclosures Be Required", "choice"],
+      ["Seller Disclosure Due - Date", "date"],
+      ["Seller Disclosure Due- Days", "number"],
+      ["Seller Disclosure Delivery Status", "choice"],
+      ["Will a Lead-Based Paint Disclosure Be Required", "choice"],
+    ],
+  ],
+  [
+    "Transaction",
+    "Inspection Details",
+    [
+      ["Will There Be An Inspection", "choice"],
+      ["Type of Inspections", "choice"],
+      ["Inspection Period - Days", "number"],
+      ["Inspection Period Date", "date"],
+      ["Date of Home Inspection", "date"],
+      ["Buyers Response to Repairs", "choice"],
+      ["Inspection Repair Receipts Delivered - Y/N", "choice"],
+      ["Inspection Repair Credit Amount", "currency"],
+      ["Inspection Repairs Due Date", "date"],
+      ["Results of Lead-Based Paint Assessment", "choice"],
+    ],
+  ],
+  [
+    "Transaction",
+    "HOA Details",
+    [
+      ["Is There An HOA", "choice"],
+      ["HOA Due - Days", "number"],
+      ["HOA Due Date", "date"],
+      ["HOA Dues or Fees Amount", "currency"],
+      ["HOA Dues Payment Frequency", "choice"],
+      ["HOA Company Website", "text"],
+    ],
+  ],
+  [
+    "Transaction",
+    "Financing Details",
+    [
+      ["Is There a Loan", "choice"],
+      ["Loan Type", "choice"],
+      ["Loan Application Due - Days", "number"],
+      ["Loan Application Due Date", "date"],
+      ["Loan Approval Due - Days", "number"],
+      ["Loan Approval Due Date", "date"],
+      ["Buyers Loan Approval Status", "choice"],
+      ["CD Delivery Status", "choice"],
+    ],
+  ],
+  [
+    "Transaction",
+    "Appraisal Details",
+    [
+      ["Will There Be An Appraisal", "choice"],
+      ["Appraisal Scheduled - Y/N", "choice"],
+      ["Appraisal Due - Days", "number"],
+      ["Appraisal Due Date", "date"],
+      ["Appraisal Appt Date", "date"],
+      ["Appraisal Met Value - Y/N", "choice"],
+      ["Appraisal Conditions - Y/N", "choice"],
+      ["Appraisal Conditions Description", "text_area"],
+      ["Appraisal Conditions Completed by Seller", "date"],
+      ["Appraisal Re-inspection Scheduled - Y/N", "choice"],
+      ["Appraisal Inspection Requested Date", "date"],
+      ["Appraised Value", "currency"],
+      ["Appraisal Cancellation", "text"],
+    ],
+  ],
+  [
+    "Transaction",
+    "Home Warranty Details",
+    [
+      ["Home Warranty Offered", "choice"],
+      ["Home Warranty - Amount", "currency"],
+      ["Home Warranty is Paid By", "choice"],
+      ["Home Warranty Ordered By", "choice"],
+      ["Home Warranty Company", "text"],
+    ],
+  ],
+  [
+    "Transaction",
+    "Closing Details",
+    [
+      ["Deed Released to Record", "choice"],
+      ["Deed RECORDED Date", "date"],
+      ["Walkthrough Waived", "choice"],
+    ],
+  ],
+  [
+    "Transaction",
+    "Cancellation - Termination",
+    [
+      ["Termination Date", "date"],
+      ["Title or Escrow Release", "date"],
+    ],
+  ],
+  [
+    "Listing Details",
+    "Critical Listing Details",
+    [
+      ["Listing Price", "currency"],
+      ["Listing Agreement Start Date", "date"],
+      ["Listing Agreement Expiration Date", "date"],
+      ["Will We Be Doing a Coming Soon", "choice"],
+      ["Coming Soon Launch Date", "date"],
+      ["Projected MLS Live Date", "date"],
+      ["MLS Live Date", "date"],
+    ],
+  ],
+  [
+    "Listing Details",
+    "Access Details",
+    [
+      ["Property Access Details", "text_area"],
+      ["Is there an Alarm", "choice"],
+      ["Alarm Code", "text"],
+      ["Lockbox Code", "text"],
+      ["Garage Code", "text"],
+      ["Door Keypad Code", "text"],
+      ["Important Access Notes", "text_area"],
+    ],
+  ],
+  [
+    "Listing Details",
+    "Photography Details",
+    [
+      ["Are we scheduling photos", "choice"],
+      ["What Photo Types would you like ordered", "choice"],
+      ["Photography Date", "date"],
+    ],
+  ],
+  [
+    "Listing Details",
+    "Sign Details",
+    [
+      ["Will There be a Sign Installed", "choice"],
+      ["Sign Installation Type", "choice"],
+      ["Sign Install Date", "date"],
+    ],
+  ],
+  [
+    "Listing Details",
+    "Additional Listing Services Provided",
+    [
+      ["Are We Doing Staging", "choice"],
+      ["Staging Date", "date"],
+      ["Are We Ordering a Listing Home Protection Plan", "choice"],
+      ["Cleaning Date", "date"],
+    ],
+  ],
+  [
+    "Commission Details",
+    "Commission Details",
+    [
+      ["Listing Side Commission Flat Fee or Percentage", "choice"],
+      ["Buyer Side Commission Flat Fee or Percentage", "choice"],
+      ["Listing Side Commission - Flat Fee", "currency"],
+      ["Listing Side Commission - Percentage", "percentage"],
+      ["Buyer Side Commission - Percentage", "percentage"],
+      ["Buyer Side Commission - Flat Fee", "currency"],
+      ["Total Commission", "percentage"],
+      ["Transaction File Fee", "currency"],
+      ["Additional Commission Notes", "text_area"],
+    ],
+  ],
+  [
+    "Commission Details",
+    "Referral Details",
+    [
+      ["Is there a Referral Fee", "choice"],
+      ["Referral Type", "choice"],
+      ["Referral Agent Name", "text"],
+      ["Referral Flat Fee or Percentage", "choice"],
+      ["Referral Flat Fee Amount", "currency"],
+      ["Referral Percentage Amount", "percentage"],
+      ["Referral W9 Received", "choice"],
+    ],
+  ],
+  ["Additional Fields (Not In Use)", "Open House Details", []],
+  ["Additional Fields (Not In Use)", "Showing Details", []],
+  ["Additional Fields (Not In Use)", "New Construction Details", []],
+  ["Additional Fields (Not In Use)", "Rental Details", []],
+  ["Additional Fields (Not In Use)", "Radon Details", []],
+  ["Additional Fields (Not In Use)", "Pool Details", []],
+  ["Additional Fields (Not In Use)", "Survey Details", []],
+  [
+    "Additional Fields (Not In Use)",
+    "Additional Fields (Not In Use)",
+    [
+      ["Inclusions", "text_area"],
+      ["Exclusions", "text_area"],
+      ["Offer Created Date", "date"],
+      ["Extension Agreement - Days", "number"],
+      ["Extension Agreement - Date", "date"],
+    ],
+  ],
+  ["Additional Fields (Not In Use)", "Termite & Pest Details", []],
+  ["Additional Fields (Not In Use)", "Solar Details", []],
+  [
+    "Additional Fields (Not In Use)",
+    "Well Details",
+    [
+      ["Well Onsite", "choice"],
+      ["Will There Be A Well Inspection", "choice"],
+      ["Well Inspection Date", "date"],
+    ],
+  ],
+  [
+    "Additional Fields (Not In Use)",
+    "Septic Details",
+    [
+      ["Septic Onsite", "choice"],
+      ["Will There Be A Septic Inspection", "choice"],
+      ["Septic Inspection Date", "date"],
+    ],
+  ],
+  [
+    "Additional Fields (Not In Use)",
+    "Team Commission Details",
+    [
+      ["Gross Commission Amount", "currency"],
+      ["Net Seller Agent Commission Amount", "currency"],
+      ["Net Buyer Agent Commission Amount", "currency"],
+      ["Showing Agent Split Percentage", "percentage"],
+      ["Showing Agent Split Total Net Amount", "currency"],
+      ["Team Split Total Net Amount", "currency"],
+      ["Team Split Percentage", "percentage"],
+      ["Commission Reduction", "text"],
+    ],
+  ],
+  [
+    "Additional Fields (Not In Use)",
+    "Brokerage Commission Details",
+    [
+      ["Brokerage Split Flat Fee Amount", "currency"],
+      ["Brokerage Split Percentage", "percentage"],
+      ["Brokerage Total Net Amount", "currency"],
+    ],
+  ],
+];
+
 export const OTC_SECTIONS: OtcSection[] = [
   {
     id: CONTACT_ROLES_SECTION,
@@ -83,116 +400,12 @@ export const OTC_SECTIONS: OtcSection[] = [
     name: "Contact Roles",
     fields: CONTACT_ROLES.map((name) => ({ name, kind: "contact" as const })),
   },
-  {
-    id: "commission-details",
-    group: "Commission Details",
-    name: "Commission Details",
-    fields: [
-      {
-        name: "Listing Side Commission Flat Fee or Percentage",
-        kind: "choice",
-      },
-      { name: "Buyer Side Commission Flat Fee or Percentage", kind: "choice" },
-      { name: "Listing Side Commission - Flat Fee", kind: "currency" },
-      { name: "Listing Side Commission - Percentage", kind: "percentage" },
-      { name: "Buyer Side Commission - Percentage", kind: "percentage" },
-      { name: "Buyer Side Commission - Flat Fee", kind: "currency" },
-      { name: "Total Commission", kind: "currency" },
-      { name: "Transaction File Fee", kind: "currency" },
-      { name: "Additional Commission Notes", kind: "text_area" },
-    ],
-  },
-  {
-    id: "referral-details",
-    group: "Commission Details",
-    name: "Referral Details",
-    fields: [
-      { name: "Is there a Referral Fee", kind: "choice" },
-      { name: "Referral Type", kind: "choice" },
-      { name: "Referral Agent Name", kind: "text" },
-      { name: "Referral Flat Fee or Percentage", kind: "choice" },
-      { name: "Referral Flat Fee Amount", kind: "currency" },
-      { name: "Referral Percentage Amount", kind: "percentage" },
-      { name: "Referral W9 Received", kind: "date" },
-    ],
-  },
-  ...[
-    "Open House Details",
-    "Showing Details",
-    "New Construction Details",
-    "Rental Details",
-    "Radon Details",
-    "Pool Details",
-    "Survey Details",
-  ].map((name) => ({
+  ...FIELD_SECTIONS.map(([group, name, fields]) => ({
     id: slug(name),
-    group: "Additional Fields (Not In Use)",
+    group,
     name,
-    fields: [],
+    fields: fields.map(([field, kind]) => ({ name: field, kind })),
   })),
-  {
-    id: "additional-fields-not-in-use",
-    group: "Additional Fields (Not In Use)",
-    name: "Additional Fields (Not In Use)",
-    fields: [
-      { name: "Inclusions", kind: "text_area" },
-      { name: "Exclusions", kind: "text_area" },
-      { name: "Offer Created Date", kind: "date" },
-      { name: "Extension Agreement - Days", kind: "number" },
-      { name: "Extension Agreement - Date", kind: "date" },
-    ],
-  },
-  ...["Termite & Pest Details", "Solar Details"].map((name) => ({
-    id: slug(name),
-    group: "Additional Fields (Not In Use)",
-    name,
-    fields: [],
-  })),
-  {
-    id: "well-details",
-    group: "Additional Fields (Not In Use)",
-    name: "Well Details",
-    fields: [
-      { name: "Well Onsite", kind: "choice" },
-      { name: "Will There Be A Well Inspection", kind: "choice" },
-      { name: "Well Inspection Date", kind: "date" },
-    ],
-  },
-  {
-    id: "septic-details",
-    group: "Additional Fields (Not In Use)",
-    name: "Septic Details",
-    fields: [
-      { name: "Septic Onsite", kind: "choice" },
-      { name: "Will There Be A Septic Inspection", kind: "choice" },
-      { name: "Septic Inspection Date", kind: "date" },
-    ],
-  },
-  {
-    id: "team-commission-details",
-    group: "Additional Fields (Not In Use)",
-    name: "Team Commission Details",
-    fields: [
-      { name: "Gross Commission Amount", kind: "currency" },
-      { name: "Net Seller Agent Commission Amount", kind: "currency" },
-      { name: "Net Buyer Agent Commission Amount", kind: "currency" },
-      { name: "Showing Agent Split Percentage", kind: "percentage" },
-      { name: "Showing Agent Split Total Net Amount", kind: "currency" },
-      { name: "Team Split Total Net Amount", kind: "currency" },
-      { name: "Team Split Percentage", kind: "percentage" },
-      { name: "Commission Reduction", kind: "currency" },
-    ],
-  },
-  {
-    id: "brokerage-commission-details",
-    group: "Additional Fields (Not In Use)",
-    name: "Brokerage Commission Details",
-    fields: [
-      { name: "Brokerage Split Flat Fee Amount", kind: "currency" },
-      { name: "Brokerage Split Percentage", kind: "percentage" },
-      { name: "Brokerage Total Net Amount", kind: "currency" },
-    ],
-  },
 ];
 
 function slug(s: string) {

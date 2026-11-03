@@ -383,8 +383,8 @@ const MENU: MenuItem[] = [
     field: { type: "text_area" },
   },
   {
-    label: "Decimal: Currency ($)",
-    help: "This will appear as currency. Example: $500,000",
+    label: "Decimal: Dollar ($)",
+    help: "This will appear as a dollar amount. Example: $500,000",
     field: { type: "decimal", decimal_format: "currency" },
   },
   {
@@ -833,7 +833,7 @@ const TYPE_NAMES: Record<string, string> = {
   contact: "contact",
   text: "text",
   text_area: "text area",
-  currency: "currency",
+  currency: "dollar",
   percentage: "percentage",
   date: "date",
   number: "number",
