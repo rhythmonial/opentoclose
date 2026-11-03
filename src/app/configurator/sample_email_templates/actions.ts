@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
 import { sampleFor, type EmailTemplate } from "@/lib/emailTemplates";
+import type { ImportedTemplate } from "@/lib/emailImportSheet";
 
 const STEP_KEY = "sample_email_templates";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -85,6 +86,48 @@ export async function removeEmailTemplate(accountId: string | null, id: string):
   if (error) return { ok: false, error: error.message };
   revalidatePath(PAGE);
   return { ok: true };
+}
+
+// Adds the templates from a filled-in import sheet as the client's own
+// (in use).
+export async function importEmailTemplates(
+  accountId: string | null,
+  templates: ImportedTemplate[],
+): Promise<{ ok: boolean; error?: string; templates?: EmailTemplate[] }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  if (templates.length === 0) return { ok: false, error: "No templates with a title were found." };
+  if (templates.length > 500) return { ok: false, error: "That's more than 500 templates; split it up." };
+
+  const rows = templates.map((t) => ({
+    client_account_id: account,
+    include: true,
+    title: String(t.title ?? "").trim().slice(0, 200) || "Untitled template",
+    subject: String(t.subject ?? "").slice(0, 500),
+    body: String(t.body ?? "").slice(0, 20000),
+    to_roles: names(t.to),
+    cc_roles: names(t.cc),
+    bcc_roles: names(t.bcc),
+    file_roles: names(t.files),
+  }));
+  const { data, error } = await supabase.from("client_email_templates").insert(rows).select("*");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  return {
+    ok: true,
+    templates: (data ?? []).map((r) => ({
+      id: r.id,
+      sampleKey: null,
+      include: r.include,
+      title: r.title,
+      subject: r.subject,
+      body: r.body,
+      to: r.to_roles,
+      cc: r.cc_roles,
+      bcc: r.bcc_roles,
+      files: r.file_roles,
+    })),
+  };
 }
 
 export async function finishEmailTemplates() {

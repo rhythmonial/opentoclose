@@ -36,7 +36,10 @@ for (const row of r) {
   const n = (keys.get(base) || 0) + 1; keys.set(base, n); const key = n > 1 ? base + "_" + n : base;
   let to = roles(row[7]), cc = roles(row[8]), bcc = roles(row[9]);
   if (to.length === 0 && cc.length === 0 && GUESS[key]) [to, cc] = GUESS[key];
-  cc = [...new Set([...cc, ...[...to, ...cc].map((x) => COPY[x]).filter(Boolean)])];
+  // Copy roles go with their role: on To for To, on Cc for Cc.
+  const copies = (list) => list.map((x) => COPY[x]).filter(Boolean);
+  to = [...new Set([...to, ...copies(to)])];
+  cc = [...new Set([...cc, ...copies(cc)])].filter((x) => !to.includes(x));
   const toClient = to.includes("Buyer") !== to.includes("Seller");
   if (toClient) {
     clientEmails++;
@@ -52,8 +55,9 @@ fs.writeFileSync(outFile, `// Sample email templates for the Sample Email Templa
 // Agent, Sellers Agent -> Listing Agent, Title Company -> Title Officer).
 // Where the sheet has no recipients they're a best guess from the email's
 // title and wording; everyone an email goes to also gets their "CC on ALL
-// ... Emails" role on Cc; and an email to one side's client leaves out both
-// agents (we're one of them, the other is the co-op). ADDABREAK lines mark
+// ... Emails" role beside them (on To for To, on Cc for Cc); and an email
+// to one side's client leaves out both agents (we're one of them, the
+// other is the co-op). ADDABREAK lines mark
 // where a blank line goes during setup. Generated from the sheet; edit the
 // sheet and regenerate rather than by hand.
 

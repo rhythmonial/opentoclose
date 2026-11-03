@@ -12,9 +12,12 @@ import {
   type TemplateSide,
 } from "@/lib/emailTemplates";
 import {
+  importEmailTemplates,
   removeEmailTemplate,
   saveEmailTemplate,
 } from "@/app/configurator/sample_email_templates/actions";
+import { readContactFile } from "@/lib/contactFiles";
+import { downloadCsv, readImportSheet, toImportCsv } from "@/lib/emailImportSheet";
 
 type Item = EmailTemplate & { key: string };
 
@@ -51,6 +54,29 @@ export function EmailTemplatesConfigurator({
   const [onlyUsed, setOnlyUsed] = useState(false);
   const [showBreaks, setShowBreaks] = useState(false);
   const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
+
+  const [importing, setImporting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Adds the templates from a filled-in import sheet, at the top.
+  async function importFile(file: File) {
+    setImporting(true);
+    setNotice(null);
+    try {
+      const rows = readImportSheet(await readContactFile(file, file.name));
+      const result = await importEmailTemplates(accountId, rows);
+      if (!result.ok || !result.templates) throw new Error(result.error ?? "Couldn't import that file.");
+      const added = result.templates.map((t) => ({ ...t, key: t.id ?? crypto.randomUUID() }));
+      setItems((all) => [...added, ...all]);
+      setNotice(`Imported ${added.length} template${added.length === 1 ? "" : "s"}.`);
+      setQuery("");
+      setSide("all");
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Couldn't import that file.");
+    } finally {
+      setImporting(false);
+    }
+  }
 
   async function persist(item: Item) {
     setStatus("saving");
@@ -131,13 +157,58 @@ export function EmailTemplatesConfigurator({
             aria-label="Search templates"
             className="w-64 rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-ink outline-none focus:border-accent"
           />
+          <div className="flex flex-wrap items-center gap-2">
+            <label
+              className={`cursor-pointer rounded-lg border border-border px-4 py-1.5 text-sm font-semibold text-accent hover:border-accent ${
+                importing ? "pointer-events-none opacity-60" : ""
+              }`}
+            >
+              {importing ? "Importing…" : "Import templates"}
+              <input
+                type="file"
+                accept=".csv,.tsv,.txt,.xlsx"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void importFile(file);
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={addTemplate}
+              className="rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-white"
+            >
+              + New template
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          <span className="text-ink-faint">
+            Have your own templates? Fill in OTC&rsquo;s import sheet and import it.
+          </span>
           <button
             type="button"
-            onClick={addTemplate}
-            className="rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-white"
+            onClick={() => downloadCsv(toImportCsv([]), "Email Templates import sheet.csv")}
+            className="font-semibold text-accent"
           >
-            + New template
+            Download the blank import sheet
           </button>
+          <button
+            type="button"
+            disabled={used === 0}
+            onClick={() =>
+              downloadCsv(
+                toImportCsv(items.filter((t) => t.include)),
+                "My Email Templates - OTC import.csv",
+              )
+            }
+            className="font-semibold text-accent disabled:opacity-50"
+          >
+            Download the ones I&rsquo;m using (OTC import format)
+          </button>
+          {notice && <span className="font-semibold text-ink">{notice}</span>}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-1.5">
