@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
 import { SAMPLE_TASKS } from "@/lib/sampleTasks";
-import { cleanTask, SIDES, type PlannedTask, type TaskSide } from "@/lib/taskPlans";
+import {
+  cleanTask,
+  SIDES,
+  TASK_COMPLETED,
+  type PlannedTask,
+  type TaskSide,
+} from "@/lib/taskPlans";
 
 const STEP_KEY = "plan_your_task_templates";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -76,12 +82,14 @@ export async function addSampleTasks(
       name: t.name,
       notes: t.notes,
       critical: t.critical,
-      recurring: t.recurring,
+      recurDays: null,
       dueDays: t.days,
       timeFrame: null,
       timing: t.timing,
-      dateField: t.dateField,
-      parentTask: t.parent,
+      // "Task Completed" means due from the parent task; otherwise the date
+      // field stands (a few samples name an email there, not a task).
+      dateField: t.dateField === TASK_COMPLETED ? "" : t.dateField,
+      parentTask: t.dateField === TASK_COMPLETED ? t.parent : "",
       sortOrder: i,
     })!,
     client_account_id: account,
@@ -100,7 +108,7 @@ export async function addSampleTasks(
         name: r.name,
         notes: r.notes,
         critical: r.critical,
-        recurring: r.recurring,
+        recurDays: r.recur_days,
         dueDays: r.due_days,
         timeFrame: r.time_frame as PlannedTask["timeFrame"],
         timing: r.timing as PlannedTask["timing"],

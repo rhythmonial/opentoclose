@@ -11,7 +11,8 @@ export type PlannedTask = {
   name: string;
   notes: string;
   critical: boolean;
-  recurring: boolean;
+  // Repeats every so many days; null when it doesn't recur.
+  recurDays: number | null;
   dueDays: number | null;
   timeFrame: TaskTimeFrame | null;
   timing: TaskTiming | null;
@@ -39,7 +40,8 @@ export const TASK_TIME_FRAMES: { value: TaskTimeFrame; label: string }[] = [
   { value: "calendar_days_skip_weekend", label: "Calendar Day(s) - Skip landing weekend day(s)" },
 ];
 
-// Due when its parent task is completed.
+// The prep sheet's "Task Completed" date field: due from its parent task.
+// Now a task has a parent task or a date field, never both.
 export const TASK_COMPLETED = "Task Completed";
 
 // What a task still needs (the prep sheet's starred columns).
@@ -48,8 +50,7 @@ export function missingFor(t: PlannedTask): string[] {
   if (!t.name.trim()) out.push("a name");
   if (!t.timing) out.push("when");
   if (t.timing && t.timing !== "same_day" && t.dueDays === null) out.push("days");
-  if (!t.dateField.trim()) out.push("a date field");
-  if (t.dateField === TASK_COMPLETED && !t.parentTask.trim()) out.push("a parent task");
+  if (!t.dateField.trim() && !t.parentTask.trim()) out.push("a date field or parent task");
   return out;
 }
 
@@ -57,21 +58,29 @@ export function cleanTask(raw: Partial<PlannedTask>) {
   const side = SIDES.some((s) => s.value === raw.side) ? (raw.side as TaskSide) : null;
   if (!side) return null;
   const text = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+  const recurDays =
+    typeof raw.recurDays === "number" && Number.isInteger(raw.recurDays) && raw.recurDays >= 1 && raw.recurDays <= 365
+      ? raw.recurDays
+      : null;
+  const parent = text(raw.parentTask, 200);
+  const dateField = text(raw.dateField, 120) === TASK_COMPLETED ? "" : text(raw.dateField, 120);
   return {
     side,
     template: text(raw.template, 80) || "General",
     name: text(raw.name, 200) || "New task",
     notes: text(raw.notes, 2000),
     critical: raw.critical === true,
-    recurring: raw.recurring === true,
+    recurring: recurDays !== null,
+    recur_days: recurDays,
     due_days:
       typeof raw.dueDays === "number" && Number.isInteger(raw.dueDays) && raw.dueDays >= 0 && raw.dueDays <= 3650
         ? raw.dueDays
         : null,
     time_frame: TASK_TIME_FRAMES.some((t) => t.value === raw.timeFrame) ? raw.timeFrame! : null,
     timing: TIMINGS.some((t) => t.value === raw.timing) ? raw.timing! : null,
-    date_field: text(raw.dateField, 120),
-    parent_task: text(raw.parentTask, 200),
+    // A parent task wins over a date field.
+    date_field: parent ? "" : dateField,
+    parent_task: parent,
     sort_order: Math.trunc(Number(raw.sortOrder) || 0),
   };
 }

@@ -67,7 +67,7 @@ export default async function PlanYourTaskTemplatesPage({
     name: r.name,
     notes: r.notes,
     critical: r.critical,
-    recurring: r.recurring,
+    recurDays: r.recur_days,
     dueDays: r.due_days,
     timeFrame: r.time_frame as PlannedTask["timeFrame"],
     timing: r.timing as PlannedTask["timing"],

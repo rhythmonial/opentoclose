@@ -394,6 +394,7 @@ export type Database = {
           notes: string
           critical: boolean
           recurring: boolean
+          recur_days: number | null
           due_days: number | null
           time_frame: string | null
           timing: string | null
@@ -412,6 +413,7 @@ export type Database = {
           notes?: string
           critical?: boolean
           recurring?: boolean
+          recur_days?: number | null
           due_days?: number | null
           time_frame?: string | null
           timing?: string | null
@@ -430,6 +432,7 @@ export type Database = {
           notes?: string
           critical?: boolean
           recurring?: boolean
+          recur_days?: number | null
           due_days?: number | null
           time_frame?: string | null
           timing?: string | null

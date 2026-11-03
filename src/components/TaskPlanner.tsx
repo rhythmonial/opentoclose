@@ -25,7 +25,9 @@ const cellInput =
 
 // Plan Your Task Templates: per side (Buyer "B -", Seller "S -", Listing
 // "L -"), templates of tasks laid out like the task setup prep sheet: name,
-// critical, recurring, notes, then when it's due (days, time frame, before
+// critical, recurring (every so many days), notes, then when it's due (days,
+// time frame, before / after / same day as a date field, or its parent task
+// in the same template; one or the other), before
 // / after / same day as, which date field, or when a parent task is done).
 // A side can start from TC Optimize's sample tasks.
 export function TaskPlanner({
@@ -52,9 +54,9 @@ export function TaskPlanner({
   const sideInfo = SIDES.find((s) => s.value === side)!;
   const sideRows = rows.filter((r) => r.side === side);
   const templates = [...new Set(sideRows.map((r) => r.template))];
-  const taskNames = [...new Set(sideRows.map((r) => r.name).filter(Boolean))];
-  const dateFieldList = [TASK_COMPLETED, ...new Set([...dateOptions, ...rows.map((r) => r.dateField)])]
-    .filter((d, i, all) => d && all.indexOf(d) === i);
+  const dateFieldList = [...new Set([...dateOptions, ...rows.map((r) => r.dateField)])].filter(
+    (d) => d && d !== TASK_COMPLETED,
+  );
   const incomplete = sideRows.filter((r) => missingFor(r).length > 0).length;
 
   function report(ok: boolean, message?: string) {
@@ -65,16 +67,29 @@ export function TaskPlanner({
   function update(key: string, change: Partial<PlannedTask>) {
     const row = rows.find((r) => r.key === key);
     if (!row) return;
-    const next = { ...row, ...change };
-    setRows((all) => all.map((r) => (r.key === key ? next : r)));
+    const changed: Row[] = [{ ...row, ...change }];
+    // Renaming a task keeps the tasks it's the parent of pointing at it.
+    if (change.name !== undefined && row.name && change.name !== row.name) {
+      for (const r of rows) {
+        if (r.key !== key && r.side === row.side && r.template === row.template && r.parentTask === row.name) {
+          changed.push({ ...r, parentTask: change.name });
+        }
+      }
+    }
+    setRows((all) => all.map((r) => changed.find((c) => c.key === r.key) ?? r));
+    for (const next of changed) schedule(next);
+  }
+
+  // Saves a task shortly after its last change.
+  function schedule(next: Row) {
     if (!next.id) return;
-    const old = timers.current.get(key);
+    const old = timers.current.get(next.key);
     if (old) window.clearTimeout(old);
     setStatus("saving");
     timers.current.set(
-      key,
+      next.key,
       window.setTimeout(async () => {
-        timers.current.delete(key);
+        timers.current.delete(next.key);
         const result = await saveTask(accountId, next);
         report(result.ok, result.error);
       }, 500),
@@ -90,7 +105,7 @@ export function TaskPlanner({
       name: "New task",
       notes: "",
       critical: false,
-      recurring: false,
+      recurDays: null,
       dueDays: null,
       timeFrame: null,
       timing: null,
@@ -136,11 +151,6 @@ export function TaskPlanner({
       <datalist id="task-date-fields">
         {dateFieldList.map((d) => (
           <option key={d} value={d} />
-        ))}
-      </datalist>
-      <datalist id={`task-names-${side}`}>
-        {taskNames.map((n) => (
-          <option key={n} value={n} />
         ))}
       </datalist>
 
@@ -227,7 +237,7 @@ export function TaskPlanner({
                     <colgroup>
                       <col />
                       <col className="w-12" />
-                      <col className="w-12" />
+                      <col className="w-[5.5rem]" />
                       <col className="w-[4.5rem]" />
                       <col className="w-40" />
                       <col className="w-36" />
@@ -239,12 +249,18 @@ export function TaskPlanner({
                       <tr>
                         <th className="px-2 py-2 font-semibold">Task Name*</th>
                         <th className="px-1 py-2 text-center font-semibold" title="Critical">Crit.</th>
-                        <th className="px-1 py-2 text-center font-semibold" title="Recurring">Recur</th>
+                        <th className="px-1 py-2 font-semibold" title="Repeats every so many days">
+                          Recur (days)
+                        </th>
                         <th className="px-1 py-2 font-semibold">Days*</th>
                         <th className="px-1 py-2 font-semibold">Time Frame</th>
                         <th className="px-1 py-2 font-semibold">When*</th>
-                        <th className="px-1 py-2 font-semibold">Date Field*</th>
-                        <th className="px-1 py-2 font-semibold">Parent Task</th>
+                        <th className="px-1 py-2 font-semibold" title="Due from a date field, or when its parent task is completed: one or the other">
+                          Date Field*
+                        </th>
+                        <th className="px-1 py-2 font-semibold" title="Due from a date field, or when its parent task is completed: one or the other">
+                          <span className="font-normal text-ink-faint">or </span>Parent Task*
+                        </th>
                         <th className="px-2 py-2" />
                       </tr>
                     </thead>
@@ -276,13 +292,24 @@ export function TaskPlanner({
                                   className="mt-1.5"
                                 />
                               </td>
-                              <td className="px-1 py-1.5 text-center">
+                              <td className="px-1 py-1.5">
                                 <input
-                                  type="checkbox"
-                                  checked={r.recurring}
-                                  onChange={(e) => update(r.key, { recurring: e.target.checked })}
-                                  aria-label="Recurring"
-                                  className="mt-1.5"
+                                  type="number"
+                                  min={1}
+                                  max={365}
+                                  value={r.recurDays ?? ""}
+                                  onChange={(e) =>
+                                    update(r.key, {
+                                      recurDays:
+                                        e.target.value === ""
+                                          ? null
+                                          : Math.min(365, Math.max(1, Math.trunc(Number(e.target.value)))),
+                                    })
+                                  }
+                                  placeholder="—"
+                                  aria-label="Recurs every how many days"
+                                  title="Repeats every so many days; leave empty if it doesn't recur"
+                                  className={`${cellInput} border-border`}
                                 />
                               </td>
                               <td className="px-1 py-1.5">
@@ -346,23 +373,41 @@ export function TaskPlanner({
                                 <input
                                   list="task-date-fields"
                                   value={r.dateField}
+                                  disabled={Boolean(r.parentTask)}
                                   onChange={(e) => update(r.key, { dateField: e.target.value })}
-                                  placeholder="Choose or type"
+                                  placeholder={r.parentTask ? "From parent task" : "Choose or type"}
                                   aria-label="Date field"
                                   title={r.dateField}
-                                  className={`${cellInput} ${bad("a date field")}`}
+                                  className={`${cellInput} disabled:opacity-40 ${bad("a date field or parent task")}`}
                                 />
                               </td>
                               <td className="px-1 py-1.5">
-                                <input
-                                  list={`task-names-${side}`}
+                                {/* The other tasks in this template; due when the
+                                    chosen one is completed, instead of from a date. */}
+                                <select
                                   value={r.parentTask}
-                                  onChange={(e) => update(r.key, { parentTask: e.target.value })}
-                                  placeholder={r.dateField === TASK_COMPLETED ? "Required" : ""}
+                                  disabled={Boolean(r.dateField.trim())}
+                                  onChange={(e) =>
+                                    update(r.key, { parentTask: e.target.value, dateField: "" })
+                                  }
                                   aria-label="Parent task"
                                   title={r.parentTask}
-                                  className={`${cellInput} ${bad("a parent task")}`}
-                                />
+                                  className={`${cellInput} disabled:opacity-40 ${bad("a date field or parent task")}`}
+                                >
+                                  <option value="">{r.dateField.trim() ? "From date field" : "None"}</option>
+                                  {[
+                                    ...new Set([
+                                      ...items.filter((o) => o.key !== r.key).map((o) => o.name),
+                                      ...(r.parentTask ? [r.parentTask] : []),
+                                    ]),
+                                  ]
+                                    .filter(Boolean)
+                                    .map((n) => (
+                                      <option key={n} value={n}>
+                                        {n}
+                                      </option>
+                                    ))}
+                                </select>
                               </td>
                               <td className="whitespace-nowrap px-2 py-1.5 text-right">
                                 <button
