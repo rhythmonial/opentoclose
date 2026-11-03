@@ -49,9 +49,20 @@ export const sortByName = <T extends { name: string }>(list: T[]) =>
   [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 
 export const SIDES = [
-  { value: "seller", label: "Seller" },
   { value: "buyer", label: "Buyer" },
+  { value: "seller", label: "Seller" },
   { value: "listing", label: "Listing" },
 ] as const;
 
 export type Side = (typeof SIDES)[number]["value"];
+
+// A document template is named for its category, prefixed with the sides it
+// covers: "S Appraisal", "B/S Appraisal", "B/S/L General".
+const SIDE_LETTERS: Record<Side, string> = { buyer: "B", seller: "S", listing: "L" };
+// Always in B, S, L order.
+export function templatePrefix(sides: string[]) {
+  return (["buyer", "seller", "listing"] as const)
+    .filter((side) => sides.includes(side))
+    .map((side) => SIDE_LETTERS[side])
+    .join("/");
+}

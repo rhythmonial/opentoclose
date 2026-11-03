@@ -2,13 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  CATEGORY_COLORS,
-  COLOR_NAMES,
   CUSTOM_PREFIX,
   SIDES,
   sortByName,
   STARTER_CATEGORIES,
-  type CategoryColor,
+  templatePrefix,
   type DocCategory,
 } from "@/lib/documentCategories";
 import {
@@ -99,10 +97,10 @@ export function DocumentCategorizer({
     if (doc.id) await removeDocument(accountId, doc.id);
   }
 
-  async function createCategory(name: string, color: CategoryColor) {
-    const result = await addCategory(accountId, name, color);
+  async function createCategory(name: string) {
+    const result = await addCategory(accountId, name, "gray");
     if (!result.ok || !result.id) return result.error ?? "Couldn't add that category.";
-    setCustom((all) => [...all, { id: result.id!, name: name.trim(), color }]);
+    setCustom((all) => [...all, { id: result.id!, name: name.trim(), color: "gray" }]);
     return result.id;
   }
 
@@ -216,7 +214,7 @@ export function DocumentCategorizer({
                 {chosen.map((c) => (
                   <span
                     key={c.id}
-                    className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium text-ink ${CATEGORY_COLORS[c.color].chip}`}
+                    className="flex items-center gap-1 rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs font-medium text-ink"
                   >
                     {c.name}
                     <button
@@ -250,8 +248,8 @@ export function DocumentCategorizer({
                           : [...doc.categories, id],
                       })
                     }
-                    onCreate={async (name, color) => {
-                      const id = await createCategory(name, color);
+                    onCreate={async (name) => {
+                      const id = await createCategory(name);
                       if (id.startsWith(CUSTOM_PREFIX)) {
                         change(doc.key, { categories: [...doc.categories, id] });
                         return null;
@@ -267,7 +265,81 @@ export function DocumentCategorizer({
           );
         })}
       </ul>
+
+      <DocumentTemplates docs={docs} byId={byId} />
     </div>
+  );
+}
+
+// The document templates the categories add up to: one per category and
+// set of sides, named like "B/S Appraisal", with the documents in each.
+function DocumentTemplates({
+  docs,
+  byId,
+}: {
+  docs: CategorizedDoc[];
+  byId: Map<string, DocCategory>;
+}) {
+  const templates = new Map<string, { name: string; category: string; prefix: string; docs: string[] }>();
+  for (const d of docs) {
+    const prefix = templatePrefix(d.sides);
+    if (!prefix) continue;
+    for (const id of d.categories) {
+      const category = byId.get(id);
+      if (!category) continue;
+      const name = `${prefix} ${category.name}`;
+      const t = templates.get(name) ?? { name, category: category.name, prefix, docs: [] };
+      t.docs.push(d.name);
+      templates.set(name, t);
+    }
+  }
+  // By category A to Z, then buyer, seller and listing.
+  const order = ["B", "B/S", "B/S/L", "B/L", "S", "S/L", "L"];
+  const list = [...templates.values()].sort(
+    (a, b) =>
+      a.category.localeCompare(b.category, undefined, { sensitivity: "base" }) ||
+      order.indexOf(a.prefix) - order.indexOf(b.prefix),
+  );
+  const waiting = docs.filter((d) => d.categories.length === 0 || d.sides.length === 0).length;
+
+  return (
+    <section className="mt-4 rounded-xl border border-border bg-surface p-5">
+      <h2 className="font-display text-lg font-bold text-ink">Your document templates</h2>
+      <p className="mt-1 text-sm text-ink-soft">
+        Each category becomes a document template, named for the sides it&rsquo;s used on: B
+        for buyer, S for seller and L for listing (so &ldquo;B/S Appraisal&rdquo; is used on
+        buyer and seller files).
+        {waiting > 0 &&
+          ` ${waiting} document${waiting === 1 ? " isn't" : "s aren't"} in a template yet: ${
+            waiting === 1 ? "it needs" : "they need"
+          } a category and a side.`}
+      </p>
+      {list.length === 0 ? (
+        <p className="mt-4 text-sm text-ink-faint">
+          Nothing yet. Give a document a category and a side and its template shows up here.
+        </p>
+      ) : (
+        <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {list.map((t) => (
+            <li key={t.name} className="rounded-lg border border-border px-3 py-2.5">
+              <p className="flex items-baseline justify-between gap-2">
+                <span className="font-semibold text-ink">{t.name}</span>
+                <span className="text-xs text-ink-faint">
+                  {t.docs.length} document{t.docs.length === 1 ? "" : "s"}
+                </span>
+              </p>
+              <ul className="mt-1 list-disc pl-5 text-sm text-ink-soft">
+                {t.docs.map((n, i) => (
+                  <li key={`${n}-${i}`} className="truncate" title={n}>
+                    {n}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -285,13 +357,12 @@ function CategoryMenu({
   selected: string[];
   onToggle: (id: string) => void;
   // Resolves to an error message, or null once added.
-  onCreate: (name: string, color: CategoryColor) => Promise<string | null>;
+  onCreate: (name: string) => Promise<string | null>;
   onDelete: (id: string) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
-  const [color, setColor] = useState<CategoryColor>("green");
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const closeRef = useRef(onClose);
@@ -341,7 +412,6 @@ function CategoryMenu({
             <div key={c.id} className="flex items-center gap-1">
               <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm text-ink hover:bg-accent-soft/40">
                 <input type="checkbox" checked={on} onChange={() => onToggle(c.id)} />
-                <span className={`h-3 w-3 shrink-0 rounded-full ${CATEGORY_COLORS[c.color].swatch}`} />
                 {c.name}
               </label>
               {isCustom &&
@@ -382,26 +452,11 @@ function CategoryMenu({
           className="flex flex-col gap-2 border-t border-border pt-2"
           onSubmit={async (e) => {
             e.preventDefault();
-            const result = await onCreate(query, color);
+            const result = await onCreate(query);
             if (result) setError(result);
             else setQuery("");
           }}
         >
-          <div className="flex items-center gap-1.5" role="radiogroup" aria-label="Color">
-            {COLOR_NAMES.map((name) => (
-              <button
-                key={name}
-                type="button"
-                role="radio"
-                aria-checked={color === name}
-                aria-label={name}
-                onClick={() => setColor(name)}
-                className={`h-5 w-5 rounded-full border ${CATEGORY_COLORS[name].swatch} ${
-                  color === name ? "border-ink ring-2 ring-accent/40" : "border-border"
-                }`}
-              />
-            ))}
-          </div>
           <button
             type="submit"
             className="rounded-md bg-accent px-3 py-1 text-left text-xs font-semibold text-white"
