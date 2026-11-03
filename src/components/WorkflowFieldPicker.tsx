@@ -28,7 +28,7 @@ function fieldLabel(b: ContractBlank) {
 // Clicking a field drops down a menu of workflow field types; choosing one
 // adds it to the workflow. Removing one grays it out until it's restored.
 // Boxes linked in the review act as one field. A choice option is tied to a
-// choice question. Changes go to `onSave` shortly after each one; without
+// choice field. Changes go to `onSave` shortly after each one; without
 // it, they stay on this screen.
 export function WorkflowFieldPicker({
   source,
@@ -85,7 +85,7 @@ export function WorkflowFieldPicker({
     let q: { id: string; text: string } | null = null;
     if (f.choice_role === "question") {
       const first = members.get(f.id)?.[0];
-      q = { id: f.id, text: first ? `Page ${first.page}: ${fieldLabel(first)}` : "Choice question" };
+      q = { id: f.id, text: first ? `Page ${first.page}: ${fieldLabel(first)}` : "Choice field" };
     } else if (f.question_id?.startsWith(NEW_QUESTION_PREFIX) && f.question_text) {
       q = { id: f.question_id, text: f.question_text };
     }
@@ -110,7 +110,7 @@ export function WorkflowFieldPicker({
     const next = new Map(picks);
     if (field) next.set(key, field);
     else next.delete(key);
-    // A field that stops being a choice question (changed or removed)
+    // A field that stops being a choice field (changed or removed)
     // leaves its options needing a new one.
     const isQuestion = (f?: WorkflowField | null) =>
       Boolean(f && isActive(f) && f.choice_role === "question");
@@ -312,21 +312,54 @@ export function WorkflowFieldPicker({
 
 export type ChoiceQuestion = { id: string; text: string };
 
-type MenuItem = { label: string; field: Omit<WorkflowField, "id"> };
+type MenuItem = { label: string; help: string; field: Omit<WorkflowField, "id"> };
 
+// Each type, with the help shown while it's hovered.
 const MENU: MenuItem[] = [
-  { label: "Contact", field: { type: "contact" } },
-  { label: "Text", field: { type: "text" } },
-  { label: "Text area", field: { type: "text_area" } },
-  { label: "Decimal: Currency ($)", field: { type: "decimal", decimal_format: "currency" } },
-  { label: "Decimal: Percentage (%)", field: { type: "decimal", decimal_format: "percentage" } },
-  { label: "Date", field: { type: "date" } },
-  { label: "Number", field: { type: "number" } },
-  { label: "Choice question", field: { type: "choice", choice_role: "question" } },
+  {
+    label: "Contact",
+    help: "This includes contact information for a partner of the transaction.",
+    field: { type: "contact" },
+  },
+  {
+    label: "Text",
+    help: "This is a short string of text, but could also be numbers that don't require calculation, like a parcel or MLS number.",
+    field: { type: "text" },
+  },
+  {
+    label: "Text area",
+    help: "This should be text that is typically longer and may need formatting (bold, italic, underline, etc.).",
+    field: { type: "text_area" },
+  },
+  {
+    label: "Decimal: Currency ($)",
+    help: "This will appear as currency. Example: $500,000",
+    field: { type: "decimal", decimal_format: "currency" },
+  },
+  {
+    label: "Decimal: Percentage (%)",
+    help: "This will appear as a percentage. Example: 30%",
+    field: { type: "decimal", decimal_format: "percentage" },
+  },
+  { label: "Date", help: "This is a typical date field.", field: { type: "date" } },
+  {
+    label: "Number",
+    help: "This will appear as a number without commas or dashes and is designed to work with the Date Calculation tool.",
+    field: { type: "number" },
+  },
+  {
+    label: "Choice field",
+    help: "This is a field that has multiple items to select from.",
+    field: { type: "choice", choice_role: "question" },
+  },
 ];
 
+const CHOICE_OPTION_HELP =
+  "This is an option in a field with multiple selections and belongs under a specific choice field.";
+const DEFAULT_HELP = "Hover over a type to see what it's for.";
+
 const itemClass =
-  "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm text-ink hover:bg-accent-soft/50 focus:bg-accent-soft/50 focus:outline-none";
+  "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm text-ink hover:bg-accent-soft/50 focus-visible:bg-accent-soft/50 focus:outline-none";
 
 function Check({ on }: { on: boolean }) {
   return (
@@ -362,6 +395,7 @@ function FieldTypeMenu({
     value?.choice_role === "option" && !value.question_id ? "questions" : "types",
   );
   const [newQuestion, setNewQuestion] = useState("");
+  const [help, setHelp] = useState<string | null>(null);
   // Kept current so the listeners below are set up once, when it opens.
   const closeRef = useRef(onClose);
   useEffect(() => {
@@ -430,7 +464,7 @@ function FieldTypeMenu({
       aria-label={`Field type for ${label}`}
       onKeyDown={onMenuKey}
       style={style}
-      className="absolute z-20 flex w-60 flex-col rounded-lg border border-border bg-surface p-1 text-left shadow-lg"
+      className="absolute z-20 flex w-72 flex-col rounded-lg border border-border bg-surface p-1 text-left shadow-lg"
     >
       {value?.removed ? (
         // A removed field only offers to come back, with its answers.
@@ -470,6 +504,8 @@ function FieldTypeMenu({
                 aria-checked={on}
                 data-menu-item
                 onClick={() => choose(item.field)}
+                onPointerEnter={() => setHelp(item.help)}
+                onFocus={(e) => e.currentTarget.matches(":focus-visible") && setHelp(item.help)}
                 className={itemClass}
               >
                 <Check on={on} />
@@ -483,6 +519,8 @@ function FieldTypeMenu({
             aria-haspopup="menu"
             data-menu-item
             onClick={() => setView("questions")}
+            onPointerEnter={() => setHelp(CHOICE_OPTION_HELP)}
+            onFocus={(e) => e.currentTarget.matches(":focus-visible") && setHelp(CHOICE_OPTION_HELP)}
             className={itemClass}
           >
             <Check on={isOption} />
@@ -501,11 +539,18 @@ function FieldTypeMenu({
               onChange({ ...(value ?? { id: fieldKey }), removed: true });
               onClose();
             }}
-            className={`${itemClass} text-danger hover:bg-danger/10 focus:bg-danger/10`}
+            className={`${itemClass} !text-danger hover:!bg-danger/10 focus-visible:!bg-danger/10`}
           >
             <Check on={false} />
             Remove from workflow
           </button>
+          {/* What the hovered (or focused) type is for. */}
+          <p
+            aria-live="polite"
+            className="mt-1 min-h-[4.25rem] rounded-md bg-bg px-2.5 py-2 text-xs leading-snug text-ink-soft"
+          >
+            {help ?? DEFAULT_HELP}
+          </p>
         </>
       ) : view === "questions" ? (
         <>
@@ -519,7 +564,7 @@ function FieldTypeMenu({
             &lsaquo; Back
           </button>
           <p className="px-2.5 pb-1 pt-1.5 text-xs font-medium text-ink-soft">
-            Which choice question is this an option for?
+            Which choice field is this an option for?
           </p>
           <div className="max-h-56 overflow-y-auto">
             {others.map((q) => {
@@ -550,7 +595,7 @@ function FieldTypeMenu({
             })}
             {others.length === 0 && (
               <p className="px-2.5 py-1.5 text-xs text-ink-faint">
-                No choice questions yet.
+                No choice fields yet.
               </p>
             )}
           </div>
@@ -565,7 +610,7 @@ function FieldTypeMenu({
             <span aria-hidden className="w-3.5 shrink-0">
               +
             </span>
-            Add a new choice question
+            Add a new choice field
           </button>
         </>
       ) : (
@@ -584,7 +629,7 @@ function FieldTypeMenu({
           }}
         >
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-ink-soft">New choice question</span>
+            <span className="text-xs font-medium text-ink-soft">New choice field</span>
             <input
               value={newQuestion}
               onChange={(e) => setNewQuestion(e.target.value)}

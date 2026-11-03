@@ -51,7 +51,7 @@ export function fieldTag(field: WorkflowField): string {
   }
   if (field.type === "choice") {
     return field.choice_role === "question"
-      ? "Choice Q"
+      ? "Choice field"
       : field.choice_role === "option"
         ? "Option"
         : "Choice";
