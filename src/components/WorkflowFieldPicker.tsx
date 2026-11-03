@@ -3,12 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { PdfPageCanvas, usePdfDocument } from "@/components/PdfPageCanvas";
+import { kindMatches, OTC_FIELDS, OTC_SECTIONS, sectionById, type OtcField } from "@/lib/otcFields";
 import {
   cleanWorkflowFields,
   fieldTag,
   isActive,
   isComplete,
+  NEW_OTC_PREFIX,
   NEW_QUESTION_PREFIX,
+  needsOtcField,
+  newOtcFieldsFrom,
   workflowKeys,
   type WorkflowField,
 } from "@/lib/workflowFields";
@@ -35,12 +39,15 @@ export function WorkflowFieldPicker({
   pageCount,
   blanks,
   initialFields,
+  extraOtcFields = [],
   onSave,
 }: {
   source: ArrayBuffer | string;
   pageCount: number;
   blanks: ContractBlank[];
   initialFields: WorkflowField[];
+  // OTC fields the client added on their other contracts.
+  extraOtcFields?: OtcField[];
   onSave?: (fields: WorkflowField[]) => Promise<{ ok: boolean }>;
 }) {
   const { doc, error } = usePdfDocument(source);
@@ -76,6 +83,15 @@ export function WorkflowFieldPicker({
   const incomplete = active.filter((f) => !isComplete(f)).length;
   const open = onPage.find((b) => b.id === openId) ?? null;
 
+  // Built-in OTC fields, plus the ones the client has added.
+  const otcFields = [
+    ...OTC_FIELDS,
+    ...[...newOtcFieldsFrom(active), ...extraOtcFields].filter(
+      (f, i, all) => all.findIndex((g) => g.id === f.id) === i,
+    ),
+  ];
+  const otcName = (id?: string) => (id ? otcFields.find((f) => f.id === id)?.name : undefined);
+
   // Choice questions picked so far (fields marked as a question, and ones
   // typed in for an option), most recent first.
   const questions: { id: string; text: string }[] = [];
@@ -85,7 +101,12 @@ export function WorkflowFieldPicker({
     let q: { id: string; text: string } | null = null;
     if (f.choice_role === "question") {
       const first = members.get(f.id)?.[0];
-      q = { id: f.id, text: first ? `Page ${first.page}: ${fieldLabel(first)}` : "Choice field" };
+      q = {
+        id: f.id,
+        text:
+          otcName(f.otc_field) ??
+          (first ? `Page ${first.page}: ${fieldLabel(first)}` : "Choice field"),
+      };
     } else if (f.question_id?.startsWith(NEW_QUESTION_PREFIX) && f.question_text) {
       q = { id: f.question_id, text: f.question_text };
     }
@@ -233,7 +254,9 @@ export function WorkflowFieldPicker({
                         ? `${label} (removed)`
                         : answers
                           ? `${label} (option for ${answers})`
-                          : label
+                          : pick?.otc_field
+                            ? `${label} → OTC: ${otcName(pick.otc_field)}`
+                            : label
                     }
                     className={`absolute rounded-sm border-2 transition-colors ${
                       removed
@@ -279,6 +302,7 @@ export function WorkflowFieldPicker({
                   label={labelOf(keyOf(open))}
                   value={picks.get(keyOf(open)) ?? null}
                   questions={questions}
+                  otcFields={otcFields}
                   onChange={(f) => setField(keyOf(open), f)}
                   onClose={() => setOpenId(null)}
                 />
@@ -377,6 +401,7 @@ function FieldTypeMenu({
   label,
   value,
   questions,
+  otcFields,
   onChange,
   onClose,
 }: {
@@ -387,12 +412,19 @@ function FieldTypeMenu({
   value: WorkflowField | null;
   // Choice questions picked so far, most recent first.
   questions: ChoiceQuestion[];
+  // Open to Close fields it can be assigned to: the built-in ones and any
+  // the client has added.
+  otcFields: OtcField[];
   onChange: (field: WorkflowField | null) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState<"types" | "questions" | "new">(
-    value?.choice_role === "option" && !value.question_id ? "questions" : "types",
+  const [view, setView] = useState<"types" | "questions" | "new" | "otc" | "otc-new">(
+    value?.choice_role === "option" && !value.question_id
+      ? "questions"
+      : value && !value.removed && needsOtcField(value) && !value.otc_field
+        ? "otc"
+        : "types",
   );
   const [newQuestion, setNewQuestion] = useState("");
   const [help, setHelp] = useState<string | null>(null);
@@ -423,7 +455,10 @@ function FieldTypeMenu({
 
   // Focus the first choice whenever the menu opens or changes view.
   useEffect(() => {
-    ref.current?.querySelector<HTMLElement>("[data-menu-item], input")?.focus();
+    (
+      ref.current?.querySelector<HTMLElement>("[data-autofocus]") ??
+      ref.current?.querySelector<HTMLElement>("[data-menu-item], input")
+    )?.focus();
   }, [view]);
 
   function onMenuKey(e: React.KeyboardEvent) {
@@ -437,9 +472,37 @@ function FieldTypeMenu({
   }
 
   function choose(field: Omit<WorkflowField, "id">) {
-    onChange({ id: fieldKey, ...field });
+    const next: WorkflowField = { id: fieldKey, ...field };
+    // Keeping the same type keeps its OTC field.
+    const sameType =
+      value?.type === next.type &&
+      value?.decimal_format === next.decimal_format &&
+      value?.choice_role === next.choice_role;
+    if (sameType && value?.otc_field) {
+      next.otc_field = value.otc_field;
+      if (value.otc_field_name) next.otc_field_name = value.otc_field_name;
+      if (value.otc_section) next.otc_section = value.otc_section;
+    }
+    onChange(next);
+    // Then ask which Open to Close field it fills.
+    if (needsOtcField(next)) setView("otc");
+    else onClose();
+  }
+
+  function assignOtc(field: OtcField) {
+    if (!value) return;
+    const next: WorkflowField = { ...value, otc_field: field.id };
+    delete next.otc_field_name;
+    delete next.otc_section;
+    if (field.isNew) {
+      next.otc_field_name = field.name;
+      next.otc_section = field.sectionId;
+    }
+    onChange(next);
     onClose();
   }
+
+  const assigned = value?.otc_field ? otcFields.find((f) => f.id === value.otc_field) : undefined;
 
   // Open below the field, or above it near the bottom of the page, and keep
   // it on the page sideways.
@@ -491,6 +554,24 @@ function FieldTypeMenu({
         </button>
       ) : view === "types" ? (
         <>
+          {assigned && (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                data-menu-item
+                onClick={() => setView("otc")}
+                className={`${itemClass} flex-col !items-start gap-0`}
+              >
+                <span className="text-[11px] font-medium text-ink-faint">OTC field</span>
+                <span className="flex w-full items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate font-semibold">{assigned.name}</span>
+                  <span className="text-xs font-semibold text-accent">Change</span>
+                </span>
+              </button>
+              <div className="my-1 border-t border-border" />
+            </>
+          )}
           {MENU.map((item) => {
             const on =
               value?.type === item.field.type &&
@@ -613,7 +694,7 @@ function FieldTypeMenu({
             Add a new choice field
           </button>
         </>
-      ) : (
+      ) : view === "new" ? (
         <form
           className="flex flex-col gap-2 p-1.5"
           onSubmit={(e) => {
@@ -655,7 +736,236 @@ function FieldTypeMenu({
             </button>
           </div>
         </form>
+      ) : view === "otc" && value ? (
+        <OtcFieldList
+          value={value}
+          otcFields={otcFields}
+          onPick={assignOtc}
+          onAddNew={() => setView("otc-new")}
+          onBack={() => setView("types")}
+        />
+      ) : (
+        <NewOtcFieldForm
+          defaultName={label === "Unlabeled field" ? "" : label.replace(/[:\s]+$/, "")}
+          onAdd={(name, sectionId) =>
+            assignOtc({
+              id: `${NEW_OTC_PREFIX}${crypto.randomUUID()}`,
+              name,
+              sectionId,
+              isNew: true,
+            })
+          }
+          onBack={() => setView("otc")}
+        />
       )}
     </div>
+  );
+}
+
+const TYPE_NAMES: Record<string, string> = {
+  contact: "contact",
+  text: "text",
+  text_area: "text area",
+  currency: "currency",
+  percentage: "percentage",
+  date: "date",
+  number: "number",
+  choice: "choice",
+};
+
+// Which Open to Close field a workflow field fills: the ones that match its
+// type first, a search, and a way to add a new one.
+function OtcFieldList({
+  value,
+  otcFields,
+  onPick,
+  onAddNew,
+  onBack,
+}: {
+  value: WorkflowField;
+  otcFields: OtcField[];
+  onPick: (field: OtcField) => void;
+  onAddNew: () => void;
+  onBack: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const q = query.trim().toLowerCase();
+  const suggested = otcFields.filter((f) => kindMatches(f.kind, value.type, value.decimal_format));
+  const sectionName = (f: OtcField) => sectionById(f.sectionId)?.name ?? "Your new fields";
+  const list = q
+    ? otcFields.filter(
+        (f) => f.name.toLowerCase().includes(q) || sectionName(f).toLowerCase().includes(q),
+      )
+    : showAll || suggested.length === 0
+      ? otcFields
+      : suggested;
+
+  // Grouped by section, in the order OTC shows them; new fields without a
+  // section come last.
+  const order = new Map(OTC_SECTIONS.map((s, i) => [s.id, i] as const));
+  const sections = new Map<string, OtcField[]>();
+  for (const f of [...list].sort(
+    (a, b) => (order.get(a.sectionId) ?? 999) - (order.get(b.sectionId) ?? 999),
+  )) {
+    const key = sectionName(f);
+    sections.set(key, [...(sections.get(key) ?? []), f]);
+  }
+
+  const kind = value.type === "decimal" ? value.decimal_format : value.type;
+
+  return (
+    <>
+      <button
+        type="button"
+        role="menuitem"
+        data-menu-item
+        onClick={onBack}
+        className={`${itemClass} text-xs font-semibold text-ink-soft`}
+      >
+        &lsaquo; Field type
+      </button>
+      <p className="px-2.5 pb-1.5 pt-1 text-xs font-medium text-ink-soft">
+        Which Open to Close field does this fill?
+      </p>
+      <div className="px-1.5 pb-1.5">
+        <input
+          data-autofocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search OTC fields"
+          aria-label="Search OTC fields"
+          className="w-full rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
+        />
+      </div>
+      {!q && suggested.length > 0 && (
+        <p className="px-2.5 pb-1 text-[11px] text-ink-faint">
+          {showAll
+            ? "All OTC fields"
+            : `Suggested for ${kind ? TYPE_NAMES[kind] : ""} fields`}
+        </p>
+      )}
+      <div className="max-h-60 overflow-y-auto">
+        {[...sections].map(([section, items]) => (
+          <div key={section} role="group" aria-label={section}>
+            <p className="sticky top-0 bg-surface px-2.5 pb-0.5 pt-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-faint">
+              {section}
+            </p>
+            {items.map((f) => {
+              const on = value.otc_field === f.id;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={on}
+                  data-menu-item
+                  onClick={() => onPick(f)}
+                  className={itemClass}
+                >
+                  <Check on={on} />
+                  <span className="min-w-0 flex-1">{f.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+        {list.length === 0 && (
+          <p className="px-2.5 py-1.5 text-xs text-ink-faint">No OTC fields match.</p>
+        )}
+      </div>
+      {!q && suggested.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAll(!showAll)}
+          className="px-2.5 py-1.5 text-left text-xs font-semibold text-accent"
+        >
+          {showAll ? "Show suggested fields only" : "Show all OTC fields"}
+        </button>
+      )}
+      <div className="my-1 border-t border-border" />
+      <button
+        type="button"
+        role="menuitem"
+        data-menu-item
+        onClick={onAddNew}
+        className={`${itemClass} font-semibold text-accent`}
+      >
+        <span aria-hidden className="w-3.5 shrink-0">
+          +
+        </span>
+        Add a new OTC field
+      </button>
+    </>
+  );
+}
+
+// Adds a field the client wants in Open to Close that isn't one of the
+// built-in ones.
+function NewOtcFieldForm({
+  defaultName,
+  onAdd,
+  onBack,
+}: {
+  defaultName: string;
+  onAdd: (name: string, sectionId: string) => void;
+  onBack: () => void;
+}) {
+  const [name, setName] = useState(defaultName);
+  const [sectionId, setSectionId] = useState("");
+  const groups = [...new Set(OTC_SECTIONS.map((s) => s.group))];
+  const ready = name.trim() && sectionId;
+
+  return (
+    <form
+      className="flex flex-col gap-2.5 p-1.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (ready) onAdd(name.trim(), sectionId);
+      }}
+    >
+      <label className="flex flex-col gap-1">
+        <span className="text-xs font-medium text-ink-soft">New OTC field name</span>
+        <input
+          data-autofocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={120}
+          placeholder="e.g. Home Warranty Company"
+          className="rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-xs font-medium text-ink-soft">Section it goes in</span>
+        <select
+          value={sectionId}
+          onChange={(e) => setSectionId(e.target.value)}
+          className="rounded-md border border-border bg-bg px-2 py-1.5 text-sm text-ink outline-none focus:border-accent"
+        >
+          <option value="">Choose a section&hellip;</option>
+          {groups.map((g) => (
+            <optgroup key={g} label={g}>
+              {OTC_SECTIONS.filter((s) => s.group === g).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </label>
+      <div className="flex items-center justify-between">
+        <button type="button" onClick={onBack} className="text-xs font-semibold text-ink-soft">
+          &lsaquo; Back
+        </button>
+        <button
+          type="submit"
+          disabled={!ready}
+          className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          Add field
+        </button>
+      </div>
+    </form>
   );
 }

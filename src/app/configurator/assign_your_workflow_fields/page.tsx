@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSandboxTier } from "@/lib/devSandbox";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { WorkflowDocCard } from "@/components/WorkflowDocCard";
-import { isActive, isComplete, type WorkflowField } from "@/lib/workflowFields";
+import { isActive, isComplete, newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldsTester } from "@/components/WorkflowFieldsTester";
 import { finishWorkflowFields } from "./actions";
 
@@ -65,6 +65,7 @@ export default async function AssignWorkflowFieldsPage() {
     Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : [];
   const picked = (docs ?? []).flatMap(fieldsOf).filter(isActive);
   const pickedCount = picked.length;
+  const addedOtcFields = newOtcFieldsFrom(picked);
   const needsAnswer = picked.filter((f) => !isComplete(f)).length;
 
   return (
@@ -135,6 +136,7 @@ export default async function AssignWorkflowFieldsPage() {
                     pageCount={doc.page_count ?? 0}
                     blanks={doc.blanks as ContractBlank[]}
                     fields={fieldsOf(doc)}
+                    otcFields={addedOtcFields}
                     reviewed={Boolean(doc.reviewed_at)}
                     defaultOpen={i === 0}
                   />

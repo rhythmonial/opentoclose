@@ -1,3 +1,5 @@
+import { OTC_FIELD_IDS, OTC_SECTION_IDS, type OtcField } from "@/lib/otcFields";
+
 // A contract field the client picked for their transaction workflow, with
 // the kind of workflow field it becomes in Open to Close.
 export type WorkflowFieldType =
@@ -26,9 +28,21 @@ export type WorkflowField = {
   // (with its wording in question_text).
   question_id?: string;
   question_text?: string;
+  // The Open to Close field it fills: a built-in one (see otcFields), or a
+  // NEW_OTC_PREFIX id for one the client is adding, with its name and the
+  // section it goes in.
+  otc_field?: string;
+  otc_field_name?: string;
+  otc_section?: string;
 };
 
 export const NEW_QUESTION_PREFIX = "new:";
+export const NEW_OTC_PREFIX = "new-otc:";
+
+// Every type gets an OTC field except a choice option, which belongs to its
+// choice field.
+export const needsOtcField = (field: WorkflowField) =>
+  Boolean(field.type) && !(field.type === "choice" && field.choice_role === "option");
 
 export const FIELD_TYPES: { value: WorkflowFieldType; label: string; tag: string }[] = [
   { value: "contact", label: "Contact", tag: "Contact" },
@@ -64,6 +78,7 @@ export function fieldTag(field: WorkflowField): string {
 export function isComplete(field: WorkflowField): boolean {
   if (field.removed) return true;
   if (!field.type) return false;
+  if (needsOtcField(field) && !field.otc_field) return false;
   if (field.type === "decimal") return Boolean(field.decimal_format);
   if (field.type === "choice") {
     return field.choice_role === "question" || (field.choice_role === "option" && Boolean(field.question_id));
@@ -122,6 +137,21 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
         }
       }
     }
+    if (needsOtcField(clean) && typeof f.otc_field === "string") {
+      if (OTC_FIELD_IDS.has(f.otc_field)) {
+        clean.otc_field = f.otc_field;
+      } else if (
+        f.otc_field.startsWith(NEW_OTC_PREFIX) &&
+        typeof f.otc_field_name === "string" &&
+        f.otc_field_name.trim()
+      ) {
+        clean.otc_field = f.otc_field.slice(0, 80);
+        clean.otc_field_name = f.otc_field_name.trim().slice(0, 120);
+        if (typeof f.otc_section === "string" && OTC_SECTION_IDS.has(f.otc_section)) {
+          clean.otc_section = f.otc_section;
+        }
+      }
+    }
     out.push(clean);
   }
   const questions = new Set(
@@ -138,4 +168,23 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
     }
   }
   return out;
+}
+
+// The OTC fields a client has added (on any of their contracts), so they
+// can be picked again for other fields.
+export function newOtcFieldsFrom(fields: WorkflowField[]): OtcField[] {
+  const out = new Map<string, OtcField>();
+  for (const f of fields) {
+    if (!f.otc_field?.startsWith(NEW_OTC_PREFIX) || !f.otc_field_name || out.has(f.otc_field)) {
+      continue;
+    }
+    out.set(f.otc_field, {
+      id: f.otc_field,
+      name: f.otc_field_name,
+      sectionId: f.otc_section ?? "",
+      kind: f.type === "decimal" ? f.decimal_format : f.type,
+      isNew: true,
+    });
+  }
+  return [...out.values()];
 }

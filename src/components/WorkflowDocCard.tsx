@@ -2,6 +2,7 @@
 
 import type { ContractBlank } from "@/lib/contractBlanks";
 import type { WorkflowField } from "@/lib/workflowFields";
+import type { OtcField } from "@/lib/otcFields";
 import { WorkflowFieldPicker } from "@/components/WorkflowFieldPicker";
 import { saveWorkflowFields } from "@/app/configurator/assign_your_workflow_fields/actions";
 
@@ -13,6 +14,7 @@ export function WorkflowDocCard({
   pageCount,
   blanks,
   fields,
+  otcFields,
   reviewed,
   defaultOpen,
 }: {
@@ -22,6 +24,8 @@ export function WorkflowDocCard({
   pageCount: number;
   blanks: ContractBlank[];
   fields: WorkflowField[];
+  // OTC fields the client has added on any of their contracts.
+  otcFields: OtcField[];
   reviewed: boolean;
   defaultOpen: boolean;
 }) {
@@ -45,6 +49,7 @@ export function WorkflowDocCard({
           pageCount={pageCount}
           blanks={blanks}
           initialFields={fields}
+          extraOtcFields={otcFields}
           onSave={(picked) => saveWorkflowFields(id, picked)}
         />
       </div>
