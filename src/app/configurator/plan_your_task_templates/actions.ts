@@ -7,6 +7,7 @@ import { SAMPLE_TASKS } from "@/lib/sampleTasks";
 import {
   cleanTask,
   customSide,
+  fromRow,
   SIDES,
   TASK_COMPLETED,
   type PlannedTask,
@@ -115,6 +116,8 @@ export async function addSampleTasks(
       dateField: t.dateField === TASK_COMPLETED ? "" : (SAMPLE_DATE_NAMES[t.dateField] ?? t.dateField),
       parentTask: t.dateField === TASK_COMPLETED ? t.parent : "",
       sortOrder: i,
+      emails: [],
+      documents: [],
       },
       sides,
     )!,
@@ -125,24 +128,59 @@ export async function addSampleTasks(
   revalidatePath(PAGE);
   return {
     ok: true,
-    tasks: (data ?? [])
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((r) => ({
-        id: r.id,
-        side: r.side as TaskSide,
-        template: r.template,
-        name: r.name,
-        notes: r.notes,
-        critical: r.critical,
-        recurDays: r.recur_days,
-        dueDays: r.due_days,
-        timeFrame: r.time_frame as PlannedTask["timeFrame"],
-        timing: r.timing as PlannedTask["timing"],
-        dateField: r.date_field,
-        parentTask: r.parent_task,
-        sortOrder: r.sort_order,
-      })),
+    tasks: (data ?? []).sort((a, b) => a.sort_order - b.sort_order).map(fromRow),
   };
+}
+
+// Adds a task for each email (OTC sends an email only from a task), named
+// for the email and sending it, in the side's "Emails" template. When and
+// from which date are left for the client to fill in.
+export async function addEmailTasks(
+  accountId: string | null,
+  side: TaskSide,
+  emails: { title: string; name: string }[],
+): Promise<Result & { tasks?: PlannedTask[] }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const sides = await sidesOf(supabase, account);
+  if (!sides.includes(side) || emails.length === 0 || emails.length > 500) {
+    return { ok: false, error: "Couldn't add those." };
+  }
+  const { data: last } = await supabase
+    .from("client_task_plans")
+    .select("sort_order")
+    .eq("client_account_id", account)
+    .eq("side", side)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const start = (last?.sort_order ?? 0) + 1;
+  const rows = emails.map((e, i) => ({
+    ...cleanTask(
+      {
+        side,
+        template: "Emails",
+        name: e.name,
+        notes: "",
+        critical: false,
+        recurDays: null,
+        dueDays: null,
+        timeFrame: null,
+        timing: null,
+        dateField: "",
+        parentTask: "",
+        sortOrder: start + i,
+        emails: [e.title],
+        documents: [],
+      },
+      sides,
+    )!,
+    client_account_id: account,
+  }));
+  const { data, error } = await supabase.from("client_task_plans").insert(rows).select("*");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  return { ok: true, tasks: (data ?? []).sort((a, b) => a.sort_order - b.sort_order).map(fromRow) };
 }
 
 // Renames one of a side's templates (every task in it).

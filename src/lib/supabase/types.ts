@@ -431,6 +431,8 @@ export type Database = {
           date_field: string
           parent_task: string
           sort_order: number
+          email_templates: string[]
+          documents: string[]
           created_at: string
           updated_at: string
         }
@@ -450,6 +452,8 @@ export type Database = {
           date_field?: string
           parent_task?: string
           sort_order?: number
+          email_templates?: string[]
+          documents?: string[]
           created_at?: string
           updated_at?: string
         }
@@ -469,6 +473,8 @@ export type Database = {
           date_field?: string
           parent_task?: string
           sort_order?: number
+          email_templates?: string[]
+          documents?: string[]
           created_at?: string
           updated_at?: string
         }

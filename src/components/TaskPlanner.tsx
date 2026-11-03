@@ -3,8 +3,11 @@
 import { Fragment, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  emailSide,
+  MAX_TASK_EMAILS,
   missingFor,
   SIDES,
+  withoutSidePrefix,
   TASK_TIME_FRAMES,
   TIMINGS,
   type PlannedTask,
@@ -13,6 +16,7 @@ import {
 } from "@/lib/taskPlans";
 import { SAMPLE_TASKS } from "@/lib/sampleTasks";
 import {
+  addEmailTasks,
   addSampleTasks,
   addSide,
   deleteTask,
@@ -41,6 +45,8 @@ export function TaskPlanner({
   initial,
   dateGroups,
   customSides,
+  emailOptions,
+  documentOptions,
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
@@ -49,6 +55,9 @@ export function TaskPlanner({
   dateGroups: DateGroup[];
   // Task lists the client added beside Buyer, Seller and Listing.
   customSides: SideInfo[];
+  // The email templates the client kept (by title), and their documents.
+  emailOptions: string[];
+  documentOptions: string[];
 }) {
   const dateOptions = dateGroups.flatMap((g) => g.names);
   const [rows, setRows] = useState<Row[]>(() =>
@@ -80,6 +89,17 @@ export function TaskPlanner({
   const offList = sideRows.filter(
     (r) => r.dateField && !dateOptions.includes(r.dateField),
   ).length;
+
+  // OTC sends an email only from a task, so every email the client kept
+  // needs one. Those without a task yet, for this side (by the title's
+  // prefix letter) and those with no side prefix.
+  const onATask = new Set(rows.flatMap((r) => r.emails));
+  const emailSideOf = (title: string) => emailSide(title, sides);
+  const needTasks = emailOptions.filter((t) => {
+    if (onATask.has(t)) return false;
+    const of = emailSideOf(t);
+    return of === side || of === null;
+  });
 
   function report(ok: boolean, message?: string) {
     setStatus(ok ? "saved" : "error");
@@ -139,6 +159,8 @@ export function TaskPlanner({
       dateField: "",
       parentTask: "",
       sortOrder: last + 1,
+      emails: [],
+      documents: [],
     };
     setStatus("saving");
     const result = await saveTask(accountId, task);
@@ -156,6 +178,42 @@ export function TaskPlanner({
   async function startFromSamples() {
     setBusy(true);
     const result = await addSampleTasks(accountId, side);
+    setBusy(false);
+    report(result.ok, result.error);
+    if (result.ok && result.tasks) {
+      setRows((all) => [
+        ...all,
+        ...result.tasks!.map((t) => ({ ...t, key: t.id! })),
+      ]);
+    }
+  }
+
+  // A task's email choices: this side's (and unprefixed) first, then the
+  // other sides'.
+  function emailGroups(r: Row) {
+    const mine = emailOptions.filter((t) => {
+      const of = emailSideOf(t);
+      return of === r.side || of === null;
+    });
+    const others = emailOptions.filter((t) => !mine.includes(t));
+    return [
+      { label: `${sideInfo.label} emails`, items: mine },
+      { label: "Other emails", items: others },
+    ];
+  }
+
+  async function addTasksFor(titles: string[]) {
+    if (titles.length === 0) return;
+    setBusy(true);
+    setStatus("saving");
+    const result = await addEmailTasks(
+      accountId,
+      side,
+      titles.map((title) => ({
+        title,
+        name: withoutSidePrefix(title).replace(/\s*\(TCO\)\s*$/i, ""),
+      })),
+    );
     setBusy(false);
     report(result.ok, result.error);
     if (result.ok && result.tasks) {
@@ -346,6 +404,16 @@ export function TaskPlanner({
         </p>
       )}
 
+      {needTasks.length > 0 && (
+        <EmailsWithoutTasks
+          titles={needTasks}
+          prefix={sideInfo.prefix}
+          isOther={(t) => emailSideOf(t) === null}
+          busy={busy}
+          onAdd={(titles) => void addTasksFor(titles)}
+        />
+      )}
+
       {sideInfo.custom && (
         <div className="-mt-2 flex justify-end">
           <button
@@ -416,7 +484,7 @@ export function TaskPlanner({
                       <col className="w-36" />
                       <col className="w-48" />
                       <col className="w-48" />
-                      <col className="w-24" />
+                      <col className="w-28" />
                     </colgroup>
                     <thead className="bg-bg text-xs text-ink-soft">
                       <tr>
@@ -675,27 +743,73 @@ export function TaskPlanner({
                                       return next;
                                     })
                                   }
-                                  title="Notes"
-                                  className={`mr-2 text-xs font-semibold ${r.notes ? "text-accent" : "text-ink-faint"} hover:text-accent`}
+                                  title="Emails, documents and notes"
+                                  aria-expanded={notesOpen}
+                                  className={`mr-2 text-xs font-semibold ${
+                                    r.emails.length ||
+                                    r.documents.length ||
+                                    r.notes
+                                      ? "text-accent"
+                                      : "text-ink-faint"
+                                  } hover:text-accent`}
                                 >
-                                  Notes{r.notes ? " •" : ""}
+                                  {notesOpen ? "Hide" : "Details"}
+                                  {detailCounts(r) && (
+                                    <span className="block text-[10px] font-normal text-ink-soft">
+                                      {detailCounts(r)}
+                                    </span>
+                                  )}
                                 </button>
                                 <ConfirmDelete onConfirm={() => remove(r)} />
                               </td>
                             </tr>
                             {notesOpen && (
                               <tr>
-                                <td colSpan={9} className="px-2 pb-2">
-                                  <textarea
-                                    value={r.notes}
-                                    onChange={(e) =>
-                                      update(r.key, { notes: e.target.value })
-                                    }
-                                    rows={2}
-                                    placeholder="Notes for whoever does this task"
-                                    aria-label="Notes"
-                                    className={`${cellInput} border-border`}
-                                  />
+                                <td colSpan={9} className="px-2 pb-3">
+                                  <div className="grid gap-3 rounded-lg bg-bg p-3 md:grid-cols-3">
+                                    <PickList
+                                      label={`Emails (${r.emails.length} of ${MAX_TASK_EMAILS})`}
+                                      hint="Sent from this task. OTC sends emails only from tasks."
+                                      picked={r.emails}
+                                      max={MAX_TASK_EMAILS}
+                                      groups={emailGroups(r)}
+                                      empty="Keep emails in Sample Email Templates to send them from tasks."
+                                      addLabel="Add an email…"
+                                      onChange={(emails) =>
+                                        update(r.key, { emails })
+                                      }
+                                    />
+                                    <PickList
+                                      label={`Documents (${r.documents.length})`}
+                                      hint="Attached to this task."
+                                      picked={r.documents}
+                                      groups={[
+                                        { label: "", items: documentOptions },
+                                      ]}
+                                      empty="Add documents in Upload Your Contracts or Categorize Your Documents."
+                                      addLabel="Attach a document…"
+                                      onChange={(documents) =>
+                                        update(r.key, { documents })
+                                      }
+                                    />
+                                    <label className="flex flex-col gap-1">
+                                      <span className="text-xs font-semibold text-ink-soft">
+                                        Notes
+                                      </span>
+                                      <textarea
+                                        value={r.notes}
+                                        onChange={(e) =>
+                                          update(r.key, {
+                                            notes: e.target.value,
+                                          })
+                                        }
+                                        rows={3}
+                                        placeholder="Notes for whoever does this task"
+                                        aria-label="Notes"
+                                        className={`${cellInput} border-border`}
+                                      />
+                                    </label>
+                                  </div>
                                 </td>
                               </tr>
                             )}
@@ -750,6 +864,192 @@ export function TaskPlanner({
         </>
       )}
     </div>
+  );
+}
+
+// "2 emails · 1 doc · notes", under a task's Details button.
+function detailCounts(r: PlannedTask) {
+  const parts: string[] = [];
+  if (r.emails.length)
+    parts.push(`${r.emails.length} email${r.emails.length === 1 ? "" : "s"}`);
+  if (r.documents.length)
+    parts.push(
+      `${r.documents.length} doc${r.documents.length === 1 ? "" : "s"}`,
+    );
+  if (r.notes.trim()) parts.push("notes");
+  return parts.join(" · ");
+}
+
+// Chosen items as removable chips, and a menu to add another (up to `max`).
+function PickList({
+  label,
+  hint,
+  picked,
+  max,
+  groups,
+  empty,
+  addLabel,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  picked: string[];
+  max?: number;
+  groups: { label: string; items: string[] }[];
+  empty: string;
+  addLabel: string;
+  onChange: (next: string[]) => void;
+}) {
+  const left = groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !picked.includes(i)) }))
+    .filter((g) => g.items.length > 0);
+  const anyOptions = groups.some((g) => g.items.length > 0);
+  const full = max !== undefined && picked.length >= max;
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <span className="text-xs font-semibold text-ink-soft" title={hint}>
+        {label}
+      </span>
+      {picked.length > 0 && (
+        <ul className="flex flex-col gap-1">
+          {picked.map((p) => (
+            <li
+              key={p}
+              className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink"
+            >
+              <span className="min-w-0 truncate" title={p}>
+                {p}
+              </span>
+              <button
+                type="button"
+                onClick={() => onChange(picked.filter((x) => x !== p))}
+                aria-label={`Remove ${p}`}
+                className="shrink-0 text-ink-faint hover:text-danger"
+              >
+                &times;
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!anyOptions ? (
+        <p className="text-xs text-ink-faint">{empty}</p>
+      ) : full ? (
+        <p className="text-xs text-ink-faint">
+          That&rsquo;s the most a task can send.
+        </p>
+      ) : (
+        left.length > 0 && (
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) onChange([...picked, e.target.value]);
+            }}
+            aria-label={addLabel}
+            className="w-full rounded-md border border-dashed border-border bg-surface px-2 py-1 text-xs text-ink-soft outline-none focus:border-accent"
+          >
+            <option value="">{addLabel}</option>
+            {left.map((g) =>
+              g.label ? (
+                <optgroup key={g.label} label={g.label}>
+                  {g.items.map((i) => (
+                    <option key={i} value={i}>
+                      {i}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : (
+                g.items.map((i) => (
+                  <option key={i} value={i}>
+                    {i}
+                  </option>
+                ))
+              ),
+            )}
+          </select>
+        )
+      )}
+    </div>
+  );
+}
+
+// The emails that aren't sent from any task yet, each with a way to make
+// a task for it (or for all of them).
+function EmailsWithoutTasks({
+  titles,
+  prefix,
+  isOther,
+  busy,
+  onAdd,
+}: {
+  titles: string[];
+  prefix: string;
+  isOther: (title: string) => boolean;
+  busy: boolean;
+  onAdd: (titles: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? titles : titles.slice(0, 4);
+  return (
+    <section className="rounded-xl border border-accent/30 bg-accent-soft/30 px-4 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-ink">
+            {titles.length} email{titles.length === 1 ? " isn’t" : "s aren’t"}{" "}
+            on a task yet
+          </p>
+          <p className="text-xs text-ink-soft">
+            Open to Close only sends an email from a task. Add one to an
+            existing task (Details), or make a task for it here; new ones go in
+            a &ldquo;{prefix} Emails&rdquo; template.
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onAdd(titles)}
+          className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+        >
+          {busy
+            ? "Adding…"
+            : `Add ${titles.length === 1 ? "it" : `all ${titles.length}`} as tasks`}
+        </button>
+      </div>
+      <ul className="mt-2 divide-y divide-border rounded-lg border border-border bg-surface">
+        {shown.map((t) => (
+          <li
+            key={t}
+            className="flex items-center justify-between gap-3 px-3 py-1.5 text-sm"
+          >
+            <span className="min-w-0 truncate text-ink" title={t}>
+              {t}
+              {isOther(t) && (
+                <span className="ml-1.5 text-xs text-ink-faint">
+                  (no side prefix)
+                </span>
+              )}
+            </span>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onAdd([t])}
+              className="shrink-0 text-xs font-semibold text-accent disabled:opacity-60"
+            >
+              + Add as a task
+            </button>
+          </li>
+        ))}
+      </ul>
+      {titles.length > 4 && (
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="mt-1.5 text-xs font-semibold text-accent"
+        >
+          {open ? "Show fewer" : `Show all ${titles.length}`}
+        </button>
+      )}
+    </section>
   );
 }
 

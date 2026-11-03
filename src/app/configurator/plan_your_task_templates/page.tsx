@@ -10,9 +10,10 @@ import {
   newOtcFieldsFrom,
   type WorkflowField,
 } from "@/lib/workflowFields";
-import { customSide, type PlannedTask, type TaskSide } from "@/lib/taskPlans";
+import { customSide, fromRow, type PlannedTask } from "@/lib/taskPlans";
 import type { DateGroup } from "@/components/TaskPlanner";
 import { TaskPlanner } from "@/components/TaskPlanner";
+import { SAMPLE_EMAIL_TEMPLATES } from "@/lib/sampleEmailTemplates";
 import { finishTaskPlans } from "./actions";
 
 const STEP_KEY = "plan_your_task_templates";
@@ -52,7 +53,14 @@ export default async function PlanYourTaskTemplatesPage({
       : null
     : (profile?.client_account_id ?? null);
 
-  const [{ data: saved }, { data: docs }, { data: prepDates }, { data: addedSides }] = accountId
+  const [
+    { data: saved },
+    { data: docs },
+    { data: prepDates },
+    { data: addedSides },
+    { data: emails },
+    { data: prepDocs },
+  ] = accountId
     ? await Promise.all([
         supabase
           .from("client_task_plans")
@@ -61,8 +69,9 @@ export default async function PlanYourTaskTemplatesPage({
           .order("sort_order"),
         supabase
           .from("contract_documents")
-          .select("workflow_fields")
-          .eq("client_account_id", accountId),
+          .select("file_name, workflow_fields")
+          .eq("client_account_id", accountId)
+          .order("created_at"),
         // For dates the client added in Select Your Date Fields.
         supabase
           .from("date_calculations")
@@ -73,24 +82,48 @@ export default async function PlanYourTaskTemplatesPage({
           .select("id, label, prefix")
           .eq("client_account_id", accountId)
           .order("sort_order"),
+        // The email templates the client kept in Sample Email Templates.
+        supabase
+          .from("client_email_templates")
+          .select("title, sample_key")
+          .eq("client_account_id", accountId)
+          .eq("include", true)
+          .order("created_at"),
+        // Documents added by name in Categorize Your Documents.
+        supabase
+          .from("prep_documents")
+          .select("name, contract_document_id")
+          .eq("client_account_id", accountId)
+          .order("created_at"),
       ])
-    : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
+    : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }];
 
-  const tasks: PlannedTask[] = (saved ?? []).map((r) => ({
-    id: r.id,
-    side: r.side as TaskSide,
-    template: r.template,
-    name: r.name,
-    notes: r.notes,
-    critical: r.critical,
-    recurDays: r.recur_days,
-    dueDays: r.due_days,
-    timeFrame: r.time_frame as PlannedTask["timeFrame"],
-    timing: r.timing as PlannedTask["timing"],
-    dateField: r.date_field,
-    parentTask: r.parent_task,
-    sortOrder: r.sort_order,
-  }));
+  const tasks: PlannedTask[] = (saved ?? []).map(fromRow);
+
+  // Emails a task can send: the client's own templates, then the samples
+  // they kept, in the order Sample Email Templates lists them.
+  const sampleOrder = new Map(SAMPLE_EMAIL_TEMPLATES.map((t, i) => [t.key, i] as const));
+  const emailOptions = [
+    ...new Set(
+      [...(emails ?? [])]
+        .sort(
+          (a, b) =>
+            (a.sample_key ? (sampleOrder.get(a.sample_key) ?? 9999) : -1) -
+            (b.sample_key ? (sampleOrder.get(b.sample_key) ?? 9999) : -1),
+        )
+        .map((e) => e.title),
+    ),
+  ];
+  const sent = new Set(tasks.flatMap((t) => t.emails));
+  const withoutTask = emailOptions.filter((t) => !sent.has(t)).length;
+  // Documents a task can attach: the same ones email templates attach
+  // (uploaded contracts, and ones added by name).
+  const documentOptions = [
+    ...new Set([
+      ...(docs ?? []).map((d) => d.file_name.replace(/\.pdf$/i, "")),
+      ...(prepDocs ?? []).filter((d) => !d.contract_document_id).map((d) => d.name),
+    ]),
+  ];
 
   // Date Field choices: every date, not just the ones auto-calculated in
   // Select Your Date Fields. OTC's dates by section, in OTC's order, then
@@ -187,6 +220,8 @@ export default async function PlanYourTaskTemplatesPage({
               initial={tasks}
               dateGroups={dateGroups}
               customSides={(addedSides ?? []).map(customSide)}
+              emailOptions={emailOptions}
+              documentOptions={documentOptions}
             />
           ) : (
             <p className="rounded-xl border border-border bg-surface p-6 text-sm text-ink-soft">
@@ -197,8 +232,17 @@ export default async function PlanYourTaskTemplatesPage({
           )}
         </div>
 
+        {!isStaff && accountId && withoutTask > 0 && (
+          <p className="mt-8 text-center text-sm text-warning">
+            {withoutTask} of your email templates {withoutTask === 1 ? "isn’t" : "aren’t"} on a
+            task yet. Open to Close only sends an email from a task.
+          </p>
+        )}
         {!isStaff && accountId && (
-          <form action={finishTaskPlans} className="mt-8 flex justify-center">
+          <form
+            action={finishTaskPlans}
+            className={`${withoutTask > 0 ? "mt-3" : "mt-8"} flex justify-center`}
+          >
             <button
               type="submit"
               disabled={tasks.length === 0}
