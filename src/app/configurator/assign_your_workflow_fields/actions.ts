@@ -46,6 +46,36 @@ export async function saveWorkflowFields(
   return { ok: true };
 }
 
+// Records the contract's line number for each of a document's boxes, read
+// from the PDF in the browser (for documents uploaded before line numbers
+// were read, or with boxes drawn in by the client).
+export async function saveContractLines(
+  documentId: string,
+  lines: Record<string, number | null>,
+): Promise<{ ok: boolean }> {
+  const supabase = await createClient();
+  const { data: doc } = await supabase
+    .from("contract_documents")
+    .select("blanks")
+    .eq("id", documentId)
+    .single();
+  if (!doc) return { ok: false };
+
+  const valid = (n: unknown) =>
+    typeof n === "number" && Number.isInteger(n) && n > 0 && n < 100000 ? n : null;
+  const blanks = (doc.blanks as ContractBlank[]).map((b) =>
+    b.id && Object.hasOwn(lines, b.id) ? { ...b, line: valid(lines[b.id]) } : b,
+  );
+
+  const { error } = await supabase
+    .from("contract_documents")
+    .update({ blanks })
+    .eq("id", documentId);
+  if (error) return { ok: false };
+  revalidatePath(PAGE);
+  return { ok: true };
+}
+
 // Marks the lesson complete once the client has picked their fields.
 export async function finishWorkflowFields() {
   const supabase = await createClient();

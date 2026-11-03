@@ -135,7 +135,7 @@ export function WorkflowFieldsSummary({ docs }: { docs: SummaryDoc[] }) {
                 <table className="w-full min-w-[34rem] text-left text-sm">
                   <thead className="bg-bg text-xs text-ink-soft">
                     <tr>
-                      <th className="px-3 py-2 font-semibold">#</th>
+                      <th className="px-3 py-2 font-semibold">Line</th>
                       <th className="px-3 py-2 font-semibold">Page</th>
                       <th className="px-3 py-2 font-semibold">
                         Contract field
@@ -145,7 +145,7 @@ export function WorkflowFieldsSummary({ docs }: { docs: SummaryDoc[] }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {rows.map(({ field: f, first }, i) => {
+                    {rows.map(({ field: f, first }) => {
                       const option =
                         f.type === "choice" && f.choice_role === "option";
                       const target = option ? f.question_id : f.otc_field;
@@ -154,7 +154,7 @@ export function WorkflowFieldsSummary({ docs }: { docs: SummaryDoc[] }) {
                         (option ? f.question_text : undefined);
                       return (
                         <tr key={f.id} className="align-top">
-                          <td className="px-3 py-2 text-ink-faint">{i + 1}</td>
+                          <td className="px-3 py-2 text-ink-faint">{first.line ?? "—"}</td>
                           <td className="px-3 py-2 text-ink-soft">
                             {first.page}
                           </td>

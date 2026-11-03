@@ -24,6 +24,9 @@ export type ContractBlank = {
   after: string;
   // Name of the fillable field, when the PDF has one.
   fieldName?: string;
+  // The contract's line number for the row it's on, when the contract
+  // numbers its lines; null when checked and there isn't one.
+  line?: number | null;
   // Boxes the client linked as one answer (like a description that wraps
   // onto a second line) share this id.
   group?: string;
@@ -117,6 +120,7 @@ export async function analyzeContract(
     if (text.length > 0) hasText = true;
 
     const viewport = page.getViewport({ scale: 1 });
+    const marks = lineMarks(text, viewport.width, viewport.height);
     for (const blank of dedupe(found)) {
       blanks.push({
         id: crypto.randomUUID(),
@@ -130,6 +134,7 @@ export async function analyzeContract(
         label: blank.label,
         after: blank.after,
         ...(blank.fieldName ? { fieldName: blank.fieldName } : {}),
+        line: lineAt(blank.bottom / viewport.height, marks),
       });
     }
     page.cleanup();
@@ -640,3 +645,67 @@ function cleanAfter(raw: string) {
 }
 
 const round = (n: number) => Math.round(n * 10000) / 10000;
+
+// A line number printed in the margin: its number, and its baseline and
+// text height as fractions of the page.
+type LineMark = { n: number; bottom: number; height: number };
+
+// Finds a contract's line numbers on a page: numbers alone in the left
+// part of the page that line up on their right edge (like "9" over "10"),
+// at least five of them. A page number or a numbered paragraph doesn't
+// make the cut.
+function lineMarks(
+  text: { str: string; left: number; right: number; bottom: number; size: number }[],
+  width: number,
+  height: number,
+): LineMark[] {
+  const digits = text.filter((t) => /^\s*\d{1,5}\s*$/.test(t.str) && t.left < width * 0.2);
+  let best: typeof digits = [];
+  for (const t of digits) {
+    const column = digits.filter((u) => Math.abs(u.right - t.right) <= 3);
+    if (column.length > best.length) best = column;
+  }
+  if (best.length < 5) return [];
+  return best.map((t) => ({
+    n: Number(t.str.trim()),
+    bottom: t.bottom / height,
+    height: t.size / height,
+  }));
+}
+
+// The line number on the same row as something whose bottom edge is at
+// `bottom` (a fraction of the page), if there is one.
+function lineAt(bottom: number, marks: LineMark[]): number | null {
+  let best: LineMark | null = null;
+  for (const m of marks) {
+    const off = Math.abs(m.bottom - bottom);
+    if (off <= m.height * 0.9 && (!best || off < Math.abs(best.bottom - bottom))) best = m;
+  }
+  return best?.n ?? null;
+}
+
+// Fills in `line` on saved boxes (ones read before line numbers were, or
+// drawn in by the client) from the contract's text.
+export async function withLineNumbers(
+  doc: PDFDocumentProxy,
+  blanks: ContractBlank[],
+): Promise<ContractBlank[]> {
+  const marksByPage = new Map<number, LineMark[]>();
+  for (let n = 1; n <= doc.numPages; n++) {
+    if (!blanks.some((b) => b.page === n)) continue;
+    const page = await doc.getPage(n);
+    const viewport = page.getViewport({ scale: 1 });
+    const content = await page.getTextContent();
+    const text = [];
+    for (const item of content.items) {
+      if (!("str" in item) || !item.str) continue;
+      const [, , c, d, e, f] = item.transform as Matrix;
+      const size = Math.hypot(c, d) || item.height || 10;
+      const [x1, y1] = viewport.convertToViewportPoint(e, f) as [number, number];
+      const [x2] = viewport.convertToViewportPoint(e + item.width, f) as [number, number];
+      text.push({ str: item.str, left: Math.min(x1, x2), right: Math.max(x1, x2), bottom: y1, size });
+    }
+    marksByPage.set(n, lineMarks(text, viewport.width, viewport.height));
+  }
+  return blanks.map((b) => ({ ...b, line: lineAt(b.y + b.height, marksByPage.get(b.page) ?? []) }));
+}

@@ -4,7 +4,10 @@ import type { ContractBlank } from "@/lib/contractBlanks";
 import type { WorkflowField } from "@/lib/workflowFields";
 import type { OtcField } from "@/lib/otcFields";
 import { WorkflowFieldPicker } from "@/components/WorkflowFieldPicker";
-import { saveWorkflowFields } from "@/app/configurator/assign_your_workflow_fields/actions";
+import {
+  saveContractLines,
+  saveWorkflowFields,
+} from "@/app/configurator/assign_your_workflow_fields/actions";
 
 // One uploaded contract in Assign Your Workflow Fields.
 export function WorkflowDocCard({
@@ -51,6 +54,7 @@ export function WorkflowDocCard({
           initialFields={fields}
           extraOtcFields={otcFields}
           onSave={(picked) => saveWorkflowFields(id, picked)}
+          onLineNumbers={(lines) => saveContractLines(id, lines)}
         />
       </div>
     </details>

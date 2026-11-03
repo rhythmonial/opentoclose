@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fieldLabel, type ContractBlank } from "@/lib/contractBlanks";
+import { fieldLabel, withLineNumbers, type ContractBlank } from "@/lib/contractBlanks";
 import { PdfPageCanvas, usePdfDocument } from "@/components/PdfPageCanvas";
 import {
   CONTACT_ROLES_SECTION,
@@ -41,6 +41,7 @@ export function WorkflowFieldPicker({
   extraOtcFields = [],
   onSave,
   onChange,
+  onLineNumbers,
 }: {
   source: ArrayBuffer | string;
   pageCount: number;
@@ -51,6 +52,9 @@ export function WorkflowFieldPicker({
   onSave?: (fields: WorkflowField[]) => Promise<{ ok: boolean }>;
   // Called with every change, as it happens.
   onChange?: (fields: WorkflowField[]) => void;
+  // Gets the contract's line number for each box (by id), when some boxes
+  // haven't had theirs read yet.
+  onLineNumbers?: (lines: Record<string, number | null>) => Promise<unknown>;
 }) {
   const { doc, error } = usePdfDocument(source);
   const [page, setPage] = useState(1);
@@ -69,6 +73,20 @@ export function WorkflowFieldPicker({
     "saving" | "saved" | "error" | null
   >(null);
   const timer = useRef<number | null>(null);
+  const linesRead = useRef(false);
+
+  useEffect(() => {
+    if (!doc || !onLineNumbers || linesRead.current) return;
+    if (!blanks.some((b) => b.id && b.line === undefined)) return;
+    linesRead.current = true;
+    withLineNumbers(doc, blanks)
+      .then((read) =>
+        onLineNumbers(
+          Object.fromEntries(read.filter((b) => b.id).map((b) => [b.id!, b.line ?? null])),
+        ),
+      )
+      .catch(() => {});
+  }, [doc, blanks, onLineNumbers]);
 
   const fields = blanks
     .filter((b): b is Field => Boolean(b.id))

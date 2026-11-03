@@ -158,6 +158,9 @@ export async function saveContractReview(input: {
       after: String(b.after ?? "").slice(0, 120),
       ...(b.fieldName ? { fieldName: String(b.fieldName).slice(0, 120) } : {}),
       ...(typeof b.group === "string" && uuid.test(b.group) ? { group: b.group } : {}),
+      ...(b.line === null || (Number.isInteger(b.line) && b.line! > 0 && b.line! < 100000)
+        ? { line: b.line }
+        : {}),
     })));
   const confirmed = [...new Set(input.confirmedPages.map(Math.trunc))]
     .filter((n) => n >= 1 && n <= pages)
