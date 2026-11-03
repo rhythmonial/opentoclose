@@ -469,6 +469,8 @@ function FieldTypeMenu({
         : "types",
   );
   const [help, setHelp] = useState<string | null>(null);
+  // What they searched for before choosing to add a new one: its name.
+  const [newName, setNewName] = useState("");
   // Kept current so the listeners below are set up once, when it opens.
   const closeRef = useRef(onClose);
   useEffect(() => {
@@ -752,12 +754,15 @@ function FieldTypeMenu({
           emptyText="No choice fields match."
           addLabel="Add a new choice field"
           onPick={chooseChoiceField}
-          onAddNew={() => setView("new")}
+          onAddNew={(query) => {
+            setNewName(query);
+            setView("new");
+          }}
           onBack={() => setView("types")}
         />
       ) : view === "new" ? (
         <NewOtcFieldForm
-          defaultName=""
+          defaultName={newName}
           kind="choice"
           onAdd={(name, sectionId) =>
             chooseChoiceField({
@@ -806,18 +811,15 @@ function FieldTypeMenu({
           emptyText={isContact ? "No contact roles match." : "No OTC fields match."}
           addLabel={isContact ? "Add a new contact role" : "Add a new OTC field"}
           onPick={assignOtc}
-          onAddNew={() => setView("otc-new")}
+          onAddNew={(query) => {
+            setNewName(query);
+            setView("otc-new");
+          }}
           onBack={() => setView("types")}
         />
       ) : (
         <NewOtcFieldForm
-          // A contract's label (like "BUYER: The undersigned") makes a fine
-          // field name, but not a contact role.
-          defaultName={
-            value?.type === "contact" || label === "Unlabeled field"
-              ? ""
-              : label.replace(/[:\s]+$/, "")
-          }
+          defaultName={newName}
           kind={value?.type === "contact" ? "contact" : "field"}
           onAdd={(name, sectionId) =>
             assignOtc({
@@ -876,7 +878,8 @@ function OtcFieldList({
   emptyText: string;
   addLabel: string;
   onPick: (field: OtcField) => void;
-  onAddNew: () => void;
+  // Gets what was typed in the search box, to name the new one.
+  onAddNew: (query: string) => void;
   onBack: () => void;
 }) {
   const [query, setQuery] = useState("");
@@ -976,13 +979,13 @@ function OtcFieldList({
         type="button"
         role="menuitem"
         data-menu-item
-        onClick={onAddNew}
+        onClick={() => onAddNew(query.trim())}
         className={`${itemClass} font-semibold text-accent`}
       >
         <span aria-hidden className="w-3.5 shrink-0">
           +
         </span>
-        {addLabel}
+        {query.trim() ? `${addLabel}: “${query.trim()}”` : addLabel}
       </button>
     </>
   );
