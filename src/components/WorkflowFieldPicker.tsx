@@ -411,24 +411,21 @@ function FieldTypeMenu({
               &rsaquo;
             </span>
           </button>
-          {value && (
-            <>
-              <div className="my-1 border-t border-border" />
-              <button
-                type="button"
-                role="menuitem"
-                data-menu-item
-                onClick={() => {
-                  onChange(null);
-                  onClose();
-                }}
-                className={`${itemClass} text-danger hover:bg-danger/10 focus:bg-danger/10`}
-              >
-                <Check on={false} />
-                Remove from workflow
-              </button>
-            </>
-          )}
+          {/* Always last; on a field that isn't picked it just closes. */}
+          <div className="my-1 border-t border-border" />
+          <button
+            type="button"
+            role="menuitem"
+            data-menu-item
+            onClick={() => {
+              if (value) onChange(null);
+              onClose();
+            }}
+            className={`${itemClass} text-danger hover:bg-danger/10 focus:bg-danger/10`}
+          >
+            <Check on={false} />
+            Remove from workflow
+          </button>
         </>
       ) : view === "questions" ? (
         <>
