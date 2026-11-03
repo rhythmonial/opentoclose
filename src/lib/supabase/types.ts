@@ -336,6 +336,54 @@ export type Database = {
         }
         Relationships: []
       }
+      client_email_templates: {
+        Row: {
+          id: string
+          client_account_id: string
+          sample_key: string | null
+          include: boolean
+          title: string
+          subject: string
+          body: string
+          to_roles: string[]
+          cc_roles: string[]
+          bcc_roles: string[]
+          file_roles: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_account_id: string
+          sample_key?: string | null
+          include?: boolean
+          title: string
+          subject?: string
+          body?: string
+          to_roles?: string[]
+          cc_roles?: string[]
+          bcc_roles?: string[]
+          file_roles?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_account_id?: string
+          sample_key?: string | null
+          include?: boolean
+          title?: string
+          subject?: string
+          body?: string
+          to_roles?: string[]
+          cc_roles?: string[]
+          bcc_roles?: string[]
+          file_roles?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contract_documents: {
         Row: {
           blank_count: number
