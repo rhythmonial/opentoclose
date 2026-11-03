@@ -315,11 +315,23 @@ export function EmailTemplatesConfigurator({
 
               {open && (
                 <div className="border-t border-border px-4 pb-4 pt-3">
+                  {/* Who it goes to and what's attached, changed right here
+                      (and saved as they change). */}
+                  <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <MultiSelect label="To" options={roleOptions} value={t.to} onChange={(to) => update(t.key, { to })} />
+                    <MultiSelect label="Cc" options={roleOptions} value={t.cc} onChange={(cc) => update(t.key, { cc })} />
+                    <MultiSelect label="Bcc" options={roleOptions} value={t.bcc} onChange={(bcc) => update(t.key, { bcc })} />
+                    <MultiSelect
+                      label="Attach documents"
+                      options={fileOptions}
+                      value={t.files}
+                      onChange={(files) => update(t.key, { files })}
+                      emptyText="No documents yet. Add them in Categorize Your Documents."
+                    />
+                  </div>
                   {editing ? (
                     <TemplateEditor
                       template={t}
-                      roleOptions={roleOptions}
-                      fileOptions={fileOptions}
                       onCancel={() => {
                         setEditingKey(null);
                         if (!t.id && !t.sampleKey) remove(t);
@@ -509,31 +521,12 @@ function Block({ lines }: { lines: string[] }) {
   );
 }
 
+// The email as it reads: subject, then body.
 function EmailPreview({ template: t }: { template: EmailTemplate }) {
-  const row = (label: string, values: string[]) =>
-    values.length === 0 ? null : (
-      <div className="flex gap-2">
-        <span className="w-12 shrink-0 text-ink-faint">{label}</span>
-        <span className="flex flex-wrap gap-1">
-          {values.map((v) => (
-            <span key={v} className="rounded-full border border-border bg-bg px-2 py-px text-xs text-ink">
-              {v}
-            </span>
-          ))}
-        </span>
-      </div>
-    );
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-white">
-      <div className="flex flex-col gap-1.5 border-b border-border bg-bg/60 px-4 py-3 text-sm">
-        {row("To", t.to)}
-        {row("Cc", t.cc)}
-        {row("Bcc", t.bcc)}
-        {row("Attach", t.files)}
-        {t.to.length + t.cc.length + t.bcc.length === 0 && (
-          <span className="text-xs text-ink-faint">No recipients chosen yet.</span>
-        )}
-        <p className="pt-1 font-semibold text-ink">
+      <div className="border-b border-border bg-bg/60 px-4 py-3 text-sm">
+        <p className="font-semibold text-ink">
           <Inline text={t.subject || "(no subject)"} />
         </p>
       </div>
@@ -544,16 +537,14 @@ function EmailPreview({ template: t }: { template: EmailTemplate }) {
   );
 }
 
+// The words: title, subject and body (recipients and attachments are
+// changed above it).
 function TemplateEditor({
   template,
-  roleOptions,
-  fileOptions,
   onSave,
   onCancel,
 }: {
   template: EmailTemplate;
-  roleOptions: string[];
-  fileOptions: string[];
   onSave: (change: Partial<EmailTemplate>) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -567,7 +558,11 @@ function TemplateEditor({
       onSubmit={async (e) => {
         e.preventDefault();
         setSaving(true);
-        await onSave({ ...draft, body: withBlankLines(draft.body) });
+        await onSave({
+          title: draft.title,
+          subject: draft.subject,
+          body: withBlankLines(draft.body),
+        });
         setSaving(false);
       }}
     >
@@ -604,18 +599,6 @@ function TemplateEditor({
           <code className="rounded bg-bg px-1">{"{{closing_date}}"}</code>.
         </span>
       </label>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <MultiSelect label="To" options={roleOptions} value={draft.to} onChange={(to) => set({ to })} />
-        <MultiSelect label="Cc" options={roleOptions} value={draft.cc} onChange={(cc) => set({ cc })} />
-        <MultiSelect label="Bcc" options={roleOptions} value={draft.bcc} onChange={(bcc) => set({ bcc })} />
-        <MultiSelect
-          label="Attach documents"
-          options={fileOptions}
-          value={draft.files}
-          onChange={(files) => set({ files })}
-          emptyText="No documents yet. Add them in Categorize Your Documents."
-        />
-      </div>
       <div className="flex items-center gap-3">
         <button
           type="submit"
