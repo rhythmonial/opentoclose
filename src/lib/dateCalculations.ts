@@ -18,6 +18,8 @@ export type DateCalc = {
   weekend_roll: "back" | "forward" | null;
   holiday_roll: "back" | "forward" | null;
   federal_holidays: "count" | "skip" | null;
+  // A date the client added (otc_field starts with NEW_OTC_PREFIX): its name.
+  field_name?: string | null;
 };
 
 export type TimeFrame =
@@ -105,6 +107,10 @@ export function cleanCalc(raw: Partial<DateCalc>): DateCalc | null {
     holiday_roll: raw.holiday_roll === "back" || raw.holiday_roll === "forward" ? raw.holiday_roll : null,
     federal_holidays:
       raw.federal_holidays === "count" || raw.federal_holidays === "skip" ? raw.federal_holidays : null,
+    field_name:
+      raw.otc_field.startsWith(NEW_OTC_PREFIX) && typeof raw.field_name === "string"
+        ? raw.field_name.trim().slice(0, 120) || null
+        : null,
   };
 }
 

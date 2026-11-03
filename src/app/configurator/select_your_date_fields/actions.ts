@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
 import { calcComplete, cleanCalc, type DateCalc } from "@/lib/dateCalculations";
+import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
 
 const STEP_KEY = "select_your_date_fields";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -22,6 +23,24 @@ export async function saveDateCalc(
     { ...clean, client_account_id: account, updated_at: new Date().toISOString() },
     { onConflict: "client_account_id,otc_field" },
   );
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  return { ok: true };
+}
+
+// Removes a date the client added (and its calculation).
+export async function removeAddedDate(
+  accountId: string | null,
+  otcField: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  if (!otcField.startsWith(NEW_OTC_PREFIX)) return { ok: false, error: "Only dates you added can be removed." };
+  const { error } = await supabase
+    .from("date_calculations")
+    .delete()
+    .eq("client_account_id", account)
+    .eq("otc_field", otcField);
   if (error) return { ok: false, error: error.message };
   revalidatePath(PAGE);
   return { ok: true };

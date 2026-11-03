@@ -46,7 +46,7 @@ export default async function PlanYourTaskTemplatesPage({
       : null
     : (profile?.client_account_id ?? null);
 
-  const [{ data: saved }, { data: docs }] = accountId
+  const [{ data: saved }, { data: docs }, { data: addedDates }] = accountId
     ? await Promise.all([
         supabase
           .from("client_task_plans")
@@ -57,8 +57,14 @@ export default async function PlanYourTaskTemplatesPage({
           .from("contract_documents")
           .select("workflow_fields")
           .eq("client_account_id", accountId),
+        // Dates the client added in Select Your Date Fields.
+        supabase
+          .from("date_calculations")
+          .select("field_name")
+          .eq("client_account_id", accountId)
+          .not("field_name", "is", null),
       ])
-    : [{ data: [] }, { data: [] }];
+    : [{ data: [] }, { data: [] }, { data: [] }];
 
   const tasks: PlannedTask[] = (saved ?? []).map((r) => ({
     id: r.id,
@@ -81,10 +87,13 @@ export default async function PlanYourTaskTemplatesPage({
     .flatMap((d) => (Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : []))
     .filter(isActive);
   const dateOptions = [
-    ...OTC_FIELDS.filter((f) => f.kind === "date").map((f) => f.name),
-    ...newOtcFieldsFrom(assigned)
-      .filter((f) => f.kind === "date")
-      .map((f) => f.name),
+    ...new Set([
+      ...OTC_FIELDS.filter((f) => f.kind === "date").map((f) => f.name),
+      ...newOtcFieldsFrom(assigned)
+        .filter((f) => f.kind === "date")
+        .map((f) => f.name),
+      ...(addedDates ?? []).map((d) => d.field_name!).filter(Boolean),
+    ]),
   ];
 
   return (

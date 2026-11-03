@@ -4,7 +4,12 @@ import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { getSandboxTier } from "@/lib/devSandbox";
 import { OTC_FIELDS, sectionById, type OtcField } from "@/lib/otcFields";
-import { isActive, newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
+import {
+  isActive,
+  NEW_OTC_PREFIX,
+  newOtcFieldsFrom,
+  type WorkflowField,
+} from "@/lib/workflowFields";
 import { calcComplete, cleanCalc, type DateCalc } from "@/lib/dateCalculations";
 import { DateFieldsConfigurator, type FieldOption } from "@/components/DateFieldsConfigurator";
 import { finishDateFields } from "./actions";
@@ -72,6 +77,18 @@ export default async function SelectYourDateFieldsPage({
         section: sectionById(f.sectionId)?.name ?? "Your new fields",
         onContract: onContract.has(f.id),
       }));
+
+  // Dates the client added here.
+  const known = new Set(all.map((f) => f.id));
+  const addedDates: FieldOption[] = (saved ?? [])
+    .filter((c) => c.otc_field.startsWith(NEW_OTC_PREFIX) && c.field_name && !known.has(c.otc_field))
+    .map((c) => ({
+      id: c.otc_field,
+      name: c.field_name!,
+      section: "Dates you added",
+      onContract: false,
+      added: true,
+    }));
 
   const calcs = (saved ?? [])
     .map((c) => cleanCalc(c as Partial<DateCalc>))
@@ -148,7 +165,7 @@ export default async function SelectYourDateFieldsPage({
           ) : (
             <DateFieldsConfigurator
               accountId={isStaff ? accountId : null}
-              dates={options("date")}
+              dates={[...options("date"), ...addedDates]}
               numbers={options("number")}
               initial={calcs}
             />

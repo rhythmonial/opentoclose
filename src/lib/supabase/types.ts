@@ -199,6 +199,7 @@ export type Database = {
           weekend_roll: string | null
           holiday_roll: string | null
           federal_holidays: string | null
+          field_name: string | null
         }
         Insert: {
           client_account_id: string
@@ -214,6 +215,7 @@ export type Database = {
           weekend_roll?: string | null
           holiday_roll?: string | null
           federal_holidays?: string | null
+          field_name?: string | null
         }
         Update: {
           client_account_id?: string
@@ -229,6 +231,7 @@ export type Database = {
           weekend_roll?: string | null
           holiday_roll?: string | null
           federal_holidays?: string | null
+          field_name?: string | null
         }
         Relationships: [
           {

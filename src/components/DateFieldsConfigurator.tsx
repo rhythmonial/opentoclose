@@ -12,7 +12,8 @@ import {
   TIME_FRAMES,
   type DateCalc,
 } from "@/lib/dateCalculations";
-import { saveDateCalc } from "@/app/configurator/select_your_date_fields/actions";
+import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
+import { removeAddedDate, saveDateCalc } from "@/app/configurator/select_your_date_fields/actions";
 
 export type FieldOption = {
   id: string;
@@ -20,6 +21,8 @@ export type FieldOption = {
   section: string;
   // Assigned to a field on one of the client's contracts.
   onContract: boolean;
+  // A date the client added here.
+  added?: boolean;
 };
 
 const inputClass =
@@ -30,9 +33,11 @@ const inputClass =
 // days (a set number, or a blank on the contract recorded as the number
 // field it goes in) of which time frame, after or before which other date
 // (or the same day as it), and how weekends and federal holidays move it.
+// Clients can add dates that aren't listed, and a summary of every checked
+// date closes the page.
 export function DateFieldsConfigurator({
   accountId,
-  dates,
+  dates: initialDates,
   numbers,
   initial,
 }: {
@@ -43,6 +48,8 @@ export function DateFieldsConfigurator({
   initial: DateCalc[];
 }) {
   const [saveState, setSaveState] = useState<"saving" | "saved" | "error" | null>(null);
+  const [dates, setDates] = useState(initialDates);
+  const [newDate, setNewDate] = useState("");
   // When a date's days are a blank on the client's contract (its "- Days"
   // number field was assigned in their field prep), say so.
   const blankFromContract = (date: FieldOption): Partial<DateCalc> => {
@@ -53,7 +60,7 @@ export function DateFieldsConfigurator({
   // decided), so they don't have to select them.
   const [auto] = useState(() => {
     const saved = new Set(initial.map((c) => c.otc_field));
-    return dates
+    return initialDates
       .filter((d) => d.onContract && !saved.has(d.id))
       .map((d) => ({ ...emptyCalc(d.id), enabled: true, ...blankFromContract(d) }));
   });
@@ -77,6 +84,56 @@ export function DateFieldsConfigurator({
   const incomplete = checked.filter((c) => !calcComplete(c)).length;
   const nameOf = (id: string | null) => dates.find((d) => d.id === id)?.name ?? "";
   const numberName = (id: string | null) => numbers.find((n) => n.id === id)?.name ?? "";
+
+  // How a date is worked out, in words: "Closing Date = 30 Calendar Day(s)
+  // After Acceptance Date".
+  function describe(c: DateCalc) {
+    const relative = nameOf(c.relative_to) || "__";
+    if (isSameDay(c)) return `Same Day As ${relative}`;
+    const days = c.days_on_contract
+      ? `[${numberName(c.number_field) || "number field"}]`
+      : (c.days ?? "__");
+    return [
+      days,
+      TIME_FRAMES.find((t) => t.value === c.time_frame)?.label ?? "__",
+      DIRECTIONS.find((t) => t.value === c.direction)?.label ?? "__",
+      relative,
+    ].join(" ");
+  }
+  const extrasFor = (c: DateCalc) =>
+    [
+      c.weekend_roll && `Weekends: ${ROLLS.find((r) => r.value === c.weekend_roll)!.label}`,
+      c.holiday_roll && `Federal holidays: ${ROLLS.find((r) => r.value === c.holiday_roll)!.label}`,
+      c.federal_holidays && FEDERAL_HOLIDAYS.find((r) => r.value === c.federal_holidays)!.label,
+    ].filter(Boolean) as string[];
+
+  function addDate() {
+    const name = newDate.trim();
+    if (!name) return;
+    if (dates.some((d) => d.name.toLowerCase() === name.toLowerCase())) {
+      setQuery(name);
+      setNewDate("");
+      return;
+    }
+    const id = `${NEW_OTC_PREFIX}${crypto.randomUUID()}`;
+    setDates((all) => [...all, { id, name, section: "Dates you added", onContract: false, added: true }]);
+    setNewDate("");
+    update(id, { enabled: true, field_name: name });
+  }
+
+  async function removeDate(id: string) {
+    setDates((all) => all.filter((d) => d.id !== id));
+    setCalcs((all) => {
+      const next = new Map(all);
+      next.delete(id);
+      return next;
+    });
+    // Dates counted from it need another.
+    for (const c of calcs.values()) {
+      if (c.relative_to === id) update(c.otc_field, { relative_to: null });
+    }
+    await removeAddedDate(accountId, id);
+  }
 
   function update(id: string, change: Partial<DateCalc>) {
     const next = { ...calcFor(id), ...change };
@@ -102,24 +159,36 @@ export function DateFieldsConfigurator({
       (!q || d.name.toLowerCase().includes(q) || d.section.toLowerCase().includes(q)),
   );
   const groups: [string, FieldOption[]][] = [
-    ["Dates on your contracts", shown.filter((d) => d.onContract)],
-    ["Other Open to Close dates", shown.filter((d) => !d.onContract)],
+    ["Dates on your contracts", shown.filter((d) => d.onContract && !d.added)],
+    ["Dates you added", shown.filter((d) => d.added)],
+    ["Other Open to Close dates", shown.filter((d) => !d.onContract && !d.added)],
   ];
 
   const optionGroups = (options: FieldOption[], exclude?: string) => (
     <>
       <optgroup label="On your contracts">
         {options
-          .filter((o) => o.onContract && o.id !== exclude)
+          .filter((o) => o.onContract && !o.added && o.id !== exclude)
           .map((o) => (
             <option key={o.id} value={o.id}>
               {o.name}
             </option>
           ))}
       </optgroup>
+      {options.some((o) => o.added && o.id !== exclude) && (
+        <optgroup label="Dates you added">
+          {options
+            .filter((o) => o.added && o.id !== exclude)
+            .map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+        </optgroup>
+      )}
       <optgroup label="Other Open to Close fields">
         {options
-          .filter((o) => !o.onContract && o.id !== exclude)
+          .filter((o) => !o.onContract && !o.added && o.id !== exclude)
           .map((o) => (
             <option key={o.id} value={o.id}>
               {o.name}
@@ -173,16 +242,7 @@ export function DateFieldsConfigurator({
               const missingCount = (v: unknown) => !sameDay && missing(v);
               const labelClass = (bad: boolean) =>
                 `text-xs font-semibold ${bad ? "text-danger" : "text-ink-soft"}`;
-              const daysText = c.days_on_contract
-                ? `[${numberName(c.number_field) || "number field"}]`
-                : (c.days ?? "__");
-              const extras = [
-                c.weekend_roll && `Weekends: ${ROLLS.find((r) => r.value === c.weekend_roll)!.label}`,
-                c.holiday_roll &&
-                  `Federal holidays: ${ROLLS.find((r) => r.value === c.holiday_roll)!.label}`,
-                c.federal_holidays &&
-                  FEDERAL_HOLIDAYS.find((r) => r.value === c.federal_holidays)!.label,
-              ].filter(Boolean);
+              const extras = extrasFor(c);
               return (
                 <div
                   key={d.id}
@@ -218,7 +278,21 @@ export function DateFieldsConfigurator({
                           On your contract
                         </span>
                       )}
+                      {d.added && (
+                        <span className="rounded bg-accent-soft/60 px-1 py-px text-[10px] font-bold uppercase text-accent">
+                          Added by you
+                        </span>
+                      )}
                     </label>
+                    {d.added && (
+                      <button
+                        type="button"
+                        onClick={() => removeDate(d.id)}
+                        className="mr-auto text-xs font-semibold text-ink-faint hover:text-danger"
+                      >
+                        Remove
+                      </button>
+                    )}
                     <label
                       className={`flex items-center gap-2 transition-opacity ${on ? "" : "opacity-40"}`}
                     >
@@ -367,17 +441,7 @@ export function DateFieldsConfigurator({
 
                     {on && (
                       <p className="text-sm text-ink-soft">
-                        <span className="font-semibold text-ink">{d.name}</span> ={" "}
-                        {sameDay ? (
-                          <>Same Day As {nameOf(c.relative_to) || "__"}</>
-                        ) : (
-                          <>
-                            {daysText}{" "}
-                            {TIME_FRAMES.find((t) => t.value === c.time_frame)?.label ?? "__"}{" "}
-                            {DIRECTIONS.find((t) => t.value === c.direction)?.label ?? "__"}{" "}
-                            {nameOf(c.relative_to) || "__"}
-                          </>
-                        )}
+                        <span className="font-semibold text-ink">{d.name}</span> = {describe(c)}
                         {extras.length > 0 && (
                           <span className="text-ink-faint"> &middot; {extras.join(" · ")}</span>
                         )}
@@ -395,6 +459,96 @@ export function DateFieldsConfigurator({
           No dates match.
         </p>
       )}
+
+      <form
+        className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-border bg-surface px-4 py-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          addDate();
+        }}
+      >
+        <span className="text-sm font-semibold text-ink">Don&rsquo;t see a date?</span>
+        <input
+          value={newDate}
+          onChange={(e) => setNewDate(e.target.value)}
+          maxLength={120}
+          placeholder="e.g. Survey Due Date"
+          aria-label="New date name"
+          className="w-64 rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-ink outline-none focus:border-accent"
+        />
+        <button
+          type="submit"
+          disabled={!newDate.trim()}
+          className="rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          Add date
+        </button>
+      </form>
+
+      <DateSummary
+        rows={dates
+          .filter((d) => calcFor(d.id).enabled)
+          .map((d) => ({ date: d, calc: calcFor(d.id) }))}
+        describe={describe}
+        extrasFor={extrasFor}
+        onRemove={removeDate}
+      />
     </div>
+  );
+}
+
+// Every checked date and how it's worked out, at the bottom of the page.
+function DateSummary({
+  rows,
+  describe,
+  extrasFor,
+  onRemove,
+}: {
+  rows: { date: FieldOption; calc: DateCalc }[];
+  describe: (c: DateCalc) => string;
+  extrasFor: (c: DateCalc) => string[];
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <section className="mt-2 rounded-xl border border-border bg-surface p-5">
+      <h2 className="font-display text-lg font-bold text-ink">Your date summary</h2>
+      <p className="mt-1 text-sm text-ink-soft">
+        Every date you&rsquo;ve checked and how it&rsquo;s worked out.
+      </p>
+      {rows.length === 0 ? (
+        <p className="mt-4 text-sm text-ink-faint">No dates checked yet.</p>
+      ) : (
+        <ul className="mt-4 divide-y divide-border rounded-lg border border-border">
+          {rows.map(({ date, calc }) => {
+            const done = calcComplete(calc);
+            const extras = extrasFor(calc);
+            return (
+              <li key={date.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-2 text-sm">
+                <span className="min-w-0">
+                  <span className="font-semibold text-ink">{date.name}</span>
+                  {date.added && <span className="text-xs text-ink-faint"> (added by you)</span>}
+                  <span className="block text-ink-soft">
+                    {describe(calc)}
+                    {extras.length > 0 && <span className="text-ink-faint"> &middot; {extras.join(" · ")}</span>}
+                  </span>
+                </span>
+                <span className="flex items-center gap-3">
+                  {!done && <span className="text-xs font-semibold text-danger">Needs finishing</span>}
+                  {date.added && (
+                    <button
+                      type="button"
+                      onClick={() => onRemove(date.id)}
+                      className="text-xs font-semibold text-ink-faint hover:text-danger"
+                    >
+                      Remove date
+                    </button>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
