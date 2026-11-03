@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import type { OtcField } from "@/lib/otcFields";
 import {
@@ -18,27 +18,6 @@ import {
 const STEP_KEY = "finalize_your_fields";
 const PAGE = `/configurator/${STEP_KEY}`;
 
-// The account whose fields are being finalized: a client's own, or (for
-// staff helping a client) the one asked for.
-async function accountFor(requested: string | null) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { supabase, user: null, accountId: null };
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, client_account_id")
-    .eq("id", user.id)
-    .single();
-  const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
-  return {
-    supabase,
-    user,
-    accountId: isStaff ? requested : (profile?.client_account_id ?? null),
-  };
-}
-
 // Reassigns workflow fields to another OTC field: every field assigned to
 // `from` (to merge two OTC fields that are really the same one), or just
 // one field.
@@ -48,7 +27,7 @@ export async function reassignFields(input: {
   field?: { documentId: string; fieldId: string };
   to: OtcField;
 }): Promise<{ ok: boolean; error?: string }> {
-  const { supabase, accountId } = await accountFor(input.accountId);
+  const { supabase, accountId } = await configuratorAccount(input.accountId);
   if (!accountId) return { ok: false, error: "Not signed in." };
   if (!input.from && !input.field) return { ok: false, error: "Nothing to reassign." };
 
@@ -91,7 +70,7 @@ export async function reassignFields(input: {
 
 // Marks the lesson complete once every field is assigned.
 export async function finishFinalizingFields() {
-  const { supabase, user, accountId } = await accountFor(null);
+  const { supabase, user, accountId } = await configuratorAccount(null);
   if (!user) redirect("/login");
   if (!accountId) redirect("/portal");
 
@@ -104,27 +83,6 @@ export async function finishFinalizingFields() {
     .filter(isActive);
   if (fields.length === 0 || fields.some((f) => !isComplete(f))) redirect(PAGE);
 
-  const { data: account } = await supabase
-    .from("client_accounts")
-    .select("setup_path")
-    .eq("id", accountId)
-    .single();
-  const { data: step } = await supabase
-    .from("setup_steps")
-    .select("id")
-    .eq("path", account?.setup_path ?? "custom")
-    .eq("key", STEP_KEY)
-    .maybeSingle();
-  if (step) {
-    await supabase.from("client_step_status").upsert(
-      {
-        client_id: user.id,
-        step_id: step.id,
-        status: "approved",
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "client_id,step_id" },
-    );
-  }
+  await approveStep(supabase, user.id, accountId, STEP_KEY);
   redirect("/portal");
 }

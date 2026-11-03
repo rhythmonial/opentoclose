@@ -184,6 +184,53 @@ export type Database = {
         }
         Relationships: []
       }
+      date_calculations: {
+        Row: {
+          client_account_id: string
+          otc_field: string
+          enabled: boolean
+          days: number | null
+          days_on_contract: boolean
+          number_field: string | null
+          time_frame: string | null
+          direction: string | null
+          relative_to: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_account_id: string
+          otc_field: string
+          enabled?: boolean
+          days?: number | null
+          days_on_contract?: boolean
+          number_field?: string | null
+          time_frame?: string | null
+          direction?: string | null
+          relative_to?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_account_id?: string
+          otc_field?: string
+          enabled?: boolean
+          days?: number | null
+          days_on_contract?: boolean
+          number_field?: string | null
+          time_frame?: string | null
+          direction?: string | null
+          relative_to?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "date_calculations_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_documents: {
         Row: {
           blank_count: number
