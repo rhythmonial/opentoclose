@@ -18,7 +18,48 @@ export type EmailTemplate = {
 
 export const BREAK = "ADDABREAK";
 
-export const fromSample = (s: SampleEmailTemplate): EmailTemplate => ({
+// Copy roles: who else gets every email a role gets (OTC Settings > Contact
+// Roles). Only offered as email recipients, not as contact fields.
+export const EMAIL_COPY_ROLES = ["Attorney", "Buyer", "Buyer Agent", "Escrow", "Lender", "Listing Agent", "Seller"].flatMap(
+  (who) => [`CC on ALL ${who} Emails`, `BCC on ALL ${who} Emails`],
+);
+
+// Best-guess attachments for a sample, from the client's own documents
+// (Categorize Your Documents): the ones in the categories the email is
+// about, on its side.
+const ATTACH_RULES: [RegExp, string[]][] = [
+  [/\bintro\b|new contract/i, ["residential", "land"]],
+  [/apprais|\bAP\b/i, ["appraisal"]],
+  [/septic/i, ["septic"]],
+  [/termite/i, ["termite"]],
+  [/home warranty/i, ["home_warranty"]],
+  [/\bHOA\b/i, ["hoa"]],
+  [/cancel/i, ["cancellation"]],
+  [/referral/i, ["referral"]],
+  [/\bLBP\b|lead.based/i, ["lbp"]],
+  [/commission|\bCI\b|\bDA\b/i, ["brokerage"]],
+];
+
+export type AttachableDoc = { name: string; categories: string[]; sides: string[] };
+
+export function guessAttachments(title: string, docs: AttachableDoc[]): string[] {
+  const categories = new Set(ATTACH_RULES.filter(([re]) => re.test(title)).flatMap(([, c]) => c));
+  if (categories.size === 0) return [];
+  const side = sideOf(title);
+  return [
+    ...new Set(
+      docs
+        .filter(
+          (d) =>
+            d.categories.some((c) => categories.has(c)) &&
+            (side === "other" || d.sides.length === 0 || d.sides.includes(side)),
+        )
+        .map((d) => d.name),
+    ),
+  ];
+}
+
+export const fromSample = (s: SampleEmailTemplate, files: string[] = []): EmailTemplate => ({
   id: null,
   sampleKey: s.key,
   include: s.include,
@@ -28,14 +69,15 @@ export const fromSample = (s: SampleEmailTemplate): EmailTemplate => ({
   to: s.to,
   cc: s.cc,
   bcc: s.bcc,
-  files: [],
+  files,
 });
 
 export const sampleFor = (key: string | null) =>
   key ? SAMPLE_EMAIL_TEMPLATES.find((s) => s.key === key) : undefined;
 
-// Whether a client's copy differs from its sample (besides being used).
-export function isEdited(t: EmailTemplate) {
+// Whether a client's copy differs from its sample (besides being used),
+// given the attachments the sample starts with for them.
+export function isEdited(t: EmailTemplate, defaultFiles: string[] = []) {
   const s = sampleFor(t.sampleKey);
   if (!s) return false;
   const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -46,7 +88,7 @@ export function isEdited(t: EmailTemplate) {
     same(t.to, s.to) &&
     same(t.cc, s.cc) &&
     same(t.bcc, s.bcc) &&
-    t.files.length === 0
+    same(t.files, defaultFiles)
   );
 }
 

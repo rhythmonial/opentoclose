@@ -30,13 +30,17 @@ export function EmailTemplatesConfigurator({
   initial,
   roleOptions,
   fileOptions,
+  defaultFiles,
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
   initial: EmailTemplate[];
   roleOptions: string[];
   fileOptions: string[];
+  // The documents each sample starts with attached (by sample key).
+  defaultFiles: Record<string, string[]>;
 }) {
+  const filesFor = (t: EmailTemplate) => (t.sampleKey ? (defaultFiles[t.sampleKey] ?? []) : []);
   const [items, setItems] = useState<Item[]>(() =>
     initial.map((t) => ({ ...t, key: t.sampleKey ?? t.id ?? crypto.randomUUID() })),
   );
@@ -70,7 +74,9 @@ export function EmailTemplatesConfigurator({
     const sample = sampleFor(item.sampleKey);
     if (!sample) return;
     setItems((all) =>
-      all.map((x) => (x.key === item.key ? { ...fromSample(sample), key: x.key } : x)),
+      all.map((x) =>
+        x.key === item.key ? { ...fromSample(sample, filesFor(item)), key: x.key } : x,
+      ),
     );
     setEditingKey(null);
     if (item.id) await removeEmailTemplate(accountId, item.id);
@@ -181,7 +187,7 @@ export function EmailTemplatesConfigurator({
         {shown.map((t) => {
           const open = openKey === t.key;
           const editing = editingKey === t.key;
-          const edited = isEdited(t);
+          const edited = isEdited(t, filesFor(t));
           const s = sideOf(t.title);
           return (
             <li

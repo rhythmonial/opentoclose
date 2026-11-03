@@ -6,7 +6,12 @@ import { getSandboxTier } from "@/lib/devSandbox";
 import { isContactRole, OTC_FIELDS } from "@/lib/otcFields";
 import { isActive, newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 import { SAMPLE_EMAIL_TEMPLATES } from "@/lib/sampleEmailTemplates";
-import { fromSample, type EmailTemplate } from "@/lib/emailTemplates";
+import {
+  EMAIL_COPY_ROLES,
+  fromSample,
+  guessAttachments,
+  type EmailTemplate,
+} from "@/lib/emailTemplates";
 import { EmailTemplatesConfigurator } from "@/components/EmailTemplatesConfigurator";
 import { finishEmailTemplates } from "./actions";
 
@@ -56,12 +61,12 @@ export default async function SampleEmailTemplatesPage({
           .order("created_at"),
         supabase
           .from("contract_documents")
-          .select("file_name, workflow_fields")
+          .select("id, file_name, workflow_fields")
           .eq("client_account_id", accountId)
           .order("created_at"),
         supabase
           .from("prep_documents")
-          .select("name, contract_document_id")
+          .select("name, contract_document_id, categories, sides")
           .eq("client_account_id", accountId)
           .order("created_at"),
       ])
@@ -81,6 +86,19 @@ export default async function SampleEmailTemplatesPage({
     bcc: r.bcc_roles,
     files: r.file_roles,
   });
+  // Documents, by the names templates attach them by, with their categories
+  // and sides (from Categorize Your Documents).
+  const docName = (fileName: string) => fileName.replace(/\.pdf$/i, "");
+  const contractName = new Map((docs ?? []).map((d) => [d.id, docName(d.file_name)] as const));
+  const categorized = (prepDocs ?? []).map((d) => ({
+    name: d.contract_document_id ? (contractName.get(d.contract_document_id) ?? d.name) : d.name,
+    categories: d.categories,
+    sides: d.sides,
+  }));
+  const defaultFiles = Object.fromEntries(
+    SAMPLE_EMAIL_TEMPLATES.map((s) => [s.key, guessAttachments(s.title, categorized)] as const),
+  );
+
   const bySample = new Map(
     (saved ?? []).filter((r) => r.sample_key).map((r) => [r.sample_key!, r] as const),
   );
@@ -88,11 +106,12 @@ export default async function SampleEmailTemplatesPage({
     ...(saved ?? []).filter((r) => !r.sample_key).map(toTemplate),
     ...SAMPLE_EMAIL_TEMPLATES.map((s) => {
       const r = bySample.get(s.key);
-      return r ? toTemplate(r) : fromSample(s);
+      return r ? toTemplate(r) : fromSample(s, defaultFiles[s.key]);
     }),
   ];
 
-  // To / Cc / Bcc: OTC's contact roles plus any the client added. Attach:
+  // To / Cc / Bcc: OTC's contact roles plus any the client added, and the
+  // CC / BCC on ALL roles. Attach:
   // their documents (uploaded contracts, and ones added by name).
   const assigned = (docs ?? [])
     .flatMap((d) => (Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : []))
@@ -103,11 +122,12 @@ export default async function SampleEmailTemplatesPage({
       ...newOtcFieldsFrom(assigned)
         .filter(isContactRole)
         .map((f) => f.name),
+      ...EMAIL_COPY_ROLES,
     ]),
   ];
   const fileOptions = [
     ...new Set([
-      ...(docs ?? []).map((d) => d.file_name.replace(/\.pdf$/i, "")),
+      ...(docs ?? []).map((d) => docName(d.file_name)),
       ...(prepDocs ?? []).filter((d) => !d.contract_document_id).map((d) => d.name),
     ]),
   ];
@@ -184,6 +204,7 @@ export default async function SampleEmailTemplatesPage({
               initial={templates}
               roleOptions={roleOptions}
               fileOptions={fileOptions}
+              defaultFiles={defaultFiles}
             />
           ) : (
             <p className="rounded-xl border border-border bg-surface p-6 text-sm text-ink-soft">
