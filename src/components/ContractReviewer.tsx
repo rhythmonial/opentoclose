@@ -413,52 +413,6 @@ export function ContractReviewer({
         boxes, then click Link.
       </p>
 
-      {(linking.length > 0 || selectedGroup) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent-soft bg-accent-soft/40 px-3 py-2 text-sm">
-          {linking.length > 0 ? (
-            <>
-              <span className="text-ink">
-                {linking.length} box{linking.length === 1 ? "" : "es"} selected
-                {linking.length < 2 && " · Shift+click another box to link it"}
-              </span>
-              <span className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setLinking([])}
-                  className="rounded-md px-3 py-1 text-xs font-semibold text-ink-soft"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={linking.length < 2}
-                  onClick={linkSelected}
-                  className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
-                >
-                  Link as one answer
-                </button>
-              </span>
-            </>
-          ) : (
-            selectedGroup && (
-              <>
-                <span className="text-ink">
-                  This box is linked with {groupSize(selectedGroup) - 1} other
-                  {groupSize(selectedGroup) === 2 ? "" : "s"} as one answer.
-                </span>
-                <button
-                  type="button"
-                  onClick={() => unlink(selectedGroup)}
-                  className="rounded-md border border-border bg-surface px-3 py-1 text-xs font-semibold text-ink-soft"
-                >
-                  Unlink
-                </button>
-              </>
-            )
-          )}
-        </div>
-      )}
-
       <div className="relative overflow-hidden rounded-lg border border-border bg-white">
         {loadError ? (
           <p className="p-6 text-sm text-danger">{loadError}</p>
@@ -561,6 +515,73 @@ export function ContractReviewer({
                     </div>
                   );
                 })}
+                {/* Link / Unlink, right under the box last shift+clicked
+                    (or the linked box that's selected). */}
+                {(() => {
+                  const anchorIndex = linking.length > 0 ? linking[linking.length - 1] : selectedGroup ? selected : null;
+                  const anchor = anchorIndex !== null ? blanks[anchorIndex] : undefined;
+                  if (!anchor || anchor.page !== page) return null;
+                  const below = anchor.y + anchor.height < 0.85;
+                  const fromRight = anchor.x > 0.55;
+                  return (
+                    <div
+                      role="dialog"
+                      aria-label={linking.length > 0 ? "Link boxes" : "Linked boxes"}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      style={{
+                        ...(below
+                          ? { top: `calc(${(anchor.y + anchor.height) * 100}% + 8px)` }
+                          : { bottom: `calc(${(1 - anchor.y) * 100}% + 8px)` }),
+                        ...(fromRight
+                          ? { right: `${Math.max(0, 1 - anchor.x - anchor.width) * 100}%` }
+                          : { left: `${anchor.x * 100}%` }),
+                      }}
+                      className="absolute z-30 flex cursor-default flex-col gap-2 rounded-lg border border-border bg-surface px-3 py-2.5 text-sm shadow-lg"
+                    >
+                      {linking.length > 0 ? (
+                        <>
+                          <span className="whitespace-nowrap text-xs text-ink">
+                            {linking.length} box{linking.length === 1 ? "" : "es"} selected
+                            {linking.length < 2 && <span className="block text-ink-faint">Shift+click another box to link it</span>}
+                          </span>
+                          <span className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setLinking([])}
+                              className="rounded-md px-2 py-1 text-xs font-semibold text-ink-soft"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              disabled={linking.length < 2}
+                              onClick={linkSelected}
+                              className="whitespace-nowrap rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                            >
+                              Link as one answer
+                            </button>
+                          </span>
+                        </>
+                      ) : (
+                        selectedGroup && (
+                          <span className="flex items-center gap-3">
+                            <span className="whitespace-nowrap text-xs text-ink">
+                              Linked with {groupSize(selectedGroup) - 1} other box
+                              {groupSize(selectedGroup) === 2 ? "" : "es"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => unlink(selectedGroup)}
+                              className="rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-semibold text-ink-soft"
+                            >
+                              Unlink
+                            </button>
+                          </span>
+                        )
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </>
