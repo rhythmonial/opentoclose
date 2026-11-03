@@ -1,6 +1,7 @@
 // Plan Your Task Templates: shared types and rules.
 
-export type TaskSide = "buyer" | "seller" | "listing";
+// "buyer", "seller", "listing", or the id of a task list the client added.
+export type TaskSide = string;
 export type TaskTiming = "before" | "after" | "same_day";
 export type TaskTimeFrame = "business_days" | "calendar_days" | "calendar_days_skip_weekend";
 
@@ -22,7 +23,9 @@ export type PlannedTask = {
 };
 
 // Each side's templates are named with its prefix, e.g. "B - General".
-export const SIDES: { value: TaskSide; label: string; prefix: string }[] = [
+export type SideInfo = { value: TaskSide; label: string; prefix: string; custom?: boolean };
+
+export const SIDES: SideInfo[] = [
   { value: "buyer", label: "Buyer", prefix: "B -" },
   { value: "seller", label: "Seller", prefix: "S -" },
   { value: "listing", label: "Listing", prefix: "L -" },
@@ -54,8 +57,17 @@ export function missingFor(t: PlannedTask): string[] {
   return out;
 }
 
-export function cleanTask(raw: Partial<PlannedTask>) {
-  const side = SIDES.some((s) => s.value === raw.side) ? (raw.side as TaskSide) : null;
+// A task list the client added, as a side ("D" becomes "D -").
+export const customSide = (r: { id: string; label: string; prefix: string }): SideInfo => ({
+  value: r.id,
+  label: r.label,
+  prefix: `${r.prefix} -`,
+  custom: true,
+});
+
+// `sides`: the sides this client can use (the built-in ones and their own).
+export function cleanTask(raw: Partial<PlannedTask>, sides: readonly string[] = SIDES.map((s) => s.value)) {
+  const side = typeof raw.side === "string" && sides.includes(raw.side) ? raw.side : null;
   if (!side) return null;
   const text = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
   const recurDays =

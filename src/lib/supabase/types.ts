@@ -387,6 +387,33 @@ export type Database = {
         }
         Relationships: []
       }
+      client_task_sides: {
+        Row: {
+          id: string
+          client_account_id: string
+          label: string
+          prefix: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_account_id: string
+          label: string
+          prefix: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          client_account_id?: string
+          label?: string
+          prefix?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
       client_task_plans: {
         Row: {
           id: string

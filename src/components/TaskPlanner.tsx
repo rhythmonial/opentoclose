@@ -8,23 +8,29 @@ import {
   TASK_TIME_FRAMES,
   TIMINGS,
   type PlannedTask,
+  type SideInfo,
   type TaskSide,
 } from "@/lib/taskPlans";
 import { SAMPLE_TASKS } from "@/lib/sampleTasks";
 import {
   addSampleTasks,
+  addSide,
   deleteTask,
+  removeSide,
   renameTemplate,
   saveTask,
 } from "@/app/configurator/plan_your_task_templates/actions";
 
 type Row = PlannedTask & { key: string };
 
+// Date Field choices under a heading (an OTC section, or the client's own).
+export type DateGroup = { section: string; names: string[] };
+
 const cellInput =
   "w-full rounded-md border bg-bg px-2 py-1 text-sm text-ink outline-none focus:border-accent";
 
 // Plan Your Task Templates: per side (Buyer "B -", Seller "S -", Listing
-// "L -"), templates of tasks laid out like the task setup prep sheet: name,
+// "L -", and any task list the client adds with "+"), templates of tasks laid out like the task setup prep sheet: name,
 // critical, recurring (every so many days), notes, then when it's due (days,
 // time frame, before / after / same day as a date field, or its parent task
 // in the same template; one or the other), before
@@ -33,30 +39,47 @@ const cellInput =
 export function TaskPlanner({
   accountId,
   initial,
-  dateOptions,
+  dateGroups,
+  customSides,
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
   initial: PlannedTask[];
-  dateOptions: string[];
+  // Every date a task can be due from.
+  dateGroups: DateGroup[];
+  // Task lists the client added beside Buyer, Seller and Listing.
+  customSides: SideInfo[];
 }) {
+  const dateOptions = dateGroups.flatMap((g) => g.names);
   const [rows, setRows] = useState<Row[]>(() =>
     initial.map((t) => ({ ...t, key: t.id ?? crypto.randomUUID() })),
   );
   const [side, setSide] = useState<TaskSide>("buyer");
-  const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
+  const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [newTemplate, setNewTemplate] = useState("");
   const [openNotes, setOpenNotes] = useState<Set<string>>(new Set());
   const timers = useRef(new Map<string, number>());
+  const [added, setAdded] = useState<SideInfo[]>(customSides);
+  // The "+" form for a new task list: null when closed.
+  const [newSide, setNewSide] = useState<{
+    label: string;
+    prefix: string;
+    edited: boolean;
+  } | null>(null);
 
-  const sideInfo = SIDES.find((s) => s.value === side)!;
+  const sides = [...SIDES, ...added];
+  const sideInfo = sides.find((s) => s.value === side) ?? SIDES[0];
   const sideRows = rows.filter((r) => r.side === side);
   const templates = [...new Set(sideRows.map((r) => r.template))];
 
   const incomplete = sideRows.filter((r) => missingFor(r).length > 0).length;
-  const offList = sideRows.filter((r) => r.dateField && !dateOptions.includes(r.dateField)).length;
+  const offList = sideRows.filter(
+    (r) => r.dateField && !dateOptions.includes(r.dateField),
+  ).length;
 
   function report(ok: boolean, message?: string) {
     setStatus(ok ? "saved" : "error");
@@ -70,7 +93,12 @@ export function TaskPlanner({
     // Renaming a task keeps the tasks it's the parent of pointing at it.
     if (change.name !== undefined && row.name && change.name !== row.name) {
       for (const r of rows) {
-        if (r.key !== key && r.side === row.side && r.template === row.template && r.parentTask === row.name) {
+        if (
+          r.key !== key &&
+          r.side === row.side &&
+          r.template === row.template &&
+          r.parentTask === row.name
+        ) {
           changed.push({ ...r, parentTask: change.name });
         }
       }
@@ -131,7 +159,41 @@ export function TaskPlanner({
     setBusy(false);
     report(result.ok, result.error);
     if (result.ok && result.tasks) {
-      setRows((all) => [...all, ...result.tasks!.map((t) => ({ ...t, key: t.id! }))]);
+      setRows((all) => [
+        ...all,
+        ...result.tasks!.map((t) => ({ ...t, key: t.id! })),
+      ]);
+    }
+  }
+
+  async function createSide() {
+    if (!newSide) return;
+    const { label, prefix } = newSide;
+    if (!label.trim() || !prefix.trim()) return;
+    setBusy(true);
+    const result = await addSide(accountId, label, prefix);
+    setBusy(false);
+    report(result.ok, result.error);
+    if (result.ok && result.side) {
+      setAdded((all) => [...all, result.side!]);
+      setSide(result.side.value);
+      setNewSide(null);
+    }
+  }
+
+  async function deleteSide(info: SideInfo) {
+    const n = rows.filter((r) => r.side === info.value).length;
+    const ask = n
+      ? `Remove ${info.label} and its ${n} task${n === 1 ? "" : "s"}?`
+      : `Remove ${info.label}?`;
+    if (!window.confirm(ask)) return;
+    setStatus("saving");
+    const result = await removeSide(accountId, info.value);
+    report(result.ok, result.error);
+    if (result.ok) {
+      setAdded((all) => all.filter((s) => s.value !== info.value));
+      setRows((all) => all.filter((r) => r.side !== info.value));
+      setSide("buyer");
     }
   }
 
@@ -139,7 +201,9 @@ export function TaskPlanner({
     const name = to.trim();
     if (!name || name === from) return;
     setRows((all) =>
-      all.map((r) => (r.side === side && r.template === from ? { ...r, template: name } : r)),
+      all.map((r) =>
+        r.side === side && r.template === from ? { ...r, template: name } : r,
+      ),
     );
     const result = await renameTemplate(accountId, side, from, name);
     report(result.ok, result.error);
@@ -147,69 +211,160 @@ export function TaskPlanner({
 
   return (
     <div className="flex flex-col gap-4">
-
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1.5" role="tablist">
-          {SIDES.map((s) => {
-            const n = rows.filter((r) => r.side === s.value).length;
-            return (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap gap-1.5" role="tablist">
+            {sides.map((s) => {
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={side === s.value}
+                  onClick={() => setSide(s.value)}
+                  title={`${s.prefix} templates`}
+                  className={`rounded-lg border px-4 py-1.5 text-sm font-semibold ${
+                    side === s.value
+                      ? "border-accent bg-accent text-white"
+                      : "border-border bg-surface text-ink-soft hover:border-accent"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+          {newSide ? (
+            <form
+              className="flex flex-wrap items-center gap-1.5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void createSide();
+              }}
+            >
+              <input
+                autoFocus
+                value={newSide.label}
+                onChange={(e) => {
+                  const label = e.target.value;
+                  setNewSide({
+                    ...newSide,
+                    label,
+                    // The prefix follows the name's first letter until it's edited.
+                    prefix: newSide.edited
+                      ? newSide.prefix
+                      : label.trim().charAt(0).toUpperCase(),
+                  });
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setNewSide(null);
+                }}
+                maxLength={40}
+                placeholder="Name, e.g. Dual"
+                aria-label="New task list name"
+                className="w-36 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-ink outline-none focus:border-accent"
+              />
+              <label className="flex items-center gap-1 text-xs text-ink-soft">
+                Prefix
+                <input
+                  value={newSide.prefix}
+                  onChange={(e) =>
+                    setNewSide({
+                      ...newSide,
+                      prefix: e.target.value,
+                      edited: true,
+                    })
+                  }
+                  maxLength={6}
+                  placeholder="D"
+                  aria-label="Template prefix"
+                  className="w-12 rounded-lg border border-border bg-surface px-2 py-1.5 text-center text-sm text-ink outline-none focus:border-accent"
+                />
+              </label>
               <button
-                key={s.value}
-                type="button"
-                role="tab"
-                aria-selected={side === s.value}
-                onClick={() => setSide(s.value)}
-                className={`rounded-lg border px-4 py-1.5 text-sm font-semibold ${
-                  side === s.value
-                    ? "border-accent bg-accent text-white"
-                    : "border-border bg-surface text-ink-soft hover:border-accent"
-                }`}
+                type="submit"
+                disabled={
+                  busy || !newSide.label.trim() || !newSide.prefix.trim()
+                }
+                className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
               >
-                {s.label} <span className="opacity-70">({s.prefix})</span>
-                {n > 0 && <span className="ml-1 opacity-80">&middot; {n}</span>}
+                Add
               </button>
-            );
-          })}
+              <button
+                type="button"
+                onClick={() => setNewSide(null)}
+                className="px-1 text-xs font-semibold text-ink-soft"
+              >
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                setNewSide({ label: "", prefix: "", edited: false })
+              }
+              aria-label="Add a task list"
+              title="Add a task list"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-border text-lg leading-none text-ink-soft hover:border-accent hover:text-accent"
+            >
+              +
+            </button>
+          )}
         </div>
         <span className="text-xs text-ink-faint">
-          {sideRows.length} task{sideRows.length === 1 ? "" : "s"} in {templates.length} template
+          {sideRows.length} task{sideRows.length === 1 ? "" : "s"} in{" "}
+          {templates.length} template
           {templates.length === 1 ? "" : "s"}
           {incomplete > 0 && (
-            <span className="font-semibold text-danger"> &middot; {incomplete} to finish</span>
+            <span className="font-semibold text-danger">
+              {" "}
+              &middot; {incomplete} to finish
+            </span>
           )}
           {status === "saving" && " · Saving…"}
           {status === "saved" && " · Saved"}
-          {status === "error" && <span className="text-danger"> · {error}</span>}
+          {status === "error" && (
+            <span className="text-danger"> · {error}</span>
+          )}
         </span>
       </div>
 
-      {dateOptions.length === 0 ? (
+      {offList > 0 && (
         <p className="rounded-lg border border-warning/40 bg-warning-soft px-4 py-2.5 text-sm text-warning">
-          Date Field lists the dates you selected in{" "}
-          <Link href="/configurator/select_your_date_fields" className="font-semibold underline">
+          {offList} {sideInfo.label.toLowerCase()} task
+          {offList === 1 ? " uses a date" : "s use dates"} that isn&rsquo;t an
+          Open to Close date field (marked in yellow). Pick one from the list,
+          or add the date in{" "}
+          <Link
+            href="/configurator/select_your_date_fields"
+            className="font-semibold underline"
+          >
             Select Your Date Fields
           </Link>
-          , and you haven&rsquo;t selected any yet.
+          .
         </p>
-      ) : (
-        offList > 0 && (
-          <p className="rounded-lg border border-warning/40 bg-warning-soft px-4 py-2.5 text-sm text-warning">
-            {offList} {sideInfo.label.toLowerCase()} task{offList === 1 ? " uses a date" : "s use dates"}{" "}
-            you didn&rsquo;t select (marked in yellow). Pick one of your dates, or add it in{" "}
-            <Link href="/configurator/select_your_date_fields" className="font-semibold underline">
-              Select Your Date Fields
-            </Link>
-            .
-          </p>
-        )
+      )}
+
+      {sideInfo.custom && (
+        <div className="-mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => deleteSide(sideInfo)}
+            className="text-xs font-semibold text-ink-soft hover:text-danger"
+          >
+            Remove {sideInfo.label}
+          </button>
+        </div>
       )}
 
       {sideRows.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-surface p-8 text-center">
           <p className="text-sm text-ink-soft">
-            No {sideInfo.label.toLowerCase()} tasks yet. Start from our {SAMPLE_TASKS.length}{" "}
-            sample tasks (in General, Loan, Inspection, Termite and Home Warranty templates)
-            and make them yours, or start from scratch.
+            No {sideInfo.label.toLowerCase()} tasks yet. Start from our{" "}
+            {SAMPLE_TASKS.length} sample tasks (in General, Loan, Inspection,
+            Termite and Home Warranty templates) and make them yours, or start
+            from scratch.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <button
@@ -236,7 +391,10 @@ export function TaskPlanner({
               .filter((r) => r.template === template)
               .sort((a, b) => a.sortOrder - b.sortOrder);
             return (
-              <section key={template} className="rounded-xl border border-border bg-surface">
+              <section
+                key={template}
+                className="rounded-xl border border-border bg-surface"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5">
                   <TemplateName
                     prefix={sideInfo.prefix}
@@ -263,18 +421,35 @@ export function TaskPlanner({
                     <thead className="bg-bg text-xs text-ink-soft">
                       <tr>
                         <th className="px-2 py-2 font-semibold">Task Name*</th>
-                        <th className="px-1 py-2 text-center font-semibold" title="Critical">Crit.</th>
-                        <th className="px-1 py-2 font-semibold" title="Repeats every so many days">
+                        <th
+                          className="px-1 py-2 text-center font-semibold"
+                          title="Critical"
+                        >
+                          Crit.
+                        </th>
+                        <th
+                          className="px-1 py-2 font-semibold"
+                          title="Repeats every so many days"
+                        >
                           Recur (days)
                         </th>
                         <th className="px-1 py-2 font-semibold">Days*</th>
                         <th className="px-1 py-2 font-semibold">Time Frame</th>
                         <th className="px-1 py-2 font-semibold">When*</th>
-                        <th className="px-1 py-2 font-semibold" title="Due from a date field, or when its parent task is completed: one or the other">
+                        <th
+                          className="px-1 py-2 font-semibold"
+                          title="Due from a date field, or when its parent task is completed: one or the other"
+                        >
                           Date Field*
                         </th>
-                        <th className="px-1 py-2 font-semibold" title="Due from a date field, or when its parent task is completed: one or the other">
-                          <span className="font-normal text-ink-faint">or </span>Parent Task*
+                        <th
+                          className="px-1 py-2 font-semibold"
+                          title="Due from a date field, or when its parent task is completed: one or the other"
+                        >
+                          <span className="font-normal text-ink-faint">
+                            or{" "}
+                          </span>
+                          Parent Task*
                         </th>
                         <th className="px-2 py-2" />
                       </tr>
@@ -283,7 +458,9 @@ export function TaskPlanner({
                       {items.map((r) => {
                         const missing = missingFor(r);
                         const bad = (field: string) =>
-                          missing.includes(field) ? "border-danger/60" : "border-border";
+                          missing.includes(field)
+                            ? "border-danger/60"
+                            : "border-border";
                         const sameDay = r.timing === "same_day";
                         const notesOpen = openNotes.has(r.key);
                         return (
@@ -292,7 +469,9 @@ export function TaskPlanner({
                               <td className="px-2 py-1.5">
                                 <input
                                   value={r.name}
-                                  onChange={(e) => update(r.key, { name: e.target.value })}
+                                  onChange={(e) =>
+                                    update(r.key, { name: e.target.value })
+                                  }
                                   aria-label="Task name"
                                   title={r.name}
                                   className={`${cellInput} ${bad("a name")}`}
@@ -302,7 +481,11 @@ export function TaskPlanner({
                                 <input
                                   type="checkbox"
                                   checked={r.critical}
-                                  onChange={(e) => update(r.key, { critical: e.target.checked })}
+                                  onChange={(e) =>
+                                    update(r.key, {
+                                      critical: e.target.checked,
+                                    })
+                                  }
                                   aria-label="Critical"
                                   className="mt-1.5"
                                 />
@@ -318,7 +501,15 @@ export function TaskPlanner({
                                       recurDays:
                                         e.target.value === ""
                                           ? null
-                                          : Math.min(365, Math.max(1, Math.trunc(Number(e.target.value)))),
+                                          : Math.min(
+                                              365,
+                                              Math.max(
+                                                1,
+                                                Math.trunc(
+                                                  Number(e.target.value),
+                                                ),
+                                              ),
+                                            ),
                                     })
                                   }
                                   placeholder="—"
@@ -338,7 +529,12 @@ export function TaskPlanner({
                                       dueDays:
                                         e.target.value === ""
                                           ? null
-                                          : Math.max(0, Math.trunc(Number(e.target.value))),
+                                          : Math.max(
+                                              0,
+                                              Math.trunc(
+                                                Number(e.target.value),
+                                              ),
+                                            ),
                                     })
                                   }
                                   aria-label="Due days"
@@ -351,7 +547,8 @@ export function TaskPlanner({
                                   disabled={sameDay}
                                   onChange={(e) =>
                                     update(r.key, {
-                                      timeFrame: (e.target.value || null) as PlannedTask["timeFrame"],
+                                      timeFrame: (e.target.value ||
+                                        null) as PlannedTask["timeFrame"],
                                     })
                                   }
                                   aria-label="Time frame"
@@ -370,7 +567,8 @@ export function TaskPlanner({
                                   value={r.timing ?? ""}
                                   onChange={(e) =>
                                     update(r.key, {
-                                      timing: (e.target.value || null) as PlannedTask["timing"],
+                                      timing: (e.target.value ||
+                                        null) as PlannedTask["timing"],
                                     })
                                   }
                                   aria-label="When"
@@ -385,37 +583,47 @@ export function TaskPlanner({
                                 </select>
                               </td>
                               <td className="px-1 py-1.5">
-                                {/* The dates they checked in Select Your Date Fields;
-                                    one that isn't (from the samples, or since
-                                    unchecked) still shows, flagged. */}
+                                {/* Every date field; one that isn't (from the
+                                    samples) still shows, flagged. */}
                                 <select
                                   value={r.dateField}
                                   disabled={Boolean(r.parentTask)}
-                                  onChange={(e) => update(r.key, { dateField: e.target.value })}
+                                  onChange={(e) =>
+                                    update(r.key, { dateField: e.target.value })
+                                  }
                                   aria-label="Date field"
                                   title={
-                                    r.dateField && !dateOptions.includes(r.dateField)
-                                      ? `${r.dateField} isn't one of the dates you selected`
+                                    r.dateField &&
+                                    !dateOptions.includes(r.dateField)
+                                      ? `${r.dateField} isn't an Open to Close date field`
                                       : r.dateField
                                   }
                                   className={`${cellInput} disabled:opacity-40 ${
-                                    r.dateField && !dateOptions.includes(r.dateField)
+                                    r.dateField &&
+                                    !dateOptions.includes(r.dateField)
                                       ? "border-warning bg-warning-soft"
                                       : bad("a date field or parent task")
                                   }`}
                                 >
                                   <option value="">
-                                    {r.parentTask ? "From parent task" : "Choose a date…"}
+                                    {r.parentTask
+                                      ? "From parent task"
+                                      : "Choose a date…"}
                                   </option>
-                                  {r.dateField && !dateOptions.includes(r.dateField) && (
-                                    <option value={r.dateField}>
-                                      {r.dateField} (not one of your dates)
-                                    </option>
-                                  )}
-                                  {dateOptions.map((d) => (
-                                    <option key={d} value={d}>
-                                      {d}
-                                    </option>
+                                  {r.dateField &&
+                                    !dateOptions.includes(r.dateField) && (
+                                      <option value={r.dateField}>
+                                        {r.dateField} (not a date field)
+                                      </option>
+                                    )}
+                                  {dateGroups.map((g) => (
+                                    <optgroup key={g.section} label={g.section}>
+                                      {g.names.map((d) => (
+                                        <option key={d} value={d}>
+                                          {d}
+                                        </option>
+                                      ))}
+                                    </optgroup>
                                   ))}
                                 </select>
                               </td>
@@ -426,16 +634,25 @@ export function TaskPlanner({
                                   value={r.parentTask}
                                   disabled={Boolean(r.dateField.trim())}
                                   onChange={(e) =>
-                                    update(r.key, { parentTask: e.target.value, dateField: "" })
+                                    update(r.key, {
+                                      parentTask: e.target.value,
+                                      dateField: "",
+                                    })
                                   }
                                   aria-label="Parent task"
                                   title={r.parentTask}
                                   className={`${cellInput} disabled:opacity-40 ${bad("a date field or parent task")}`}
                                 >
-                                  <option value="">{r.dateField.trim() ? "From date field" : "None"}</option>
+                                  <option value="">
+                                    {r.dateField.trim()
+                                      ? "From date field"
+                                      : "None"}
+                                  </option>
                                   {[
                                     ...new Set([
-                                      ...items.filter((o) => o.key !== r.key).map((o) => o.name),
+                                      ...items
+                                        .filter((o) => o.key !== r.key)
+                                        .map((o) => o.name),
                                       ...(r.parentTask ? [r.parentTask] : []),
                                     ]),
                                   ]
@@ -471,7 +688,9 @@ export function TaskPlanner({
                                 <td colSpan={9} className="px-2 pb-2">
                                   <textarea
                                     value={r.notes}
-                                    onChange={(e) => update(r.key, { notes: e.target.value })}
+                                    onChange={(e) =>
+                                      update(r.key, { notes: e.target.value })
+                                    }
                                     rows={2}
                                     placeholder="Notes for whoever does this task"
                                     aria-label="Notes"
@@ -509,7 +728,9 @@ export function TaskPlanner({
               void addTask(name);
             }}
           >
-            <span className="text-sm font-semibold text-ink-soft">{sideInfo.prefix}</span>
+            <span className="text-sm font-semibold text-ink-soft">
+              {sideInfo.prefix}
+            </span>
             <input
               value={newTemplate}
               onChange={(e) => setNewTemplate(e.target.value)}
@@ -606,7 +827,17 @@ function ConfirmDelete({ onConfirm }: { onConfirm: () => void }) {
       title="Delete task"
       className="align-middle text-ink-faint hover:text-danger"
     >
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
         <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
       </svg>
     </button>

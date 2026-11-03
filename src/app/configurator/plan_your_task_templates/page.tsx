@@ -3,9 +3,15 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { getSandboxTier } from "@/lib/devSandbox";
-import { OTC_FIELDS } from "@/lib/otcFields";
-import { isActive, newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
-import type { PlannedTask, TaskSide } from "@/lib/taskPlans";
+import { OTC_FIELDS, sectionById } from "@/lib/otcFields";
+import {
+  isActive,
+  NEW_OTC_PREFIX,
+  newOtcFieldsFrom,
+  type WorkflowField,
+} from "@/lib/workflowFields";
+import { customSide, type PlannedTask, type TaskSide } from "@/lib/taskPlans";
+import type { DateGroup } from "@/components/TaskPlanner";
 import { TaskPlanner } from "@/components/TaskPlanner";
 import { finishTaskPlans } from "./actions";
 
@@ -46,7 +52,7 @@ export default async function PlanYourTaskTemplatesPage({
       : null
     : (profile?.client_account_id ?? null);
 
-  const [{ data: saved }, { data: docs }, { data: chosenDates }] = accountId
+  const [{ data: saved }, { data: docs }, { data: prepDates }, { data: addedSides }] = accountId
     ? await Promise.all([
         supabase
           .from("client_task_plans")
@@ -57,14 +63,18 @@ export default async function PlanYourTaskTemplatesPage({
           .from("contract_documents")
           .select("workflow_fields")
           .eq("client_account_id", accountId),
-        // The dates the client checked in Select Your Date Fields.
+        // For dates the client added in Select Your Date Fields.
         supabase
           .from("date_calculations")
           .select("otc_field, field_name")
+          .eq("client_account_id", accountId),
+        supabase
+          .from("client_task_sides")
+          .select("id, label, prefix")
           .eq("client_account_id", accountId)
-          .eq("enabled", true),
+          .order("sort_order"),
       ])
-    : [{ data: [] }, { data: [] }, { data: [] }];
+    : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
 
   const tasks: PlannedTask[] = (saved ?? []).map((r) => ({
     id: r.id,
@@ -82,23 +92,31 @@ export default async function PlanYourTaskTemplatesPage({
     sortOrder: r.sort_order,
   }));
 
-  // Date Field choices: the dates the client checked in Select Your Date
-  // Fields (by name), in OTC's order, then their own.
+  // Date Field choices: every date, not just the ones auto-calculated in
+  // Select Your Date Fields. OTC's dates by section, in OTC's order, then
+  // date fields the client added (assigning their contracts, or in date
+  // prep).
   const assigned = (docs ?? [])
     .flatMap((d) => (Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : []))
     .filter(isActive);
-  const nameOf = new Map(
-    [...OTC_FIELDS, ...newOtcFieldsFrom(assigned)].map((f) => [f.id, f.name] as const),
-  );
-  const order = new Map(OTC_FIELDS.map((f, i) => [f.id, i] as const));
-  const dateOptions = [
-    ...new Set(
-      [...(chosenDates ?? [])]
-        .sort((a, b) => (order.get(a.otc_field) ?? 9999) - (order.get(b.otc_field) ?? 9999))
-        .map((d) => nameOf.get(d.otc_field) ?? d.field_name ?? "")
-        .filter(Boolean),
-    ),
-  ];
+  const dateGroups: DateGroup[] = [];
+  const seen = new Set<string>();
+  const add = (section: string, name: string) => {
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    const group = dateGroups.find((g) => g.section === section);
+    if (group) group.names.push(name);
+    else dateGroups.push({ section, names: [name] });
+  };
+  for (const f of OTC_FIELDS) {
+    if (f.kind === "date") add(sectionById(f.sectionId)?.name ?? "Open to Close", f.name);
+  }
+  for (const f of newOtcFieldsFrom(assigned)) {
+    if (f.kind === "date") add("Your new fields", f.name);
+  }
+  for (const d of prepDates ?? []) {
+    if (d.otc_field.startsWith(NEW_OTC_PREFIX) && d.field_name) add("Your new fields", d.field_name);
+  }
 
   return (
     <main className="flex flex-1 justify-center bg-bg px-4 py-12">
@@ -167,7 +185,8 @@ export default async function PlanYourTaskTemplatesPage({
               key={accountId}
               accountId={isStaff ? accountId : null}
               initial={tasks}
-              dateOptions={dateOptions}
+              dateGroups={dateGroups}
+              customSides={(addedSides ?? []).map(customSide)}
             />
           ) : (
             <p className="rounded-xl border border-border bg-surface p-6 text-sm text-ink-soft">

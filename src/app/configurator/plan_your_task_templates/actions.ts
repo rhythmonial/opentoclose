@@ -6,9 +6,11 @@ import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
 import { SAMPLE_TASKS } from "@/lib/sampleTasks";
 import {
   cleanTask,
+  customSide,
   SIDES,
   TASK_COMPLETED,
   type PlannedTask,
+  type SideInfo,
   type TaskSide,
 } from "@/lib/taskPlans";
 
@@ -27,13 +29,23 @@ const SAMPLE_DATE_NAMES: Record<string, string> = {
   "Final Walkthrough Date": "Final Walkthough Date",
 };
 
-const isSide = (s: unknown): s is TaskSide => SIDES.some((x) => x.value === s);
+type Supabase = Awaited<ReturnType<typeof configuratorAccount>>["supabase"];
+
+// The sides a client's tasks can be on: Buyer, Seller, Listing and the task
+// lists they added.
+async function sidesOf(supabase: Supabase, account: string) {
+  const { data } = await supabase
+    .from("client_task_sides")
+    .select("id")
+    .eq("client_account_id", account);
+  return [...SIDES.map((s) => s.value), ...(data ?? []).map((r) => r.id)];
+}
 
 // Saves one task (adding it the first time).
 export async function saveTask(accountId: string | null, task: PlannedTask): Promise<Result> {
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   if (!account) return { ok: false, error: "Not signed in." };
-  const row = cleanTask(task);
+  const row = cleanTask(task, await sidesOf(supabase, account));
   if (!row) return { ok: false, error: "Unknown side." };
 
   if (task.id) {
@@ -76,7 +88,9 @@ export async function addSampleTasks(
   side: TaskSide,
 ): Promise<Result & { tasks?: PlannedTask[] }> {
   const { supabase, accountId: account } = await configuratorAccount(accountId);
-  if (!account || !isSide(side)) return { ok: false, error: "Not signed in." };
+  if (!account) return { ok: false, error: "Not signed in." };
+  const sides = await sidesOf(supabase, account);
+  if (!sides.includes(side)) return { ok: false, error: "Unknown side." };
   const { count } = await supabase
     .from("client_task_plans")
     .select("id", { count: "exact", head: true })
@@ -85,7 +99,8 @@ export async function addSampleTasks(
   if ((count ?? 0) > 0) return { ok: false, error: "This side already has tasks." };
 
   const rows = SAMPLE_TASKS.map((t, i) => ({
-    ...cleanTask({
+    ...cleanTask(
+      {
       side,
       template: t.template,
       name: t.name,
@@ -100,7 +115,9 @@ export async function addSampleTasks(
       dateField: t.dateField === TASK_COMPLETED ? "" : (SAMPLE_DATE_NAMES[t.dateField] ?? t.dateField),
       parentTask: t.dateField === TASK_COMPLETED ? t.parent : "",
       sortOrder: i,
-    })!,
+      },
+      sides,
+    )!,
     client_account_id: account,
   }));
   const { data, error } = await supabase.from("client_task_plans").insert(rows).select("*");
@@ -137,13 +154,60 @@ export async function renameTemplate(
 ): Promise<Result> {
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   const name = to.trim().slice(0, 80);
-  if (!account || !isSide(side) || !name) return { ok: false };
+  if (!account || !name) return { ok: false };
+  if (!(await sidesOf(supabase, account)).includes(side)) return { ok: false };
   const { error } = await supabase
     .from("client_task_plans")
     .update({ template: name, updated_at: new Date().toISOString() })
     .eq("client_account_id", account)
     .eq("side", side)
     .eq("template", from);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  return { ok: true };
+}
+
+// Adds a task list beside Buyer, Seller and Listing.
+export async function addSide(
+  accountId: string | null,
+  label: string,
+  prefix: string,
+): Promise<Result & { side?: SideInfo }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const trimmed = label.trim().slice(0, 40);
+  const name = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  const short = prefix.trim().replace(/\s*-$/, "").slice(0, 6);
+  if (!name || !short) return { ok: false, error: "Give it a name and a prefix." };
+  const { count } = await supabase
+    .from("client_task_sides")
+    .select("id", { count: "exact", head: true })
+    .eq("client_account_id", account);
+  const { data, error } = await supabase
+    .from("client_task_sides")
+    .insert({ client_account_id: account, label: name, prefix: short, sort_order: count ?? 0 })
+    .select("id, label, prefix")
+    .single();
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  return { ok: true, side: customSide(data) };
+}
+
+// Removes a task list the client added, and its tasks.
+export async function removeSide(accountId: string | null, id: string): Promise<Result> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account || !UUID.test(id)) return { ok: false };
+  const { error: tasksError } = await supabase
+    .from("client_task_plans")
+    .delete()
+    .eq("client_account_id", account)
+    .eq("side", id);
+  if (tasksError) return { ok: false, error: tasksError.message };
+  const { error } = await supabase
+    .from("client_task_sides")
+    .delete()
+    .eq("client_account_id", account)
+    .eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(PAGE);
   return { ok: true };
