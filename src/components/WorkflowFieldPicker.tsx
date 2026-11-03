@@ -779,10 +779,7 @@ function FieldTypeMenu({
           choiceField={optionOf ?? "this choice field"}
           // The contract's text next to a checkbox (like "Conventional,") is
           // usually the option's title.
-          defaultTitle={
-            value.option_title ??
-            (label === "Unlabeled field" ? "" : label.replace(/[\s,:;.]+$/, ""))
-          }
+          defaultTitle={value.option_title ?? suggestedTitle(label)}
           onSave={(title) => {
             onChange({ ...value, option_title: title });
             onClose();
@@ -1088,6 +1085,14 @@ function NewOtcFieldForm({
       </div>
     </form>
   );
+}
+
+// A choice option's title, suggested from the contract's text beside it
+// (like "check," becomes "Check").
+function suggestedTitle(label: string) {
+  if (label === "Unlabeled field") return "";
+  const t = label.replace(/^[\s,:;.]+|[\s,:;.]+$/g, "");
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
 // Asks what a choice option is called in its choice field's list.
