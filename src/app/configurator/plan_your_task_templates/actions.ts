@@ -18,6 +18,15 @@ const UUID = /^[0-9a-f-]{36}$/i;
 
 type Result = { ok: boolean; error?: string; id?: string };
 
+// The sample sheet's date names, as OTC names those dates (the ones with a
+// clear match; the rest stay as written).
+const SAMPLE_DATE_NAMES: Record<string, string> = {
+  "Contract Date": "Acceptance Date",
+  "Earnest Money Due Date": "Earnest Money Due - Date",
+  "Inspection Contingency Date": "Inspection Period Date",
+  "Final Walkthrough Date": "Final Walkthough Date",
+};
+
 const isSide = (s: unknown): s is TaskSide => SIDES.some((x) => x.value === s);
 
 // Saves one task (adding it the first time).
@@ -88,7 +97,7 @@ export async function addSampleTasks(
       timing: t.timing,
       // "Task Completed" means due from the parent task; otherwise the date
       // field stands (a few samples name an email there, not a task).
-      dateField: t.dateField === TASK_COMPLETED ? "" : t.dateField,
+      dateField: t.dateField === TASK_COMPLETED ? "" : (SAMPLE_DATE_NAMES[t.dateField] ?? t.dateField),
       parentTask: t.dateField === TASK_COMPLETED ? t.parent : "",
       sortOrder: i,
     })!,

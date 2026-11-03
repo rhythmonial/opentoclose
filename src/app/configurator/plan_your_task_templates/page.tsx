@@ -46,7 +46,7 @@ export default async function PlanYourTaskTemplatesPage({
       : null
     : (profile?.client_account_id ?? null);
 
-  const [{ data: saved }, { data: docs }, { data: addedDates }] = accountId
+  const [{ data: saved }, { data: docs }, { data: chosenDates }] = accountId
     ? await Promise.all([
         supabase
           .from("client_task_plans")
@@ -57,12 +57,12 @@ export default async function PlanYourTaskTemplatesPage({
           .from("contract_documents")
           .select("workflow_fields")
           .eq("client_account_id", accountId),
-        // Dates the client added in Select Your Date Fields.
+        // The dates the client checked in Select Your Date Fields.
         supabase
           .from("date_calculations")
-          .select("field_name")
+          .select("otc_field, field_name")
           .eq("client_account_id", accountId)
-          .not("field_name", "is", null),
+          .eq("enabled", true),
       ])
     : [{ data: [] }, { data: [] }, { data: [] }];
 
@@ -82,18 +82,22 @@ export default async function PlanYourTaskTemplatesPage({
     sortOrder: r.sort_order,
   }));
 
-  // Date fields to suggest: OTC's, plus any the client added.
+  // Date Field choices: the dates the client checked in Select Your Date
+  // Fields (by name), in OTC's order, then their own.
   const assigned = (docs ?? [])
     .flatMap((d) => (Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : []))
     .filter(isActive);
+  const nameOf = new Map(
+    [...OTC_FIELDS, ...newOtcFieldsFrom(assigned)].map((f) => [f.id, f.name] as const),
+  );
+  const order = new Map(OTC_FIELDS.map((f, i) => [f.id, i] as const));
   const dateOptions = [
-    ...new Set([
-      ...OTC_FIELDS.filter((f) => f.kind === "date").map((f) => f.name),
-      ...newOtcFieldsFrom(assigned)
-        .filter((f) => f.kind === "date")
-        .map((f) => f.name),
-      ...(addedDates ?? []).map((d) => d.field_name!).filter(Boolean),
-    ]),
+    ...new Set(
+      [...(chosenDates ?? [])]
+        .sort((a, b) => (order.get(a.otc_field) ?? 9999) - (order.get(b.otc_field) ?? 9999))
+        .map((d) => nameOf.get(d.otc_field) ?? d.field_name ?? "")
+        .filter(Boolean),
+    ),
   ];
 
   return (

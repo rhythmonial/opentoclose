@@ -1,10 +1,10 @@
 "use client";
 
 import { Fragment, useRef, useState } from "react";
+import Link from "next/link";
 import {
   missingFor,
   SIDES,
-  TASK_COMPLETED,
   TASK_TIME_FRAMES,
   TIMINGS,
   type PlannedTask,
@@ -54,10 +54,9 @@ export function TaskPlanner({
   const sideInfo = SIDES.find((s) => s.value === side)!;
   const sideRows = rows.filter((r) => r.side === side);
   const templates = [...new Set(sideRows.map((r) => r.template))];
-  const dateFieldList = [...new Set([...dateOptions, ...rows.map((r) => r.dateField)])].filter(
-    (d) => d && d !== TASK_COMPLETED,
-  );
+
   const incomplete = sideRows.filter((r) => missingFor(r).length > 0).length;
+  const offList = sideRows.filter((r) => r.dateField && !dateOptions.includes(r.dateField)).length;
 
   function report(ok: boolean, message?: string) {
     setStatus(ok ? "saved" : "error");
@@ -148,11 +147,6 @@ export function TaskPlanner({
 
   return (
     <div className="flex flex-col gap-4">
-      <datalist id="task-date-fields">
-        {dateFieldList.map((d) => (
-          <option key={d} value={d} />
-        ))}
-      </datalist>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-1.5" role="tablist">
@@ -188,6 +182,27 @@ export function TaskPlanner({
           {status === "error" && <span className="text-danger"> · {error}</span>}
         </span>
       </div>
+
+      {dateOptions.length === 0 ? (
+        <p className="rounded-lg border border-warning/40 bg-warning-soft px-4 py-2.5 text-sm text-warning">
+          Date Field lists the dates you selected in{" "}
+          <Link href="/configurator/select_your_date_fields" className="font-semibold underline">
+            Select Your Date Fields
+          </Link>
+          , and you haven&rsquo;t selected any yet.
+        </p>
+      ) : (
+        offList > 0 && (
+          <p className="rounded-lg border border-warning/40 bg-warning-soft px-4 py-2.5 text-sm text-warning">
+            {offList} {sideInfo.label.toLowerCase()} task{offList === 1 ? " uses a date" : "s use dates"}{" "}
+            you didn&rsquo;t select (marked in yellow). Pick one of your dates, or add it in{" "}
+            <Link href="/configurator/select_your_date_fields" className="font-semibold underline">
+              Select Your Date Fields
+            </Link>
+            .
+          </p>
+        )
+      )}
 
       {sideRows.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-surface p-8 text-center">
@@ -370,16 +385,39 @@ export function TaskPlanner({
                                 </select>
                               </td>
                               <td className="px-1 py-1.5">
-                                <input
-                                  list="task-date-fields"
+                                {/* The dates they checked in Select Your Date Fields;
+                                    one that isn't (from the samples, or since
+                                    unchecked) still shows, flagged. */}
+                                <select
                                   value={r.dateField}
                                   disabled={Boolean(r.parentTask)}
                                   onChange={(e) => update(r.key, { dateField: e.target.value })}
-                                  placeholder={r.parentTask ? "From parent task" : "Choose or type"}
                                   aria-label="Date field"
-                                  title={r.dateField}
-                                  className={`${cellInput} disabled:opacity-40 ${bad("a date field or parent task")}`}
-                                />
+                                  title={
+                                    r.dateField && !dateOptions.includes(r.dateField)
+                                      ? `${r.dateField} isn't one of the dates you selected`
+                                      : r.dateField
+                                  }
+                                  className={`${cellInput} disabled:opacity-40 ${
+                                    r.dateField && !dateOptions.includes(r.dateField)
+                                      ? "border-warning bg-warning-soft"
+                                      : bad("a date field or parent task")
+                                  }`}
+                                >
+                                  <option value="">
+                                    {r.parentTask ? "From parent task" : "Choose a date…"}
+                                  </option>
+                                  {r.dateField && !dateOptions.includes(r.dateField) && (
+                                    <option value={r.dateField}>
+                                      {r.dateField} (not one of your dates)
+                                    </option>
+                                  )}
+                                  {dateOptions.map((d) => (
+                                    <option key={d} value={d}>
+                                      {d}
+                                    </option>
+                                  ))}
+                                </select>
                               </td>
                               <td className="px-1 py-1.5">
                                 {/* The other tasks in this template; due when the
