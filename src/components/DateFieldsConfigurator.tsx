@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   calcComplete,
   DIRECTIONS,
@@ -42,12 +42,34 @@ export function DateFieldsConfigurator({
   numbers: FieldOption[];
   initial: DateCalc[];
 }) {
+  const [saveState, setSaveState] = useState<"saving" | "saved" | "error" | null>(null);
+  // When a date's days are a blank on the client's contract (its "- Days"
+  // number field was assigned in their field prep), say so.
+  const blankFromContract = (date: FieldOption): Partial<DateCalc> => {
+    const number = matchingNumberField(date.name, numbers);
+    return number?.onContract ? { days_on_contract: true, number_field: number.id } : {};
+  };
+  // Dates on the client's contracts start checked (unless they've already
+  // decided), so they don't have to select them.
+  const [auto] = useState(() => {
+    const saved = new Set(initial.map((c) => c.otc_field));
+    return dates
+      .filter((d) => d.onContract && !saved.has(d.id))
+      .map((d) => ({ ...emptyCalc(d.id), enabled: true, ...blankFromContract(d) }));
+  });
   const [calcs, setCalcs] = useState(
-    () => new Map(initial.map((c) => [c.otc_field, c] as const)),
+    () => new Map([...initial, ...auto].map((c) => [c.otc_field, c] as const)),
   );
+  const savedAuto = useRef(false);
+  useEffect(() => {
+    if (savedAuto.current || auto.length === 0) return;
+    savedAuto.current = true;
+    void Promise.all(auto.map((c) => saveDateCalc(accountId, c))).then((results) =>
+      setSaveState(results.every((r) => r.ok) ? "saved" : "error"),
+    );
+  }, [auto, accountId]);
   const [query, setQuery] = useState("");
   const [onlyChecked, setOnlyChecked] = useState(false);
-  const [saveState, setSaveState] = useState<"saving" | "saved" | "error" | null>(null);
   const timers = useRef(new Map<string, number>());
 
   const calcFor = (id: string) => calcs.get(id) ?? emptyCalc(id);
@@ -168,23 +190,52 @@ export function DateFieldsConfigurator({
                     on ? "border-accent/50 shadow-sm" : "border-border"
                   }`}
                 >
-                  <label className="flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1">
-                    <input
-                      type="checkbox"
-                      checked={on}
-                      onChange={(e) => update(d.id, { enabled: e.target.checked })}
-                      className="h-4 w-4"
-                    />
-                    <span className={`font-semibold ${on ? "text-ink" : "text-ink-faint"}`}>
-                      {d.name}
-                    </span>
-                    <span className="text-xs text-ink-faint">{d.section}</span>
-                    {d.onContract && (
-                      <span className="rounded bg-gold/20 px-1 py-px text-[10px] font-bold uppercase text-ink">
-                        On your contract
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                    <label className="flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={(e) =>
+                          update(d.id, {
+                            enabled: e.target.checked,
+                            // Checking a date for the first time fills in its
+                            // days from the contract, when they're a blank there.
+                            ...(e.target.checked &&
+                            c.days === null &&
+                            !c.days_on_contract &&
+                            !c.number_field
+                              ? blankFromContract(d)
+                              : {}),
+                          })
+                        }
+                        className="h-4 w-4"
+                      />
+                      <span className={`font-semibold ${on ? "text-ink" : "text-ink-faint"}`}>
+                        {d.name}
                       </span>
-                    )}
-                  </label>
+                      {d.onContract && (
+                        <span className="rounded bg-gold/20 px-1 py-px text-[10px] font-bold uppercase text-ink">
+                          On your contract
+                        </span>
+                      )}
+                    </label>
+                    <label
+                      className={`flex items-center gap-2 transition-opacity ${on ? "" : "opacity-40"}`}
+                    >
+                      <span className={`whitespace-nowrap ${labelClass(missing(c.relative_to))}`}>
+                        Date Field
+                      </span>
+                      <select
+                        disabled={!on}
+                        value={c.relative_to ?? ""}
+                        onChange={(e) => update(d.id, { relative_to: e.target.value || null })}
+                        className={`${inputClass} w-60 py-1.5`}
+                      >
+                        <option value="">Choose Date Field</option>
+                        {optionGroups(dates, d.id)}
+                      </select>
+                    </label>
+                  </div>
 
                   {/* Faded and locked until the date is checked. */}
                   <fieldset
@@ -286,18 +337,6 @@ export function DateFieldsConfigurator({
                         }
                       />
                       The days are a blank line on the contract that the agent fills in
-                    </label>
-
-                    <label className="flex flex-col gap-1 sm:w-1/2">
-                      <span className={labelClass(missing(c.relative_to))}>Date Field</span>
-                      <select
-                        value={c.relative_to ?? ""}
-                        onChange={(e) => update(d.id, { relative_to: e.target.value || null })}
-                        className={inputClass}
-                      >
-                        <option value="">Choose Date Field</option>
-                        {optionGroups(dates, d.id)}
-                      </select>
                     </label>
 
                     <div className="grid grid-cols-1 gap-3 border-t border-border pt-3 sm:grid-cols-3">
