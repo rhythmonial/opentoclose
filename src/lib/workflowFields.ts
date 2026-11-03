@@ -31,6 +31,9 @@ export type WorkflowField = {
   // For an option whose choice field the client is adding to OTC (a
   // NEW_OTC_PREFIX question_id): the section it goes in.
   question_section?: string;
+  // A choice option's title, as it should read in the choice field's list
+  // of selections (e.g. "Conventional").
+  option_title?: string;
   // The Open to Close field it fills: a built-in one (see otcFields), or a
   // NEW_OTC_PREFIX id for one the client is adding, with its name and the
   // section it goes in.
@@ -84,7 +87,10 @@ export function isComplete(field: WorkflowField): boolean {
   if (needsOtcField(field) && !field.otc_field) return false;
   if (field.type === "decimal") return Boolean(field.decimal_format);
   if (field.type === "choice") {
-    return field.choice_role === "question" || (field.choice_role === "option" && Boolean(field.question_id));
+    return (
+      field.choice_role === "question" ||
+      (field.choice_role === "option" && Boolean(field.question_id) && Boolean(field.option_title))
+    );
   }
   return true;
 }
@@ -143,6 +149,9 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
             : (keys.get(f.question_id) ?? f.question_id);
         if (isNew && typeof f.question_text === "string") {
           clean.question_text = f.question_text.trim().slice(0, 200);
+        }
+        if (typeof f.option_title === "string" && f.option_title.trim()) {
+          clean.option_title = f.option_title.trim().slice(0, 120);
         }
         if (
           f.question_id.startsWith(NEW_OTC_PREFIX) &&

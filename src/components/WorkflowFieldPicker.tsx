@@ -51,6 +51,7 @@ export function WorkflowFieldPicker({
   initialFields,
   extraOtcFields = [],
   onSave,
+  onChange,
 }: {
   source: ArrayBuffer | string;
   pageCount: number;
@@ -59,6 +60,8 @@ export function WorkflowFieldPicker({
   // OTC fields the client added on their other contracts.
   extraOtcFields?: OtcField[];
   onSave?: (fields: WorkflowField[]) => Promise<{ ok: boolean }>;
+  // Called with every change, as it happens.
+  onChange?: (fields: WorkflowField[]) => void;
 }) {
   const { doc, error } = usePdfDocument(source);
   const [page, setPage] = useState(1);
@@ -137,6 +140,7 @@ export function WorkflowFieldPicker({
 
   function update(next: Map<string, WorkflowField>) {
     setPicks(next);
+    onChange?.([...next.values()]);
     if (!onSave) return;
     if (timer.current) window.clearTimeout(timer.current);
     setSaveState("saving");
@@ -273,7 +277,7 @@ export function WorkflowFieldPicker({
                       removed
                         ? `${label} (removed)`
                         : answers
-                          ? `${label} (option for ${answers})`
+                          ? `${pick?.option_title ?? label} (option for ${answers})`
                           : pick?.otc_field
                             ? `${label} → OTC: ${otcName(pick.otc_field)}`
                             : label
@@ -447,11 +451,13 @@ function FieldTypeMenu({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<
-    "types" | "questions" | "new" | "otc" | "otc-new"
+    "types" | "questions" | "new" | "otc" | "otc-new" | "option-title"
   >(
     value?.choice_role === "option" && !value.question_id
       ? "questions"
-      : value && !value.removed && needsOtcField(value) && !value.otc_field
+      : value?.choice_role === "option" && !value.option_title
+        ? "option-title"
+        : value && !value.removed && needsOtcField(value) && !value.otc_field
         ? "otc"
         : "types",
   );
@@ -564,14 +570,22 @@ function FieldTypeMenu({
     .map((id) => choicePool.find((f) => f.id === id))
     .filter((f): f is OtcField => Boolean(f));
 
+  // An option is tied to its choice field, then asked for its title.
   function chooseChoiceField(field: OtcField) {
-    choose({
+    onChange({
+      id: fieldKey,
       type: "choice",
       choice_role: "option",
       question_id: field.id,
       ...(field.isNew ? { question_text: field.name, question_section: field.sectionId } : {}),
+      ...(isOption && value?.option_title ? { option_title: value.option_title } : {}),
     });
+    setView("option-title");
   }
+
+  const optionOf = isOption
+    ? (otcFields.find((f) => f.id === value?.question_id)?.name ?? value?.question_text)
+    : undefined;
 
   return (
     <div
@@ -607,6 +621,28 @@ function FieldTypeMenu({
         </button>
       ) : view === "types" ? (
         <>
+          {isOption && optionOf && (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                data-menu-item
+                onClick={() => setView("option-title")}
+                className={`${itemClass} flex-col !items-start gap-0`}
+              >
+                <span className="text-[11px] font-medium text-ink-faint">
+                  Option for {optionOf}
+                </span>
+                <span className="flex w-full items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate font-semibold">
+                    {value?.option_title || "No title yet"}
+                  </span>
+                  <span className="text-xs font-semibold text-accent">Change</span>
+                </span>
+              </button>
+              <div className="my-1 border-t border-border" />
+            </>
+          )}
           {assigned && (
             <>
               <button
@@ -725,6 +761,21 @@ function FieldTypeMenu({
             })
           }
           onBack={() => setView("questions")}
+        />
+      ) : view === "option-title" && value ? (
+        <OptionTitleForm
+          choiceField={optionOf ?? "this choice field"}
+          // The contract's text next to a checkbox (like "Conventional,") is
+          // usually the option's title.
+          defaultTitle={
+            value.option_title ??
+            (label === "Unlabeled field" ? "" : label.replace(/[\s,:;.]+$/, ""))
+          }
+          onSave={(title) => {
+            onChange({ ...value, option_title: title });
+            onClose();
+          }}
+          onChangeField={() => setView("questions")}
         />
       ) : view === "otc" && value ? (
         <OtcFieldList
@@ -1023,6 +1074,62 @@ function NewOtcFieldForm({
           className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
         >
           {kind === "contact" ? "Add role" : "Add field"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// Asks what a choice option is called in its choice field's list.
+function OptionTitleForm({
+  choiceField,
+  defaultTitle,
+  onSave,
+  onChangeField,
+}: {
+  choiceField: string;
+  defaultTitle: string;
+  onSave: (title: string) => void;
+  onChangeField: () => void;
+}) {
+  const [title, setTitle] = useState(defaultTitle);
+
+  return (
+    <form
+      className="flex flex-col gap-2.5 p-1.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (title.trim()) onSave(title.trim());
+      }}
+    >
+      <p className="text-xs text-ink-soft">
+        Option for <span className="font-semibold text-ink">{choiceField}</span>
+      </p>
+      <label className="flex flex-col gap-1">
+        <span className="text-xs font-medium text-ink-soft">Option title</span>
+        <input
+          data-autofocus
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={120}
+          placeholder="e.g. Conventional"
+          className="rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
+        />
+      </label>
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onChangeField}
+          className="text-xs font-semibold text-ink-soft"
+        >
+          &lsaquo; Choice field
+        </button>
+        <button
+          type="submit"
+          disabled={!title.trim()}
+          className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          Save option
         </button>
       </div>
     </form>

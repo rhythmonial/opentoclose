@@ -4,6 +4,8 @@ import { useState } from "react";
 import { openPdf } from "@/lib/pdfjs";
 import { analyzeContract, type ContractAnalysis } from "@/lib/contractBlanks";
 import { WorkflowFieldPicker } from "@/components/WorkflowFieldPicker";
+import { NewFieldsSummary } from "@/components/NewFieldsSummary";
+import type { WorkflowField } from "@/lib/workflowFields";
 
 // Staff test mode for Assign Your Workflow Fields: pick any PDF, it's read
 // for fields the way an upload is, and the picker runs on it. Nothing is
@@ -11,6 +13,7 @@ import { WorkflowFieldPicker } from "@/components/WorkflowFieldPicker";
 export function WorkflowFieldsTester() {
   const [file, setFile] = useState<{ bytes: ArrayBuffer; analysis: ContractAnalysis } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [fields, setFields] = useState<WorkflowField[]>([]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -27,6 +30,7 @@ export function WorkflowFieldsTester() {
             const picked = e.target.files?.[0];
             if (!picked) return;
             setFile(null);
+            setFields([]);
             setStatus("Reading…");
             try {
               const bytes = await picked.arrayBuffer();
@@ -49,8 +53,10 @@ export function WorkflowFieldsTester() {
           pageCount={file.analysis.pageCount}
           blanks={file.analysis.blanks}
           initialFields={[]}
+          onChange={setFields}
         />
       )}
+      {file && <NewFieldsSummary fields={fields} />}
     </div>
   );
 }
