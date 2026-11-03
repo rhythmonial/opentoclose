@@ -243,6 +243,14 @@ function ContactFileCard({
               Download in OTC import format
             </button>
           )}
+          <a
+            href={`/configurator/prep_contact_roles_for_setup/view/${file.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent"
+          >
+            View
+          </a>
           {confirming ? (
             <button
               type="button"

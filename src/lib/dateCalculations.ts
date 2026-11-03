@@ -58,7 +58,8 @@ export const emptyCalc = (otcField: string): DateCalc => ({
   days: null,
   days_on_contract: false,
   number_field: null,
-  time_frame: null,
+  // Calendar days unless the client picks another time frame.
+  time_frame: "calendar_days",
   direction: null,
   relative_to: null,
   weekend_roll: null,
