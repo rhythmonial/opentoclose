@@ -29,6 +29,16 @@ export type ContractBlank = {
   group?: string;
 };
 
+// What a field is called: a checkbox by its option (the text after it), a
+// blank by the text before it. A bare number is usually the contract's line
+// number, not a name.
+export function fieldLabel(b: Pick<ContractBlank, "type" | "label" | "after">) {
+  const name = (t?: string) => (t && !/^\d+$/.test(t.trim()) ? t : "");
+  const label = name(b.label);
+  const after = name(b.after);
+  return (b.type === "checkbox" ? after || label : label || after) || "Unlabeled field";
+}
+
 // Drops a link that has fewer than two boxes left in it.
 export function tidyGroups(blanks: ContractBlank[]): ContractBlank[] {
   const counts = new Map<string, number>();

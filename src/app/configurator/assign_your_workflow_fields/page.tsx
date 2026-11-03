@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSandboxTier } from "@/lib/devSandbox";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { WorkflowDocCard } from "@/components/WorkflowDocCard";
-import { NewFieldsSummary } from "@/components/NewFieldsSummary";
+import { WorkflowFieldsSummary } from "@/components/WorkflowFieldsSummary";
 import { isActive, isComplete, newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldsTester } from "@/components/WorkflowFieldsTester";
 import { finishWorkflowFields } from "./actions";
@@ -170,7 +170,14 @@ export default async function AssignWorkflowFieldsPage() {
               </form>
 
               <div className="mt-6">
-                <NewFieldsSummary fields={picked} />
+                <WorkflowFieldsSummary
+                  docs={docs.map((d) => ({
+                    id: d.id,
+                    name: d.file_name,
+                    blanks: d.blanks as ContractBlank[],
+                    fields: fieldsOf(d),
+                  }))}
+                />
               </div>
             </div>
           )}

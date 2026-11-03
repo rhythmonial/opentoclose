@@ -4,14 +4,18 @@ import { useState } from "react";
 import { openPdf } from "@/lib/pdfjs";
 import { analyzeContract, type ContractAnalysis } from "@/lib/contractBlanks";
 import { WorkflowFieldPicker } from "@/components/WorkflowFieldPicker";
-import { NewFieldsSummary } from "@/components/NewFieldsSummary";
+import { WorkflowFieldsSummary } from "@/components/WorkflowFieldsSummary";
 import type { WorkflowField } from "@/lib/workflowFields";
 
 // Staff test mode for Assign Your Workflow Fields: pick any PDF, it's read
 // for fields the way an upload is, and the picker runs on it. Nothing is
 // uploaded or saved.
 export function WorkflowFieldsTester() {
-  const [file, setFile] = useState<{ bytes: ArrayBuffer; analysis: ContractAnalysis } | null>(null);
+  const [file, setFile] = useState<{
+    name: string;
+    bytes: ArrayBuffer;
+    analysis: ContractAnalysis;
+  } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [fields, setFields] = useState<WorkflowField[]>([]);
 
@@ -39,7 +43,7 @@ export function WorkflowFieldsTester() {
                 setStatus(`Reading page ${n} of ${total}…`),
               );
               await doc.loadingTask.destroy();
-              setFile({ bytes, analysis });
+              setFile({ name: picked.name, bytes, analysis });
               setStatus(`${picked.name}: ${analysis.blanks.length} fields found`);
             } catch {
               setStatus("Couldn't read that PDF.");
@@ -56,7 +60,11 @@ export function WorkflowFieldsTester() {
           onChange={setFields}
         />
       )}
-      {file && <NewFieldsSummary fields={fields} />}
+      {file && (
+        <WorkflowFieldsSummary
+          docs={[{ id: "test", name: file.name, blanks: file.analysis.blanks, fields }]}
+        />
+      )}
     </div>
   );
 }

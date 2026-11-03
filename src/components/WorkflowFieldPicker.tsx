@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ContractBlank } from "@/lib/contractBlanks";
+import { fieldLabel, type ContractBlank } from "@/lib/contractBlanks";
 import { PdfPageCanvas, usePdfDocument } from "@/components/PdfPageCanvas";
 import {
   CONTACT_ROLES_SECTION,
@@ -26,17 +26,6 @@ import {
 
 type Field = ContractBlank & { id: string };
 
-// A checkbox is named by its option (after it); a blank by the text before
-// it. A bare number is usually the contract's line number, not a name.
-function fieldLabel(b: ContractBlank) {
-  const name = (t?: string) => (t && !/^\d+$/.test(t.trim()) ? t : "");
-  const label = name(b.label);
-  const after = name(b.after);
-  return (
-    (b.type === "checkbox" ? after || label : label || after) ||
-    "Unlabeled field"
-  );
-}
 
 // Shows a contract page by page with every field from the review outlined.
 // Clicking a field drops down a menu of workflow field types; choosing one
