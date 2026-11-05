@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ContractBlank } from "@/lib/contractBlanks";
+import { withWorkflowTypes } from "@/lib/fieldTypes";
 import {
   cleanWorkflowFields,
   isActive,
@@ -35,6 +36,8 @@ export async function saveWorkflowFields(
   const { error } = await supabase
     .from("contract_documents")
     .update({
+      // A type changed here shows on the boxes in Upload Your Contracts.
+      blanks: withWorkflowTypes(doc.blanks as ContractBlank[], kept),
       workflow_fields: kept,
       workflow_field_ids: kept.filter(isActive).map((f) => f.id),
       workflow_fields_updated_at: new Date().toISOString(),

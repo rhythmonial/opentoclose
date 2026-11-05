@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { openPdf } from "@/lib/pdfjs";
 import { tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
+import { FIELD_TYPE_OPTIONS, type BoxFieldType } from "@/lib/fieldTypes";
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 type Drag = {
@@ -43,12 +44,19 @@ const SMALL_CORNERS: Partial<Record<Handle, string>> = {
   sw: "-left-2.5 -bottom-2.5",
 };
 
+// The short tag shown on a typed box.
+const TYPE_TAGS = Object.fromEntries(FIELD_TYPE_OPTIONS.map((t) => [t.value, t.tag])) as Record<
+  BoxFieldType,
+  string
+>;
+
 const clamp = (n: number, min = 0, max = 1) => Math.min(max, Math.max(min, n));
 
 // Lets a client check every page of a contract: the blanks we found are
 // highlighted, and they can add boxes (click or drag on the page), move and
 // stretch them, remove wrong ones, link boxes that are one answer
-// (shift+click them, then Link), and confirm each page. Changes go to
+// (shift+click them, then Link), choose each field's type (in the menu that
+// opens at a selected box), and confirm each page. Changes go to
 // `onSave` shortly after each edit; without it, edits stay on this screen.
 export function ContractReviewer({
   source,
@@ -73,6 +81,8 @@ export function ContractReviewer({
   // Boxes shift+clicked to be linked together (indexes into blanks).
   const [linking, setLinking] = useState<number[]>([]);
   const [hoverGroup, setHoverGroup] = useState<string | null>(null);
+  // The type being hovered in the type menu, for its help.
+  const [typeHelp, setTypeHelp] = useState<string | null>(null);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "error" | null>(null);
@@ -160,16 +170,43 @@ export function ContractReviewer({
   }
 
   // Links the shift+clicked boxes, along with anything already linked to
-  // them, as one answer.
+  // them, as one answer (with the first one's type, if any has one).
   function linkSelected() {
     const joining = new Set(linking.map((i) => blanks[i]?.group).filter(Boolean));
     const group = crypto.randomUUID();
+    const inLink = (b: ContractBlank, i: number) =>
+      linking.includes(i) || Boolean(b.group && joining.has(b.group));
+    const fieldType = [...blanks]
+      .map((b, i) => ({ b, i }))
+      .filter(({ b, i }) => inLink(b, i))
+      .sort((a, c) => a.b.page - c.b.page || a.b.y - c.b.y || a.b.x - c.b.x)
+      .find(({ b }) => b.fieldType)?.b.fieldType;
     changeBlanks(
-      blanks.map((b, i) =>
-        linking.includes(i) || (b.group && joining.has(b.group)) ? { ...b, group } : b,
-      ),
+      blanks.map((b, i) => {
+        if (!inLink(b, i)) return b;
+        const next = { ...b, group };
+        if (fieldType) next.fieldType = fieldType;
+        return next;
+      }),
     );
     setLinking([]);
+  }
+
+  // Sets the type of the selected box's field (all of its linked boxes), or
+  // clears it.
+  function setFieldType(index: number, fieldType: BoxFieldType | null) {
+    const box = blanks[index];
+    if (!box) return;
+    changeBlanks(
+      blanks.map((b, i) => {
+        if (!(i === index || (box.group && b.group === box.group))) return b;
+        const next = { ...b };
+        if (fieldType) next.fieldType = fieldType;
+        else delete next.fieldType;
+        return next;
+      }),
+    );
+    setTypeHelp(null);
   }
 
   function unlink(group: string) {
@@ -410,7 +447,9 @@ export function ContractReviewer({
         <span className="font-semibold">&times;</span> or Delete to remove it.
         If one answer runs across more than one line, hold{" "}
         <span className="font-semibold">Shift</span> and click each of its
-        boxes, then click Link.
+        boxes, then click Link. Click a box to choose its{" "}
+        <span className="font-semibold">field type</span> (date, dollar
+        amount, contact and so on) for each field your team tracks.
       </p>
 
       <div className="relative overflow-hidden rounded-lg border border-border bg-white">
@@ -460,7 +499,9 @@ export function ContractReviewer({
                             ? "z-10 border-dashed border-accent bg-accent/25"
                             : b.group
                               ? `border-success ${lit ? "bg-success/40" : "bg-success/20"}`
-                              : "border-gold bg-gold/25 hover:bg-gold/40"
+                              : b.fieldType
+                                ? "border-accent/70 bg-accent/15 hover:bg-accent/25"
+                                : "border-gold bg-gold/25 hover:bg-gold/40"
                       }`}
                       style={{
                         left: `${b.x * 100}%`,
@@ -469,12 +510,22 @@ export function ContractReviewer({
                         height: `${b.height * 100}%`,
                       }}
                     >
-                      {b.group && firstOfGroup.has(b.index) && (
-                        <span className="pointer-events-none absolute -left-0.5 -top-3.5 flex items-center gap-0.5 whitespace-nowrap rounded bg-success px-1 py-px text-[9px] font-bold leading-tight text-white">
-                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden>
-                            <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
-                          </svg>
-                          {groupLetters.get(b.group)}
+                      {((b.group && firstOfGroup.has(b.index)) || (!b.group && b.fieldType)) && (
+                        <span
+                          className={`pointer-events-none absolute -left-0.5 -top-3.5 flex items-center gap-0.5 whitespace-nowrap rounded px-1 py-px text-[9px] font-bold leading-tight text-white ${
+                            b.group ? "bg-success" : "bg-accent"
+                          }`}
+                        >
+                          {b.group && (
+                            <>
+                              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden>
+                                <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+                              </svg>
+                              {groupLetters.get(b.group)}
+                              {b.fieldType && " · "}
+                            </>
+                          )}
+                          {b.fieldType && TYPE_TAGS[b.fieldType]}
                         </span>
                       )}
                       {isSelected && (
@@ -518,15 +569,16 @@ export function ContractReviewer({
                 {/* Link / Unlink, right under the box last shift+clicked
                     (or the linked box that's selected). */}
                 {(() => {
-                  const anchorIndex = linking.length > 0 ? linking[linking.length - 1] : selectedGroup ? selected : null;
+                  const anchorIndex = linking.length > 0 ? linking[linking.length - 1] : selected;
                   const anchor = anchorIndex !== null ? blanks[anchorIndex] : undefined;
                   if (!anchor || anchor.page !== page) return null;
-                  const below = anchor.y + anchor.height < 0.85;
+                  // The type menu is taller than the Link one.
+                  const below = anchor.y + anchor.height < (linking.length > 0 ? 0.85 : 0.55);
                   const fromRight = anchor.x > 0.55;
                   return (
                     <div
                       role="dialog"
-                      aria-label={linking.length > 0 ? "Link boxes" : "Linked boxes"}
+                      aria-label={linking.length > 0 ? "Link boxes" : "Field type"}
                       onPointerDown={(e) => e.stopPropagation()}
                       style={{
                         ...(below
@@ -563,21 +615,66 @@ export function ContractReviewer({
                           </span>
                         </>
                       ) : (
-                        selectedGroup && (
-                          <span className="flex items-center gap-3">
-                            <span className="whitespace-nowrap text-xs text-ink">
-                              Linked with {groupSize(selectedGroup) - 1} other box
-                              {groupSize(selectedGroup) === 2 ? "" : "es"}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => unlink(selectedGroup)}
-                              className="rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-semibold text-ink-soft"
-                            >
-                              Unlink
-                            </button>
+                        <>
+                          {/* The field's type (its linked boxes share it). */}
+                          <span className="flex items-baseline justify-between gap-3">
+                            <span className="text-xs font-semibold text-ink">Field type</span>
+                            {anchor.fieldType && (
+                              <button
+                                type="button"
+                                onClick={() => setFieldType(anchorIndex!, null)}
+                                className="text-[11px] font-semibold text-ink-faint hover:text-danger"
+                              >
+                                Clear
+                              </button>
+                            )}
                           </span>
-                        )
+                          <span className="grid w-64 grid-cols-2 gap-1">
+                            {FIELD_TYPE_OPTIONS.map((t) => {
+                              const on = anchor.fieldType === t.value;
+                              return (
+                                <button
+                                  key={t.value}
+                                  type="button"
+                                  aria-pressed={on}
+                                  onClick={() => {
+                                    setFieldType(anchorIndex!, t.value);
+                                    // On to the next box.
+                                    setSelected(null);
+                                  }}
+                                  onPointerEnter={() => setTypeHelp(t.help)}
+                                  onPointerLeave={() => setTypeHelp(null)}
+                                  onFocus={() => setTypeHelp(t.help)}
+                                  className={`rounded-md border px-2 py-1 text-left text-xs font-medium ${
+                                    on
+                                      ? "border-accent bg-accent text-white"
+                                      : "border-border bg-surface text-ink hover:border-accent hover:bg-accent-soft/40"
+                                  }`}
+                                >
+                                  {t.label}
+                                </button>
+                              );
+                            })}
+                          </span>
+                          <span className="w-64 rounded-md bg-bg px-2 py-1.5 text-[11px] leading-snug text-ink-soft">
+                            {typeHelp ?? "Hover over a type to see what it's for."}
+                          </span>
+                          {selectedGroup && (
+                            <span className="flex items-center justify-between gap-3 border-t border-border pt-2">
+                              <span className="whitespace-nowrap text-xs text-ink">
+                                Linked with {groupSize(selectedGroup) - 1} other box
+                                {groupSize(selectedGroup) === 2 ? "" : "es"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => unlink(selectedGroup)}
+                                className="rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-semibold text-ink-soft"
+                              >
+                                Unlink
+                              </button>
+                            </span>
+                          )}
+                        </>
                       )}
                     </div>
                   );
@@ -591,6 +688,8 @@ export function ContractReviewer({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs text-ink-faint">
           {onPage.length} box{onPage.length === 1 ? "" : "es"} on page {page}
+          {" · "}
+          {onPage.filter((b) => b.fieldType).length} with a field type
         </span>
         <button
           type="button"

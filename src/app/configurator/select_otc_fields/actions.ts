@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
 import type { ContractBlank } from "@/lib/contractBlanks";
+import { withWorkflowTypes } from "@/lib/fieldTypes";
 import {
   cleanFieldNames,
   cleanGroupsDone,
@@ -101,6 +102,7 @@ export async function assignFromContract(
   const { error } = await supabase
     .from("contract_documents")
     .update({
+      blanks: withWorkflowTypes(doc.blanks as ContractBlank[], kept),
       workflow_fields: kept,
       workflow_field_ids: kept.filter(isActive).map((f) => f.id),
       workflow_fields_updated_at: new Date().toISOString(),

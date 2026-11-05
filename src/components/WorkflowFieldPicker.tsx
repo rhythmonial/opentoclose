@@ -32,8 +32,11 @@ type Field = ContractBlank & { id: string };
 
 
 // Shows a contract page by page with every field from the review outlined.
-// Clicking a field drops down a menu of workflow field types; choosing one
-// adds it to the workflow. Removing one grays it out until it's restored.
+// Fields typed in Upload Your Contracts are already in the workflow with
+// that type, so clicking one goes straight to its OTC fields (a choice
+// option, to its choice fields); the type menu is a step back. Clicking
+// any other field drops down the menu of types; choosing one adds it to
+// the workflow. Removing one grays it out until it's restored.
 // Boxes linked in the review act as one field. A choice option is tied to a
 // choice field. Changes go to `onSave` shortly after each one; without
 // it, they stay on this screen.
@@ -244,9 +247,12 @@ export function WorkflowFieldPicker({
       </div>
 
       <p className="text-sm text-ink-soft">
-        Click each field your team needs to track during a transaction and
-        choose what kind of field it is. Fields you don&rsquo;t need can be
-        removed; they&rsquo;re grayed out, and clicking one lets you restore it.
+        Click each field to choose the Open to Close field it fills. Fields
+        you gave a type in Upload Your Contracts are already here with that
+        type (outlined in red until they have an OTC field); click any other
+        field your team tracks to choose its type. Fields you don&rsquo;t
+        need can be removed; they&rsquo;re grayed out, and clicking one lets
+        you restore it.
       </p>
 
       <div className="relative overflow-hidden rounded-lg border border-border bg-white">

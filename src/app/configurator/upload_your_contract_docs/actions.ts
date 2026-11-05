@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
+import { isBoxFieldType, withBoxTypes } from "@/lib/fieldTypes";
+import {
+  cleanWorkflowFields,
+  isActive,
+  workflowKeys,
+} from "@/lib/workflowFields";
 
 const STEP_KEY = "upload_your_contract_docs";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -132,7 +138,7 @@ export async function saveContractReview(input: {
 
   const { data: doc } = await supabase
     .from("contract_documents")
-    .select("page_count")
+    .select("page_count, blanks, workflow_fields")
     .eq("id", input.id)
     .single();
   if (!doc) return { ok: false, error: "Document not found." };
@@ -158,6 +164,7 @@ export async function saveContractReview(input: {
       after: String(b.after ?? "").slice(0, 120),
       ...(b.fieldName ? { fieldName: String(b.fieldName).slice(0, 120) } : {}),
       ...(typeof b.group === "string" && uuid.test(b.group) ? { group: b.group } : {}),
+      ...(isBoxFieldType(b.fieldType) ? { fieldType: b.fieldType } : {}),
       ...(b.line === null || (Number.isInteger(b.line) && b.line! > 0 && b.line! < 100000)
         ? { line: b.line }
         : {}),
@@ -166,11 +173,26 @@ export async function saveContractReview(input: {
     .filter((n) => n >= 1 && n <= pages)
     .sort((a, b) => a - b);
 
+  // The types chosen here become the workflow fields' types (see
+  // fieldTypes), ready for Assign Your Workflow Fields.
+  const keys = workflowKeys(blanks);
+  const fields = cleanWorkflowFields(
+    withBoxTypes(
+      cleanWorkflowFields(doc.workflow_fields, keys),
+      blanks,
+      (doc.blanks ?? []) as ContractBlank[],
+    ),
+    keys,
+  );
+
   const { error } = await supabase
     .from("contract_documents")
     .update({
       blanks,
       blank_count: blanks.length,
+      workflow_fields: fields,
+      workflow_field_ids: fields.filter(isActive).map((f) => f.id),
+      workflow_fields_updated_at: new Date().toISOString(),
       confirmed_pages: confirmed,
       reviewed_at: pages > 0 && confirmed.length === pages ? new Date().toISOString() : null,
     })

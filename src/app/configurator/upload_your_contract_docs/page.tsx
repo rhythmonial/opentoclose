@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getSandboxTier } from "@/lib/devSandbox";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { ContractUploader } from "@/components/ContractUploader";
+import { withWorkflowTypes } from "@/lib/fieldTypes";
+import { cleanWorkflowFields, workflowKeys } from "@/lib/workflowFields";
 import { SavedContractDoc } from "@/components/SavedContractDoc";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { deleteContractDocument, finishContractDocs } from "./actions";
@@ -122,7 +124,15 @@ export default async function UploadContractDocsPage() {
                   fileName={doc.file_name}
                   url={urlByPath.get(doc.storage_path) ?? null}
                   pageCount={doc.page_count ?? 0}
-                  blanks={doc.blanks as ContractBlank[]}
+                  // With the types picked for its workflow fields (from
+                  // before types were chosen here).
+                  blanks={withWorkflowTypes(
+                    doc.blanks as ContractBlank[],
+                    cleanWorkflowFields(
+                      doc.workflow_fields,
+                      workflowKeys(doc.blanks as ContractBlank[]),
+                    ),
+                  )}
                   isScanned={doc.is_scanned}
                   uploadedOn={new Date(doc.created_at).toLocaleDateString("en-US", {
                     month: "short",

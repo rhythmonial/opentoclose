@@ -1,5 +1,6 @@
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { loadPdfjs } from "@/lib/pdfjs";
+import type { BoxFieldType } from "@/lib/fieldTypes";
 
 // A fill-in spot found in a contract. Position and size are fractions of
 // the page (top-left origin), so they work at any render size.
@@ -30,6 +31,8 @@ export type ContractBlank = {
   // Boxes the client linked as one answer (like a description that wraps
   // onto a second line) share this id.
   group?: string;
+  // The field's type, chosen while reviewing (linked boxes share one).
+  fieldType?: BoxFieldType;
 };
 
 // What a field is called: a checkbox by its option (the text after it), a
