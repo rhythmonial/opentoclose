@@ -234,3 +234,53 @@ export function newOtcFieldsFrom(fields: WorkflowField[]): OtcField[] {
 // field, or anything else's OTC field (or contact role).
 export const otcTargetOf = (f: WorkflowField) =>
   f.type === "choice" && f.choice_role === "option" ? f.question_id : f.otc_field;
+
+// Points a workflow field at an OTC field (`to`). A built-in OTC field also
+// sets its type, so a field always matches the one it fills; a new field
+// keeps the type it has. A choice option moves to `to` as its choice field.
+export function reassignTo(f: WorkflowField, to: OtcField): WorkflowField {
+  const next: WorkflowField = { ...f };
+  delete next.removed;
+  if (f.type === "choice" && f.choice_role === "option") {
+    next.question_id = to.id;
+    delete next.question_text;
+    delete next.question_section;
+    if (to.isNew) {
+      next.question_text = to.name;
+      if (to.sectionId) next.question_section = to.sectionId;
+    }
+    return next;
+  }
+  next.otc_field = to.id;
+  delete next.otc_field_name;
+  delete next.otc_section;
+  if (to.isNew) {
+    if (!next.type && to.kind) Object.assign(next, typeFor(to.kind));
+    next.otc_field_name = to.name;
+    if (to.sectionId) next.otc_section = to.sectionId;
+    return next;
+  }
+  delete next.decimal_format;
+  delete next.choice_role;
+  if (to.kind) Object.assign(next, typeFor(to.kind));
+  return next;
+}
+
+// The workflow field type that fills an OTC field of this kind.
+function typeFor(kind: NonNullable<OtcField["kind"]>): Partial<WorkflowField> {
+  if (kind === "currency" || kind === "percentage") return { type: "decimal", decimal_format: kind };
+  if (kind === "choice") return { type: "choice", choice_role: "question" };
+  return { type: kind };
+}
+
+// Assigns the contract field `key` (a box, or boxes linked as one) to an
+// OTC field, picking it for the workflow if it wasn't yet.
+export function assignContractField(
+  fields: WorkflowField[],
+  key: string,
+  to: OtcField,
+): WorkflowField[] {
+  const existing = fields.find((f) => f.id === key);
+  if (existing) return fields.map((f) => (f.id === key ? reassignTo(f, to) : f));
+  return [...fields, reassignTo({ id: key }, to)];
+}

@@ -539,3 +539,18 @@ export const SELECTABLE_GROUPS = [...new Set(SELECTABLE_SECTIONS.map((s) => s.gr
 
 export const cleanGroupsDone = (raw: unknown): string[] =>
   SELECTABLE_GROUPS.filter((g) => Array.isArray(raw) && raw.includes(g));
+
+// How a client would like their fields displayed: field id -> their name,
+// only when it differs from OTC's. `known` holds the ids it can be for
+// (OTC's fields and the client's new ones).
+export function cleanFieldNames(raw: unknown, known: Map<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    const name = String(value ?? "").trim().slice(0, 120);
+    const otcName = known.get(id);
+    if (!otcName || !name || name.toLowerCase() === otcName.toLowerCase()) continue;
+    out[id] = name;
+  }
+  return out;
+}

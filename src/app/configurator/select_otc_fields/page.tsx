@@ -4,15 +4,17 @@ import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { getSandboxTier } from "@/lib/devSandbox";
 import {
+  cleanFieldNames,
   cleanGroupsDone,
   cleanOtcSelection,
   isContactRole,
+  OTC_FIELDS,
   SELECTABLE_GROUPS,
 } from "@/lib/otcFields";
 import { fieldLabel, type ContractBlank } from "@/lib/contractBlanks";
 import { isActive, newOtcFieldsFrom, otcTargetOf, type WorkflowField } from "@/lib/workflowFields";
 import { inContractOrder } from "@/components/WorkflowFieldsSummary";
-import { OtcFieldSelector } from "@/components/OtcFieldSelector";
+import { OtcFieldSelector, type ContractFieldOption } from "@/components/OtcFieldSelector";
 import { finishSelectOtcFields } from "./actions";
 
 const STEP_KEY = "select_otc_fields";
@@ -56,7 +58,7 @@ export default async function SelectOtcFieldsPage({
     ? await Promise.all([
         supabase
           .from("client_otc_field_selections")
-          .select("fields, groups_done")
+          .select("fields, field_names, groups_done")
           .eq("client_account_id", accountId)
           .maybeSingle(),
         supabase
@@ -92,12 +94,49 @@ export default async function SelectOtcFieldsPage({
   const newFields = newOtcFieldsFrom(
     summaryDocs.flatMap((d) => d.fields).filter(isActive),
   ).filter((f) => !isContactRole(f) && assigned[f.id]);
+  const names = cleanFieldNames(
+    saved?.field_names,
+    new Map([...OTC_FIELDS, ...newFields].map((f) => [f.id, f.name] as const)),
+  );
+
+  // Contract fields not assigned to an OTC field yet, in contract order:
+  // ones picked in Assign Your Workflow Fields without an OTC field, then
+  // the other blanks (not checkboxes) on the contracts.
+  const picked: ContractFieldOption[] = [];
+  const others: ContractFieldOption[] = [];
+  for (const doc of summaryDocs) {
+    const byKey = new Map(doc.fields.map((f) => [f.id, f] as const));
+    const seen = new Set<string>();
+    const boxes = doc.blanks
+      .filter((b) => b.id)
+      .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
+    for (const b of boxes) {
+      const key = b.group ?? b.id!;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const field = byKey.get(key);
+      const active = field && isActive(field);
+      if (active && otcTargetOf(field)) continue;
+      const option = Boolean(active && field.type === "choice" && field.choice_role === "option");
+      if (!active && b.type === "checkbox") continue;
+      (active ? picked : others).push({
+        documentId: doc.id,
+        key,
+        label: `${summaryDocs.length > 1 ? `${doc.name}, ` : ""}${
+          b.line ? `Line ${b.line}` : `Page ${b.page}`
+        }: ${fieldLabel(b)}`,
+        picked: Boolean(active),
+        option,
+      });
+    }
+  }
+  const contractFields = [...picked, ...others];
   const groupsDone = cleanGroupsDone(saved?.groups_done);
   const allDone = groupsDone.length === SELECTABLE_GROUPS.length;
 
   return (
     <main className="flex flex-1 justify-center bg-bg px-4 py-12">
-      <div className="w-full max-w-4xl">
+      <div className="w-full max-w-5xl">
         <Link
           href={isStaff && !sandboxTier ? "/dashboard/tasks" : "/portal"}
           className="text-sm font-medium text-accent"
@@ -151,9 +190,11 @@ export default async function SelectOtcFieldsPage({
           <p className="mt-1.5 max-w-3xl text-sm text-ink-soft">
             Here are all of Open to Close&rsquo;s fields, laid out like OTC&rsquo;s Field
             Editor. The ones you assigned in Assign Your Workflow Fields are already checked.
-            Go through each field group and check any other field your team needs, even if
-            it isn&rsquo;t on your contracts; those are listed as fields needed. A{" "}
-            <span className="font-bold text-danger">*</span> marks a field Open to Close
+            If a field is on your contract but wasn&rsquo;t assigned, pick it from the
+            field&rsquo;s &ldquo;Assign from your contract&rdquo; menu. Check any other field
+            your team needs, even if it isn&rsquo;t on your contracts; those are listed as
+            fields needed. If you&rsquo;d like a field displayed under another name, type it
+            in. A <span className="font-bold text-danger">*</span> marks a field Open to Close
             requires. Check off each group when you&rsquo;re done with it.
           </p>
         )}
@@ -163,7 +204,8 @@ export default async function SelectOtcFieldsPage({
             <OtcFieldSelector
               key={accountId}
               accountId={isStaff ? accountId : null}
-              initial={{ fields: selected, groupsDone }}
+              initial={{ fields: selected, names, groupsDone }}
+              contractFields={contractFields}
               assigned={assigned}
               newFields={newFields}
             />

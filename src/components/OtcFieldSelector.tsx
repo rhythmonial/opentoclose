@@ -12,9 +12,25 @@ import {
   type OtcField,
 } from "@/lib/otcFields";
 import {
+  assignFromContract,
   saveOtcFieldSelection,
   type OtcFieldSelection,
 } from "@/app/configurator/select_otc_fields/actions";
+
+// A contract field that isn't assigned to an OTC field yet.
+export type ContractFieldOption = {
+  documentId: string;
+  // Its box (or linked boxes) on the contract.
+  key: string;
+  // "Line 12: Effective Date", with the contract's name when there are
+  // several.
+  label: string;
+  // Picked in Assign Your Workflow Fields (just not assigned), or another
+  // blank on the contract.
+  picked: boolean;
+  // A choice option, which can only go to a choice field.
+  option: boolean;
+};
 
 // OTC's field types, as its Field Editor names them.
 const KIND_LABELS: Record<string, string> = {
@@ -41,6 +57,7 @@ export function OtcFieldSelector({
   initial,
   assigned,
   newFields,
+  contractFields,
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
@@ -49,6 +66,8 @@ export function OtcFieldSelector({
   assigned: Record<string, string[]>;
   // Fields the client added while assigning (shown in their sections).
   newFields: OtcField[];
+  // Contract fields not assigned yet, to assign from here.
+  contractFields: ContractFieldOption[];
 }) {
   // Every section of OTC's field groups (empty ones too, as OTC shows
   // them), with the client's new fields at the end of theirs.
@@ -64,6 +83,7 @@ export function OtcFieldSelector({
   const ALL_FIELDS = SECTIONS.flatMap((s) => s.fields);
 
   const [picked, setPicked] = useState<Set<string>>(() => new Set(initial.fields));
+  const [names, setNames] = useState<Record<string, string>>(initial.names);
   const [done, setDone] = useState<Set<string>>(() => new Set(initial.groupsDone));
   const [group, setGroup] = useState(
     () => SELECTABLE_GROUPS.find((g) => !initial.groupsDone.includes(g)) ?? SELECTABLE_GROUPS[0],
@@ -75,16 +95,19 @@ export function OtcFieldSelector({
   const timer = useRef<number | null>(null);
   const top = useRef<HTMLDivElement>(null);
 
-  function save(next: { picked?: Set<string>; done?: Set<string> }) {
+  function save(next: { picked?: Set<string>; names?: Record<string, string>; done?: Set<string> }) {
     const p = next.picked ?? picked;
+    const n = next.names ?? names;
     const d = next.done ?? done;
     if (next.picked) setPicked(p);
+    if (next.names) setNames(n);
     if (next.done) setDone(d);
     setStatus("saving");
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(async () => {
       const result = await saveOtcFieldSelection(accountId, {
         fields: [...p],
+        names: n,
         groupsDone: [...d],
       });
       setStatus(result.ok ? "saved" : "error");
@@ -100,6 +123,15 @@ export function OtcFieldSelector({
       else next.delete(id);
     }
     save({ picked: next });
+  }
+
+  // Assigns a contract field to an OTC field; the page then reloads with
+  // it on the contract.
+  async function assign(option: ContractFieldOption, otcFieldId: string) {
+    setStatus("saving");
+    const result = await assignFromContract(accountId, option.documentId, option.key, otcFieldId);
+    setStatus(result.ok ? "saved" : "error");
+    setError(result.ok ? null : (result.error ?? "Couldn't assign that."));
   }
 
   function setDoneFor(g: string, on: boolean) {
@@ -127,6 +159,7 @@ export function OtcFieldSelector({
     (!q ||
       f.name.toLowerCase().includes(q) ||
       sectionName.toLowerCase().includes(q) ||
+      (names[f.id] ?? "").toLowerCase().includes(q) ||
       (OTC_FIELD_ALIASES[f.id] ?? []).some((a) => a.toLowerCase().includes(q)));
   // Searching looks through every group; otherwise it's the open tab.
   const filtering = Boolean(q) || onlyChecked;
@@ -149,9 +182,9 @@ export function OtcFieldSelector({
           your state uses. For example, <strong className="text-ink">Acceptance Date</strong> is
           the date both sides signed, which your contract may call the Contract Date, Effective
           Date or Binding Agreement Date. Go by what a field is for, not just its name, and do
-          your best to check every field you use in your process. Hover over the{" "}
-          <span className="font-semibold">i</span> beside a field to see other names it goes
-          by.
+          your best to check every field you use in your process. The box beside each
+          field shows other names it could be; type in the name you&rsquo;d like it displayed
+          as.
         </p>
       </div>
 
@@ -290,6 +323,19 @@ export function OtcFieldSelector({
                       required={isSystemRequired(f.id)}
                       onContract={assigned[f.id]}
                       onCheck={(on) => setChecked([f.id], on)}
+                      displayName={names[f.id] ?? ""}
+                      onDisplayName={(value) => {
+                        const next = { ...names };
+                        if (value && value.toLowerCase() !== f.name.toLowerCase()) next[f.id] = value;
+                        else delete next[f.id];
+                        save({ names: next });
+                      }}
+                      contractFields={
+                        assigned[f.id]
+                          ? []
+                          : contractFields.filter((c) => !c.option || f.kind === "choice")
+                      }
+                      onAssign={(c) => void assign(c, f.id)}
                     />
                   ))}
                 </section>
@@ -320,6 +366,7 @@ export function OtcFieldSelector({
         sections={SECTIONS}
         isAssigned={(id) => Boolean(assigned[id])}
         isNeeded={(id) => !assigned[id] && (isSystemRequired(id) || picked.has(id))}
+        names={names}
       />
     </div>
   );
@@ -331,6 +378,10 @@ function FieldRow({
   required,
   onContract,
   onCheck,
+  displayName,
+  onDisplayName,
+  contractFields,
+  onAssign,
 }: {
   field: Field;
   checked: boolean;
@@ -338,17 +389,30 @@ function FieldRow({
   // Where it's assigned on the contracts (it stays checked).
   onContract?: string[];
   onCheck: (on: boolean) => void;
+  // How the client would like it displayed, if not OTC's name.
+  displayName: string;
+  onDisplayName: (value: string) => void;
+  // Contract fields it can be assigned from (none once it's assigned).
+  contractFields: ContractFieldOption[];
+  onAssign: (option: ContractFieldOption) => void;
 }) {
   const aliases = OTC_FIELD_ALIASES[field.id];
   const locked = required || Boolean(onContract);
+  const picked = contractFields.filter((c) => c.picked);
+  const others = contractFields.filter((c) => !c.picked);
+  const option = (c: ContractFieldOption) => (
+    <option key={`${c.documentId}:${c.key}`} value={`${c.documentId}:${c.key}`}>
+      {c.label}
+    </option>
+  );
   return (
     <div
-      className={`ml-3 flex items-center gap-3 rounded-lg border bg-surface px-3 py-2 sm:ml-6 ${
+      className={`ml-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border bg-surface px-3 py-2 sm:ml-6 ${
         checked ? "border-accent/40" : "border-border"
       }`}
     >
       <label
-        className={`flex min-w-0 flex-1 items-center gap-2.5 ${locked ? "cursor-default" : "cursor-pointer"}`}
+        className={`flex min-w-[14rem] flex-1 items-center gap-2.5 ${locked ? "cursor-default" : "cursor-pointer"}`}
         title={
           onContract
             ? `On your contract (change it in Assign Your Workflow Fields):\n${onContract.join("\n")}`
@@ -375,15 +439,44 @@ function FieldRow({
           )
         )}
       </label>
-      {aliases && (
-        <span
-          title={`Also called: ${aliases.join(", ")}`}
-          aria-label={`Also called: ${aliases.join(", ")}`}
-          className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-ink-faint text-[10px] font-bold text-ink-faint"
-        >
-          i
-        </span>
-      )}
+      <span className="flex flex-wrap items-center gap-2">
+        {!onContract && contractFields.length > 0 && (
+          <select
+            value=""
+            onChange={(e) => {
+              const c = contractFields.find((x) => `${x.documentId}:${x.key}` === e.target.value);
+              if (c) onAssign(c);
+            }}
+            aria-label={`Assign ${field.name} from your contract`}
+            className="w-48 rounded-md border border-dashed border-border bg-bg px-2 py-1 text-xs text-ink-soft outline-none focus:border-accent"
+          >
+            <option value="">Assign from your contract&hellip;</option>
+            {picked.length > 0 && (
+              <optgroup label="Picked, not assigned yet">{picked.map(option)}</optgroup>
+            )}
+            {others.length > 0 && (
+              <optgroup label="Other fields on your contract">{others.map(option)}</optgroup>
+            )}
+          </select>
+        )}
+        <input
+          key={displayName}
+          defaultValue={displayName}
+          onBlur={(e) => {
+            if (e.target.value.trim() !== displayName) onDisplayName(e.target.value.trim());
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+          maxLength={120}
+          placeholder={
+            aliases ? `Could be: ${aliases.slice(0, 3).join(", ")}…` : "Display as (optional)"
+          }
+          title={aliases ? `Could be: ${aliases.join(", ")}` : "How you'd like this field displayed"}
+          aria-label={`How you'd like ${field.name} displayed`}
+          className="w-72 max-w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+        />
+      </span>
     </div>
   );
 }
@@ -414,10 +507,12 @@ function YourFields({
   sections,
   isAssigned,
   isNeeded,
+  names,
 }: {
   sections: { id: string; name: string; group: string; fields: Field[] }[];
   isAssigned: (id: string) => boolean;
   isNeeded: (id: string) => boolean;
+  names: Record<string, string>;
 }) {
   const list = (pick: (id: string) => boolean) =>
     sections
@@ -460,6 +555,9 @@ function YourFields({
                       {s.fields.map((f) => (
                         <li key={f.id}>
                           <FieldName field={f} required={isSystemRequired(f.id)} />
+                          {names[f.id] && (
+                            <span className="text-sm text-ink-soft"> &rarr; shown as &ldquo;{names[f.id]}&rdquo;</span>
+                          )}
                         </li>
                       ))}
                     </ul>
