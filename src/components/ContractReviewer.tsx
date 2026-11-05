@@ -237,7 +237,12 @@ export function ContractReviewer({
   function toggleOption(index: number) {
     const box = blanks[index];
     const key = box && keyOf(box);
-    if (!optionsFor || !key || key === optionsFor) return;
+    if (!optionsFor || !key) return;
+    // Its own box goes back to it, to change its type.
+    if (key === optionsFor) {
+      changeChoiceType();
+      return;
+    }
     const isOption = box.fieldType === "choice_option" && box.choiceOf === optionsFor;
     const title = box.optionTitle ?? titleFrom(box);
     changeBlanks(
@@ -257,6 +262,16 @@ export function ContractReviewer({
         return next;
       }),
     );
+  }
+
+  // Closes the options and opens the type menu on the choice field's box
+  // (for when Choice field was the wrong type).
+  function changeChoiceType() {
+    const index = blanks.findIndex((b) => keyOf(b) === optionsFor);
+    setOptionsFor(null);
+    if (index < 0) return;
+    setPage(blanks[index].page);
+    setSelected(index);
   }
 
   function setOptionTitle(key: string, title: string) {
@@ -560,6 +575,7 @@ export function ContractReviewer({
           onManual={(options) => setManualOptions(optionsFor, options)}
           onGoTo={(n) => setPage(n)}
           onDone={() => setOptionsFor(null)}
+          onChangeType={changeChoiceType}
         />
       )}
 
@@ -863,6 +879,7 @@ function ChoiceOptionsPanel({
   onManual,
   onGoTo,
   onDone,
+  onChangeType,
 }: {
   choiceLabel: string;
   boxOptions: { key: string; page: number; title: string }[];
@@ -872,6 +889,8 @@ function ChoiceOptionsPanel({
   onManual: (options: string[]) => void;
   onGoTo: (page: number) => void;
   onDone: () => void;
+  // Back to the choice field's type menu.
+  onChangeType: () => void;
 }) {
   const [adding, setAdding] = useState("");
   const capitalized = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -894,16 +913,37 @@ function ChoiceOptionsPanel({
           <p className="mt-0.5 text-xs text-ink-soft">
             Click each checkbox on the contract that&rsquo;s one of its options (click again to
             take it out; click or drag on the page to add a missing one). Add any options that
-            aren&rsquo;t on the contract below.
+            aren&rsquo;t on the contract below. Not a choice field? Click Change type.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onDone}
-          className="shrink-0 rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-white"
-        >
-          Done{total > 0 ? ` (${total} option${total === 1 ? "" : "s"})` : ""}
-        </button>
+        <span className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onChangeType}
+            title="Not a choice field? Choose another type"
+            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink-soft hover:border-accent hover:text-accent"
+          >
+            Change type
+          </button>
+          <button
+            type="button"
+            onClick={onDone}
+            className="rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-white"
+          >
+            Done{total > 0 ? ` (${total} option${total === 1 ? "" : "s"})` : ""}
+          </button>
+          <button
+            type="button"
+            onClick={onDone}
+            aria-label="Close options"
+            title="Close"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-faint hover:bg-bg hover:text-ink"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </span>
       </div>
 
       {total > 0 && (
