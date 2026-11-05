@@ -26,11 +26,13 @@ export function MoveStepSelect({
   const [isPending, startTransition] = useTransition();
   // Index into options of the section picked, waiting for the Move button.
   const [choice, setChoice] = useState("");
-  const options = targets.filter(
-    (t) => !(t.phase === currentPhase && t.section === currentSection),
-  );
+  // Every section, including the one the lesson is in now (the menu opens
+  // on it).
+  const options = targets;
+  const isCurrent = (t: SectionTarget) =>
+    t.phase === currentPhase && t.section === currentSection;
   const pillars = Array.from(new Set(options.map((t) => t.phase)));
-  if (options.length === 0) return null;
+  if (!options.some((t) => !isCurrent(t))) return null;
 
   function move() {
     const target = options[Number(choice)];
@@ -59,9 +61,14 @@ export function MoveStepSelect({
           items: options
             .map((t, index) => ({ t, index }))
             .filter(({ t }) => t.phase === pillar)
-            .map(({ t, index }) => ({ value: String(index), label: t.section })),
+            .map(({ t, index }) => ({
+              value: String(index),
+              label: t.section,
+              current: isCurrent(t),
+            })),
         }))}
-        onPick={setChoice}
+        // Picking where it already is just closes the menu.
+        onPick={(value) => setChoice(isCurrent(options[Number(value)]) ? "" : value)}
       />
       {choice && (
         <MoveConfirm
@@ -89,7 +96,11 @@ function MoveMenu({
   active: boolean;
   disabled: boolean;
   ariaLabel: string;
-  groups: { label: string; items: { value: string; label: string }[] }[];
+  // `current`: where the lesson is now; the menu opens on it.
+  groups: {
+    label: string;
+    items: { value: string; label: string; current?: boolean }[];
+  }[];
   onPick: (value: string) => void;
 }) {
   const [at, setAt] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
@@ -98,7 +109,15 @@ function MoveMenu({
 
   useEffect(() => {
     if (!at) return;
-    menu.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
+    // Opens on the section the lesson is in now, scrolled into view.
+    const start =
+      menu.current?.querySelector<HTMLElement>("[data-current]") ??
+      menu.current?.querySelector<HTMLElement>("[role=menuitem]");
+    start?.focus({ preventScroll: true });
+    if (start && menu.current) {
+      menu.current.scrollTop =
+        start.offsetTop - menu.current.clientHeight / 2 + start.offsetHeight / 2;
+    }
     const close = () => setAt(null);
     const onPointer = (e: PointerEvent) => {
       const target = e.target as Node;
@@ -113,12 +132,16 @@ function MoveMenu({
     document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
     window.addEventListener("resize", close);
-    window.addEventListener("scroll", close, true);
+    // The page scrolling closes it; the menu's own list scrolling doesn't.
+    const onScroll = (e: Event) => {
+      if (!menu.current?.contains(e.target as Node)) close();
+    };
+    window.addEventListener("scroll", onScroll, true);
     return () => {
       document.removeEventListener("pointerdown", onPointer);
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", close);
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("scroll", onScroll, true);
     };
   }, [at]);
 
@@ -180,7 +203,7 @@ function MoveMenu({
         >
           {groups.map((g) => (
             <div key={g.label} role="group" aria-label={g.label}>
-              <p className="sticky top-0 bg-surface px-2.5 pb-1 pt-2 text-sm font-bold text-ink">
+              <p className="sticky -top-1 bg-surface px-2.5 pb-1 pt-3 text-sm font-bold text-ink">
                 {g.label}
               </p>
               {g.items.map((item) => (
@@ -188,15 +211,24 @@ function MoveMenu({
                   key={item.value}
                   type="button"
                   role="menuitem"
+                  data-current={item.current || undefined}
+                  aria-current={item.current || undefined}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     onPick(item.value);
                     setAt(null);
                   }}
-                  className="block w-full rounded-md py-1.5 pl-5 pr-2.5 text-left text-sm text-ink-soft hover:bg-accent-soft/50 hover:text-ink focus:bg-accent-soft/50 focus:text-ink focus:outline-none"
+                  className={`flex w-full items-center justify-between gap-2 rounded-md py-1.5 pl-5 pr-2.5 text-left text-sm hover:bg-accent-soft/50 hover:text-ink focus:bg-accent-soft/50 focus:text-ink focus:outline-none ${
+                    item.current ? "font-semibold text-accent" : "text-ink-soft"
+                  }`}
                 >
-                  {item.label}
+                  <span className="min-w-0">{item.label}</span>
+                  {item.current && (
+                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-accent">
+                      ✓ Here now
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
