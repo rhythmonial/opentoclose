@@ -191,7 +191,7 @@ export default async function SelectOtcFieldsPage({
             Here are all of Open to Close&rsquo;s fields, laid out like OTC&rsquo;s Field
             Editor. The ones you assigned in Assign Your Workflow Fields are already checked.
             If a field is on your contract but wasn&rsquo;t assigned, pick it from the
-            field&rsquo;s &ldquo;Assign from your contract&rdquo; menu. Check any other field
+            field&rsquo;s &ldquo;Assign field&rdquo; menu. Check any other field
             your team needs, even if it isn&rsquo;t on your contracts; those are listed as
             fields needed. If you&rsquo;d like a field displayed under another name, type it
             in. A <span className="font-bold text-danger">*</span> marks a field Open to Close

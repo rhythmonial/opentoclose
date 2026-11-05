@@ -448,9 +448,9 @@ function FieldRow({
               if (c) onAssign(c);
             }}
             aria-label={`Assign ${field.name} from your contract`}
-            className="w-48 rounded-md border border-dashed border-border bg-bg px-2 py-1 text-xs text-ink-soft outline-none focus:border-accent"
+            className="w-32 rounded-md border border-dashed border-border bg-bg px-2 py-1 text-xs text-ink-soft outline-none focus:border-accent"
           >
-            <option value="">Assign from your contract&hellip;</option>
+            <option value="">Assign field&hellip;</option>
             {picked.length > 0 && (
               <optgroup label="Picked, not assigned yet">{picked.map(option)}</optgroup>
             )}
@@ -474,7 +474,7 @@ function FieldRow({
           }
           title={aliases ? `Could be: ${aliases.join(", ")}` : "How you'd like this field displayed"}
           aria-label={`How you'd like ${field.name} displayed`}
-          className="w-72 max-w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+          className="w-44 max-w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
         />
       </span>
     </div>
