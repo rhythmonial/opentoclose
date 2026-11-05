@@ -771,7 +771,7 @@ export function ContractReviewer({
                               </button>
                             )}
                           </span>
-                          <span className="grid w-64 grid-cols-2 gap-1">
+                          <span className="grid w-[21rem] grid-cols-2 gap-1">
                             {FIELD_TYPE_OPTIONS.map((t) => {
                               const on = anchor.fieldType === t.value;
                               return (
@@ -798,7 +798,9 @@ export function ContractReviewer({
                               );
                             })}
                           </span>
-                          <span className="w-64 rounded-md bg-bg px-2 py-1.5 text-[11px] leading-snug text-ink-soft">
+                          {/* Always two lines tall (wide enough for every type's help), so
+                              the menu doesn't jump while hovering. */}
+                          <span className="block h-[2.75rem] w-[21rem] overflow-hidden rounded-md bg-bg px-2 py-1.5 text-[11px] leading-snug text-ink-soft">
                             {typeHelp ?? "Hover over a type to see what it's for."}
                           </span>
                           {(anchor.fieldType === "choice_field" ||
@@ -811,7 +813,7 @@ export function ContractReviewer({
                                 );
                                 setSelected(null);
                               }}
-                              className="w-64 rounded-md border border-accent px-2 py-1 text-xs font-semibold text-accent hover:bg-accent-soft/40"
+                              className="w-[21rem] rounded-md border border-accent px-2 py-1 text-xs font-semibold text-accent hover:bg-accent-soft/40"
                             >
                               {anchor.fieldType === "choice_field"
                                 ? `Options (${optionCount(keyOf(anchor))}): select or add`
