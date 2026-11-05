@@ -537,20 +537,5 @@ export const slugOf = slug;
 // The field groups, in OTC's order (tabs in Select OTC Fields).
 export const SELECTABLE_GROUPS = [...new Set(SELECTABLE_SECTIONS.map((s) => s.group))];
 
-// What a client calls their checked fields: OTC field id -> their name,
-// only for checked fields and only when it differs from OTC's name.
-export function cleanFieldNames(raw: unknown, checked: string[]): Record<string, string> {
-  const out: Record<string, string> = {};
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
-  const on = new Set(checked);
-  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
-    const name = String(value ?? "").trim().slice(0, 120);
-    const field = OTC_FIELDS.find((f) => f.id === id);
-    if (!field || !on.has(id) || !name || name.toLowerCase() === field.name.toLowerCase()) continue;
-    out[id] = name;
-  }
-  return out;
-}
-
 export const cleanGroupsDone = (raw: unknown): string[] =>
   SELECTABLE_GROUPS.filter((g) => Array.isArray(raw) && raw.includes(g));

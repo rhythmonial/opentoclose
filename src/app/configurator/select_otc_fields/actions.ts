@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
 import {
-  cleanFieldNames,
   cleanGroupsDone,
   cleanOtcSelection,
   SELECTABLE_GROUPS,
@@ -14,26 +13,23 @@ const STEP_KEY = "select_otc_fields";
 const PAGE = `/configurator/${STEP_KEY}`;
 
 export type OtcFieldSelection = {
+  // OTC fields the client needs that aren't on their contracts.
   fields: string[];
-  // OTC field id -> what the client calls it.
-  names: Record<string, string>;
   groupsDone: string[];
 };
 
-// Saves the fields a client checked (system required ones always count),
-// what they call them, and the groups they've finished.
+// Saves the fields a client checked as needed (system required ones always
+// count) and the groups they've finished.
 export async function saveOtcFieldSelection(
   accountId: string | null,
   selection: OtcFieldSelection,
 ): Promise<{ ok: boolean; error?: string }> {
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   if (!account) return { ok: false, error: "Not signed in." };
-  const fields = cleanOtcSelection(selection.fields);
   const { error } = await supabase.from("client_otc_field_selections").upsert(
     {
       client_account_id: account,
-      fields,
-      field_names: cleanFieldNames(selection.names, fields),
+      fields: cleanOtcSelection(selection.fields),
       groups_done: cleanGroupsDone(selection.groupsDone),
       updated_at: new Date().toISOString(),
     },

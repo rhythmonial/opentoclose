@@ -9,46 +9,61 @@ import {
   SELECTABLE_GROUPS,
   slugOf,
   type Kind,
+  type OtcField,
 } from "@/lib/otcFields";
 import {
   saveOtcFieldSelection,
   type OtcFieldSelection,
 } from "@/app/configurator/select_otc_fields/actions";
 
+// OTC's field types, as its Field Editor names them.
 const KIND_LABELS: Record<string, string> = {
   text: "Text",
-  text_area: "Text area",
-  currency: "Dollar",
-  percentage: "Percent",
+  text_area: "Text Area",
+  currency: "Decimal: Dollar",
+  percentage: "Decimal: Percentage",
   date: "Date",
   number: "Number",
   choice: "Choice",
 };
 
-// Every section of OTC's field groups (empty ones too, as OTC shows them),
-// with field ids.
-const SECTIONS = OTC_SECTIONS.filter((s) => s.id !== CONTACT_ROLES_SECTION).map((s) => ({
-  ...s,
-  fields: s.fields.map((f) => ({ ...f, id: `${s.id}/${slugOf(f.name)}` })),
-}));
-const ALL_FIELDS = SECTIONS.flatMap((s) => s.fields);
+type Field = { id: string; name: string; kind?: Kind; isNew?: boolean };
 
-// Select OTC Fields, laid out like OTC's Field Editor: a tab per field
+// Finalize Your Fields, laid out like OTC's Field Editor: a tab per field
 // group (checked off when the client has finished it), its sections, and
-// their fields. The client checks the fields their process uses and, when
-// they call one something else, types their name for it. System required
-// fields are always checked. Other names a field goes by show under it and
+// their fields, each as "* Name (Type)" (* when OTC requires it). Fields
+// assigned in Assign Your Workflow Fields are checked; the client checks
+// any others they need, which are listed as fields needed. System required
+// fields are always checked. Other names a field goes by show on hover and
 // match the search.
 export function OtcFieldSelector({
   accountId,
   initial,
+  assigned,
+  newFields,
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
   initial: OtcFieldSelection;
+  // OTC field id -> where it's assigned on the contracts.
+  assigned: Record<string, string[]>;
+  // Fields the client added while assigning (shown in their sections).
+  newFields: OtcField[];
 }) {
+  // Every section of OTC's field groups (empty ones too, as OTC shows
+  // them), with the client's new fields at the end of theirs.
+  const SECTIONS = OTC_SECTIONS.filter((s) => s.id !== CONTACT_ROLES_SECTION).map((s) => ({
+    ...s,
+    fields: [
+      ...s.fields.map((f): Field => ({ ...f, id: `${s.id}/${slugOf(f.name)}` })),
+      ...newFields
+        .filter((f) => f.sectionId === s.id)
+        .map((f): Field => ({ id: f.id, name: f.name, kind: f.kind, isNew: true })),
+    ],
+  }));
+  const ALL_FIELDS = SECTIONS.flatMap((s) => s.fields);
+
   const [picked, setPicked] = useState<Set<string>>(() => new Set(initial.fields));
-  const [names, setNames] = useState<Record<string, string>>(initial.names);
   const [done, setDone] = useState<Set<string>>(() => new Set(initial.groupsDone));
   const [group, setGroup] = useState(
     () => SELECTABLE_GROUPS.find((g) => !initial.groupsDone.includes(g)) ?? SELECTABLE_GROUPS[0],
@@ -60,19 +75,16 @@ export function OtcFieldSelector({
   const timer = useRef<number | null>(null);
   const top = useRef<HTMLDivElement>(null);
 
-  function save(next: { picked?: Set<string>; names?: Record<string, string>; done?: Set<string> }) {
+  function save(next: { picked?: Set<string>; done?: Set<string> }) {
     const p = next.picked ?? picked;
-    const n = next.names ?? names;
     const d = next.done ?? done;
     if (next.picked) setPicked(p);
-    if (next.names) setNames(n);
     if (next.done) setDone(d);
     setStatus("saving");
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(async () => {
       const result = await saveOtcFieldSelection(accountId, {
         fields: [...p],
-        names: n,
         groupsDone: [...d],
       });
       setStatus(result.ok ? "saved" : "error");
@@ -83,7 +95,7 @@ export function OtcFieldSelector({
   function setChecked(ids: string[], on: boolean) {
     const next = new Set(picked);
     for (const id of ids) {
-      if (isSystemRequired(id)) continue;
+      if (isSystemRequired(id) || assigned[id]) continue;
       if (on) next.add(id);
       else next.delete(id);
     }
@@ -108,14 +120,13 @@ export function OtcFieldSelector({
     }
   }
 
-  const isOn = (id: string) => isSystemRequired(id) || picked.has(id);
+  const isOn = (id: string) => isSystemRequired(id) || Boolean(assigned[id]) || picked.has(id);
   const q = query.trim().toLowerCase();
   const matches = (f: { id: string; name: string }, sectionName: string) =>
     (!onlyChecked || isOn(f.id)) &&
     (!q ||
       f.name.toLowerCase().includes(q) ||
       sectionName.toLowerCase().includes(q) ||
-      (names[f.id] ?? "").toLowerCase().includes(q) ||
       (OTC_FIELD_ALIASES[f.id] ?? []).some((a) => a.toLowerCase().includes(q)));
   // Searching looks through every group; otherwise it's the open tab.
   const filtering = Boolean(q) || onlyChecked;
@@ -138,8 +149,9 @@ export function OtcFieldSelector({
           your state uses. For example, <strong className="text-ink">Acceptance Date</strong> is
           the date both sides signed, which your contract may call the Contract Date, Effective
           Date or Binding Agreement Date. Go by what a field is for, not just its name, and do
-          your best to check every field you use in your process. If you call a field
-          something else, type your name for it beside the field.
+          your best to check every field you use in your process. Hover over the{" "}
+          <span className="font-semibold">i</span> beside a field to see other names it goes
+          by.
         </p>
       </div>
 
@@ -273,19 +285,11 @@ export function OtcFieldSelector({
                   {s.fields.map((f) => (
                     <FieldRow
                       key={f.id}
-                      id={f.id}
-                      name={f.name}
-                      kind={f.kind}
+                      field={f}
                       checked={isOn(f.id)}
                       required={isSystemRequired(f.id)}
-                      yourName={names[f.id] ?? ""}
+                      onContract={assigned[f.id]}
                       onCheck={(on) => setChecked([f.id], on)}
-                      onName={(value) => {
-                        const next = { ...names };
-                        if (value) next[f.id] = value;
-                        else delete next[f.id];
-                        save({ names: next });
-                      }}
                     />
                   ))}
                 </section>
@@ -311,93 +315,162 @@ export function OtcFieldSelector({
           )}
         </div>
       ))}
+
+      <YourFields
+        sections={SECTIONS}
+        isAssigned={(id) => Boolean(assigned[id])}
+        isNeeded={(id) => !assigned[id] && (isSystemRequired(id) || picked.has(id))}
+      />
     </div>
   );
 }
 
 function FieldRow({
-  id,
-  name,
-  kind,
+  field,
   checked,
   required,
-  yourName,
+  onContract,
   onCheck,
-  onName,
 }: {
-  id: string;
-  name: string;
-  kind?: Kind;
+  field: Field;
   checked: boolean;
   required: boolean;
-  yourName: string;
+  // Where it's assigned on the contracts (it stays checked).
+  onContract?: string[];
   onCheck: (on: boolean) => void;
-  onName: (value: string) => void;
 }) {
-  const aliases = OTC_FIELD_ALIASES[id];
-  const type = KIND_LABELS[kind ?? ""] ?? "";
+  const aliases = OTC_FIELD_ALIASES[field.id];
+  const locked = required || Boolean(onContract);
   return (
     <div
-      className={`ml-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border bg-surface px-3 py-2 sm:ml-6 ${
+      className={`ml-3 flex items-center gap-3 rounded-lg border bg-surface px-3 py-2 sm:ml-6 ${
         checked ? "border-accent/40" : "border-border"
       }`}
     >
-      <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-2.5">
+      <label
+        className={`flex min-w-0 flex-1 items-center gap-2.5 ${locked ? "cursor-default" : "cursor-pointer"}`}
+        title={
+          onContract
+            ? `On your contract (change it in Assign Your Workflow Fields):\n${onContract.join("\n")}`
+            : undefined
+        }
+      >
         <input
           type="checkbox"
           checked={checked}
-          disabled={required}
+          disabled={locked}
           onChange={(e) => onCheck(e.target.checked)}
-          className="mt-0.5 h-4 w-4 shrink-0"
+          className="h-4 w-4 shrink-0"
         />
-        <span className="min-w-0">
-          <span className={`text-sm text-accent ${checked ? "font-semibold" : ""}`}>{name}</span>
-          {required && (
-            <span className="ml-1.5 rounded bg-accent-soft px-1 py-px align-middle text-[10px] font-bold uppercase text-accent">
-              Required by OTC
+        <FieldName field={field} required={required} bold={checked} />
+        {onContract ? (
+          <span className="shrink-0 rounded bg-accent-soft px-1.5 py-px text-[10px] font-bold uppercase text-accent">
+            On your contract
+          </span>
+        ) : (
+          checked && (
+            <span className="shrink-0 rounded bg-gold/25 px-1.5 py-px text-[10px] font-bold uppercase text-ink">
+              Needed
             </span>
-          )}
-          {aliases && (
-            <span className="block text-xs text-ink-faint">Also called: {aliases.join(", ")}</span>
-          )}
-        </span>
+          )
+        )}
       </label>
-      {checked && (
-        <>
-          <input
-            defaultValue={yourName}
-            onBlur={(e) => {
-              if (e.target.value.trim() !== yourName) onName(e.target.value.trim());
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-            }}
-            list={aliases ? `aliases-${id}` : undefined}
-            maxLength={120}
-            placeholder="Your name for it (if different)"
-            aria-label={`What you call ${name}`}
-            className="w-56 max-w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent"
-          />
-          {aliases && (
-            <datalist id={`aliases-${id}`}>
-              {aliases.map((a) => (
-                <option key={a} value={a} />
-              ))}
-            </datalist>
-          )}
-        </>
-      )}
-      <span className="flex shrink-0 items-center gap-2 text-ink-faint">
-        <TypeIcon kind={kind} />
+      {aliases && (
         <span
-          title={`${type} field${aliases ? `. Also called: ${aliases.join(", ")}` : ""}`}
-          aria-label={`${type} field`}
-          className="flex h-4 w-4 items-center justify-center rounded-full border border-current text-[10px] font-bold"
+          title={`Also called: ${aliases.join(", ")}`}
+          aria-label={`Also called: ${aliases.join(", ")}`}
+          className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-ink-faint text-[10px] font-bold text-ink-faint"
         >
           i
         </span>
-      </span>
+      )}
     </div>
+  );
+}
+
+// "* Name (Type)": the asterisk when OTC requires it.
+function FieldName({ field, required, bold }: { field: Field; required: boolean; bold?: boolean }) {
+  const type = KIND_LABELS[field.kind ?? ""];
+  return (
+    <span className="min-w-0 text-sm">
+      <span aria-hidden className="inline-block w-2.5 font-bold text-danger">
+        {required ? "*" : ""}
+      </span>
+      {required && <span className="sr-only">Required: </span>}
+      <span className={`text-accent ${bold ? "font-semibold" : ""}`}>{field.name}</span>
+      {type && <span className="text-ink-soft"> ({type})</span>}
+      {field.isNew && (
+        <span className="ml-1.5 rounded bg-gold/20 px-1 py-px align-middle text-[10px] font-bold uppercase text-ink">
+          New
+        </span>
+      )}
+    </span>
+  );
+}
+
+// The client's fields by section: the ones on their contracts, and the
+// ones they need that aren't.
+function YourFields({
+  sections,
+  isAssigned,
+  isNeeded,
+}: {
+  sections: { id: string; name: string; group: string; fields: Field[] }[];
+  isAssigned: (id: string) => boolean;
+  isNeeded: (id: string) => boolean;
+}) {
+  const list = (pick: (id: string) => boolean) =>
+    sections
+      .map((s) => ({ ...s, fields: s.fields.filter((f) => pick(f.id)) }))
+      .filter((s) => s.fields.length > 0);
+  const columns = [
+    {
+      title: "On your contracts",
+      empty: "None yet. Assign fields in Assign Your Workflow Fields.",
+      sections: list(isAssigned),
+    },
+    {
+      title: "Fields needed",
+      empty: "None. Check a field above that isn't on your contracts to add it.",
+      sections: list(isNeeded),
+    },
+  ];
+  return (
+    <section className="mt-4 rounded-xl border border-border bg-surface p-5">
+      <h2 className="font-display text-lg font-bold text-ink">Your fields</h2>
+      <p className="mt-1 text-sm text-ink-soft">
+        Every field you&rsquo;ll use in Open to Close: the ones on your contracts, and the
+        ones you need that aren&rsquo;t.
+      </p>
+      <div className="mt-4 grid gap-6 md:grid-cols-2">
+        {columns.map((c) => {
+          const n = c.sections.reduce((sum, s) => sum + s.fields.length, 0);
+          return (
+            <div key={c.title}>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+                {c.title} ({n})
+              </h3>
+              {n === 0 ? (
+                <p className="mt-2 text-sm text-ink-faint">{c.empty}</p>
+              ) : (
+                c.sections.map((s) => (
+                  <div key={s.id} className="mt-3">
+                    <p className="text-xs font-semibold text-ink-soft">{s.name}</p>
+                    <ul className="mt-1 flex flex-col gap-0.5">
+                      {s.fields.map((f) => (
+                        <li key={f.id}>
+                          <FieldName field={f} required={isSystemRequired(f.id)} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -406,40 +479,5 @@ function Star() {
     <svg aria-hidden width="13" height="13" viewBox="0 0 24 24" className="shrink-0 fill-accent">
       <path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z" />
     </svg>
-  );
-}
-
-// A small mark for the field's type (a calendar for dates, $ for dollars...).
-function TypeIcon({ kind }: { kind?: Kind }) {
-  const label = KIND_LABELS[kind ?? ""] ?? "";
-  if (kind === "date") {
-    return (
-      <svg
-        aria-label={label}
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="text-accent"
-      >
-        <rect x="3" y="5" width="18" height="16" rx="2" />
-        <path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4" />
-      </svg>
-    );
-  }
-  const glyph: Record<string, string> = {
-    text: "Aa",
-    text_area: "¶",
-    currency: "$",
-    percentage: "%",
-    number: "#",
-    choice: "☰",
-  };
-  return (
-    <span aria-label={label} title={label} className="w-4 text-center text-xs font-bold">
-      {glyph[kind ?? ""] ?? ""}
-    </span>
   );
 }
