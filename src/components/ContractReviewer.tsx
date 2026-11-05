@@ -863,7 +863,13 @@ export function ContractReviewer({
                                   onPointerEnter={() => setTypeHelp(t.help)}
                                   onPointerLeave={() => setTypeHelp(null)}
                                   onFocus={() => setTypeHelp(t.help)}
+                                  // Contact has a row of its own; the rest
+                                  // pair up (text / text area, dollar /
+                                  // percent, date / number, choice field /
+                                  // option).
                                   className={`rounded-md border px-2 py-1 text-left text-xs font-medium ${
+                                    t.value === "contact" ? "col-span-2" : ""
+                                  } ${
                                     on
                                       ? "border-accent bg-accent text-white"
                                       : "border-border bg-surface text-ink hover:border-accent hover:bg-accent-soft/40"
