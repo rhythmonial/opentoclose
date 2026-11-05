@@ -872,7 +872,8 @@ export function ContractReviewer({
                           <ChoiceFieldPrompt
                             choiceFields={choiceFields.filter((c) => c.id !== keyOf(anchor))}
                             current={anchor.choiceOf}
-                            defaultTitle={anchor.optionTitle ?? titleFrom(anchor)}
+                            defaultTitle={anchor.optionTitle ?? ""}
+                            suggestedName={anchor.choiceOf ? "" : titleFrom(anchor)}
                             onPick={(id, title) => assignChoice(keyOf(anchor), id, null, title)}
                             onCreate={(name, title) => {
                               const otc = OTC_CHOICE_FIELDS.find(
@@ -1208,12 +1209,13 @@ function ChoiceOptionsPanel({
 
 // Asks which choice field a choice option belongs to: one on the contract
 // (or one other options are tied to), or a new one by name (an Open to
-// Close choice field when the name matches one). Also asks the option's
-// title, suggested from the contract's text beside it.
+// Close choice field when the name matches one), with the contract's text
+// beside it suggested as that name. Also asks the option's title.
 function ChoiceFieldPrompt({
   choiceFields,
   current,
   defaultTitle,
+  suggestedName,
   onPick,
   onCreate,
   onBack,
@@ -1222,14 +1224,16 @@ function ChoiceFieldPrompt({
   choiceFields: { id: string; name: string; where?: string }[];
   current?: string;
   defaultTitle: string;
+  // Prefills the new choice field's name.
+  suggestedName: string;
   onPick: (id: string, title: string) => void;
   onCreate: (name: string, title: string) => void;
   onBack: () => void;
   onSkip: () => void;
 }) {
   const [title, setTitle] = useState(defaultTitle);
-  const [name, setName] = useState("");
   const capitalized = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  const [name, setName] = useState(() => capitalized(suggestedName));
   return (
     <span className="flex w-[21rem] flex-col gap-2">
       <span className="flex items-baseline justify-between gap-3">
@@ -1241,7 +1245,6 @@ function ChoiceFieldPrompt({
       <label className="flex items-center gap-2 text-xs text-ink-soft">
         Option title
         <input
-          autoFocus
           value={title}
           onChange={(e) => setTitle(capitalized(e.target.value))}
           maxLength={120}
@@ -1284,8 +1287,9 @@ function ChoiceFieldPrompt({
         }}
       >
         <input
+          autoFocus
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => setName(capitalized(e.target.value))}
           list="otc-choice-fields"
           maxLength={120}
           placeholder="Create a new choice field, e.g. Loan Type"
