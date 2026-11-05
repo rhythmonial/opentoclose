@@ -42,6 +42,10 @@ export type ContractBlank = {
   choiceOf?: string;
   choiceName?: string;
   optionTitle?: string;
+  // A contact's role: an Open to Close contact role (its id), or one the
+  // client added (a NEW_OTC_PREFIX id, with the name in contactRoleName).
+  contactRole?: string;
+  contactRoleName?: string;
 };
 
 // What a field is called: a checkbox by its option (the text after it), a

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 import { isBoxFieldType, withBoxTypes } from "@/lib/fieldTypes";
-import { OTC_FIELDS } from "@/lib/otcFields";
+import { isContactRole, OTC_FIELDS } from "@/lib/otcFields";
 import {
   cleanTitles,
   cleanWorkflowFields,
@@ -126,6 +126,18 @@ export async function finishContractDocs() {
   redirect("/portal");
 }
 
+// A contact's role: an OTC contact role, or one added by name.
+function validContactRole(b: ContractBlank) {
+  const r = b.contactRole;
+  if (typeof r !== "string") return false;
+  if (OTC_FIELDS.some((f) => f.id === r && isContactRole(f))) return true;
+  return (
+    new RegExp(`^${NEW_OTC_PREFIX}[0-9a-f-]{36}$`, "i").test(r) &&
+    typeof b.contactRoleName === "string" &&
+    b.contactRoleName.trim().length > 0
+  );
+}
+
 // A choice option's choice field: one on the contract (a box or link id),
 // an OTC choice field, or one created by name.
 function validChoiceOf(b: ContractBlank) {
@@ -190,6 +202,14 @@ export async function saveContractReview(input: {
             choiceOf: b.choiceOf!,
             ...(b.choiceOf!.startsWith(NEW_OTC_PREFIX)
               ? { choiceName: String(b.choiceName).trim().slice(0, 120) }
+              : {}),
+          }
+        : {}),
+      ...(b.fieldType === "contact" && validContactRole(b)
+        ? {
+            contactRole: b.contactRole!,
+            ...(b.contactRole!.startsWith(NEW_OTC_PREFIX)
+              ? { contactRoleName: String(b.contactRoleName).trim().slice(0, 120) }
               : {}),
           }
         : {}),

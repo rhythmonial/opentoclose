@@ -5,11 +5,13 @@ import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { openPdf } from "@/lib/pdfjs";
 import { fieldLabel, tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 import { FIELD_TYPE_OPTIONS, type BoxFieldType } from "@/lib/fieldTypes";
-import { OTC_FIELDS } from "@/lib/otcFields";
+import { isContactRole, OTC_FIELDS } from "@/lib/otcFields";
 import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
 
 // Open to Close's choice fields, for naming a new choice field.
 const OTC_CHOICE_FIELDS = OTC_FIELDS.filter((f) => f.kind === "choice");
+// Open to Close's contact roles.
+const OTC_CONTACT_ROLES = OTC_FIELDS.filter(isContactRole);
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 type Drag = {
@@ -105,6 +107,8 @@ export function ContractReviewer({
   const [optionsFor, setOptionsFor] = useState<string | null>(null);
   // The choice option (its key) being asked which choice field it's for.
   const [askChoice, setAskChoice] = useState<string | null>(null);
+  // The contact (its key) being asked for its contact role.
+  const [askRole, setAskRole] = useState<string | null>(null);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "error" | null>(null);
@@ -230,6 +234,10 @@ export function ContractReviewer({
           delete next.optionTitle;
         }
         if (fieldType !== "choice_field") delete next.choiceOptions;
+        if (fieldType !== "contact") {
+          delete next.contactRole;
+          delete next.contactRoleName;
+        }
         return next;
       }),
     );
@@ -286,6 +294,46 @@ export function ContractReviewer({
     setAskChoice(null);
     setSelected(null);
   }
+
+  // Sets a contact's role: an OTC contact role, or a new one by name (the
+  // OTC role when the name matches one).
+  function assignRole(key: string, role: { id: string } | { name: string }) {
+    let id: string;
+    let name: string | null = null;
+    if ("id" in role) id = role.id;
+    else {
+      const match = rolesInUse
+        .concat(OTC_CONTACT_ROLES.map((r) => ({ id: r.id, name: r.name })))
+        .find((r) => r.name.toLowerCase() === role.name.toLowerCase());
+      if (match) id = match.id;
+      else {
+        id = `${NEW_OTC_PREFIX}${crypto.randomUUID()}`;
+        name = role.name;
+      }
+    }
+    changeBlanks(
+      blanks.map((b) => {
+        if (keyOf(b) !== key) return b;
+        const next: ContractBlank = { ...b, fieldType: "contact", contactRole: id };
+        if (name) next.contactRoleName = name;
+        else if (!id.startsWith(NEW_OTC_PREFIX)) delete next.contactRoleName;
+        return next;
+      }),
+    );
+    setAskRole(null);
+    setSelected(null);
+  }
+
+  // Contact roles used on this contract (OTC's and added ones), first used
+  // first.
+  const rolesInUse: { id: string; name: string }[] = [];
+  for (const b of blanks) {
+    const id = b.fieldType === "contact" ? b.contactRole : undefined;
+    if (!id || rolesInUse.some((r) => r.id === id)) continue;
+    const name = b.contactRoleName ?? OTC_CONTACT_ROLES.find((r) => r.id === id)?.name;
+    if (name) rolesInUse.push({ id, name });
+  }
+  const roleNameOf = (id?: string) => rolesInUse.find((r) => r.id === id)?.name;
 
   // The choice fields an option can belong to: the ones marked on the
   // contract, then ones options are already tied to (OTC's or created).
@@ -370,6 +418,7 @@ export function ContractReviewer({
         setLinking([]);
         setOptionsFor(null);
         setAskChoice(null);
+        setAskRole(null);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -714,7 +763,9 @@ export function ContractReviewer({
                           )}
                           {b.fieldType === "choice_option" && b.optionTitle
                             ? `Option: ${b.optionTitle}`
-                            : b.fieldType && TYPE_TAGS[b.fieldType]}
+                            : b.fieldType === "contact" && roleNameOf(b.contactRole)
+                              ? `Contact: ${roleNameOf(b.contactRole)}`
+                              : b.fieldType && TYPE_TAGS[b.fieldType]}
                         </span>
                       )}
                       {isSelected && (
@@ -805,7 +856,19 @@ export function ContractReviewer({
                           </span>
                         </>
                       ) : (
-                        askChoice === keyOf(anchor) ? (
+                        askRole === keyOf(anchor) ? (
+                          <ContactRolePrompt
+                            inUse={rolesInUse}
+                            current={anchor.contactRole}
+                            onPick={(id) => assignRole(keyOf(anchor), { id })}
+                            onAdd={(name) => assignRole(keyOf(anchor), { name })}
+                            onBack={() => setAskRole(null)}
+                            onSkip={() => {
+                              setAskRole(null);
+                              setSelected(null);
+                            }}
+                          />
+                        ) : askChoice === keyOf(anchor) ? (
                           <ChoiceFieldPrompt
                             choiceFields={choiceFields.filter((c) => c.id !== keyOf(anchor))}
                             current={anchor.choiceOf}
@@ -858,6 +921,8 @@ export function ContractReviewer({
                                     // A choice option asks for its choice
                                     // field; otherwise on to the next box.
                                     if (t.value === "choice_option") setAskChoice(keyOf(anchor));
+                                    // A contact asks for its role.
+                                    else if (t.value === "contact") setAskRole(keyOf(anchor));
                                     else setSelected(null);
                                   }}
                                   onPointerEnter={() => setTypeHelp(t.help)}
@@ -885,6 +950,22 @@ export function ContractReviewer({
                           <span className="block h-[2.75rem] w-[21rem] overflow-hidden rounded-md bg-bg px-2 py-1.5 text-[11px] leading-snug text-ink-soft">
                             {typeHelp ?? "Hover over a type to see what it's for."}
                           </span>
+                          {anchor.fieldType === "contact" && (
+                            <button
+                              type="button"
+                              onClick={() => setAskRole(keyOf(anchor))}
+                              className="flex w-[21rem] items-center justify-between gap-2 rounded-md border border-accent px-2 py-1 text-left text-xs text-accent hover:bg-accent-soft/40"
+                            >
+                              <span className="min-w-0 truncate">
+                                {anchor.contactRole
+                                  ? `Contact role: ${roleNameOf(anchor.contactRole) ?? "Unknown"}`
+                                  : "No contact role yet"}
+                              </span>
+                              <span className="shrink-0 font-semibold">
+                                {anchor.contactRole ? "Change" : "Choose"}
+                              </span>
+                            </button>
+                          )}
                           {anchor.fieldType === "choice_field" && (
                             <button
                               type="button"
@@ -1224,6 +1305,109 @@ function ChoiceFieldPrompt({
           Create
         </button>
       </form>
+      <button type="button" onClick={onSkip} className="self-start text-[11px] font-semibold text-ink-faint hover:text-ink">
+        Skip for now (choose it in Assign Your Workflow Fields)
+      </button>
+    </span>
+  );
+}
+
+// Asks a contact's role: a search of Open to Close's contact roles (ones
+// used on this contract first), or a new role by what was typed.
+function ContactRolePrompt({
+  inUse,
+  current,
+  onPick,
+  onAdd,
+  onBack,
+  onSkip,
+}: {
+  inUse: { id: string; name: string }[];
+  current?: string;
+  onPick: (id: string) => void;
+  onAdd: (name: string) => void;
+  onBack: () => void;
+  onSkip: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const roles = [
+    ...inUse,
+    ...OTC_CONTACT_ROLES.filter((r) => !inUse.some((u) => u.id === r.id)).map((r) => ({
+      id: r.id,
+      name: r.name,
+    })),
+  ].filter((r) => !q || r.name.toLowerCase().includes(q));
+  const exact = roles.some((r) => r.name.toLowerCase() === q);
+  const typed = query.trim().replace(/\b\w/g, (c) => c.toUpperCase());
+  return (
+    <span className="flex w-[21rem] flex-col gap-2">
+      <span className="flex items-baseline justify-between gap-3">
+        <span className="text-xs font-semibold text-ink">Which contact role is this?</span>
+        <button type="button" onClick={onBack} className="text-[11px] font-semibold text-ink-faint hover:text-ink">
+          &lsaquo; Type
+        </button>
+      </span>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (roles.length === 1) onPick(roles[0].id);
+          else if (typed && !exact) onAdd(typed);
+        }}
+      >
+        <input
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search contact roles, e.g. Lender"
+          aria-label="Search contact roles"
+          className="w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent"
+        />
+      </form>
+      <span className="flex max-h-44 flex-col gap-0.5 overflow-y-auto">
+        {!q && inUse.length > 0 && (
+          <span className="px-1 pt-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+            Used on this contract
+          </span>
+        )}
+        {roles.map((r, i) => (
+          <span key={r.id} className="contents">
+            {!q && inUse.length > 0 && i === inUse.length && (
+              <span className="px-1 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">
+                All contact roles
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => onPick(r.id)}
+              className={`rounded-md px-2 py-1 text-left text-xs ${
+                r.id === current
+                  ? "bg-accent font-semibold text-white"
+                  : "text-ink hover:bg-accent-soft/50"
+              }`}
+            >
+              {r.name}
+            </button>
+          </span>
+        ))}
+        {roles.length === 0 && (
+          <span className="px-2 py-1 text-[11px] text-ink-faint">No contact roles match.</span>
+        )}
+      </span>
+      {typed && !exact && (
+        <button
+          type="button"
+          onClick={() => onAdd(typed)}
+          className="rounded-md border border-dashed border-accent px-2 py-1 text-left text-xs font-semibold text-accent hover:bg-accent-soft/40"
+        >
+          + Add a new role: &ldquo;{typed}&rdquo;
+        </button>
+      )}
+      {!typed && (
+        <span className="text-[11px] text-ink-faint">
+          Don&rsquo;t see it? Type its name to add a new role.
+        </span>
+      )}
       <button type="button" onClick={onSkip} className="self-start text-[11px] font-semibold text-ink-faint hover:text-ink">
         Skip for now (choose it in Assign Your Workflow Fields)
       </button>

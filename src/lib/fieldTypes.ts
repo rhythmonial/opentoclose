@@ -5,7 +5,7 @@
 // assigning updates the boxes.
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { NEW_OTC_PREFIX, type WorkflowField } from "@/lib/workflowFields";
-import { OTC_FIELD_IDS } from "@/lib/otcFields";
+import { CONTACT_ROLES_SECTION, OTC_FIELD_IDS } from "@/lib/otcFields";
 
 export type BoxFieldType =
   | "contact"
@@ -110,6 +110,8 @@ type BoxInfo = {
   choiceName?: string;
   optionTitle?: string;
   options?: string[];
+  contactRole?: string;
+  contactRoleName?: string;
 };
 function infoByKey(blanks: ContractBlank[]) {
   const out = new Map<string, BoxInfo>();
@@ -123,6 +125,8 @@ function infoByKey(blanks: ContractBlank[]) {
       ...(b.fieldType === "choice_option" && b.choiceName ? { choiceName: b.choiceName } : {}),
       ...(b.fieldType === "choice_option" && b.optionTitle ? { optionTitle: b.optionTitle } : {}),
       ...(b.fieldType === "choice_field" && b.choiceOptions?.length ? { options: b.choiceOptions } : {}),
+      ...(b.fieldType === "contact" && b.contactRole ? { contactRole: b.contactRole } : {}),
+      ...(b.fieldType === "contact" && b.contactRoleName ? { contactRoleName: b.contactRoleName } : {}),
     });
   }
   return out;
@@ -146,6 +150,16 @@ function withChoiceInfo(f: WorkflowField, info: BoxInfo): WorkflowField {
   if (info.type === "choice_field") {
     if (info.options) next.options = info.options;
     else delete next.options;
+  }
+  // A contact's role is its OTC field (a new role in Contact Roles).
+  if (info.type === "contact" && info.contactRole) {
+    next.otc_field = info.contactRole;
+    delete next.otc_field_name;
+    delete next.otc_section;
+    if (info.contactRole.startsWith(NEW_OTC_PREFIX) && info.contactRoleName) {
+      next.otc_field_name = info.contactRoleName;
+      next.otc_section = CONTACT_ROLES_SECTION;
+    }
   }
   return next;
 }
@@ -196,6 +210,14 @@ export function withWorkflowTypes(
     delete next.choiceName;
     delete next.optionTitle;
     delete next.choiceOptions;
+    delete next.contactRole;
+    delete next.contactRoleName;
+    if (f.type === "contact" && f.otc_field) {
+      next.contactRole = f.otc_field;
+      if (f.otc_field.startsWith(NEW_OTC_PREFIX) && f.otc_field_name) {
+        next.contactRoleName = f.otc_field_name;
+      }
+    }
     if (f.choice_role === "option") {
       const q = f.question_id;
       if (q && (keys.has(q) || OTC_FIELD_IDS.has(q))) next.choiceOf = q;
