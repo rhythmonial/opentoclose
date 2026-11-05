@@ -418,16 +418,22 @@ export type Database = {
         Row: {
           client_account_id: string
           fields: string[]
+          field_names: Json
+          groups_done: string[]
           updated_at: string
         }
         Insert: {
           client_account_id: string
           fields?: string[]
+          field_names?: Json
+          groups_done?: string[]
           updated_at?: string
         }
         Update: {
           client_account_id?: string
           fields?: string[]
+          field_names?: Json
+          groups_done?: string[]
           updated_at?: string
         }
         Relationships: []

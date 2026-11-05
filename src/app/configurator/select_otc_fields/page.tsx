@@ -3,7 +3,12 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { getSandboxTier } from "@/lib/devSandbox";
-import { cleanOtcSelection } from "@/lib/otcFields";
+import {
+  cleanFieldNames,
+  cleanGroupsDone,
+  cleanOtcSelection,
+  SELECTABLE_GROUPS,
+} from "@/lib/otcFields";
 import { OtcFieldSelector } from "@/components/OtcFieldSelector";
 import { finishSelectOtcFields } from "./actions";
 
@@ -47,11 +52,14 @@ export default async function SelectOtcFieldsPage({
   const { data: saved } = accountId
     ? await supabase
         .from("client_otc_field_selections")
-        .select("fields")
+        .select("fields, field_names, groups_done")
         .eq("client_account_id", accountId)
         .maybeSingle()
     : { data: null };
   const selected = cleanOtcSelection(saved?.fields ?? []);
+  const names = cleanFieldNames(saved?.field_names, selected);
+  const groupsDone = cleanGroupsDone(saved?.groups_done);
+  const allDone = groupsDone.length === SELECTABLE_GROUPS.length;
 
   return (
     <main className="flex flex-1 justify-center bg-bg px-4 py-12">
@@ -107,9 +115,12 @@ export default async function SelectOtcFieldsPage({
           </div>
         ) : (
           <p className="mt-1.5 max-w-3xl text-sm text-ink-soft">
-            These are the fields Open to Close comes with. Scan the list and check every field
-            your team tracks on a transaction. Don&rsquo;t worry about getting it perfect: you
-            can add fields of your own later, when you assign the fields on your contracts.
+            These are the fields Open to Close comes with, laid out like OTC&rsquo;s Field
+            Editor. Go through each field group, check every field your team tracks on a
+            transaction, and if you call it something else, type your name for it. Check off
+            each group when you&rsquo;re done with it. Don&rsquo;t worry about getting it
+            perfect: you can add fields of your own later, when you assign the fields on your
+            contracts.
           </p>
         )}
 
@@ -118,7 +129,7 @@ export default async function SelectOtcFieldsPage({
             <OtcFieldSelector
               key={accountId}
               accountId={isStaff ? accountId : null}
-              initial={selected}
+              initial={{ fields: selected, names, groupsDone }}
             />
           ) : (
             <p className="rounded-xl border border-border bg-surface p-6 text-sm text-ink-soft">
@@ -130,13 +141,20 @@ export default async function SelectOtcFieldsPage({
         </div>
 
         {!isStaff && accountId && (
-          <form action={finishSelectOtcFields} className="mt-8 flex justify-center">
+          <form action={finishSelectOtcFields} className="mt-8 flex flex-col items-center gap-2">
             <button
               type="submit"
-              className="rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white"
+              disabled={!allDone}
+              className="rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               I&rsquo;m Done Selecting Fields
             </button>
+            {!allDone && (
+              <span className="text-xs text-ink-faint">
+                Check off each field group when you&rsquo;ve gone through it (
+                {groupsDone.length} of {SELECTABLE_GROUPS.length} done).
+              </span>
+            )}
           </form>
         )}
       </div>
