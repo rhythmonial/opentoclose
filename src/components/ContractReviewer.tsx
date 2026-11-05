@@ -858,6 +858,7 @@ export function ContractReviewer({
                       ) : (
                         askRole === keyOf(anchor) ? (
                           <ContactRolePrompt
+                            key={keyOf(anchor)}
                             inUse={rolesInUse}
                             current={anchor.contactRole}
                             onPick={(id) => assignRole(keyOf(anchor), { id })}
@@ -870,6 +871,8 @@ export function ContractReviewer({
                           />
                         ) : askChoice === keyOf(anchor) ? (
                           <ChoiceFieldPrompt
+                            // A fresh prompt for each box (its own text).
+                            key={keyOf(anchor)}
                             choiceFields={choiceFields.filter((c) => c.id !== keyOf(anchor))}
                             current={anchor.choiceOf}
                             defaultTitle={anchor.optionTitle ?? ""}
