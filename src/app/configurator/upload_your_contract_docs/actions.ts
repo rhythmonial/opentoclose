@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 import { isBoxFieldType, withBoxTypes } from "@/lib/fieldTypes";
 import {
+  cleanTitles,
   cleanWorkflowFields,
   isActive,
   workflowKeys,
@@ -165,6 +166,15 @@ export async function saveContractReview(input: {
       ...(b.fieldName ? { fieldName: String(b.fieldName).slice(0, 120) } : {}),
       ...(typeof b.group === "string" && uuid.test(b.group) ? { group: b.group } : {}),
       ...(isBoxFieldType(b.fieldType) ? { fieldType: b.fieldType } : {}),
+      ...(b.fieldType === "choice_field" && cleanTitles(b.choiceOptions).length > 0
+        ? { choiceOptions: cleanTitles(b.choiceOptions) }
+        : {}),
+      ...(b.fieldType === "choice_option" && typeof b.choiceOf === "string" && uuid.test(b.choiceOf)
+        ? { choiceOf: b.choiceOf }
+        : {}),
+      ...(b.fieldType === "choice_option" && typeof b.optionTitle === "string" && b.optionTitle.trim()
+        ? { optionTitle: b.optionTitle.trim().slice(0, 120) }
+        : {}),
       ...(b.line === null || (Number.isInteger(b.line) && b.line! > 0 && b.line! < 100000)
         ? { line: b.line }
         : {}),

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { openPdf } from "@/lib/pdfjs";
-import { tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
+import { fieldLabel, tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 import { FIELD_TYPE_OPTIONS, type BoxFieldType } from "@/lib/fieldTypes";
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
@@ -50,6 +50,18 @@ const TYPE_TAGS = Object.fromEntries(FIELD_TYPE_OPTIONS.map((t) => [t.value, t.t
   string
 >;
 
+// A field's key: its link id, or its box's id.
+const keyOf = (b: ContractBlank) => b.group ?? b.id ?? "";
+
+// A choice option's title, from the contract's text beside it ("FHA," ->
+// "FHA").
+function titleFrom(b: ContractBlank) {
+  const label = fieldLabel(b);
+  if (label === "Unlabeled field") return "";
+  const t = label.replace(/^[\s,:;.()]+|[\s,:;.()]+$/g, "");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 const clamp = (n: number, min = 0, max = 1) => Math.min(max, Math.max(min, n));
 
 // Lets a client check every page of a contract: the blanks we found are
@@ -83,6 +95,9 @@ export function ContractReviewer({
   const [hoverGroup, setHoverGroup] = useState<string | null>(null);
   // The type being hovered in the type menu, for its help.
   const [typeHelp, setTypeHelp] = useState<string | null>(null);
+  // The choice field whose options are being picked (its box or link id):
+  // clicking a box then makes it one of its options.
+  const [optionsFor, setOptionsFor] = useState<string | null>(null);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "error" | null>(null);
@@ -203,10 +218,70 @@ export function ContractReviewer({
         const next = { ...b };
         if (fieldType) next.fieldType = fieldType;
         else delete next.fieldType;
+        if (fieldType !== "choice_option") {
+          delete next.choiceOf;
+          delete next.optionTitle;
+        }
+        if (fieldType !== "choice_field") delete next.choiceOptions;
         return next;
       }),
     );
     setTypeHelp(null);
+    // A choice field asks for its options next.
+    if (fieldType === "choice_field") setOptionsFor(keyOf(box));
+  }
+
+  // Makes a box (and its linked boxes) an option of the choice field whose
+  // options are being picked, titled from the contract's text beside it, or
+  // takes it back out.
+  function toggleOption(index: number) {
+    const box = blanks[index];
+    const key = box && keyOf(box);
+    if (!optionsFor || !key || key === optionsFor) return;
+    const isOption = box.fieldType === "choice_option" && box.choiceOf === optionsFor;
+    const title = box.optionTitle ?? titleFrom(box);
+    changeBlanks(
+      blanks.map((b) => {
+        if (keyOf(b) !== key) return b;
+        const next = { ...b };
+        delete next.choiceOptions;
+        if (isOption) {
+          delete next.fieldType;
+          delete next.choiceOf;
+          delete next.optionTitle;
+        } else {
+          next.fieldType = "choice_option";
+          next.choiceOf = optionsFor;
+          if (title) next.optionTitle = title;
+        }
+        return next;
+      }),
+    );
+  }
+
+  function setOptionTitle(key: string, title: string) {
+    changeBlanks(
+      blanks.map((b) => {
+        if (keyOf(b) !== key) return b;
+        const next = { ...b };
+        if (title.trim()) next.optionTitle = title.trim().slice(0, 120);
+        else delete next.optionTitle;
+        return next;
+      }),
+    );
+  }
+
+  // The options added by hand (not boxes on the contract).
+  function setManualOptions(key: string, options: string[]) {
+    changeBlanks(
+      blanks.map((b) => {
+        if (keyOf(b) !== key) return b;
+        const next = { ...b };
+        if (options.length > 0) next.choiceOptions = options;
+        else delete next.choiceOptions;
+        return next;
+      }),
+    );
   }
 
   function unlink(group: string) {
@@ -221,7 +296,7 @@ export function ContractReviewer({
   }
 
   useEffect(() => {
-    if (selected === null && linking.length === 0) return;
+    if (selected === null && linking.length === 0 && !optionsFor) return;
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest("input, textarea, select, [contenteditable]")) return;
@@ -231,6 +306,7 @@ export function ContractReviewer({
       } else if (e.key === "Escape") {
         setSelected(null);
         setLinking([]);
+        setOptionsFor(null);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -358,6 +434,14 @@ export function ContractReviewer({
         setBlanks(next);
       }
     }
+    // A box added while picking a choice field's options is one of them.
+    if (d.mode === "draw" && optionsFor && next[d.index]) {
+      next = next.map((b, i) =>
+        i === d.index ? { ...b, fieldType: "choice_option" as const, choiceOf: optionsFor } : b,
+      );
+      setBlanks(next);
+      setSelected(null);
+    }
     commit(next, confirmed);
   }
 
@@ -382,6 +466,11 @@ export function ContractReviewer({
       }
     }
   }
+
+  // A choice field's options: its option boxes and the ones added by hand.
+  const optionCount = (key: string) =>
+    new Set(blanks.filter((b) => b.fieldType === "choice_option" && b.choiceOf === key).map(keyOf))
+      .size + (blanks.find((b) => keyOf(b) === key)?.choiceOptions?.length ?? 0);
 
   const onPage = blanks
     .map((b, index) => ({ ...b, index }))
@@ -452,6 +541,28 @@ export function ContractReviewer({
         amount, contact and so on) for each field your team tracks.
       </p>
 
+      {optionsFor && (
+        <ChoiceOptionsPanel
+          choiceLabel={(() => {
+            const first = blanks.find((b) => keyOf(b) === optionsFor);
+            return first ? fieldLabel(first) : "this choice field";
+          })()}
+          boxOptions={blanks
+            .filter((b) => b.fieldType === "choice_option" && b.choiceOf === optionsFor)
+            .filter((b, i, all) => all.findIndex((c) => keyOf(c) === keyOf(b)) === i)
+            .map((b) => ({ key: keyOf(b), page: b.page, title: b.optionTitle ?? "" }))}
+          manualOptions={blanks.find((b) => keyOf(b) === optionsFor)?.choiceOptions ?? []}
+          onTitle={setOptionTitle}
+          onRemoveBox={(key) => {
+            const index = blanks.findIndex((b) => keyOf(b) === key);
+            if (index >= 0) toggleOption(index);
+          }}
+          onManual={(options) => setManualOptions(optionsFor, options)}
+          onGoTo={(n) => setPage(n)}
+          onDone={() => setOptionsFor(null)}
+        />
+      )}
+
       <div className="relative overflow-hidden rounded-lg border border-border bg-white">
         {loadError ? (
           <p className="p-6 text-sm text-danger">{loadError}</p>
@@ -481,6 +592,12 @@ export function ContractReviewer({
                       key={b.index}
                       onPointerDown={(e) => {
                         if (e.button !== 0) return;
+                        if (optionsFor) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleOption(b.index);
+                          return;
+                        }
                         if (e.shiftKey) {
                           e.preventDefault();
                           e.stopPropagation();
@@ -492,8 +609,14 @@ export function ContractReviewer({
                       }}
                       onPointerEnter={() => setHoverGroup(b.group ?? null)}
                       onPointerLeave={() => setHoverGroup(null)}
-                      className={`absolute cursor-move rounded-sm border-2 ${
-                        isSelected
+                      className={`absolute rounded-sm border-2 ${optionsFor ? "cursor-pointer" : "cursor-move"} ${
+                        optionsFor && keyOf(b) === optionsFor
+                          ? "z-10 border-accent bg-accent/30 ring-2 ring-accent ring-offset-1"
+                          : optionsFor && b.fieldType === "choice_option" && b.choiceOf === optionsFor
+                            ? "z-10 border-dashed border-accent bg-accent/35"
+                            : optionsFor
+                              ? "border-gold/60 bg-gold/10 opacity-70 hover:bg-gold/40 hover:opacity-100"
+                              : isSelected
                           ? "z-10 border-accent bg-accent/15"
                           : isLinking
                             ? "z-10 border-dashed border-accent bg-accent/25"
@@ -525,7 +648,9 @@ export function ContractReviewer({
                               {b.fieldType && " · "}
                             </>
                           )}
-                          {b.fieldType && TYPE_TAGS[b.fieldType]}
+                          {b.fieldType === "choice_option" && b.optionTitle
+                            ? `Option: ${b.optionTitle}`
+                            : b.fieldType && TYPE_TAGS[b.fieldType]}
                         </span>
                       )}
                       {isSelected && (
@@ -569,6 +694,7 @@ export function ContractReviewer({
                 {/* Link / Unlink, right under the box last shift+clicked
                     (or the linked box that's selected). */}
                 {(() => {
+                  if (optionsFor) return null;
                   const anchorIndex = linking.length > 0 ? linking[linking.length - 1] : selected;
                   const anchor = anchorIndex !== null ? blanks[anchorIndex] : undefined;
                   if (!anchor || anchor.page !== page) return null;
@@ -659,6 +785,23 @@ export function ContractReviewer({
                           <span className="w-64 rounded-md bg-bg px-2 py-1.5 text-[11px] leading-snug text-ink-soft">
                             {typeHelp ?? "Hover over a type to see what it's for."}
                           </span>
+                          {(anchor.fieldType === "choice_field" ||
+                            (anchor.fieldType === "choice_option" && anchor.choiceOf)) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOptionsFor(
+                                  anchor.fieldType === "choice_field" ? keyOf(anchor) : anchor.choiceOf!,
+                                );
+                                setSelected(null);
+                              }}
+                              className="w-64 rounded-md border border-accent px-2 py-1 text-xs font-semibold text-accent hover:bg-accent-soft/40"
+                            >
+                              {anchor.fieldType === "choice_field"
+                                ? `Options (${optionCount(keyOf(anchor))}): select or add`
+                                : "Edit its choice field's options"}
+                            </button>
+                          )}
                           {selectedGroup && (
                             <span className="flex items-center justify-between gap-3 border-t border-border pt-2">
                               <span className="whitespace-nowrap text-xs text-ink">
@@ -705,6 +848,141 @@ export function ContractReviewer({
             : `Confirm page ${page} looks right`}
         </button>
       </div>
+    </div>
+  );
+}
+
+// Picking a choice field's options: the checkboxes clicked on the contract
+// (titled from their text, which can be changed) and ones added by hand.
+function ChoiceOptionsPanel({
+  choiceLabel,
+  boxOptions,
+  manualOptions,
+  onTitle,
+  onRemoveBox,
+  onManual,
+  onGoTo,
+  onDone,
+}: {
+  choiceLabel: string;
+  boxOptions: { key: string; page: number; title: string }[];
+  manualOptions: string[];
+  onTitle: (key: string, title: string) => void;
+  onRemoveBox: (key: string) => void;
+  onManual: (options: string[]) => void;
+  onGoTo: (page: number) => void;
+  onDone: () => void;
+}) {
+  const [adding, setAdding] = useState("");
+  const capitalized = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  const add = () => {
+    const title = capitalized(adding.trim());
+    if (!title) return;
+    if (![...manualOptions, ...boxOptions.map((o) => o.title)].some((t) => t.toLowerCase() === title.toLowerCase())) {
+      onManual([...manualOptions, title]);
+    }
+    setAdding("");
+  };
+  const total = boxOptions.length + manualOptions.length;
+  return (
+    <div className="sticky top-2 z-30 rounded-xl border-2 border-accent bg-surface p-4 shadow-lg">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-ink">
+            Options for &ldquo;{choiceLabel}&rdquo;
+          </p>
+          <p className="mt-0.5 text-xs text-ink-soft">
+            Click each checkbox on the contract that&rsquo;s one of its options (click again to
+            take it out; click or drag on the page to add a missing one). Add any options that
+            aren&rsquo;t on the contract below.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onDone}
+          className="shrink-0 rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-white"
+        >
+          Done{total > 0 ? ` (${total} option${total === 1 ? "" : "s"})` : ""}
+        </button>
+      </div>
+
+      {total > 0 && (
+        <ul className="mt-3 flex flex-col gap-1.5">
+          {boxOptions.map((o) => (
+            <li key={o.key} className="flex items-center gap-2">
+              <input
+                key={o.title}
+                defaultValue={o.title}
+                onBlur={(e) => {
+                  if (e.target.value.trim() !== o.title) onTitle(o.key, capitalized(e.target.value.trim()));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                }}
+                maxLength={120}
+                placeholder="Option title"
+                aria-label="Option title"
+                className={`w-60 rounded-md border bg-bg px-2 py-1 text-sm text-ink outline-none focus:border-accent ${
+                  o.title ? "border-border" : "border-danger/60"
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => onGoTo(o.page)}
+                className="text-xs text-ink-faint hover:text-accent"
+              >
+                On page {o.page}
+              </button>
+              <button
+                type="button"
+                onClick={() => onRemoveBox(o.key)}
+                aria-label={`Remove ${o.title || "this option"}`}
+                className="ml-auto text-ink-faint hover:text-danger"
+              >
+                &times;
+              </button>
+            </li>
+          ))}
+          {manualOptions.map((t) => (
+            <li key={t} className="flex items-center gap-2">
+              <span className="w-60 rounded-md border border-border bg-bg px-2 py-1 text-sm text-ink">{t}</span>
+              <span className="text-xs text-ink-faint">Added</span>
+              <button
+                type="button"
+                onClick={() => onManual(manualOptions.filter((x) => x !== t))}
+                aria-label={`Remove ${t}`}
+                className="ml-auto text-ink-faint hover:text-danger"
+              >
+                &times;
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form
+        className="mt-3 flex flex-wrap items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          add();
+        }}
+      >
+        <input
+          value={adding}
+          onChange={(e) => setAdding(e.target.value)}
+          maxLength={120}
+          placeholder="Add an option that isn’t on the contract"
+          aria-label="New option"
+          className="w-72 max-w-full rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
+        />
+        <button
+          type="submit"
+          disabled={!adding.trim()}
+          className="rounded-md border border-accent px-3 py-1.5 text-xs font-semibold text-accent disabled:opacity-50"
+        >
+          + Add option
+        </button>
+      </form>
     </div>
   );
 }

@@ -160,14 +160,29 @@ export function WorkflowFieldsSummary({ docs }: { docs: SummaryDoc[] }) {
   const newFields = added.filter((f) => !isContactRole(f));
   const newRoles = added.filter((f) => isContactRole(f));
 
-  // Option titles under each choice field, in the order they were added.
+  // Option titles under each choice field, in the order they were added:
+  // options tied to an OTC choice field, or to a choice field on the
+  // contract (counted under its OTC field), and ones added by hand in
+  // Upload Your Contracts.
+  const questionOtc = new Map(
+    active
+      .filter((f) => f.choice_role === "question" && f.otc_field)
+      .map((f) => [f.id, f.otc_field!] as const),
+  );
   const options = new Map<string, string[]>();
+  const addOption = (choiceId: string, title: string) => {
+    const list = options.get(choiceId) ?? [];
+    if (!list.includes(title)) list.push(title);
+    options.set(choiceId, list);
+  };
   for (const f of active) {
     if (f.choice_role !== "option" || !f.question_id || !f.option_title)
       continue;
-    const list = options.get(f.question_id) ?? [];
-    if (!list.includes(f.option_title)) list.push(f.option_title);
-    options.set(f.question_id, list);
+    addOption(questionOtc.get(f.question_id) ?? f.question_id, f.option_title);
+  }
+  for (const f of active) {
+    if (f.choice_role !== "question" || !f.otc_field) continue;
+    for (const title of f.options ?? []) addOption(f.otc_field, title);
   }
   const existingChoices = OTC_FIELDS.filter((f) => options.has(f.id));
   const empty =
@@ -223,7 +238,9 @@ export function WorkflowFieldsSummary({ docs }: { docs: SummaryDoc[] }) {
                     {rows.map(({ field: f, first }) => {
                       const option =
                         f.type === "choice" && f.choice_role === "option";
-                      const target = option ? f.question_id : f.otc_field;
+                      const target = option
+                        ? (questionOtc.get(f.question_id ?? "") ?? f.question_id)
+                        : f.otc_field;
                       const name =
                         otcName(target) ??
                         (option ? f.question_text : undefined);

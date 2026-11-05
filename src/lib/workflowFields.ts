@@ -40,6 +40,9 @@ export type WorkflowField = {
   otc_field?: string;
   otc_field_name?: string;
   otc_section?: string;
+  // A choice field's options that aren't on the contract (titles), added
+  // in Upload Your Contracts.
+  options?: string[];
 };
 
 export const NEW_QUESTION_PREFIX = "new:";
@@ -137,6 +140,10 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
     }
     if (type === "choice" && (f.choice_role === "question" || f.choice_role === "option")) {
       clean.choice_role = f.choice_role;
+      if (f.choice_role === "question" && Array.isArray(f.options)) {
+        const options = cleanTitles(f.options);
+        if (options.length > 0) clean.options = options;
+      }
       if (f.choice_role === "option" && typeof f.question_id === "string") {
         // An OTC choice field, one the client is adding, or (saved before
         // options were tied to OTC fields) a choice field picked on the
@@ -283,4 +290,15 @@ export function assignContractField(
   const existing = fields.find((f) => f.id === key);
   if (existing) return fields.map((f) => (f.id === key ? reassignTo(f, to) : f));
   return [...fields, reassignTo({ id: key }, to)];
+}
+
+// Distinct, non-empty option titles.
+export function cleanTitles(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const t of raw) {
+    const title = String(t ?? "").trim().slice(0, 120);
+    if (title && !out.some((o) => o.toLowerCase() === title.toLowerCase())) out.push(title);
+  }
+  return out.slice(0, 100);
 }

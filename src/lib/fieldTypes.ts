@@ -101,55 +101,98 @@ export function boxTypeOf(f: Pick<WorkflowField, "type" | "decimal_format" | "ch
   return f.type;
 }
 
-// The type set on a field's boxes (a box, or boxes linked as one).
-function typesByKey(blanks: ContractBlank[]) {
-  const out = new Map<string, BoxFieldType>();
+// What a field's boxes (a box, or boxes linked as one) say about it: its
+// type, and for choice fields and options, how they're tied together.
+type BoxInfo = {
+  type: BoxFieldType;
+  choiceOf?: string;
+  optionTitle?: string;
+  options?: string[];
+};
+function infoByKey(blanks: ContractBlank[]) {
+  const out = new Map<string, BoxInfo>();
   for (const b of blanks) {
     if (!b.id || !b.fieldType) continue;
     const key = b.group ?? b.id;
-    if (!out.has(key)) out.set(key, b.fieldType);
+    if (out.has(key)) continue;
+    out.set(key, {
+      type: b.fieldType,
+      ...(b.fieldType === "choice_option" && b.choiceOf ? { choiceOf: b.choiceOf } : {}),
+      ...(b.fieldType === "choice_option" && b.optionTitle ? { optionTitle: b.optionTitle } : {}),
+      ...(b.fieldType === "choice_field" && b.choiceOptions?.length ? { options: b.choiceOptions } : {}),
+    });
   }
   return out;
+}
+
+// A field with what its boxes say about its choice field / option.
+function withChoiceInfo(f: WorkflowField, info: BoxInfo): WorkflowField {
+  const next: WorkflowField = { ...f };
+  if (info.type === "choice_option") {
+    if (info.choiceOf) {
+      next.question_id = info.choiceOf;
+      delete next.question_text;
+      delete next.question_section;
+    }
+    if (info.optionTitle) next.option_title = info.optionTitle;
+  }
+  if (info.type === "choice_field") {
+    if (info.options) next.options = info.options;
+    else delete next.options;
+  }
+  return next;
 }
 
 // Workflow fields after the upload's types: a typed field that isn't in the
 // workflow yet is added with that type (still needing its OTC field), and
 // one whose type has changed takes the new type (its OTC field goes, since
 // it was for the old type). Removed fields stay removed. A field whose type
-// was cleared (it had one in `before`) leaves the workflow.
+// was cleared (it had one in `before`) leaves the workflow. Choice options
+// picked for a choice field are tied to it, with their titles, and a
+// choice field keeps the options added by hand.
 export function withBoxTypes(
   fields: WorkflowField[],
   blanks: ContractBlank[],
   before: ContractBlank[] = [],
 ): WorkflowField[] {
-  const types = typesByKey(blanks);
-  const had = typesByKey(before);
-  const out = fields.filter((f) => types.has(f.id) || !had.has(f.id)).map((f) => {
-    const t = types.get(f.id);
-    if (!t || f.removed || boxTypeOf(f) === t) return f;
-    return { id: f.id, ...workflowTypeOf(t) };
+  const infos = infoByKey(blanks);
+  const had = infoByKey(before);
+  const out = fields.filter((f) => infos.has(f.id) || !had.has(f.id)).map((f) => {
+    const info = infos.get(f.id);
+    if (!info || f.removed) return f;
+    if (boxTypeOf(f) !== info.type) return withChoiceInfo({ id: f.id, ...workflowTypeOf(info.type) }, info);
+    return withChoiceInfo(f, info);
   });
   const have = new Set(out.map((f) => f.id));
-  for (const [key, t] of types) {
-    if (!have.has(key)) out.push({ id: key, ...workflowTypeOf(t) });
+  for (const [key, info] of infos) {
+    if (!have.has(key)) out.push(withChoiceInfo({ id: key, ...workflowTypeOf(info.type) }, info));
   }
   return out;
 }
 
-// Boxes after the workflow fields' types (a type changed while assigning
-// shows on the boxes in Upload Your Contracts too).
+// Boxes after the workflow fields (a type changed while assigning shows on
+// the boxes in Upload Your Contracts too, as do an option's choice field on
+// this contract and its title, and a choice field's added options).
 export function withWorkflowTypes(
   blanks: ContractBlank[],
   fields: WorkflowField[],
 ): ContractBlank[] {
-  const types = new Map<string, BoxFieldType>();
-  for (const f of fields) {
-    const t = f.removed ? undefined : boxTypeOf(f);
-    if (t) types.set(f.id, t);
-  }
+  const byKey = new Map<string, WorkflowField>();
+  for (const f of fields) if (!f.removed && boxTypeOf(f)) byKey.set(f.id, f);
+  const keys = new Set(blanks.filter((b) => b.id).map((b) => b.group ?? b.id!));
   return blanks.map((b) => {
     if (!b.id) return b;
-    const t = types.get(b.group ?? b.id);
-    return t && b.fieldType !== t ? { ...b, fieldType: t } : b;
+    const f = byKey.get(b.group ?? b.id);
+    if (!f) return b;
+    const next: ContractBlank = { ...b, fieldType: boxTypeOf(f)! };
+    delete next.choiceOf;
+    delete next.optionTitle;
+    delete next.choiceOptions;
+    if (f.choice_role === "option") {
+      if (f.question_id && keys.has(f.question_id)) next.choiceOf = f.question_id;
+      if (f.option_title) next.optionTitle = f.option_title;
+    }
+    if (f.choice_role === "question" && f.options?.length) next.choiceOptions = f.options;
+    return next;
   });
 }

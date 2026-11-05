@@ -33,6 +33,12 @@ export type ContractBlank = {
   group?: string;
   // The field's type, chosen while reviewing (linked boxes share one).
   fieldType?: BoxFieldType;
+  // A choice field's options that aren't boxes on the contract (titles).
+  choiceOptions?: string[];
+  // A choice option's choice field (that field's box or link id) and its
+  // title in that field's list.
+  choiceOf?: string;
+  optionTitle?: string;
 };
 
 // What a field is called: a checkbox by its option (the text after it), a
