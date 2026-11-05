@@ -358,6 +358,11 @@ export function ContractReviewer({
     return out;
   })();
   const choiceNameOf = (id?: string) => choiceFields.find((c) => c.id === id)?.name;
+  // The choice field the last option was tied to (the next one is likely
+  // for it too).
+  const lastChoiceOf = [...blanks]
+    .reverse()
+    .find((b) => b.fieldType === "choice_option" && b.choiceOf)?.choiceOf;
 
   // Closes the options and opens the type menu on the choice field's box
   // (for when Choice field was the wrong type).
@@ -874,20 +879,23 @@ export function ContractReviewer({
                             // A fresh prompt for each box (its own text).
                             key={keyOf(anchor)}
                             choiceFields={choiceFields.filter((c) => c.id !== keyOf(anchor))}
-                            current={anchor.choiceOf}
-                            defaultTitle={anchor.optionTitle ?? ""}
-                            suggestedName={anchor.choiceOf ? "" : titleFrom(anchor)}
-                            onPick={(id, title) => assignChoice(keyOf(anchor), id, null, title)}
-                            onCreate={(name, title) => {
+                            // Its own choice field, or the one last used.
+                            preselect={anchor.choiceOf ?? lastChoiceOf}
+                            defaultTitle={anchor.optionTitle ?? titleFrom(anchor)}
+                            onCreate={(choice, title) => {
+                              if ("id" in choice) {
+                                assignChoice(keyOf(anchor), choice.id, null, title);
+                                return;
+                              }
                               const otc = OTC_CHOICE_FIELDS.find(
-                                (f) => f.name.toLowerCase() === name.toLowerCase(),
+                                (f) => f.name.toLowerCase() === choice.name.toLowerCase(),
                               );
                               if (otc) assignChoice(keyOf(anchor), otc.id, null, title);
                               else
                                 assignChoice(
                                   keyOf(anchor),
                                   `${NEW_OTC_PREFIX}${crypto.randomUUID()}`,
-                                  name,
+                                  choice.name,
                                   title,
                                 );
                             }}
@@ -1210,92 +1218,98 @@ function ChoiceOptionsPanel({
   );
 }
 
-// Asks which choice field a choice option belongs to: one on the contract
-// (or one other options are tied to), or a new one by name (an Open to
-// Close choice field when the name matches one), with the contract's text
-// beside it suggested as that name. Also asks the option's title.
+// Asks for a choice option in two steps: first its choice field (one on
+// the contract, one other options are tied to, or a new one by name, which
+// is an Open to Close choice field when the name matches one), then its
+// title, suggested from the contract's text beside it, to create it.
 function ChoiceFieldPrompt({
   choiceFields,
-  current,
+  preselect,
   defaultTitle,
-  suggestedName,
-  onPick,
   onCreate,
   onBack,
   onSkip,
 }: {
   choiceFields: { id: string; name: string; where?: string }[];
-  current?: string;
+  preselect?: string;
   defaultTitle: string;
-  // Prefills the new choice field's name.
-  suggestedName: string;
-  onPick: (id: string, title: string) => void;
-  onCreate: (name: string, title: string) => void;
+  onCreate: (choice: { id: string } | { name: string }, title: string) => void;
   onBack: () => void;
   onSkip: () => void;
 }) {
-  const [title, setTitle] = useState(defaultTitle);
   const capitalized = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
-  const [name, setName] = useState(() => capitalized(suggestedName));
+  // The choice field picked: one in the list, or a new one by name.
+  const [choice, setChoice] = useState<{ id: string } | { name: string } | null>(() =>
+    preselect && choiceFields.some((c) => c.id === preselect) ? { id: preselect } : null,
+  );
+  const [adding, setAdding] = useState("");
+  const [title, setTitle] = useState(() => capitalized(defaultTitle));
+  const added = choice && "name" in choice ? choice.name : null;
+  // A new name that's one of Open to Close's choice fields becomes that one.
+  const addedOtc = added
+    ? OTC_CHOICE_FIELDS.find((f) => f.name.toLowerCase() === added.toLowerCase())
+    : undefined;
+  const isPicked = (id: string) => Boolean(choice && "id" in choice && choice.id === id);
+  const addNew = () => {
+    const name = capitalized(adding.trim());
+    if (!name) return;
+    const existing = choiceFields.find((c) => c.name.toLowerCase() === name.toLowerCase());
+    setChoice(existing ? { id: existing.id } : { name });
+    setAdding("");
+  };
+
   return (
     <span className="flex w-[21rem] flex-col gap-2">
       <span className="flex items-baseline justify-between gap-3">
-        <span className="text-xs font-semibold text-ink">Which choice field is this an option for?</span>
+        <span className="text-xs font-semibold text-ink">1. Which choice field is it for?</span>
         <button type="button" onClick={onBack} className="text-[11px] font-semibold text-ink-faint hover:text-ink">
           &lsaquo; Type
         </button>
       </span>
-      <label className="flex items-center gap-2 text-xs text-ink-soft">
-        Option title
-        <input
-          value={title}
-          onChange={(e) => setTitle(capitalized(e.target.value))}
-          maxLength={120}
-          placeholder="e.g. FHA"
-          className="min-w-0 flex-1 rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent"
-        />
-      </label>
-      {choiceFields.length > 0 ? (
-        <span className="flex max-h-40 flex-col gap-1 overflow-y-auto">
+      {(choiceFields.length > 0 || added) && (
+        <span className="flex max-h-36 flex-col gap-1 overflow-y-auto">
           {choiceFields.map((c) => (
             <button
               key={c.id}
               type="button"
-              onClick={() => onPick(c.id, title)}
+              aria-pressed={isPicked(c.id)}
+              onClick={() => setChoice({ id: c.id })}
               className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-left text-xs ${
-                c.id === current
+                isPicked(c.id)
                   ? "border-accent bg-accent text-white"
                   : "border-border bg-surface text-ink hover:border-accent hover:bg-accent-soft/40"
               }`}
             >
               <span className="min-w-0 truncate font-medium">{c.name}</span>
               {c.where && (
-                <span className={`shrink-0 ${c.id === current ? "text-white/80" : "text-ink-faint"}`}>
+                <span className={`shrink-0 ${isPicked(c.id) ? "text-white/80" : "text-ink-faint"}`}>
                   {c.where}
                 </span>
               )}
             </button>
           ))}
-        </span>
-      ) : (
-        <span className="text-[11px] text-ink-faint">
-          No choice fields on this contract yet. Create one below.
+          {added && (
+            <span className="flex items-center justify-between gap-2 rounded-md border border-accent bg-accent px-2 py-1 text-xs text-white">
+              <span className="min-w-0 truncate font-medium">{addedOtc?.name ?? added}</span>
+              <span className="shrink-0 text-white/80">{addedOtc ? "OTC field" : "New"}</span>
+            </span>
+          )}
         </span>
       )}
-      <form
-        className="flex items-center gap-1.5 border-t border-border pt-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (name.trim()) onCreate(capitalized(name.trim()), title);
-        }}
-      >
+      <span className="flex items-center gap-1.5">
         <input
-          autoFocus
-          value={name}
-          onChange={(e) => setName(capitalized(e.target.value))}
+          autoFocus={!choice}
+          value={adding}
+          onChange={(e) => setAdding(capitalized(e.target.value))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addNew();
+            }
+          }}
           list="otc-choice-fields"
           maxLength={120}
-          placeholder="Create a new choice field, e.g. Loan Type"
+          placeholder={choiceFields.length > 0 ? "Or add a new one, e.g. Loan Type" : "Add a choice field, e.g. Loan Type"}
           aria-label="New choice field name"
           className="min-w-0 flex-1 rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent"
         />
@@ -1305,12 +1319,42 @@ function ChoiceFieldPrompt({
           ))}
         </datalist>
         <button
-          type="submit"
-          disabled={!name.trim()}
-          className="shrink-0 rounded-md bg-accent px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50"
+          type="button"
+          onClick={addNew}
+          disabled={!adding.trim()}
+          className="shrink-0 rounded-md border border-accent px-2.5 py-1 text-xs font-semibold text-accent disabled:opacity-50"
         >
-          Create
+          Add
         </button>
+      </span>
+
+      <form
+        className="flex flex-col gap-1.5 border-t border-border pt-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (choice && title.trim()) onCreate(choice, title.trim());
+        }}
+      >
+        <span className="text-xs font-semibold text-ink">2. The option</span>
+        <span className="flex items-center gap-1.5">
+          <input
+            autoFocus={Boolean(choice)}
+            value={title}
+            onChange={(e) => setTitle(capitalized(e.target.value))}
+            maxLength={120}
+            placeholder="Option title, e.g. FHA"
+            aria-label="Option title"
+            className="min-w-0 flex-1 rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent"
+          />
+          <button
+            type="submit"
+            disabled={!choice || !title.trim()}
+            title={!choice ? "Choose or add its choice field first" : undefined}
+            className="shrink-0 rounded-md bg-accent px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            Create option
+          </button>
+        </span>
       </form>
       <button type="button" onClick={onSkip} className="self-start text-[11px] font-semibold text-ink-faint hover:text-ink">
         Skip for now (choose it in Assign Your Workflow Fields)
