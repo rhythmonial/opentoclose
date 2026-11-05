@@ -35,9 +35,12 @@ export type ContractBlank = {
   fieldType?: BoxFieldType;
   // A choice field's options that aren't boxes on the contract (titles).
   choiceOptions?: string[];
-  // A choice option's choice field (that field's box or link id) and its
-  // title in that field's list.
+  // A choice option's choice field and its title in that field's list. The
+  // choice field is one on this contract (its box or link id), an Open to
+  // Close choice field (its id), or one the client created by name (a
+  // NEW_OTC_PREFIX id, with the name in choiceName).
   choiceOf?: string;
+  choiceName?: string;
   optionTitle?: string;
 };
 

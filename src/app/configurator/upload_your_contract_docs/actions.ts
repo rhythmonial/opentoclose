@@ -5,10 +5,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 import { isBoxFieldType, withBoxTypes } from "@/lib/fieldTypes";
+import { OTC_FIELDS } from "@/lib/otcFields";
 import {
   cleanTitles,
   cleanWorkflowFields,
   isActive,
+  NEW_OTC_PREFIX,
   workflowKeys,
 } from "@/lib/workflowFields";
 
@@ -124,6 +126,20 @@ export async function finishContractDocs() {
   redirect("/portal");
 }
 
+// A choice option's choice field: one on the contract (a box or link id),
+// an OTC choice field, or one created by name.
+function validChoiceOf(b: ContractBlank) {
+  const c = b.choiceOf;
+  if (typeof c !== "string") return false;
+  if (/^[0-9a-f-]{36}$/i.test(c)) return true;
+  if (OTC_FIELDS.some((f) => f.id === c && f.kind === "choice")) return true;
+  return (
+    new RegExp(`^${NEW_OTC_PREFIX}[0-9a-f-]{36}$`, "i").test(c) &&
+    typeof b.choiceName === "string" &&
+    b.choiceName.trim().length > 0
+  );
+}
+
 const KINDS = new Set(["field", "underscore", "line", "checkbox", "box", "manual"]);
 const clamp = (n: unknown) => Math.min(1, Math.max(0, Number(n) || 0));
 
@@ -169,8 +185,13 @@ export async function saveContractReview(input: {
       ...(b.fieldType === "choice_field" && cleanTitles(b.choiceOptions).length > 0
         ? { choiceOptions: cleanTitles(b.choiceOptions) }
         : {}),
-      ...(b.fieldType === "choice_option" && typeof b.choiceOf === "string" && uuid.test(b.choiceOf)
-        ? { choiceOf: b.choiceOf }
+      ...(b.fieldType === "choice_option" && validChoiceOf(b)
+        ? {
+            choiceOf: b.choiceOf!,
+            ...(b.choiceOf!.startsWith(NEW_OTC_PREFIX)
+              ? { choiceName: String(b.choiceName).trim().slice(0, 120) }
+              : {}),
+          }
         : {}),
       ...(b.fieldType === "choice_option" && typeof b.optionTitle === "string" && b.optionTitle.trim()
         ? { optionTitle: b.optionTitle.trim().slice(0, 120) }

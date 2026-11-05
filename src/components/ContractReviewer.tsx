@@ -5,6 +5,11 @@ import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { openPdf } from "@/lib/pdfjs";
 import { fieldLabel, tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 import { FIELD_TYPE_OPTIONS, type BoxFieldType } from "@/lib/fieldTypes";
+import { OTC_FIELDS } from "@/lib/otcFields";
+import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
+
+// Open to Close's choice fields, for naming a new choice field.
+const OTC_CHOICE_FIELDS = OTC_FIELDS.filter((f) => f.kind === "choice");
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 type Drag = {
@@ -98,6 +103,8 @@ export function ContractReviewer({
   // The choice field whose options are being picked (its box or link id):
   // clicking a box then makes it one of its options.
   const [optionsFor, setOptionsFor] = useState<string | null>(null);
+  // The choice option (its key) being asked which choice field it's for.
+  const [askChoice, setAskChoice] = useState<string | null>(null);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "error" | null>(null);
@@ -264,6 +271,46 @@ export function ContractReviewer({
     );
   }
 
+  // Ties a choice option (its key) to a choice field and titles it.
+  function assignChoice(key: string, choiceOf: string, choiceName: string | null, title: string) {
+    changeBlanks(
+      blanks.map((b) => {
+        if (keyOf(b) !== key) return b;
+        const next: ContractBlank = { ...b, fieldType: "choice_option", choiceOf };
+        if (choiceName) next.choiceName = choiceName;
+        else delete next.choiceName;
+        if (title.trim()) next.optionTitle = title.trim().slice(0, 120);
+        return next;
+      }),
+    );
+    setAskChoice(null);
+    setSelected(null);
+  }
+
+  // The choice fields an option can belong to: the ones marked on the
+  // contract, then ones options are already tied to (OTC's or created).
+  const choiceFields = (() => {
+    const out: { id: string; name: string; where?: string }[] = [];
+    for (const b of blanks) {
+      const key = keyOf(b);
+      if (b.fieldType === "choice_field" && !out.some((c) => c.id === key)) {
+        out.push({
+          id: key,
+          name: fieldLabel(b),
+          where: b.line ? `Line ${b.line}` : `Page ${b.page}`,
+        });
+      }
+    }
+    for (const b of blanks) {
+      const c = b.fieldType === "choice_option" ? b.choiceOf : undefined;
+      if (!c || out.some((x) => x.id === c) || blanks.some((x) => keyOf(x) === c)) continue;
+      const name = b.choiceName ?? OTC_CHOICE_FIELDS.find((f) => f.id === c)?.name;
+      if (name) out.push({ id: c, name });
+    }
+    return out;
+  })();
+  const choiceNameOf = (id?: string) => choiceFields.find((c) => c.id === id)?.name;
+
   // Closes the options and opens the type menu on the choice field's box
   // (for when Choice field was the wrong type).
   function changeChoiceType() {
@@ -322,6 +369,7 @@ export function ContractReviewer({
         setSelected(null);
         setLinking([]);
         setOptionsFor(null);
+        setAskChoice(null);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -757,6 +805,32 @@ export function ContractReviewer({
                           </span>
                         </>
                       ) : (
+                        askChoice === keyOf(anchor) ? (
+                          <ChoiceFieldPrompt
+                            choiceFields={choiceFields.filter((c) => c.id !== keyOf(anchor))}
+                            current={anchor.choiceOf}
+                            defaultTitle={anchor.optionTitle ?? titleFrom(anchor)}
+                            onPick={(id, title) => assignChoice(keyOf(anchor), id, null, title)}
+                            onCreate={(name, title) => {
+                              const otc = OTC_CHOICE_FIELDS.find(
+                                (f) => f.name.toLowerCase() === name.toLowerCase(),
+                              );
+                              if (otc) assignChoice(keyOf(anchor), otc.id, null, title);
+                              else
+                                assignChoice(
+                                  keyOf(anchor),
+                                  `${NEW_OTC_PREFIX}${crypto.randomUUID()}`,
+                                  name,
+                                  title,
+                                );
+                            }}
+                            onBack={() => setAskChoice(null)}
+                            onSkip={() => {
+                              setAskChoice(null);
+                              setSelected(null);
+                            }}
+                          />
+                        ) : (
                         <>
                           {/* The field's type (its linked boxes share it). */}
                           <span className="flex items-baseline justify-between gap-3">
@@ -781,8 +855,10 @@ export function ContractReviewer({
                                   aria-pressed={on}
                                   onClick={() => {
                                     setFieldType(anchorIndex!, t.value);
-                                    // On to the next box.
-                                    setSelected(null);
+                                    // A choice option asks for its choice
+                                    // field; otherwise on to the next box.
+                                    if (t.value === "choice_option") setAskChoice(keyOf(anchor));
+                                    else setSelected(null);
                                   }}
                                   onPointerEnter={() => setTypeHelp(t.help)}
                                   onPointerLeave={() => setTypeHelp(null)}
@@ -803,21 +879,34 @@ export function ContractReviewer({
                           <span className="block h-[2.75rem] w-[21rem] overflow-hidden rounded-md bg-bg px-2 py-1.5 text-[11px] leading-snug text-ink-soft">
                             {typeHelp ?? "Hover over a type to see what it's for."}
                           </span>
-                          {(anchor.fieldType === "choice_field" ||
-                            (anchor.fieldType === "choice_option" && anchor.choiceOf)) && (
+                          {anchor.fieldType === "choice_field" && (
                             <button
                               type="button"
                               onClick={() => {
-                                setOptionsFor(
-                                  anchor.fieldType === "choice_field" ? keyOf(anchor) : anchor.choiceOf!,
-                                );
+                                setOptionsFor(keyOf(anchor));
                                 setSelected(null);
                               }}
                               className="w-[21rem] rounded-md border border-accent px-2 py-1 text-xs font-semibold text-accent hover:bg-accent-soft/40"
                             >
-                              {anchor.fieldType === "choice_field"
-                                ? `Options (${optionCount(keyOf(anchor))}): select or add`
-                                : "Edit its choice field's options"}
+                              Options ({optionCount(keyOf(anchor))}): select or add
+                            </button>
+                          )}
+                          {anchor.fieldType === "choice_option" && (
+                            <button
+                              type="button"
+                              onClick={() => setAskChoice(keyOf(anchor))}
+                              className="flex w-[21rem] items-center justify-between gap-2 rounded-md border border-accent px-2 py-1 text-left text-xs text-accent hover:bg-accent-soft/40"
+                            >
+                              <span className="min-w-0 truncate">
+                                {anchor.choiceOf
+                                  ? `Option for ${choiceNameOf(anchor.choiceOf) ?? "a choice field"}${
+                                      anchor.optionTitle ? `: ${anchor.optionTitle}` : ""
+                                    }`
+                                  : "No choice field yet"}
+                              </span>
+                              <span className="shrink-0 font-semibold">
+                                {anchor.choiceOf ? "Change" : "Choose"}
+                              </span>
                             </button>
                           )}
                           {selectedGroup && (
@@ -836,6 +925,7 @@ export function ContractReviewer({
                             </span>
                           )}
                         </>
+                        )
                       )}
                     </div>
                   );
@@ -1026,5 +1116,111 @@ function ChoiceOptionsPanel({
         </button>
       </form>
     </div>
+  );
+}
+
+// Asks which choice field a choice option belongs to: one on the contract
+// (or one other options are tied to), or a new one by name (an Open to
+// Close choice field when the name matches one). Also asks the option's
+// title, suggested from the contract's text beside it.
+function ChoiceFieldPrompt({
+  choiceFields,
+  current,
+  defaultTitle,
+  onPick,
+  onCreate,
+  onBack,
+  onSkip,
+}: {
+  choiceFields: { id: string; name: string; where?: string }[];
+  current?: string;
+  defaultTitle: string;
+  onPick: (id: string, title: string) => void;
+  onCreate: (name: string, title: string) => void;
+  onBack: () => void;
+  onSkip: () => void;
+}) {
+  const [title, setTitle] = useState(defaultTitle);
+  const [name, setName] = useState("");
+  const capitalized = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  return (
+    <span className="flex w-[21rem] flex-col gap-2">
+      <span className="flex items-baseline justify-between gap-3">
+        <span className="text-xs font-semibold text-ink">Which choice field is this an option for?</span>
+        <button type="button" onClick={onBack} className="text-[11px] font-semibold text-ink-faint hover:text-ink">
+          &lsaquo; Type
+        </button>
+      </span>
+      <label className="flex items-center gap-2 text-xs text-ink-soft">
+        Option title
+        <input
+          autoFocus
+          value={title}
+          onChange={(e) => setTitle(capitalized(e.target.value))}
+          maxLength={120}
+          placeholder="e.g. FHA"
+          className="min-w-0 flex-1 rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent"
+        />
+      </label>
+      {choiceFields.length > 0 ? (
+        <span className="flex max-h-40 flex-col gap-1 overflow-y-auto">
+          {choiceFields.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onPick(c.id, title)}
+              className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-left text-xs ${
+                c.id === current
+                  ? "border-accent bg-accent text-white"
+                  : "border-border bg-surface text-ink hover:border-accent hover:bg-accent-soft/40"
+              }`}
+            >
+              <span className="min-w-0 truncate font-medium">{c.name}</span>
+              {c.where && (
+                <span className={`shrink-0 ${c.id === current ? "text-white/80" : "text-ink-faint"}`}>
+                  {c.where}
+                </span>
+              )}
+            </button>
+          ))}
+        </span>
+      ) : (
+        <span className="text-[11px] text-ink-faint">
+          No choice fields on this contract yet. Create one below.
+        </span>
+      )}
+      <form
+        className="flex items-center gap-1.5 border-t border-border pt-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name.trim()) onCreate(capitalized(name.trim()), title);
+        }}
+      >
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          list="otc-choice-fields"
+          maxLength={120}
+          placeholder="Create a new choice field, e.g. Loan Type"
+          aria-label="New choice field name"
+          className="min-w-0 flex-1 rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent"
+        />
+        <datalist id="otc-choice-fields">
+          {OTC_CHOICE_FIELDS.map((f) => (
+            <option key={f.id} value={f.name} />
+          ))}
+        </datalist>
+        <button
+          type="submit"
+          disabled={!name.trim()}
+          className="shrink-0 rounded-md bg-accent px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          Create
+        </button>
+      </form>
+      <button type="button" onClick={onSkip} className="self-start text-[11px] font-semibold text-ink-faint hover:text-ink">
+        Skip for now (choose it in Assign Your Workflow Fields)
+      </button>
+    </span>
   );
 }

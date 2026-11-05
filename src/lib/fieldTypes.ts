@@ -4,7 +4,8 @@
 // uploading becomes the workflow field's type, and changing the type while
 // assigning updates the boxes.
 import type { ContractBlank } from "@/lib/contractBlanks";
-import type { WorkflowField } from "@/lib/workflowFields";
+import { NEW_OTC_PREFIX, type WorkflowField } from "@/lib/workflowFields";
+import { OTC_FIELD_IDS } from "@/lib/otcFields";
 
 export type BoxFieldType =
   | "contact"
@@ -106,6 +107,7 @@ export function boxTypeOf(f: Pick<WorkflowField, "type" | "decimal_format" | "ch
 type BoxInfo = {
   type: BoxFieldType;
   choiceOf?: string;
+  choiceName?: string;
   optionTitle?: string;
   options?: string[];
 };
@@ -118,6 +120,7 @@ function infoByKey(blanks: ContractBlank[]) {
     out.set(key, {
       type: b.fieldType,
       ...(b.fieldType === "choice_option" && b.choiceOf ? { choiceOf: b.choiceOf } : {}),
+      ...(b.fieldType === "choice_option" && b.choiceName ? { choiceName: b.choiceName } : {}),
       ...(b.fieldType === "choice_option" && b.optionTitle ? { optionTitle: b.optionTitle } : {}),
       ...(b.fieldType === "choice_field" && b.choiceOptions?.length ? { options: b.choiceOptions } : {}),
     });
@@ -133,6 +136,10 @@ function withChoiceInfo(f: WorkflowField, info: BoxInfo): WorkflowField {
       next.question_id = info.choiceOf;
       delete next.question_text;
       delete next.question_section;
+      // A choice field the client created: OTC gets a new one by that name.
+      if (info.choiceOf.startsWith(NEW_OTC_PREFIX) && info.choiceName) {
+        next.question_text = info.choiceName;
+      }
     }
     if (info.optionTitle) next.option_title = info.optionTitle;
   }
@@ -186,10 +193,16 @@ export function withWorkflowTypes(
     if (!f) return b;
     const next: ContractBlank = { ...b, fieldType: boxTypeOf(f)! };
     delete next.choiceOf;
+    delete next.choiceName;
     delete next.optionTitle;
     delete next.choiceOptions;
     if (f.choice_role === "option") {
-      if (f.question_id && keys.has(f.question_id)) next.choiceOf = f.question_id;
+      const q = f.question_id;
+      if (q && (keys.has(q) || OTC_FIELD_IDS.has(q))) next.choiceOf = q;
+      if (q?.startsWith(NEW_OTC_PREFIX) && f.question_text) {
+        next.choiceOf = q;
+        next.choiceName = f.question_text;
+      }
       if (f.option_title) next.optionTitle = f.option_title;
     }
     if (f.choice_role === "question" && f.options?.length) next.choiceOptions = f.options;
