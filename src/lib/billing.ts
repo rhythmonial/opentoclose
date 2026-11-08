@@ -27,6 +27,28 @@ export function monthlyLineItem(): Stripe.Checkout.SessionCreateParams.LineItem 
 const idOf = (v: string | { id: string } | null | undefined) =>
   typeof v === "string" ? v : (v?.id ?? null);
 
+const FEEDBACK: Record<string, string> = {
+  customer_service: "Customer service",
+  low_quality: "Quality",
+  missing_features: "Missing features",
+  other: "Other",
+  switched_service: "Switched service",
+  too_complex: "Too complicated",
+  too_expensive: "Too expensive",
+  unused: "Not using it",
+};
+
+// Why a subscription was cancelled: the comment (the client's, or staff's
+// reason), else the client's picked reason, else a failed payment.
+function cancelReason(sub: Stripe.Subscription): string | null {
+  const d = sub.cancellation_details;
+  if (!d) return null;
+  if (d.comment?.trim()) return d.comment.trim().slice(0, 500);
+  if (d.feedback) return FEEDBACK[d.feedback] ?? d.feedback;
+  if (d.reason === "payment_failed") return "Payment failed";
+  return null;
+}
+
 // Saves a Stripe subscription's current state (the webhook calls this on
 // every change). Its metadata says whose it is (set at checkout).
 export async function syncSubscription(admin: Admin, sub: Stripe.Subscription) {
@@ -42,6 +64,8 @@ export async function syncSubscription(admin: Admin, sub: Stripe.Subscription) {
       cancel_at_period_end: sub.cancel_at_period_end || Boolean(sub.cancel_at),
       current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
       amount_cents: item?.price?.unit_amount ?? null,
+      cancel_reason: cancelReason(sub),
+      canceled_at: sub.canceled_at ? new Date(sub.canceled_at * 1000).toISOString() : null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "stripe_subscription_id" },

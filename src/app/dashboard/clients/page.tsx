@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { ClientStatusSelect } from "@/components/ClientStatusSelect";
-import { ClientOutcomeInput } from "@/components/ClientOutcomeInput";
+import { SubscriptionStatus } from "@/components/SubscriptionStatus";
 import { LeadStatusSelect } from "@/components/LeadStatusSelect";
 import { startSandbox } from "../sandbox-actions";
 import { deleteLead, setLeadArchived } from "../leads/actions";
@@ -25,6 +24,7 @@ export default async function ClientsPage() {
     { data: leads },
     { data: payments },
     { data: openTickets },
+    { data: subscriptions },
   ] = await Promise.all([
     supabase
       .from("client_accounts")
@@ -37,7 +37,7 @@ export default async function ClientsPage() {
     supabase
       .from("setup_steps")
       .select("id, path, title, phase, section, sort_order"),
-    supabase.from("client_step_status").select("client_id, step_id, status"),
+    supabase.from("client_step_status").select("client_id, step_id, status, updated_at"),
     supabase.from("hours_log").select("client_id, hours"),
     supabase.from("setup_initiation").select("client_id, engagement_type"),
     supabase
@@ -47,6 +47,11 @@ export default async function ClientsPage() {
     supabase.from("payments").select("client_id, kind, step_id"),
     // Client questions waiting on our team.
     supabase.from("support_tickets").select("client_id").eq("status", "open"),
+    // Each account's latest monthly subscription.
+    supabase
+      .from("subscriptions")
+      .select("client_account_id, status, cancel_at_period_end, current_period_end, cancel_reason")
+      .order("created_at", { ascending: false }),
   ]);
 
   // --- Clients table ---
@@ -110,6 +115,25 @@ export default async function ClientsPage() {
       ? (engagementByClientId.get(owner.id) ?? "free")
       : "free";
 
+    // For completed / churned clients: why they cancelled, or how long they
+    // took to finish (from signing up to their last step's approval).
+    const subscription =
+      (subscriptions ?? []).find((sub) => sub.client_account_id === account.id) ?? null;
+    let daysToComplete: number | null = null;
+    if (owner && stage === "Complete") {
+      const last = (statuses ?? [])
+        .filter((st) => st.client_id === owner.id && st.status === "approved")
+        .map((st) => st.updated_at)
+        .sort()
+        .pop();
+      if (last) {
+        daysToComplete = Math.max(
+          1,
+          Math.round((new Date(last).getTime() - new Date(account.created_at).getTime()) / 86400000),
+        );
+      }
+    }
+
     return {
       id: account.id,
       name: account.name,
@@ -121,6 +145,9 @@ export default async function ClientsPage() {
       hoursPurchased: Number(account.hours_purchased),
       outcome: account.outcome,
       openQuestions,
+      subscription,
+      cancelReason: subscription?.cancel_reason ?? null,
+      daysToComplete,
     };
   });
 
@@ -139,7 +166,7 @@ export default async function ClientsPage() {
     {
       label: "Setup ($999 + $55/mo)",
       tier: "custom",
-      rows: activeRows.filter((r) => r.engagementType === "custom"),
+      rows: activeRows.filter((r) => r.engagementType === "custom" || r.hoursPurchased > 0),
     },
     {
       label: "DIY ($55/mo)",
@@ -149,7 +176,7 @@ export default async function ClientsPage() {
     {
       label: "Free",
       tier: "free",
-      rows: activeRows.filter((r) => r.engagementType === "free"),
+      rows: activeRows.filter((r) => r.engagementType === "free" && r.hoursPurchased <= 0),
     },
   ];
 
@@ -470,7 +497,7 @@ export default async function ClientsPage() {
                         <th className="px-5 py-3">Stage</th>
                         <th className="px-5 py-3">Section</th>
                         <th className="px-5 py-3">Hours</th>
-                        <th className="px-5 py-3">Status</th>
+                        <th className="px-5 py-3">Subscription</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -507,9 +534,10 @@ export default async function ClientsPage() {
                             {row.hoursPurchased.toFixed(1)}
                           </td>
                           <td className="px-5 py-3.5">
-                            <ClientStatusSelect
+                            <SubscriptionStatus
                               accountId={row.id}
-                              status={row.status}
+                              accountName={row.name}
+                              subscription={row.subscription}
                             />
                           </td>
                         </tr>
@@ -541,7 +569,7 @@ export default async function ClientsPage() {
                     <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                       <th className="px-5 py-3">Business</th>
                       <th className="px-5 py-3">Stage</th>
-                      <th className="px-5 py-3">Status</th>
+                      <th className="px-5 py-3">Subscription</th>
                       <th className="px-5 py-3">Outcome</th>
                     </tr>
                   </thead>
@@ -572,16 +600,20 @@ export default async function ClientsPage() {
                           </span>
                         </td>
                         <td className="px-5 py-3.5">
-                          <ClientStatusSelect
+                          <SubscriptionStatus
                             accountId={row.id}
-                            status={row.status}
+                            accountName={row.name}
+                            subscription={row.subscription}
                           />
                         </td>
-                        <td className="px-5 py-3.5">
-                          <ClientOutcomeInput
-                            accountId={row.id}
-                            outcome={row.outcome}
-                          />
+                        <td className="px-5 py-3.5 text-ink-soft">
+                          {row.cancelReason ? (
+                            <span title="Cancellation reason">{row.cancelReason}</span>
+                          ) : row.daysToComplete !== null ? (
+                            `Completed in ${row.daysToComplete} day${row.daysToComplete === 1 ? "" : "s"}`
+                          ) : (
+                            "—"
+                          )}
                         </td>
                       </tr>
                     ))}

@@ -449,6 +449,8 @@ export type Database = {
           cancel_at_period_end: boolean
           current_period_end: string | null
           amount_cents: number | null
+          cancel_reason: string | null
+          canceled_at: string | null
           created_at: string
           updated_at: string
         }
@@ -462,6 +464,8 @@ export type Database = {
           cancel_at_period_end?: boolean
           current_period_end?: string | null
           amount_cents?: number | null
+          cancel_reason?: string | null
+          canceled_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -475,6 +479,8 @@ export type Database = {
           cancel_at_period_end?: boolean
           current_period_end?: string | null
           amount_cents?: number | null
+          cancel_reason?: string | null
+          canceled_at?: string | null
           created_at?: string
           updated_at?: string
         }
