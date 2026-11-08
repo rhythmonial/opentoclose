@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { PLAN_PRICES } from "@/lib/pricing";
 import { SupportButton } from "@/components/SupportButton";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
@@ -148,7 +149,13 @@ export default async function PortalPage({
   const currentSection = nextStep?.section ?? null;
 
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
-  const hoursPurchased = Number(profile?.client_accounts?.hours_purchased ?? 0);
+  // A sandbox shows what that plan's client sees: Setup comes with the
+  // 10-hour bundle.
+  const hoursPurchased = isSandboxing
+    ? sandboxTier === "custom"
+      ? PLAN_PRICES.setup.hours
+      : 0
+    : Number(profile?.client_accounts?.hours_purchased ?? 0);
   const hourlyRate = isStaff ? 0 : await getHourlyRate();
   const businessName =
     isStaff
@@ -201,12 +208,12 @@ export default async function PortalPage({
 
       <div className="px-4 pt-6 sm:px-6 sm:pt-9 lg:px-12">
         {/* Title, with setup hours used and + to buy more on the right
-            (clients only). */}
+            (clients, and staff sandboxes). */}
         <div className="flex items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-bold text-ink sm:text-[28px]">
             Your OTC Setup
           </h1>
-          {!isStaff && (
+          {(!isStaff || isSandboxing) && (
             <div className="flex shrink-0 items-center gap-2.5">
               {hoursPurchased > 0 && (
                 <span
@@ -221,7 +228,7 @@ export default async function PortalPage({
                 purchased={hoursPurchased}
                 used={hoursUsed}
                 hourlyRate={hourlyRate}
-                canBuy={profile?.role === "client_owner"}
+                canBuy={isSandboxing || profile?.role === "client_owner"}
                 returnTo="/portal"
               />
             </div>
