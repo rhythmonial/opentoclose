@@ -47,6 +47,7 @@ const PLANS = [
   {
     name: "Free",
     price: "$0",
+    priceNote: null,
     tagline: "Explore the setup",
     features: [
       "Create your account",
@@ -60,7 +61,8 @@ const PLANS = [
   },
   {
     name: "DIY",
-    price: "$19",
+    price: "$33",
+    priceNote: "/month",
     tagline: "Do it yourself, with a guide",
     features: [
       "Step-by-step setup checklist",
@@ -68,6 +70,7 @@ const PLANS = [
       "Templates and downloadable resources",
       "Training videos and call replays",
       "Upgrade to Setup anytime",
+      "Cancel anytime",
     ],
     note: null,
     cta: { label: "Start with DIY", href: "/signup" },
@@ -76,6 +79,7 @@ const PLANS = [
   {
     name: "Setup",
     price: "$999",
+    priceNote: "+ $33/month",
     tagline: "We build it with you",
     features: [
       "Josie’s team builds your Open to Close setup",
@@ -83,6 +87,7 @@ const PLANS = [
       "You only handle the steps that need you",
       "Training videos and call replays",
       "Progress tracking and a work log",
+      "Includes monthly access ($33/month)",
     ],
     note: null,
     cta: { label: "Get pricing & setup details", href: "/pricing" },
@@ -191,6 +196,11 @@ export default async function RootPage() {
               <div className="mt-1 text-sm text-ink-soft">{plan.tagline}</div>
               <div className="mt-4 font-display text-4xl font-bold text-navy">
                 {plan.price}
+                {plan.priceNote && (
+                  <span className="ml-1 font-sans text-base font-semibold text-ink-soft">
+                    {plan.priceNote}
+                  </span>
+                )}
               </div>
               <ul className="mt-5 flex flex-1 flex-col gap-2.5">
                 {plan.features.map((f) => (

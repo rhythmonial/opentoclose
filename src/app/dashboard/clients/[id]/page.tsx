@@ -24,8 +24,8 @@ import type { ContractBlank } from "@/lib/contractBlanks";
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
   free: "Free",
-  custom: "Setup ($999)",
-  diy: "DIY ($19)",
+  custom: "Setup ($999 + $33/mo)",
+  diy: "DIY ($33/mo)",
 };
 
 const STEP_STATUS_LABEL: Record<string, string> = {
@@ -166,6 +166,30 @@ export default async function ClientDetailPage({
     (submissions ?? []).map((s) => [s.step_id, s]),
   );
 
+  // The monthly access fee's latest subscription.
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("status, cancel_at_period_end, current_period_end")
+    .eq("client_account_id", account.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const periodEnd = subscription?.current_period_end
+    ? new Date(subscription.current_period_end).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })
+    : null;
+  const monthly = !subscription
+    ? { text: "No monthly plan", tone: "bg-border-soft text-ink-faint" }
+    : subscription.status === "past_due"
+      ? { text: "Monthly: payment failed", tone: "bg-danger/10 text-danger" }
+      : ["active", "trialing"].includes(subscription.status)
+        ? subscription.cancel_at_period_end
+          ? { text: `Monthly: ends ${periodEnd ?? "soon"}`, tone: "bg-warning-soft text-warning" }
+          : { text: "Monthly: active", tone: "bg-success-soft text-success" }
+        : { text: "Monthly: canceled", tone: "bg-danger/10 text-danger" };
+
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
   const engagementType = (initiation?.engagement_type ?? "free") as EngagementType;
   // Staff always see the full task list for a client regardless of plan;
@@ -243,6 +267,11 @@ export default async function ClientDetailPage({
               }`}
             >
               {ENGAGEMENT_LABEL[engagementType]}
+            </span>
+            <span
+              className={`ml-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase font-caption tracking-wide ${monthly.tone}`}
+            >
+              {monthly.text}
             </span>
           </p>
         </div>

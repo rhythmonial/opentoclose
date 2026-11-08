@@ -36,7 +36,7 @@ export function PlanChoice({
               onChange={() => setPlan("diy")}
               className="h-4 w-4"
             />
-            DIY ($19)
+            DIY ($33/mo)
           </span>
         </label>
         <label className={optionClass}>
@@ -49,7 +49,7 @@ export function PlanChoice({
               onChange={() => setPlan("custom")}
               className="h-4 w-4"
             />
-            Setup ($999)
+            Setup ($999 + $33/mo)
           </span>
         </label>
       </div>

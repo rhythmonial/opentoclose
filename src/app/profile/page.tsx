@@ -6,6 +6,7 @@ import { StaffNav } from "@/components/StaffNav";
 import { signOut } from "@/app/login/actions";
 import { getSandboxTier } from "@/lib/devSandbox";
 import { updateProfileInfo, inviteClientAdmin, inviteStaff } from "./actions";
+import { BillingSection } from "@/components/BillingSection";
 
 const CLIENT_ROLE_LABEL: Record<string, string> = {
   client_owner: "Client",
@@ -25,9 +26,11 @@ export default async function ProfilePage({
     error?: string;
     invited?: string;
     saved?: string;
+    billing?: string;
+    billing_error?: string;
   }>;
 }) {
-  const { error, invited, saved } = await searchParams;
+  const { error, invited, saved, billing, billing_error } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -273,6 +276,31 @@ export default async function ProfilePage({
 
   const isOwner = profile?.role === "client_owner";
 
+  // Billing: the account's plan (the owner's setup form), its latest
+  // subscription, and the payments made from this login.
+  const ownerId = (teammates ?? []).find((m) => m.role === "client_owner")?.id ?? user.id;
+  const [{ data: initiation }, { data: subscriptions }, { data: payments }] = await Promise.all([
+    supabase
+      .from("setup_initiation")
+      .select("engagement_type")
+      .eq("client_id", ownerId)
+      .maybeSingle(),
+    profile?.client_account_id
+      ? supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("client_account_id", profile.client_account_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from("payments")
+      .select("id, kind, amount_cents, created_at")
+      .eq("client_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(8),
+  ]);
+
   return (
     <main className="flex min-h-screen flex-col bg-bg">
       <TopNav businessName={businessName} />
@@ -332,6 +360,20 @@ export default async function ProfilePage({
         </section>
 
         <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <BillingSection
+            plan={initiation?.engagement_type ?? null}
+            subscription={subscriptions?.[0] ?? null}
+            payments={payments ?? []}
+            isOwner={isOwner}
+            notice={
+              billing === "canceled"
+                ? "Your subscription is canceled. You'll keep access until the end of the month you've paid for."
+                : billing === "resumed"
+                  ? "Your subscription will continue."
+                  : undefined
+            }
+            error={billing_error}
+          />
           <div className="flex flex-col gap-2.5">
             <h2 className="text-[15px] font-bold text-ink">Your team</h2>
             {(teammates ?? []).map((member) => (

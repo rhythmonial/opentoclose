@@ -1,6 +1,6 @@
 // "free" -> signed up but hasn't paid for either plan yet (full checklist
 // browsing/tracking, but lesson content is locked). "custom" -> Setup
-// ($999). "diy" -> DIY ($19).
+// ($999 + $33/mo). "diy" -> DIY ($33/mo).
 export type EngagementType = "free" | "custom" | "diy";
 
 // The two real, paid plans. A "free" account is resolved to "diy" before

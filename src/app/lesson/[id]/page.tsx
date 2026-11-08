@@ -16,7 +16,7 @@ import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
 import { startPlanCheckout, startStepCheckout } from "@/app/checkout/actions";
 import { getHourlyRate } from "@/lib/hourlyRate";
 import { stepClientHref } from "@/lib/stepHref";
-import { PLAN_PRICES, formatDollars, stepPriceCents } from "@/lib/pricing";
+import { PLAN_PRICES, formatDollars, planPriceLabel, stepPriceCents } from "@/lib/pricing";
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not Started",
@@ -454,7 +454,7 @@ export default async function LessonPage({
                           }`}
                         >
                           Pay for {PLAN_PRICES[plan].label} (
-                          {formatDollars(PLAN_PRICES[plan].cents)})
+                          {planPriceLabel(plan)})
                         </button>
                       </form>
                     ))}

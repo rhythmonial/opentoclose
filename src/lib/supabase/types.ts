@@ -438,6 +438,48 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          id: string
+          client_account_id: string | null
+          client_id: string | null
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          status: string
+          cancel_at_period_end: boolean
+          current_period_end: string | null
+          amount_cents: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_account_id?: string | null
+          client_id?: string | null
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          status: string
+          cancel_at_period_end?: boolean
+          current_period_end?: string | null
+          amount_cents?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_account_id?: string | null
+          client_id?: string | null
+          stripe_customer_id?: string
+          stripe_subscription_id?: string
+          status?: string
+          cancel_at_period_end?: boolean
+          current_period_end?: string | null
+          amount_cents?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_task_plans: {
         Row: {
           id: string

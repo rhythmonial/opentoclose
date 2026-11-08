@@ -7,6 +7,8 @@ import { getStripe } from "@/lib/stripe";
 import { getHourlyRate } from "@/lib/hourlyRate";
 import { siteOrigin } from "@/lib/site-origin";
 import { PLAN_PRICES, stepPriceCents, type PlanKind } from "@/lib/pricing";
+import { accountSubscription, monthlyLineItem } from "@/lib/billing";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 async function requireClient(returnTo: string) {
   const supabase = await createClient();
@@ -51,37 +53,64 @@ async function openCheckout(
   redirect(url);
 }
 
+// Starts paying for a plan. Every plan includes the monthly access fee, a
+// subscription that starts now (so access is paid for however long the
+// setup takes): DIY is the monthly fee alone; Setup is the one-time setup
+// plus the monthly fee. An account already paying monthly only pays the
+// one-time setup.
 export async function startPlanCheckout(formData: FormData) {
   const plan = (String(formData.get("plan") ?? "") === "diy"
     ? "diy"
     : "setup") as PlanKind;
   const returnTo = String(formData.get("return_to") ?? "/home");
 
-  const { user } = await requireClient(returnTo);
+  const { supabase, user } = await requireClient(returnTo);
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("client_account_id")
+    .eq("id", user.id)
+    .single();
+  const accountId = profile?.client_account_id ?? null;
+  const { live, customerId } = accountId
+    ? await accountSubscription(createAdminClient(), accountId)
+    : { live: null, customerId: null };
+
+  if (plan === "diy" && live) {
+    redirect(
+      `${returnTo}?error=${encodeURIComponent("You already have the monthly plan.")}`,
+    );
+  }
+
   const price = PLAN_PRICES[plan];
   const origin = await siteOrigin();
+  const setupItem: Stripe.Checkout.SessionCreateParams.LineItem = {
+    quantity: 1,
+    price_data: {
+      currency: "usd",
+      unit_amount: price.cents,
+      product_data: {
+        name: `OTC ${price.label}`,
+        description: `Josie's team builds your Open to Close setup (${price.hours}-hour bundle).`,
+      },
+    },
+  };
+  const metadata = { kind: plan, client_id: user.id };
+  const customer = customerId ? { customer: customerId } : { customer_email: user.email };
 
   await openCheckout(returnTo, {
-    mode: "payment",
-    customer_email: user.email,
-    client_reference_id: user.id,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: price.cents,
-          product_data: {
-            name: `OTC ${price.label}`,
-            description:
-              plan === "setup"
-                ? `Josie's team builds your Open to Close setup (${price.hours}-hour bundle).`
-                : "Self-guided Open to Close setup with video lessons and resources.",
+    ...(live
+      ? // Already paying monthly: just the one-time setup.
+        { mode: "payment" as const, line_items: [setupItem] }
+      : {
+          mode: "subscription" as const,
+          line_items: plan === "setup" ? [setupItem, monthlyLineItem()] : [monthlyLineItem()],
+          subscription_data: {
+            metadata: { client_id: user.id, client_account_id: accountId ?? "" },
           },
-        },
-      },
-    ],
-    metadata: { kind: plan, client_id: user.id },
+        }),
+    ...customer,
+    client_reference_id: user.id,
+    metadata,
     success_url: `${origin}/home?paid=${plan}`,
     cancel_url: `${origin}${returnTo}`,
   });
