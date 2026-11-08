@@ -132,12 +132,19 @@ export default async function HomePage({
     ? SANDBOX_LABEL[sandboxTier!]
     : (profile?.client_accounts?.name ?? user.email ?? "Your business");
 
+  // Get Started turns to Continue once they've started (a step begun or the
+  // setup form sent).
+  const hasStarted =
+    (statuses ?? []).some((s) => s.status !== "not_started") ||
+    (!isSandboxing && Boolean(initiation));
   const setupButtonLabel =
     engagementType === "custom"
       ? "Go to Setup"
       : engagementType === "diy"
         ? "Go to DIY"
-        : "Get Started";
+        : hasStarted
+          ? "Continue"
+          : "Get Started";
 
 
   return (

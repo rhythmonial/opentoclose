@@ -18,7 +18,13 @@ function stepRowClass(isApproved: boolean): string {
   return isApproved ? "border-border-soft bg-bg" : "border-danger/30 bg-danger/5";
 }
 
-export default async function PortalPage() {
+export default async function PortalPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ paid?: string }>;
+}) {
+  // Set when Stripe Checkout sends them back after paying for a plan.
+  const { paid } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -148,6 +154,13 @@ export default async function PortalPage() {
           active="setup"
           sandboxTier={sandboxTier}
         />
+      )}
+
+      {paid && !isStaff && (
+        <div className="mx-4 mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success sm:mx-6 lg:mx-12">
+          Payment received, welcome to {paid === "diy" ? "DIY" : "Setup"}! Your plan updates
+          within a minute; refresh if it hasn&rsquo;t yet.
+        </div>
       )}
 
       {isStaff && !isSandboxing && (

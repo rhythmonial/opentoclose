@@ -127,7 +127,8 @@ export async function startPlanCheckout(formData: FormData) {
             },
           },
         }),
-    success_url: `${origin}/home?paid=${plan}`,
+    // Back to their setup checklist, with a "payment received" message.
+    success_url: `${origin}/portal?paid=${plan}`,
     cancel_url: `${origin}${returnTo}`,
   });
 }
