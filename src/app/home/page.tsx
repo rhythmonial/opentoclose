@@ -10,12 +10,6 @@ import {
   type PlanType,
 } from "@/lib/stepOwnership";
 
-const ENGAGEMENT_LABEL: Record<string, string> = {
-  free: "Free",
-  custom: "Setup ($999 + $55/mo)",
-  diy: "DIY ($55/mo)",
-};
-
 const HOURS_PER_BUNDLE = 10;
 
 export default async function HomePage({
@@ -137,14 +131,7 @@ export default async function HomePage({
   const hasStarted =
     (statuses ?? []).some((s) => s.status !== "not_started") ||
     (!isSandboxing && Boolean(initiation));
-  const setupButtonLabel =
-    engagementType === "custom"
-      ? "Go to Setup"
-      : engagementType === "diy"
-        ? "Go to DIY"
-        : hasStarted
-          ? "Continue"
-          : "Get Started";
+  const setupButtonLabel = hasStarted ? "Continue" : "Get Started";
 
 
   return (
@@ -172,26 +159,13 @@ export default async function HomePage({
               Here&rsquo;s where things stand.
             </p>
           </div>
-          {/* A new (free) account gets Get Started here; a paid one shows
-              its plan. */}
-          {engagementType === "free" ? (
-            <Link
-              href="/portal"
-              className="self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
-            >
-              {setupButtonLabel} &rarr;
-            </Link>
-          ) : (
-            <span
-              className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold uppercase font-caption tracking-wide ${
-                engagementType === "diy"
-                  ? "bg-warning-soft text-warning"
-                  : "bg-accent-soft text-accent"
-              }`}
-            >
-              {ENGAGEMENT_LABEL[engagementType]}
-            </span>
-          )}
+          {/* Get Started (or Continue once they've begun), for every plan. */}
+          <Link
+            href="/portal"
+            className="self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
+          >
+            {setupButtonLabel} &rarr;
+          </Link>
         </div>
 
         <div
@@ -280,17 +254,6 @@ export default async function HomePage({
             </div>
           )}
         </section>
-
-        {engagementType !== "free" && (
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link
-              href="/portal"
-              className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
-            >
-              {setupButtonLabel} &rarr;
-            </Link>
-          </div>
-        )}
       </div>
     </main>
   );
