@@ -42,9 +42,6 @@ export function HoursSection({
   notice?: string;
   error?: string;
 }) {
-  const left = purchased - used;
-  const pct = purchased > 0 ? Math.min(100, (used / purchased) * 100) : 0;
-  const bundlePerHour = formatDollars(Math.round(HOUR_BUNDLE.cents / HOUR_BUNDLE.hours));
 
   return (
     <section id="hours" className="scroll-mt-6 rounded-xl border border-border bg-surface p-5">
@@ -61,6 +58,41 @@ export function HoursSection({
         </div>
       )}
 
+      <HourStats purchased={purchased} used={used} />
+
+      {isOwner ? (
+        <BuyHoursOptions hourlyRate={hourlyRate} returnTo="/profile" />
+      ) : (
+        <p className="mt-3 text-xs text-ink-faint">Only the account owner can buy hours.</p>
+      )}
+
+      {purchases.length > 0 && (
+        <div className="mt-5">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
+            Hours purchased
+          </h3>
+          <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
+            {purchases.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                <span className="text-ink">{purchaseLabel(p)}</span>
+                <span className="text-ink-soft">
+                  {formatDollars(p.amount_cents)} &middot; {day(p.created_at)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Purchased / Used / Remaining, with a bar.
+export function HourStats({ purchased, used }: { purchased: number; used: number }) {
+  const left = purchased - used;
+  const pct = purchased > 0 ? Math.min(100, (used / purchased) * 100) : 0;
+  return (
+    <>
       <div className="mt-3 grid grid-cols-3 gap-3 text-center">
         {[
           ["Purchased", hrs(purchased)],
@@ -92,70 +124,61 @@ export function HoursSection({
           {hrs(-left)} over your purchased hours. Buy more to cover them.
         </p>
       )}
+    </>
+  );
+}
 
-      {isOwner ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <form action={startHoursCheckout} className="flex flex-col gap-2 rounded-lg border border-border p-3.5">
-            <input type="hidden" name="option" value="bundle" />
-            <span className="text-sm font-semibold text-ink">
-              {HOUR_BUNDLE.hours}-hour bundle
-            </span>
-            <span className="text-xs text-ink-soft">
-              {formatDollars(HOUR_BUNDLE.cents)} &middot; {bundlePerHour}/hr
-            </span>
-            <button
-              type="submit"
-              className="mt-auto self-start rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white"
-            >
-              Buy bundle ({formatDollars(HOUR_BUNDLE.cents)})
-            </button>
-          </form>
-          <form action={startHoursCheckout} className="flex flex-col gap-2 rounded-lg border border-border p-3.5">
-            <input type="hidden" name="option" value="hourly" />
-            <span className="text-sm font-semibold text-ink">By the hour</span>
-            <span className="text-xs text-ink-soft">{formatDollars(hourlyRate * 100)}/hr</span>
-            <span className="mt-auto flex items-center gap-2">
-              <input
-                type="number"
-                name="hours"
-                min={1}
-                max={MAX_HOURLY_PURCHASE}
-                defaultValue={1}
-                required
-                aria-label="Hours to buy"
-                className="w-16 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-ink outline-none focus:border-accent"
-              />
-              <span className="text-sm text-ink-soft">hrs</span>
-              <button
-                type="submit"
-                className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
-              >
-                Buy hours
-              </button>
-            </span>
-          </form>
-        </div>
-      ) : (
-        <p className="mt-3 text-xs text-ink-faint">Only the account owner can buy hours.</p>
-      )}
-
-      {purchases.length > 0 && (
-        <div className="mt-5">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
-            Hours purchased
-          </h3>
-          <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
-            {purchases.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-                <span className="text-ink">{purchaseLabel(p)}</span>
-                <span className="text-ink-soft">
-                  {formatDollars(p.amount_cents)} &middot; {day(p.created_at)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </section>
+// The 10-hour bundle and by-the-hour purchase boxes; after paying, Stripe
+// sends them back to `returnTo`.
+export function BuyHoursOptions({
+  hourlyRate,
+  returnTo,
+}: {
+  hourlyRate: number;
+  returnTo: string;
+}) {
+  const bundlePerHour = formatDollars(Math.round(HOUR_BUNDLE.cents / HOUR_BUNDLE.hours));
+  return (
+    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <form action={startHoursCheckout} className="flex flex-col gap-2 rounded-lg border border-border p-3.5">
+        <input type="hidden" name="option" value="bundle" />
+        <input type="hidden" name="return_to" value={returnTo} />
+        <span className="text-sm font-semibold text-ink">{HOUR_BUNDLE.hours}-hour bundle</span>
+        <span className="text-xs text-ink-soft">
+          {formatDollars(HOUR_BUNDLE.cents)} &middot; {bundlePerHour}/hr
+        </span>
+        <button
+          type="submit"
+          className="mt-auto self-start rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white"
+        >
+          Buy bundle ({formatDollars(HOUR_BUNDLE.cents)})
+        </button>
+      </form>
+      <form action={startHoursCheckout} className="flex flex-col gap-2 rounded-lg border border-border p-3.5">
+        <input type="hidden" name="option" value="hourly" />
+        <input type="hidden" name="return_to" value={returnTo} />
+        <span className="text-sm font-semibold text-ink">By the hour</span>
+        <span className="text-xs text-ink-soft">{formatDollars(hourlyRate * 100)}/hr</span>
+        <span className="mt-auto flex items-center gap-2">
+          <input
+            type="number"
+            name="hours"
+            min={1}
+            max={MAX_HOURLY_PURCHASE}
+            defaultValue={1}
+            required
+            aria-label="Hours to buy"
+            className="w-16 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-ink outline-none focus:border-accent"
+          />
+          <span className="text-sm text-ink-soft">hrs</span>
+          <button
+            type="submit"
+            className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
+          >
+            Buy hours
+          </button>
+        </span>
+      </form>
+    </div>
   );
 }

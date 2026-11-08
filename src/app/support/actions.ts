@@ -152,3 +152,62 @@ export async function resolveTicket(formData: FormData) {
 
   revalidate();
 }
+
+const SETUP_REQUEST_PREFIX = "Set up request: ";
+
+// A DIY client asks our team to set up a step (one our team handles) with
+// their setup hours. It's a support ticket tied to the step, so staff see
+// and answer it where they handle questions. One open request per step.
+export async function requestStepSetup(formData: FormData) {
+  const stepId = String(formData.get("step_id") ?? "");
+  const { supabase, userId, isStaff } = await getActor();
+  if (isStaff) redirect("/dashboard");
+  const back = `/lesson/${stepId}`;
+
+  const { data: step } = await supabase
+    .from("setup_steps")
+    .select("id, title, completed_by")
+    .eq("id", stepId)
+    .maybeSingle();
+  if (!step || step.completed_by !== "staff") {
+    redirect(`${back}?error=${encodeURIComponent("This step can't be requested.")}`);
+  }
+
+  const { data: existing } = await supabase
+    .from("support_tickets")
+    .select("id")
+    .eq("client_id", userId)
+    .eq("step_id", step.id)
+    .neq("status", "closed")
+    .like("subject", `${SETUP_REQUEST_PREFIX}%`)
+    .limit(1)
+    .maybeSingle();
+  if (existing) redirect(`${back}?requested=1`);
+
+  const subject = `${SETUP_REQUEST_PREFIX}${step.title}`;
+  const message = `Please set up "${step.title}" for us using our setup hours.`;
+  const { data: ticket, error } = await supabase
+    .from("support_tickets")
+    .insert({ client_id: userId, subject, step_id: step.id })
+    .select("id")
+    .single();
+  if (error || !ticket) {
+    redirect(`${back}?error=${encodeURIComponent("Couldn't send your request. Please try again.")}`);
+  }
+  await supabase
+    .from("support_messages")
+    .insert({ ticket_id: ticket.id, author_id: userId, body: message });
+
+  const client = await clientLabel(supabase, userId);
+  await sendEmail({
+    to: SUPPORT_INBOX,
+    subject: `Set up request: ${step.title}`,
+    heading: `${client.label} requested a set up`,
+    body: message,
+    ctaLabel: "Open the support center",
+    ctaUrl: `${await siteOrigin()}/dashboard`,
+  });
+
+  revalidate();
+  redirect(`${back}?requested=1`);
+}

@@ -15,6 +15,8 @@ import { toggleLessonComplete } from "../actions";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
 import { startPlanCheckout, startStepCheckout } from "@/app/checkout/actions";
 import { getHourlyRate } from "@/lib/hourlyRate";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { RequestSetupButton } from "@/components/RequestSetupButton";
 import { stepClientHref } from "@/lib/stepHref";
 import { PLAN_PRICES, formatDollars, planPriceLabel, stepPriceCents } from "@/lib/pricing";
 
@@ -38,10 +40,10 @@ export default async function LessonPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ paid?: string; error?: string }>;
+  searchParams: Promise<{ paid?: string; error?: string; requested?: string; hours?: string }>;
 }) {
   const { id } = await params;
-  const { paid, error } = await searchParams;
+  const { paid, error, hours: hoursBought } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -206,7 +208,45 @@ export default async function LessonPage({
     !isApproved &&
     !isPurchased &&
     !isPaidStep;
-  const hourlyRate = canBuyStep ? await getHourlyRate() : 0;
+  // DIY clients can ask our team to set up a step our team handles, with
+  // their setup hours (bought or buy-now). Not in the sandbox (no account).
+  const canRequestSetup =
+    !isStaff &&
+    clientPlan === "diy" &&
+    step.completed_by === "staff" &&
+    !isApproved &&
+    Boolean(profile?.client_account_id);
+  const hourlyRate = canBuyStep || canRequestSetup ? await getHourlyRate() : 0;
+  let setupHours = { purchased: 0, used: 0, requested: false };
+  if (canRequestSetup && profile?.client_account_id) {
+    const admin = createAdminClient();
+    const [{ data: account }, { data: members }, { data: openRequest }] = await Promise.all([
+      admin
+        .from("client_accounts")
+        .select("hours_purchased")
+        .eq("id", profile.client_account_id)
+        .single(),
+      admin.from("profiles").select("id").eq("client_account_id", profile.client_account_id),
+      supabase
+        .from("support_tickets")
+        .select("id")
+        .eq("client_id", user.id)
+        .eq("step_id", step.id)
+        .neq("status", "closed")
+        .like("subject", "Set up request: %")
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    const ids = (members ?? []).map((m) => m.id);
+    const { data: log } = ids.length
+      ? await admin.from("hours_log").select("hours").in("client_id", ids)
+      : { data: [] as { hours: number }[] };
+    setupHours = {
+      purchased: Number(account?.hours_purchased ?? 0),
+      used: (log ?? []).reduce((sum, h) => sum + Number(h.hours), 0),
+      requested: Boolean(openRequest),
+    };
+  }
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
@@ -232,6 +272,13 @@ export default async function LessonPage({
           <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
             Previewing this lesson the way a client sees it &mdash; actions
             are disabled here.
+          </div>
+        )}
+
+        {hoursBought === "purchased" && (
+          <div className="mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success">
+            Thanks! Your new hours show up as soon as the payment goes through; then you can
+            request your set up.
           </div>
         )}
 
@@ -391,6 +438,23 @@ export default async function LessonPage({
 
         {(!isStaff || isSandboxing) && (
           <div className="mt-9 border-t border-border-soft pt-6">
+            {canRequestSetup && (
+              <div className="mb-6 rounded-xl border border-accent-soft bg-accent-soft/40 p-5">
+                <h2 className="text-[15px] font-bold text-ink">Want our team to set this up?</h2>
+                <p className="mt-1 mb-3 text-sm text-ink-soft">
+                  Request a set up and we&rsquo;ll do it for you using your setup hours.
+                </p>
+                <RequestSetupButton
+                  stepId={step.id}
+                  stepTitle={step.title}
+                  purchased={setupHours.purchased}
+                  used={setupHours.used}
+                  hourlyRate={hourlyRate}
+                  canBuy={profile?.role === "client_owner"}
+                  requested={setupHours.requested}
+                />
+              </div>
+            )}
             {canBuyStep && (
               <div className="mb-6 rounded-xl border border-accent-soft bg-accent-soft/40 p-5">
                 <h2 className="text-[15px] font-bold text-ink">

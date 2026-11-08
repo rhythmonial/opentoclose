@@ -8,7 +8,6 @@ import {
   ENGAGEMENT_LABELS,
   formatDollars,
   MONTHLY_FEE_CENTS,
-  MONTHLY_FEE_LABEL,
 } from "@/lib/pricing";
 import type { Database } from "@/lib/supabase/types";
 
@@ -59,7 +58,21 @@ export function BillingSection({
 
   return (
     <section id="billing" className="scroll-mt-6 rounded-xl border border-border bg-surface p-5">
-      <h2 className="text-[15px] font-bold text-ink">Billing</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-[15px] font-bold text-ink">Billing</h2>
+        {isOwner && !live && (
+          <form action={startPlanCheckout}>
+            <input type="hidden" name="plan" value="diy" />
+            <input type="hidden" name="return_to" value="/profile" />
+            <button
+              type="submit"
+              className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
+            >
+              Subscribe
+            </button>
+          </form>
+        )}
+      </div>
 
       {notice && (
         <div className="mt-3 rounded-lg border border-success/30 bg-success-soft px-3.5 py-2.5 text-sm text-success">
@@ -123,18 +136,6 @@ export function BillingSection({
             <form action={openBillingPortal}>
               <button type="submit" className={button}>
                 Payment method &amp; invoices
-              </button>
-            </form>
-          )}
-          {!live && (
-            <form action={startPlanCheckout}>
-              <input type="hidden" name="plan" value="diy" />
-              <input type="hidden" name="return_to" value="/profile" />
-              <button
-                type="submit"
-                className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white"
-              >
-                Subscribe ({MONTHLY_FEE_LABEL})
               </button>
             </form>
           )}

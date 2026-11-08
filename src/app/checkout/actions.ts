@@ -136,7 +136,10 @@ export async function startPlanCheckout(formData: FormData) {
 // Buys more setup hours: the 10-hour bundle, or some number of hours at the
 // hourly rate. They're added to the account's hours when paid.
 export async function startHoursCheckout(formData: FormData) {
-  const returnTo = "/profile";
+  // Back to the profile, or the lesson they bought hours from.
+  const asked = String(formData.get("return_to") ?? "");
+  const returnTo = /^\/lesson\/[0-9a-f-]{36}$/i.test(asked) ? asked : "/profile";
+  const anchor = returnTo === "/profile" ? "#hours" : "";
   const option = String(formData.get("option") ?? "") === "bundle" ? "bundle" : "hourly";
   const { supabase, user } = await requireClient(returnTo);
 
@@ -144,7 +147,7 @@ export async function startHoursCheckout(formData: FormData) {
     option === "bundle" ? HOUR_BUNDLE.hours : Math.trunc(Number(formData.get("hours")));
   if (!Number.isFinite(hours) || hours < 1 || hours > MAX_HOURLY_PURCHASE) {
     redirect(
-      `${returnTo}?hours_error=${encodeURIComponent(`Choose between 1 and ${MAX_HOURLY_PURCHASE} hours.`)}#hours`,
+      `${returnTo}?hours_error=${encodeURIComponent(`Choose between 1 and ${MAX_HOURLY_PURCHASE} hours.`)}${anchor}`,
     );
   }
 
@@ -189,8 +192,8 @@ export async function startHoursCheckout(formData: FormData) {
           },
     ],
     metadata: { kind: "hours", client_id: user.id, hours: String(hours) },
-    success_url: `${origin}/profile?hours=purchased#hours`,
-    cancel_url: `${origin}/profile#hours`,
+    success_url: `${origin}${returnTo}?hours=purchased${anchor}`,
+    cancel_url: `${origin}${returnTo}${anchor}`,
   });
 }
 
