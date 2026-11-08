@@ -188,36 +188,38 @@ export default async function PortalPage({
         </div>
       )}
 
-      <div className="flex flex-col items-start gap-3 px-4 pt-6 sm:px-6 sm:pt-9 lg:flex-row lg:items-start lg:justify-between lg:px-12">
-        <div>
+      <div className="px-4 pt-6 sm:px-6 sm:pt-9 lg:px-12">
+        {/* Title, with setup hours used and + to buy more on the right
+            (clients only). */}
+        <div className="flex items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-bold text-ink sm:text-[28px]">
             Your OTC Setup
           </h1>
-          <p className="mt-1.5 text-sm text-ink-soft">
-            {businessName} &middot; here&rsquo;s where things stand with your
-            implementation.
-          </p>
+          {!isStaff && (
+            <div className="flex shrink-0 items-center gap-2.5">
+              {hoursPurchased > 0 && (
+                <span
+                  className={`text-sm font-semibold ${hoursUsed > hoursPurchased ? "text-danger" : "text-ink-soft"}`}
+                  title="Setup hours used"
+                >
+                  {Number(hoursUsed.toFixed(1))} / {Number(hoursPurchased.toFixed(1))}
+                  <span className="hidden sm:inline"> hours used</span>
+                </span>
+              )}
+              <BuyHoursButton
+                purchased={hoursPurchased}
+                used={hoursUsed}
+                hourlyRate={hourlyRate}
+                canBuy={profile?.role === "client_owner"}
+                returnTo="/portal"
+              />
+            </div>
+          )}
         </div>
-        {/* Setup hours used, with + to buy more (clients only). */}
-        {!isStaff && (
-          <div className="flex shrink-0 items-center gap-2.5 self-start lg:pt-1.5">
-            {hoursPurchased > 0 && (
-              <span
-                className={`text-sm font-semibold ${hoursUsed > hoursPurchased ? "text-danger" : "text-ink-soft"}`}
-                title="Setup hours used"
-              >
-                {Number(hoursUsed.toFixed(1))} / {Number(hoursPurchased.toFixed(1))} hours used
-              </span>
-            )}
-            <BuyHoursButton
-              purchased={hoursPurchased}
-              used={hoursUsed}
-              hourlyRate={hourlyRate}
-              canBuy={profile?.role === "client_owner"}
-              returnTo="/portal"
-            />
-          </div>
-        )}
+        <p className="mt-1.5 text-sm text-ink-soft">
+          {businessName} &middot; here&rsquo;s where things stand with your
+          implementation.
+        </p>
       </div>
 
       <div className="flex flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:flex-row lg:gap-8 lg:px-12 lg:pb-12">

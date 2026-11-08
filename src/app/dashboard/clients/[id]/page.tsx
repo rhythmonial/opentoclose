@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { LogHoursButton } from "@/components/LogHoursButton";
+import { TechSupportButton } from "@/components/TechSupportButton";
 import { StepOwnerIcon } from "@/components/StepOwnerIcon";
 import { TimerButton } from "@/components/TimerButton";
 import {
@@ -93,18 +94,19 @@ export default async function ClientDetailPage({
   const owner = (members ?? []).find((m) => m.role === "client_owner") ?? members?.[0];
   const memberIds = (members ?? []).map((m) => m.id);
 
-  // Tech support: their open questions, plus the one opened from the
-  // Clients page (so a just-sent answer stays in view).
-  const { data: ticketRows } = memberIds.length
+    const { data: ticketRows } = memberIds.length
     ? await supabase
         .from("support_tickets")
         .select("id, client_id, subject, status, step_id, created_at")
         .in("client_id", memberIds)
         .order("created_at")
     : { data: [] };
-  const supportTickets = (ticketRows ?? []).filter(
-    (t) => t.status === "open" || t.id === openedTicket,
-  );
+  // Their questions still in play (waiting on us, or answered and waiting
+  // on them), plus the one opened from the Clients page; waiting first.
+  const supportTickets = (ticketRows ?? [])
+    .filter((t) => t.status !== "closed" || t.id === openedTicket)
+    .sort((a, b) => Number(b.status === "open") - Number(a.status === "open"));
+  const openQuestionCount = supportTickets.filter((t) => t.status === "open").length;
   const { data: supportMessages } = supportTickets.length
     ? await supabase
         .from("support_messages")
@@ -298,29 +300,16 @@ export default async function ClientDetailPage({
             </span>
           </p>
         </div>
-        {owner && (
-          <LogHoursButton
-            accountId={account.id}
-            clientId={owner.id}
-            action={logHours}
-            lessons={sortedSteps.map((st) => ({
-              id: st.id,
-              title: st.title,
-              phase: st.phase ?? "General",
-              section: st.section,
-            }))}
-          />
-        )}
-      </div>
-
-      {supportTickets.length > 0 && (
-        <section
-          id="tech-support"
-          className="mt-5 rounded-xl border border-danger/30 bg-surface"
-        >
-          <div className="border-b border-border px-5 py-3.5">
-            <h2 className="text-[15px] font-bold text-ink">Tech support</h2>
-          </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <TechSupportButton
+            openCount={openQuestionCount}
+            defaultOpen={Boolean(openedTicket)}
+          >
+            {supportTickets.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-ink-soft">
+                No questions from this client right now.
+              </p>
+            ) : (
           <div className="divide-y divide-border">
             {supportTickets.map((t) => {
               const asker = (members ?? []).find((m) => m.id === t.client_id);
@@ -379,8 +368,79 @@ export default async function ClientDetailPage({
               );
             })}
           </div>
-        </section>
-      )}
+            )}
+          </TechSupportButton>
+        {owner && (
+          <LogHoursButton
+            accountId={account.id}
+            clientId={owner.id}
+            action={logHours}
+            lessons={sortedSteps.map((st) => ({
+              id: st.id,
+              title: st.title,
+              phase: st.phase ?? "General",
+              section: st.section,
+            }))}
+          />
+        )}
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="text-sm text-ink-soft">Hours</div>
+          <div className="mt-1 font-display text-xl font-bold text-ink">
+            {hoursUsed.toFixed(1)} / {Number(account.hours_purchased).toFixed(1)}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="text-sm text-ink-soft">Team size</div>
+          <div className="mt-1 font-display text-xl font-bold text-ink">
+            {members?.length ?? 0}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="text-sm text-ink-soft">Tasks complete</div>
+          <div className="mt-1 font-display text-xl font-bold text-ink">
+            {(steps ?? []).filter((s) => statusByStepId.get(s.id) === "approved").length}
+            {" / "}
+            {(steps ?? []).length}
+          </div>
+        </div>
+      </div>
+
+      <section className="mt-6">
+        <h2 className="font-display text-lg font-bold text-ink">Team</h2>
+        <div className="mt-3 flex flex-col gap-2.5">
+          {(members ?? []).map((member) => (
+            <div
+              key={member.id}
+              className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-[14px]"
+            >
+              <div className="flex-1">
+                <div className="text-[15px] font-bold text-ink">
+                  {member.email ?? "Pending"}
+                </div>
+                <div className="text-sm text-ink-soft">
+                  {ROLE_LABEL[member.role] ?? member.role}
+                </div>
+              </div>
+              <span
+                className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
+                  member.first_login_at
+                    ? "bg-success-soft text-success"
+                    : "bg-accent-soft text-accent"
+                }`}
+              >
+                {(member.first_login_at ? "active" : "invited").toUpperCase()}
+              </span>
+            </div>
+          ))}
+          {(members ?? []).length === 0 && (
+            <p className="text-sm text-ink-soft">No team members yet.</p>
+          )}
+        </div>
+      </section>
 
       {initiation?.upgrade_requested_at && owner && (
         <div className="mt-5 flex flex-col items-start gap-3 rounded-xl border border-accent-soft bg-accent-soft/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -447,61 +507,6 @@ export default async function ClientDetailPage({
         )}
       </details>
 
-      <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <div className="text-sm text-ink-soft">Hours</div>
-          <div className="mt-1 font-display text-xl font-bold text-ink">
-            {hoursUsed.toFixed(1)} / {Number(account.hours_purchased).toFixed(1)}
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <div className="text-sm text-ink-soft">Team size</div>
-          <div className="mt-1 font-display text-xl font-bold text-ink">
-            {members?.length ?? 0}
-          </div>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <div className="text-sm text-ink-soft">Tasks complete</div>
-          <div className="mt-1 font-display text-xl font-bold text-ink">
-            {(steps ?? []).filter((s) => statusByStepId.get(s.id) === "approved").length}
-            {" / "}
-            {(steps ?? []).length}
-          </div>
-        </div>
-      </div>
-
-      <section className="mt-9">
-        <h2 className="font-display text-lg font-bold text-ink">Team</h2>
-        <div className="mt-3 flex flex-col gap-2.5">
-          {(members ?? []).map((member) => (
-            <div
-              key={member.id}
-              className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-[14px]"
-            >
-              <div className="flex-1">
-                <div className="text-[15px] font-bold text-ink">
-                  {member.email ?? "Pending"}
-                </div>
-                <div className="text-sm text-ink-soft">
-                  {ROLE_LABEL[member.role] ?? member.role}
-                </div>
-              </div>
-              <span
-                className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
-                  member.first_login_at
-                    ? "bg-success-soft text-success"
-                    : "bg-accent-soft text-accent"
-                }`}
-              >
-                {(member.first_login_at ? "active" : "invited").toUpperCase()}
-              </span>
-            </div>
-          ))}
-          {(members ?? []).length === 0 && (
-            <p className="text-sm text-ink-soft">No team members yet.</p>
-          )}
-        </div>
-      </section>
 
       <section className="mt-9">
         <div className="flex items-center justify-between gap-4">

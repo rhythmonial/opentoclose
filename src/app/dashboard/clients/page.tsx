@@ -410,40 +410,53 @@ export default async function ClientsPage() {
           <p className="mt-1 text-sm text-ink-soft">
             Questions waiting on a reply. Open one to answer it.
           </p>
-          <ul className="mt-4 divide-y divide-border-soft overflow-hidden rounded-xl border border-border bg-surface">
-            {techSupport.map((t) => (
-              <li key={t.id}>
-                <Link
-                  href={`/dashboard/clients/${t.accountId}?ticket=${t.id}#tech-support`}
-                  className="flex flex-col gap-1 px-5 py-3.5 hover:bg-bg sm:flex-row sm:items-start sm:gap-4"
-                >
-                  <span className="shrink-0 font-semibold text-ink sm:w-56 sm:truncate">
-                    {t.accountName}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-ink">
-                      {t.subject}
-                      {t.stepTitle && (
-                        <span className="font-normal text-ink-faint"> &middot; {t.stepTitle}</span>
-                      )}
-                    </span>
-                    {t.question && (
-                      <span className="mt-0.5 line-clamp-2 block whitespace-pre-line text-sm text-ink-soft">
-                        {t.question}
-                      </span>
-                    )}
-                  </span>
-                  <span className="shrink-0 text-xs text-ink-faint">
-                    {new Date(t.created_at).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
-                  <span className="shrink-0 text-sm font-semibold text-accent">Answer &rarr;</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-surface">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                  <th className="px-5 py-3">Client</th>
+                  <th className="px-5 py-3">Subject</th>
+                  <th className="px-5 py-3">Question</th>
+                  <th className="px-5 py-3">Asked</th>
+                  <th className="px-5 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {techSupport.map((t) => {
+                  const href = `/dashboard/clients/${t.accountId}?ticket=${t.id}`;
+                  return (
+                    <tr key={t.id} className="border-b border-border-soft align-top last:border-0 hover:bg-bg">
+                      <td className="whitespace-nowrap px-5 py-3.5 font-semibold text-ink">
+                        <Link href={href}>{t.accountName}</Link>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="font-semibold text-ink">{t.subject}</div>
+                        {t.stepTitle && (
+                          <div className="text-xs text-ink-faint">{t.stepTitle}</div>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 text-ink-soft">
+                        <span className="line-clamp-3 whitespace-pre-line">
+                          {t.question || "—"}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 text-xs text-ink-faint">
+                        {new Date(t.created_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3.5 text-right">
+                        <Link href={href} className="font-semibold text-accent">
+                          Answer &rarr;
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
       <section className="relative">
