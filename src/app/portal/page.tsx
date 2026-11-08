@@ -75,9 +75,7 @@ export default async function PortalPage() {
       : supabase
           .from("hours_log")
           .select("*")
-          .eq("client_id", user.id)
-          .order("logged_date", { ascending: false })
-          .limit(5),
+          .eq("client_id", user.id),
     isSandboxing
       ? Promise.resolve({ data: { engagement_type: sandboxTier! } })
       : supabase
@@ -102,28 +100,23 @@ export default async function PortalPage() {
     (statuses ?? []).map((s) => [s.step_id, s.status]),
   );
 
-  // Work completed on the client's own steps, used as the DIY work log —
-  // DIY clients do everything themselves, so there's no staff hours_log to
-  // show them, just a record of what they've finished and when.
-  const completedStepLog = (allSteps ?? [])
-    .filter((s) => statusByStep.get(s.id) === "approved")
-    .map((s) => ({
-      id: s.id,
-      title: s.title,
-      completedAt: (statuses ?? []).find((st) => st.step_id === s.id)
-        ?.updated_at,
-    }))
-    .filter((e): e is { id: string; title: string; completedAt: string } =>
-      Boolean(e.completedAt),
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime(),
-    )
-    .slice(0, 8);
-
   // Every plan sees every step, including the ones our team handles.
   const steps = allSteps ?? [];
+
+  // Steps unlock in order: one shows once every client step before it is
+  // done (the team's steps show when reached but don't hold the client
+  // up). Staff previewing (not in a sandbox) see everything.
+  const isClientStep = (s: { completed_by: string }) =>
+    effectiveOwner(s.completed_by, plan) === "client";
+  const unlocked = new Set<string>();
+  {
+    let blocked = false;
+    for (const s of steps) {
+      if (blocked && !(isStaff && !isSandboxing)) break;
+      unlocked.add(s.id);
+      if (isClientStep(s) && statusByStep.get(s.id) !== "approved") blocked = true;
+    }
+  }
 
   // Only the section holding the client's next task starts expanded: the
   // first unfinished step after their last completed one (falling back to
@@ -173,24 +166,6 @@ export default async function PortalPage() {
             implementation.
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2.5">
-          {!isStaff && engagementType === "free" && (
-            <Link
-              href="/setup?plan=diy"
-              className="rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-ink"
-            >
-              Sign Up for DIY &rarr;
-            </Link>
-          )}
-          {!isStaff && engagementType !== "custom" && (
-            <Link
-              href="/setup?plan=setup"
-              className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white"
-            >
-              Sign Up for Setup &rarr;
-            </Link>
-          )}
-        </div>
       </div>
 
       <div className="flex flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:flex-row lg:gap-8 lg:px-12 lg:pb-12">
@@ -227,6 +202,30 @@ export default async function PortalPage() {
                 (s) => statusByStep.get(s.id) === "approved",
               ).length;
               const isComplete = completeCount === requiredPhaseSteps.length;
+              // A pillar opens once the client reaches it.
+              const phaseUnlocked = phaseSteps.some((s) => unlocked.has(s.id));
+              const lockedInPhase = phaseSteps.filter((s) => !unlocked.has(s.id)).length;
+
+              if (!phaseUnlocked) {
+                return (
+                  <div
+                    key={phase}
+                    className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-5 opacity-70"
+                    title="Unlocks when you finish the steps before it"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-faint" aria-hidden>
+                        <rect x="4" y="11" width="16" height="10" rx="2" />
+                        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                      </svg>
+                      <h2 className="font-display text-lg font-bold text-ink">{phase}</h2>
+                    </div>
+                    <span className="text-xs font-semibold text-ink-faint">
+                      {phaseSteps.length} lesson{phaseSteps.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                );
+              }
 
               return (
                 <details
@@ -256,17 +255,21 @@ export default async function PortalPage() {
                       </h2>
                     </div>
                     <span className="text-xs font-semibold text-ink-faint">
-                      {completeCount} / {requiredPhaseSteps.length} complete
+                      {completeCount} / {requiredPhaseSteps.length} lessons complete
                     </span>
                   </summary>
 
                   <div className="mt-4 flex flex-col gap-5">
-                    {sections.map((section) => {
+                    {sections
+                      .filter((section) =>
+                        phaseSteps.some((s) => s.section === section && unlocked.has(s.id)),
+                      )
+                      .map((section) => {
                       const sectionSteps = phaseSteps.filter(
                         (s) => s.section === section,
                       );
                       const visibleSectionSteps = visiblePhaseSteps.filter(
-                        (s) => s.section === section,
+                        (s) => s.section === section && unlocked.has(s.id),
                       );
                       const sectionRequired = sectionSteps;
                       const sectionCompleteCount = sectionRequired.filter(
@@ -368,6 +371,16 @@ export default async function PortalPage() {
                     </details>
                       );
                     })}
+                    {lockedInPhase > 0 && (
+                      <p className="flex items-center gap-1.5 text-xs text-ink-faint">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                          <rect x="4" y="11" width="16" height="10" rx="2" />
+                          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                        </svg>
+                        {lockedInPhase} more lesson{lockedInPhase === 1 ? "" : "s"} unlock as you
+                        finish each step.
+                      </p>
+                    )}
                 </div>
               </details>
             );
@@ -382,120 +395,43 @@ export default async function PortalPage() {
         </div>
 
         <div className="flex w-full flex-col gap-5 lg:w-[340px] lg:shrink-0">
-          {engagementType !== "custom" ? (
-            <>
-              <div className="rounded-xl border border-border-soft bg-bg p-5">
-                <h3 className="mb-1.5 text-sm font-bold text-ink">
-                  Need Help?
-                </h3>
-                <p className="mb-3 text-sm leading-relaxed text-ink-soft">
-                  Send Josie’s team a question any time &mdash; we
-                  usually respond within a few hours.
-                </p>
-                <Link href="/support" className="text-sm font-semibold text-accent">
-                  Ask a question &rarr;
-                </Link>
+          {engagementType === "custom" && (
+            <div className="rounded-xl border border-border bg-surface p-5">
+              <h3 className="mb-3 text-[15px] font-bold text-ink">Hours Used</h3>
+              <div className="mb-2 flex items-baseline justify-between">
+                <span className="font-display text-xl font-bold text-ink">
+                  {hoursUsed.toFixed(1)}
+                </span>
+                <span className="text-sm text-ink-soft">of {HOURS_PER_BUNDLE} hrs</span>
               </div>
-
-              <div className="rounded-xl border border-border bg-surface p-5">
-                <h3 className="mb-3.5 text-[15px] font-bold text-ink">
-                  Work Log
-                </h3>
-                <div className="flex flex-col gap-3.5">
-                  {completedStepLog.length === 0 && (
-                    <p className="text-sm text-ink-soft">
-                      No steps completed yet &mdash; they&rsquo;ll show up
-                      here as you work through your checklist.
-                    </p>
-                  )}
-                  {completedStepLog.map((entry) => (
-                    <div key={entry.id}>
-                      <div className="mb-0.5 text-xs text-ink-soft">
-                        {new Date(entry.completedAt).toLocaleDateString(
-                          "en-US",
-                          { month: "short", day: "numeric" },
-                        )}
-                      </div>
-                      <div className="text-sm text-ink">{entry.title}</div>
-                    </div>
-                  ))}
-                </div>
+              <div className="mb-3.5 h-2 overflow-hidden rounded-full bg-border-soft">
+                <div
+                  className="h-full bg-accent"
+                  style={{ width: `${Math.min(100, (hoursUsed / HOURS_PER_BUNDLE) * 100)}%` }}
+                />
               </div>
-            </>
-          ) : (
-            <>
-              <div className="rounded-xl border border-border bg-surface p-5">
-                <h3 className="mb-3 text-[15px] font-bold text-ink">
-                  Hours Used
-                </h3>
-                <div className="mb-2 flex items-baseline justify-between">
-                  <span className="font-display text-xl font-bold text-ink">
-                    {hoursUsed.toFixed(1)}
-                  </span>
-                  <span className="text-sm text-ink-soft">
-                    of {HOURS_PER_BUNDLE} hrs
-                  </span>
-                </div>
-                <div className="mb-3.5 h-2 overflow-hidden rounded-full bg-border-soft">
-                  <div
-                    className="h-full bg-accent"
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        (hoursUsed / HOURS_PER_BUNDLE) * 100,
-                      )}%`,
-                    }}
-                  />
-                </div>
-                <button className="w-full rounded-lg border border-border px-2.5 py-2.5 text-sm font-semibold text-ink">
-                  Request Additional Bundle
-                </button>
-              </div>
-
-              <div className="rounded-xl border border-border bg-surface p-5">
-                <h3 className="mb-3.5 text-[15px] font-bold text-ink">
-                  Work Log
-                </h3>
-                <div className="flex flex-col gap-3.5">
-                  {(hoursLog ?? []).length === 0 && (
-                    <p className="text-sm text-ink-soft">
-                      No work logged yet &mdash; entries will appear here
-                      once your setup specialist starts on your account.
-                    </p>
-                  )}
-                  {(hoursLog ?? []).map((entry) => (
-                    <div key={entry.id}>
-                      <div className="mb-0.5 flex justify-between text-xs text-ink-soft">
-                        <span>
-                          {new Date(entry.logged_date).toLocaleDateString(
-                            "en-US",
-                            { month: "short", day: "numeric" },
-                          )}
-                        </span>
-                        <span>{Number(entry.hours).toFixed(1)} hrs</span>
-                      </div>
-                      <div className="text-sm text-ink">
-                        {entry.description}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-border-soft bg-bg p-5">
-                <h3 className="mb-1.5 text-sm font-bold text-ink">
-                  Need Help?
-                </h3>
-                <p className="mb-3 text-sm leading-relaxed text-ink-soft">
-                  Send Josie’s team a question any time &mdash; we
-                  usually respond within a few hours.
-                </p>
-                <Link href="/support" className="text-sm font-semibold text-accent">
-                  Ask a question &rarr;
-                </Link>
-              </div>
-            </>
+              <Link
+                href="/profile#hours"
+                className="block w-full rounded-lg border border-border px-2.5 py-2.5 text-center text-sm font-semibold text-ink hover:border-accent hover:text-accent"
+              >
+                Buy more hours
+              </Link>
+            </div>
           )}
+
+          <div className="rounded-xl border border-border-soft bg-bg p-5">
+            <h3 className="mb-1.5 text-sm font-bold text-ink">Need Help?</h3>
+            <p className="mb-3.5 text-sm leading-relaxed text-ink-soft">
+              Send Josie&rsquo;s team a question any time &mdash; we usually respond within a few
+              hours.
+            </p>
+            <Link
+              href="/support"
+              className="inline-block rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+            >
+              Ask a question
+            </Link>
+          </div>
         </div>
       </div>
     </main>
