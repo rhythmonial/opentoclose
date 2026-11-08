@@ -143,22 +143,27 @@ export function BuyHoursOptions({
       <form action={startHoursCheckout} className="flex flex-col gap-2 rounded-lg border border-border p-3.5">
         <input type="hidden" name="option" value="bundle" />
         <input type="hidden" name="return_to" value={returnTo} />
-        <span className="text-sm font-semibold text-ink">{HOUR_BUNDLE.hours}-hour bundle</span>
-        <span className="text-xs text-ink-soft">
-          {formatDollars(HOUR_BUNDLE.cents)} &middot; {bundlePerHour}/hr
+        {/* Title with its price on one line, the button below. */}
+        <span className="flex flex-wrap items-baseline justify-between gap-x-2">
+          <span className="text-sm font-semibold text-ink">{HOUR_BUNDLE.hours}-hour bundle</span>
+          <span className="text-xs text-ink-soft">
+            {formatDollars(HOUR_BUNDLE.cents)} &middot; {bundlePerHour}/hr
+          </span>
         </span>
         <button
           type="submit"
-          className="mt-auto self-start rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white"
+          className="mt-auto self-start rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
         >
-          Buy bundle ({formatDollars(HOUR_BUNDLE.cents)})
+          Buy bundle
         </button>
       </form>
       <form action={startHoursCheckout} className="flex flex-col gap-2 rounded-lg border border-border p-3.5">
         <input type="hidden" name="option" value="hourly" />
         <input type="hidden" name="return_to" value={returnTo} />
-        <span className="text-sm font-semibold text-ink">By the hour</span>
-        <span className="text-xs text-ink-soft">{formatDollars(hourlyRate * 100)}/hr</span>
+        <span className="flex flex-wrap items-baseline justify-between gap-x-2">
+          <span className="text-sm font-semibold text-ink">By the hour</span>
+          <span className="text-xs text-ink-soft">{formatDollars(hourlyRate * 100)}/hr</span>
+        </span>
         <span className="mt-auto flex items-center gap-2">
           <input
             type="number"
