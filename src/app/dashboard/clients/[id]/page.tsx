@@ -200,30 +200,6 @@ export default async function ClientDetailPage({
     (submissions ?? []).map((s) => [s.step_id, s]),
   );
 
-  // The monthly access fee's latest subscription.
-  const { data: subscription } = await supabase
-    .from("subscriptions")
-    .select("status, cancel_at_period_end, current_period_end")
-    .eq("client_account_id", account.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const periodEnd = subscription?.current_period_end
-    ? new Date(subscription.current_period_end).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })
-    : null;
-  const monthly = !subscription
-    ? { text: "No monthly plan", tone: "bg-border-soft text-ink-faint" }
-    : subscription.status === "past_due"
-      ? { text: "Monthly: payment failed", tone: "bg-danger/10 text-danger" }
-      : ["active", "trialing"].includes(subscription.status)
-        ? subscription.cancel_at_period_end
-          ? { text: `Monthly: ends ${periodEnd ?? "soon"}`, tone: "bg-warning-soft text-warning" }
-          : { text: "Monthly: active", tone: "bg-success-soft text-success" }
-        : { text: "Monthly: canceled", tone: "bg-danger/10 text-danger" };
-
   const stepTitleById = new Map((steps ?? []).map((st) => [st.id, st.title]));
   // A teammate's name and phone: from the invite form, else (for the
   // owner) their setup form, else their profile's full name split at the
@@ -330,11 +306,6 @@ export default async function ClientDetailPage({
               }`}
             >
               {ENGAGEMENT_LABEL[engagementType]}
-            </span>
-            <span
-              className={`ml-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase font-caption tracking-wide ${monthly.tone}`}
-            >
-              {monthly.text}
             </span>
           </p>
         </div>
