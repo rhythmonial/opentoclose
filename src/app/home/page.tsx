@@ -100,10 +100,20 @@ export default async function HomePage({
       .filter((s) => s.status === "approved")
       .map((s) => [s.step_id, s.updated_at]),
   );
-  // Everything finished so far (theirs and our team's), latest first.
+  // Everything finished so far (theirs and our team's), by stage in the
+  // checklist's order (the steps come sorted that way).
+  const stageOrder = new Map<string, number>();
+  for (const s of allSteps ?? []) {
+    const stage = s.phase ?? "General";
+    if (!stageOrder.has(stage)) stageOrder.set(stage, stageOrder.size);
+  }
   const completed = (allSteps ?? [])
     .filter((s) => completedOn.has(s.id))
-    .sort((a, b) => (completedOn.get(b.id) ?? "").localeCompare(completedOn.get(a.id) ?? ""));
+    .sort(
+      (a, b) =>
+        (stageOrder.get(a.phase ?? "General") ?? 0) - (stageOrder.get(b.phase ?? "General") ?? 0) ||
+        a.sort_order - b.sort_order,
+    );
 
   // The client's own tasks; the ones our team handles aren't theirs to do.
   const requiredTasks = (allSteps ?? []).filter(
