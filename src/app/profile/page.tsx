@@ -7,6 +7,7 @@ import { signOut } from "@/app/login/actions";
 import { getSandboxTier } from "@/lib/devSandbox";
 import { updateProfileInfo, inviteClientAdmin, inviteStaff } from "./actions";
 import { BillingSection } from "@/components/BillingSection";
+import { InviteTeammateButton } from "@/components/InviteTeammateButton";
 import { HoursSection } from "@/components/HoursSection";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getHourlyRate } from "@/lib/hourlyRate";
@@ -381,35 +382,17 @@ export default async function ProfilePage({
         </section>
 
         <div className="flex min-w-0 flex-1 flex-col gap-6">
-          <BillingSection
-            plan={initiation?.engagement_type ?? null}
-            subscription={subscriptions?.[0] ?? null}
-            payments={(payments ?? []).slice(0, 8)}
-            isOwner={isOwner}
-            notice={
-              billing === "canceled"
-                ? "Your subscription is cancelled."
-                : billing === "resumed"
-                  ? "Your subscription will continue."
-                  : undefined
-            }
-            error={billing_error}
-          />
-          <HoursSection
-            purchased={Number(account?.hours_purchased ?? 0)}
-            used={hoursUsed}
-            purchases={hourPurchases}
-            hourlyRate={hourlyRate}
-            isOwner={isOwner}
-            notice={
-              hours === "purchased"
-                ? "Thanks! Your hours will show here as soon as the payment goes through."
-                : undefined
-            }
-            error={hours_error}
-          />
           <div className="flex flex-col gap-2.5">
-            <h2 className="text-[15px] font-bold text-ink">Your team</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-[15px] font-bold text-ink">Your team</h2>
+              {isOwner && (
+                <InviteTeammateButton
+                  action={inviteClientAdmin}
+                  error={error}
+                  invited={Boolean(invited)}
+                />
+              )}
+            </div>
             {(teammates ?? []).map((member) => (
               <Link
                 key={member.id}
@@ -459,44 +442,33 @@ export default async function ProfilePage({
             )}
           </div>
 
-          {isOwner && (
-            <div className="rounded-xl border border-border bg-surface p-5">
-              <h3 className="mb-3 text-[15px] font-bold text-ink">
-                Invite a teammate
-              </h3>
-              <p className="mb-3.5 text-sm text-ink-soft">
-                They&rsquo;ll get an email to set their password and sign in
-                as an admin on your account.
-              </p>
-
-              {error && (
-                <div className="mb-3.5 rounded-lg border border-danger/30 bg-danger/5 px-3.5 py-2.5 text-sm text-danger">
-                  {error}
-                </div>
-              )}
-              {invited && (
-                <div className="mb-3.5 rounded-lg border border-success/30 bg-success-soft px-3.5 py-2.5 text-sm text-success">
-                  Invite sent.
-                </div>
-              )}
-
-              <form action={inviteClientAdmin} className="flex flex-col gap-3">
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  placeholder="teammate@example.com"
-                  className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-                />
-                <button
-                  type="submit"
-                  className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                >
-                  Send invite
-                </button>
-              </form>
-            </div>
-          )}
+          <BillingSection
+            plan={initiation?.engagement_type ?? null}
+            subscription={subscriptions?.[0] ?? null}
+            payments={(payments ?? []).slice(0, 8)}
+            isOwner={isOwner}
+            notice={
+              billing === "canceled"
+                ? "Your subscription is cancelled."
+                : billing === "resumed"
+                  ? "Your subscription will continue."
+                  : undefined
+            }
+            error={billing_error}
+          />
+          <HoursSection
+            purchased={Number(account?.hours_purchased ?? 0)}
+            used={hoursUsed}
+            purchases={hourPurchases}
+            hourlyRate={hourlyRate}
+            isOwner={isOwner}
+            notice={
+              hours === "purchased"
+                ? "Thanks! Your hours will show here as soon as the payment goes through."
+                : undefined
+            }
+            error={hours_error}
+          />
         </div>
       </div>
 
