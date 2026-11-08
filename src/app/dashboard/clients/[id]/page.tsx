@@ -235,6 +235,25 @@ export default async function ClientDetailPage({
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order);
 
+  // Only the pillars they've reached: everything up to the one they're on
+  // (the first with an unfinished step), plus any later pillar where
+  // they've already finished or sent in a step (just opening a lesson
+  // doesn't count). Later pillars show once they get there.
+  const nextStep = sortedSteps.find((st) => statusByStepId.get(st.id) !== "approved");
+  const currentIndex = nextStep
+    ? phases.indexOf(nextStep.phase ?? "General")
+    : phases.length - 1;
+  const progressed = new Set(["approved", "submitted", "returned"]);
+  const startedPhases = new Set(
+    sortedSteps
+      .filter((st) => progressed.has(statusByStepId.get(st.id) ?? ""))
+      .map((st) => st.phase ?? "General"),
+  );
+  const visiblePhases = phases.filter(
+    (phase, i) => i <= currentIndex || startedPhases.has(phase),
+  );
+  const hiddenPhaseCount = phases.length - visiblePhases.length;
+
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
       <Link href="/dashboard/clients" className="text-sm font-medium text-accent">
@@ -522,7 +541,7 @@ export default async function ClientDetailPage({
           )}
         </div>
         <div className="mt-3 flex flex-col gap-3">
-          {phases.map(
+          {visiblePhases.map(
             (phase) => {
               const phaseSteps = (steps ?? []).filter(
                 (s) => (s.phase ?? "General") === phase,
@@ -739,6 +758,12 @@ export default async function ClientDetailPage({
                 </details>
               );
             },
+          )}
+          {hiddenPhaseCount > 0 && (
+            <p className="px-1 text-xs text-ink-faint">
+              {hiddenPhaseCount} later pillar{hiddenPhaseCount === 1 ? "" : "s"} will show
+              once they get there.
+            </p>
           )}
         </div>
       </section>
