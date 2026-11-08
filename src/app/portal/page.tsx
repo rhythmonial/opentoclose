@@ -9,9 +9,9 @@ import {
 } from "@/lib/stepOwnership";
 import { StaffNav } from "@/components/StaffNav";
 import { stepClientHref } from "@/lib/stepHref";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
 
-const HOURS_PER_BUNDLE = 10;
 
 // Every step is required: red until it's done, then the neutral grey row.
 function stepRowClass(isApproved: boolean): string {
@@ -49,7 +49,7 @@ export default async function PortalPage({
     ? { data: null }
     : await supabase
         .from("profiles")
-        .select("*, client_accounts(name, setup_path)")
+        .select("*, client_accounts(name, setup_path, hours_purchased)")
         .eq("id", user.id)
         .single();
 
@@ -76,12 +76,20 @@ export default async function PortalPage({
     isSandboxing
       ? supabase.from("dev_sandbox_step_status").select("*").eq("tier", sandboxTier!)
       : supabase.from("client_step_status").select("*").eq("client_id", user.id),
-    isSandboxing
-      ? Promise.resolve({ data: [] as { id: string; hours: number; logged_date: string; description: string }[] })
-      : supabase
-          .from("hours_log")
-          .select("*")
-          .eq("client_id", user.id),
+    // Hours the team has logged for anyone on the account (read with the
+    // service role; members only see their own rows).
+    isSandboxing || !profile?.client_account_id
+      ? Promise.resolve({ data: [] as { hours: number }[] })
+      : createAdminClient()
+          .from("profiles")
+          .select("id")
+          .eq("client_account_id", profile.client_account_id)
+          .then(async ({ data: members }) => {
+            const ids = (members ?? []).map((m) => m.id);
+            return ids.length
+              ? await createAdminClient().from("hours_log").select("hours").in("client_id", ids)
+              : { data: [] as { hours: number }[] };
+          }),
     isSandboxing
       ? Promise.resolve({ data: { engagement_type: sandboxTier! } })
       : supabase
@@ -136,6 +144,7 @@ export default async function PortalPage({
   const currentSection = nextStep?.section ?? null;
 
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
+  const hoursPurchased = Number(profile?.client_accounts?.hours_purchased ?? 0);
   const businessName =
     isStaff
       ? isSandboxing
@@ -408,19 +417,19 @@ export default async function PortalPage({
         </div>
 
         <div className="flex w-full flex-col gap-5 lg:w-[340px] lg:shrink-0">
-          {engagementType === "custom" && (
+          {hoursPurchased > 0 && (
             <div className="rounded-xl border border-border bg-surface p-5">
               <h3 className="mb-3 text-[15px] font-bold text-ink">Hours Used</h3>
               <div className="mb-2 flex items-baseline justify-between">
                 <span className="font-display text-xl font-bold text-ink">
                   {hoursUsed.toFixed(1)}
                 </span>
-                <span className="text-sm text-ink-soft">of {HOURS_PER_BUNDLE} hrs</span>
+                <span className="text-sm text-ink-soft">of {Number(hoursPurchased.toFixed(1))} hrs</span>
               </div>
               <div className="mb-3.5 h-2 overflow-hidden rounded-full bg-border-soft">
                 <div
                   className="h-full bg-accent"
-                  style={{ width: `${Math.min(100, (hoursUsed / HOURS_PER_BUNDLE) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (hoursUsed / hoursPurchased) * 100)}%` }}
                 />
               </div>
               <Link

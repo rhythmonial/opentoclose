@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import { stepClientHref } from "@/lib/stepHref";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
 import {
   effectiveOwner,
@@ -10,7 +11,6 @@ import {
   type PlanType,
 } from "@/lib/stepOwnership";
 
-const HOURS_PER_BUNDLE = 10;
 
 export default async function HomePage({
   searchParams,
@@ -45,7 +45,7 @@ export default async function HomePage({
     ? { data: null }
     : await supabase
         .from("profiles")
-        .select("*, client_accounts(name, setup_path, status)")
+        .select("*, client_accounts(name, setup_path, status, hours_purchased)")
         .eq("id", user.id)
         .single();
 
@@ -72,9 +72,20 @@ export default async function HomePage({
           .select("engagement_type")
           .eq("client_id", user.id)
           .maybeSingle(),
-    isSandboxing
+    // Hours the team has logged for anyone on the account (members only
+    // see their own rows, so this reads with the service role).
+    isSandboxing || !profile?.client_account_id
       ? Promise.resolve({ data: [] as { hours: number }[] })
-      : supabase.from("hours_log").select("hours").eq("client_id", user.id),
+      : createAdminClient()
+          .from("profiles")
+          .select("id")
+          .eq("client_account_id", profile.client_account_id)
+          .then(async ({ data: members }) => {
+            const ids = (members ?? []).map((m) => m.id);
+            return ids.length
+              ? await createAdminClient().from("hours_log").select("hours").in("client_id", ids)
+              : { data: [] as { hours: number }[] };
+          }),
   ]);
 
   const engagementType = (initiation?.engagement_type ?? "free") as EngagementType;
@@ -121,6 +132,11 @@ export default async function HomePage({
     (sum, h) => sum + Number(h.hours),
     0,
   );
+  // Anyone who's bought setup hours (the Setup bundle, or hours on their
+  // own) sees how many they've used.
+  const hoursPurchased = Number(profile?.client_accounts?.hours_purchased ?? 0);
+  const showHours = hoursPurchased > 0;
+  const fmtHours = (n: number) => String(Number(n.toFixed(1)));
 
   const businessName = isSandboxing
     ? SANDBOX_LABEL[sandboxTier!]
@@ -170,7 +186,7 @@ export default async function HomePage({
 
         <div
           className={`mt-7 grid grid-cols-1 gap-4 ${
-            engagementType === "custom" ? "sm:grid-cols-3" : "sm:grid-cols-2"
+            showHours ? "sm:grid-cols-3" : "sm:grid-cols-2"
           }`}
         >
           <div className="rounded-xl border border-border bg-surface p-5">
@@ -196,13 +212,26 @@ export default async function HomePage({
             </div>
           </div>
 
-          {engagementType === "custom" && (
-            <div className="rounded-xl border border-border bg-surface p-5">
-              <div className="text-sm text-ink-soft">Hours used</div>
-              <div className="mt-1 font-display text-xl font-bold text-ink">
-                {hoursUsed.toFixed(1)} / {HOURS_PER_BUNDLE}
+          {showHours && (
+            <Link
+              href="/profile#hours"
+              className="rounded-xl border border-border bg-surface p-5 hover:border-accent"
+            >
+              <div className="text-sm text-ink-soft">Setup hours used</div>
+              <div
+                className={`mt-1 font-display text-xl font-bold ${
+                  hoursUsed > hoursPurchased ? "text-danger" : "text-ink"
+                }`}
+              >
+                {fmtHours(hoursUsed)} / {fmtHours(hoursPurchased)} hours
               </div>
-            </div>
+              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-border-soft">
+                <div
+                  className={`h-full ${hoursUsed >= hoursPurchased ? "bg-danger" : "bg-accent"}`}
+                  style={{ width: `${Math.min(100, (hoursUsed / hoursPurchased) * 100)}%` }}
+                />
+              </div>
+            </Link>
           )}
         </div>
 
