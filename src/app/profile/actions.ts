@@ -32,9 +32,15 @@ export async function inviteClientAdmin(formData: FormData) {
   const email = String(formData.get("email") ?? "")
     .trim()
     .toLowerCase();
+  const firstName = String(formData.get("first_name") ?? "").trim().slice(0, 80);
+  const lastName = String(formData.get("last_name") ?? "").trim().slice(0, 80);
+  const phone = String(formData.get("phone") ?? "").trim().slice(0, 40);
 
   if (!email) {
     redirect("/profile?error=Enter+an+email+address");
+  }
+  if (!firstName || !lastName) {
+    redirect("/profile?error=Enter+their+first+and+last+name");
   }
 
   const supabase = await createClient();
@@ -64,7 +70,7 @@ export async function inviteClientAdmin(formData: FormData) {
 
   const origin = await siteOrigin();
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.inviteUserByEmail(email, {
+  const { data: invite, error } = await admin.auth.admin.inviteUserByEmail(email, {
     data: {
       role: "client_admin",
       client_account_id: profile.client_account_id,
@@ -77,6 +83,20 @@ export async function inviteClientAdmin(formData: FormData) {
     redirect(`/profile?error=${encodeURIComponent(error.message)}`);
   }
 
+  // Their name and phone go on the profile the invite created.
+  if (invite.user) {
+    await admin
+      .from("profiles")
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        name: `${firstName} ${lastName}`,
+        phone: phone || null,
+      })
+      .eq("id", invite.user.id);
+  }
+
+  revalidatePath("/profile");
   redirect("/profile?invited=1");
 }
 

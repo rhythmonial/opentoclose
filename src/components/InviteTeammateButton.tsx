@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { formatPhone } from "@/lib/phone";
+
+const field =
+  "rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent";
 
 // The + button beside "Your team": opens a popup to invite a teammate. It
 // opens by itself after an invite is sent or fails, to show the result.
@@ -14,11 +18,12 @@ export function InviteTeammateButton({
   invited?: boolean;
 }) {
   const [open, setOpen] = useState(Boolean(error || invited));
+  const [phone, setPhone] = useState("");
   const dialog = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    dialog.current?.querySelector<HTMLInputElement>("input[type=email]")?.focus();
+    dialog.current?.querySelector<HTMLInputElement>("input[name=first_name]")?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
@@ -86,13 +91,37 @@ export function InviteTeammateButton({
             )}
 
             <form action={action} className="flex flex-col gap-3">
-              <input
-                type="email"
-                name="email"
-                required
-                placeholder="teammate@example.com"
-                className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-ink-soft">First name</span>
+                  <input name="first_name" required autoComplete="off" className={field} />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-ink-soft">Last name</span>
+                  <input name="last_name" required autoComplete="off" className={field} />
+                </label>
+              </div>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-ink-soft">Email</span>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="teammate@example.com"
+                  className={field}
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-ink-soft">Phone</span>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhone(e.target.value))}
+                  placeholder="727-555-0123"
+                  className={field}
+                />
+              </label>
               <button
                 type="submit"
                 className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"

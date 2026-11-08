@@ -82,7 +82,7 @@ export default async function ClientDetailPage({
   const [{ data: members }, { data: steps }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, role, email, name, phone, first_login_at")
+      .select("id, role, email, name, first_name, last_name, phone, first_login_at")
       .eq("client_account_id", id)
       .order("created_at"),
     supabase
@@ -225,15 +225,22 @@ export default async function ClientDetailPage({
         : { text: "Monthly: canceled", tone: "bg-danger/10 text-danger" };
 
   const stepTitleById = new Map((steps ?? []).map((st) => [st.id, st.title]));
-  // A teammate's name and phone: the owner's from their setup form, else
-  // what's on their profile (a full name, split at the first space).
-  const memberDetails = (m: { id: string; name: string | null; phone: string | null }) => {
+  // A teammate's name and phone: from the invite form, else (for the
+  // owner) their setup form, else their profile's full name split at the
+  // first space.
+  const memberDetails = (m: {
+    id: string;
+    name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    phone: string | null;
+  }) => {
     const [first = "", ...rest] = (m.name ?? "").trim().split(/\s+/);
     const fromForm = m.id === owner?.id ? initiation : null;
     return {
-      first: fromForm?.first_name?.trim() || first,
-      last: fromForm?.last_name?.trim() || rest.join(" "),
-      phone: fromForm?.cell_phone?.trim() || m.phone?.trim() || "",
+      first: m.first_name?.trim() || fromForm?.first_name?.trim() || first,
+      last: m.last_name?.trim() || fromForm?.last_name?.trim() || rest.join(" "),
+      phone: m.phone?.trim() || fromForm?.cell_phone?.trim() || "",
     };
   };
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
@@ -445,29 +452,29 @@ export default async function ClientDetailPage({
         {(members ?? []).length === 0 ? (
           <p className="mt-3 text-sm text-ink-soft">No team members yet.</p>
         ) : (
-          <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-surface">
+          <div className="mt-2 overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
-                <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-                  <th className="px-5 py-3">Role</th>
-                  <th className="px-5 py-3">First name</th>
-                  <th className="px-5 py-3">Last name</th>
-                  <th className="px-5 py-3">Email</th>
-                  <th className="px-5 py-3">Phone</th>
-                  <th className="px-5 py-3" />
+                <tr className="text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                  <th className="py-1.5 pr-5">Role</th>
+                  <th className="py-1.5 pr-5">First name</th>
+                  <th className="py-1.5 pr-5">Last name</th>
+                  <th className="py-1.5 pr-5">Email</th>
+                  <th className="py-1.5 pr-5">Phone</th>
+                  <th className="py-1.5" />
                 </tr>
               </thead>
               <tbody>
                 {(members ?? []).map((member) => {
                   const person = memberDetails(member);
                   return (
-                    <tr key={member.id} className="border-b border-border-soft last:border-0">
-                      <td className="px-5 py-3 font-semibold text-ink">
+                    <tr key={member.id}>
+                      <td className="py-1.5 pr-5 font-semibold text-ink">
                         {ROLE_LABEL[member.role] ?? member.role}
                       </td>
-                      <td className="px-5 py-3 text-ink">{person.first || "—"}</td>
-                      <td className="px-5 py-3 text-ink">{person.last || "—"}</td>
-                      <td className="px-5 py-3 text-ink-soft">
+                      <td className="py-1.5 pr-5 text-ink">{person.first || "—"}</td>
+                      <td className="py-1.5 pr-5 text-ink">{person.last || "—"}</td>
+                      <td className="py-1.5 pr-5 text-ink-soft">
                         {member.email ? (
                           <a href={`mailto:${member.email}`} className="hover:text-accent">
                             {member.email}
@@ -476,7 +483,7 @@ export default async function ClientDetailPage({
                           "Pending"
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-5 py-3 text-ink-soft">
+                      <td className="whitespace-nowrap py-1.5 pr-5 text-ink-soft">
                         {person.phone ? (
                           <a href={`tel:${person.phone.replace(/\D/g, "")}`} className="hover:text-accent">
                             {formatPhone(person.phone)}
@@ -485,7 +492,7 @@ export default async function ClientDetailPage({
                           "—"
                         )}
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="py-1.5 text-right">
                         <span
                           className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
                             member.first_login_at
