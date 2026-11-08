@@ -90,7 +90,8 @@ export function BillingSection({
               </span>
             ) : (
               <span>
-                {amount}/month &middot; active{ends ? `, next charge ${ends}` : ""}
+                {amount}/month &middot; active, renews automatically
+                {ends ? ` on ${ends}` : " each month"}
               </span>
             )
           ) : subscription?.status === "canceled" ? (
@@ -147,7 +148,8 @@ export function BillingSection({
       )}
       {live && !live.cancel_at_period_end && isOwner && (
         <p className="mt-2 text-xs text-ink-faint">
-          Canceling keeps your access until the end of the month you&rsquo;ve paid for.
+          Your plan renews automatically every month until you cancel. Canceling stops the
+          next charge, and you keep access until the end of the month you&rsquo;ve paid for.
         </p>
       )}
 

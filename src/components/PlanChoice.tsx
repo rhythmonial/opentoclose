@@ -66,6 +66,10 @@ export function PlanChoice({
           "The Setup is a 10-hour bundle which covers both your 1-on-1 Zoom sessions and behind-the-scenes implementation work. Unlike flat-fee services, our approach is transparent and flexible — you’re only billed for actual hours worked. We believe this is the fairest way to deliver a setup that’s truly customized to your business, without overcharging for unused hours or vague deliverables."
         )}
       </p>
+      <p className="text-center text-xs text-ink-faint">
+        Both plans include monthly access ($33/month), which renews automatically
+        until you cancel it from your profile.
+      </p>
 
       {plan === "custom" && (
         <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">

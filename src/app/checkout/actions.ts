@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
 import { getHourlyRate } from "@/lib/hourlyRate";
 import { siteOrigin } from "@/lib/site-origin";
-import { PLAN_PRICES, stepPriceCents, type PlanKind } from "@/lib/pricing";
+import { MONTHLY_FEE_LABEL, PLAN_PRICES, stepPriceCents, type PlanKind } from "@/lib/pricing";
 import { accountSubscription, monthlyLineItem } from "@/lib/billing";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -111,6 +111,15 @@ export async function startPlanCheckout(formData: FormData) {
     ...customer,
     client_reference_id: user.id,
     metadata,
+    ...(live
+      ? {}
+      : {
+          custom_text: {
+            submit: {
+              message: `Your ${MONTHLY_FEE_LABEL} monthly access renews automatically each month until you cancel it from your profile.`,
+            },
+          },
+        }),
     success_url: `${origin}/home?paid=${plan}`,
     cancel_url: `${origin}${returnTo}`,
   });
