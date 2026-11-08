@@ -128,7 +128,7 @@ export function HoursSection({
               <span className="text-sm text-ink-soft">hrs</span>
               <button
                 type="submit"
-                className="rounded-lg border border-accent px-3.5 py-2 text-sm font-semibold text-accent hover:bg-accent-soft/40"
+                className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
               >
                 Buy hours
               </button>
