@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
+import { stepClientHref } from "@/lib/stepHref";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
 import {
   effectiveOwner,
@@ -61,7 +62,6 @@ export default async function HomePage({
     { data: statuses },
     { data: initiation },
     { data: hoursLog },
-    { data: teammates },
   ] = await Promise.all([
     supabase
       .from("setup_steps")
@@ -81,12 +81,6 @@ export default async function HomePage({
     isSandboxing
       ? Promise.resolve({ data: [] as { hours: number }[] })
       : supabase.from("hours_log").select("hours").eq("client_id", user.id),
-    isSandboxing || !profile?.client_account_id
-      ? Promise.resolve({ data: [] as { id: string }[] })
-      : supabase
-          .from("profiles")
-          .select("id")
-          .eq("client_account_id", profile.client_account_id),
   ]);
 
   const engagementType = (initiation?.engagement_type ?? "free") as EngagementType;
@@ -96,6 +90,15 @@ export default async function HomePage({
   const statusByStep = new Map(
     (statuses ?? []).map((s) => [s.step_id, s.status]),
   );
+  const completedOn = new Map(
+    (statuses ?? [])
+      .filter((s) => s.status === "approved")
+      .map((s) => [s.step_id, s.updated_at]),
+  );
+  // Everything finished so far (theirs and our team's), latest first.
+  const completed = (allSteps ?? [])
+    .filter((s) => completedOn.has(s.id))
+    .sort((a, b) => (completedOn.get(b.id) ?? "").localeCompare(completedOn.get(a.id) ?? ""));
 
   // The client's own tasks; the ones our team handles aren't theirs to do.
   const requiredTasks = (allSteps ?? []).filter(
@@ -184,7 +187,11 @@ export default async function HomePage({
           )}
         </div>
 
-        <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div
+          className={`mt-7 grid grid-cols-1 gap-4 ${
+            engagementType === "custom" ? "sm:grid-cols-3" : "sm:grid-cols-2"
+          }`}
+        >
           <div className="rounded-xl border border-border bg-surface p-5">
             <div className="text-sm text-ink-soft">Overall progress</div>
             <div className="mt-1 font-display text-xl font-bold text-ink">
@@ -208,19 +215,64 @@ export default async function HomePage({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-5">
-            <div className="text-sm text-ink-soft">
-              {engagementType === "custom" ? "Hours used" : "Team size"}
+          {engagementType === "custom" && (
+            <div className="rounded-xl border border-border bg-surface p-5">
+              <div className="text-sm text-ink-soft">Hours used</div>
+              <div className="mt-1 font-display text-xl font-bold text-ink">
+                {hoursUsed.toFixed(1)} / {HOURS_PER_BUNDLE}
+              </div>
             </div>
-            <div className="mt-1 font-display text-xl font-bold text-ink">
-              {engagementType === "custom"
-                ? `${hoursUsed.toFixed(1)} / ${HOURS_PER_BUNDLE}`
-                : isSandboxing
-                  ? 1
-                  : (teammates ?? []).length}
-            </div>
-          </div>
+          )}
         </div>
+
+        <section className="mt-7 rounded-xl border border-border bg-surface">
+          <div className="flex items-baseline justify-between gap-3 border-b border-border px-5 py-3.5">
+            <h2 className="text-[15px] font-bold text-ink">Completed</h2>
+            <span className="text-xs text-ink-faint">
+              {completed.length} task{completed.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          {completed.length === 0 ? (
+            <p className="px-5 py-4 text-sm text-ink-soft">
+              Nothing completed yet. Tasks show up here as they&rsquo;re finished.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[34rem] text-left text-sm">
+                <thead className="bg-bg text-xs text-ink-soft">
+                  <tr>
+                    <th className="px-5 py-2 font-semibold">Task</th>
+                    <th className="px-3 py-2 font-semibold">Stage</th>
+                    <th className="px-3 py-2 font-semibold">Done by</th>
+                    <th className="px-5 py-2 text-right font-semibold">Completed</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {completed.map((s) => (
+                    <tr key={s.id}>
+                      <td className="px-5 py-2.5">
+                        <Link href={stepClientHref(s)} className="font-medium text-ink hover:text-accent">
+                          {s.title}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2.5 text-ink-soft">{s.phase ?? "General"}</td>
+                      <td className="px-3 py-2.5 text-ink-soft">
+                        {effectiveOwner(s.completed_by, plan) === "client" ? "You" : "Our team"}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-2.5 text-right text-ink-soft">
+                        {new Date(completedOn.get(s.id)!).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
         {engagementType !== "free" && (
           <div className="mt-7 flex flex-wrap items-center gap-3">
