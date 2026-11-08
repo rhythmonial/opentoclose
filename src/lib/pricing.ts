@@ -12,7 +12,12 @@ export const PLAN_PRICES = {
 
 export type PlanKind = keyof typeof PLAN_PRICES;
 
-export const DEFAULT_HOURLY_RATE = 100;
+export const DEFAULT_HOURLY_RATE = 125;
+
+// The 10-hour setup bundle (the Setup plan's one-time part), also sold on
+// its own for more hours.
+export const HOUR_BUNDLE = { hours: 10, cents: 99900 } as const;
+export const MAX_HOURLY_PURCHASE = 40;
 
 export function formatDollars(cents: number) {
   return `$${(cents / 100).toLocaleString("en-US", {

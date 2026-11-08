@@ -7,6 +7,9 @@ import { signOut } from "@/app/login/actions";
 import { getSandboxTier } from "@/lib/devSandbox";
 import { updateProfileInfo, inviteClientAdmin, inviteStaff } from "./actions";
 import { BillingSection } from "@/components/BillingSection";
+import { HoursSection } from "@/components/HoursSection";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getHourlyRate } from "@/lib/hourlyRate";
 
 const CLIENT_ROLE_LABEL: Record<string, string> = {
   client_owner: "Client",
@@ -28,9 +31,12 @@ export default async function ProfilePage({
     saved?: string;
     billing?: string;
     billing_error?: string;
+    hours?: string;
+    hours_error?: string;
   }>;
 }) {
-  const { error, invited, saved, billing, billing_error } = await searchParams;
+  const { error, invited, saved, billing, billing_error, hours, hours_error } =
+    await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -259,7 +265,7 @@ export default async function ProfilePage({
   const { data: account } = profile?.client_account_id
     ? await supabase
         .from("client_accounts")
-        .select("name")
+        .select("name, hours_purchased")
         .eq("id", profile.client_account_id)
         .single()
     : { data: null };
@@ -295,11 +301,26 @@ export default async function ProfilePage({
       : Promise.resolve({ data: [] }),
     supabase
       .from("payments")
-      .select("id, kind, amount_cents, created_at")
+      .select("id, kind, hours, amount_cents, created_at")
       .eq("client_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(8),
+      .limit(30),
   ]);
+
+  // Setup hours: purchased (on the account), used (logged by the team for
+  // any of its members; read with the service role since members only see
+  // their own log rows), and the rate for buying more.
+  const memberIds = (teammates ?? []).map((m) => m.id);
+  const [{ data: hoursLog }, hourlyRate] = await Promise.all([
+    memberIds.length > 0
+      ? createAdminClient().from("hours_log").select("hours").in("client_id", memberIds)
+      : Promise.resolve({ data: [] as { hours: number }[] }),
+    getHourlyRate(),
+  ]);
+  const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
+  const hourPurchases = (payments ?? []).filter(
+    (p) => ["setup", "step", "hours"].includes(p.kind) && Number(p.hours ?? 0) > 0,
+  );
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
@@ -363,16 +384,29 @@ export default async function ProfilePage({
           <BillingSection
             plan={initiation?.engagement_type ?? null}
             subscription={subscriptions?.[0] ?? null}
-            payments={payments ?? []}
+            payments={(payments ?? []).slice(0, 8)}
             isOwner={isOwner}
             notice={
               billing === "canceled"
-                ? "Your subscription is canceled. You'll keep access until the end of the month you've paid for."
+                ? "Your subscription is cancelled."
                 : billing === "resumed"
                   ? "Your subscription will continue."
                   : undefined
             }
             error={billing_error}
+          />
+          <HoursSection
+            purchased={Number(account?.hours_purchased ?? 0)}
+            used={hoursUsed}
+            purchases={hourPurchases}
+            hourlyRate={hourlyRate}
+            isOwner={isOwner}
+            notice={
+              hours === "purchased"
+                ? "Thanks! Your hours will show here as soon as the payment goes through."
+                : undefined
+            }
+            error={hours_error}
           />
           <div className="flex flex-col gap-2.5">
             <h2 className="text-[15px] font-bold text-ink">Your team</h2>

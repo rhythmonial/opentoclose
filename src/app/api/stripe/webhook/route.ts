@@ -88,9 +88,14 @@ async function endAccess(sub: Stripe.Subscription) {
 async function fulfill(session: Stripe.Checkout.Session): Promise<string | null> {
   const kind = session.metadata?.kind;
   const clientId = session.metadata?.client_id;
-  if (!clientId || (kind !== "setup" && kind !== "diy" && kind !== "step")) {
+  if (!clientId || (kind !== "setup" && kind !== "diy" && kind !== "step" && kind !== "hours")) {
     return null;
   }
+  // Steps and hour purchases carry their hours; plans have fixed ones.
+  const boughtHours =
+    kind === "step" || kind === "hours"
+      ? Number(session.metadata?.hours ?? 0)
+      : PLAN_PRICES[kind].hours;
 
   const admin = createAdminClient();
   const stepId = session.metadata?.step_id || null;
@@ -104,13 +109,12 @@ async function fulfill(session: Stripe.Checkout.Session): Promise<string | null>
     const syncError = await syncSubscription(admin, sub);
     if (syncError) return syncError;
   }
-  const stepHours = Number(session.metadata?.hours ?? 0);
 
   const { error: insertError } = await admin.from("payments").insert({
     client_id: clientId,
     kind,
     step_id: kind === "step" ? stepId : null,
-    hours: kind === "step" ? stepHours : PLAN_PRICES[kind].hours,
+    hours: boughtHours,
     amount_cents: session.amount_total ?? 0,
     stripe_session_id: session.id,
   });
@@ -135,7 +139,7 @@ async function fulfill(session: Stripe.Checkout.Session): Promise<string | null>
         .single()
     : { data: null };
 
-  const addedHours = kind === "step" ? stepHours : PLAN_PRICES[kind].hours;
+  const addedHours = boughtHours;
   if (accountId && account && addedHours > 0) {
     await admin
       .from("client_accounts")

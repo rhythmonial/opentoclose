@@ -6,7 +6,14 @@ import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
 import { getHourlyRate } from "@/lib/hourlyRate";
 import { siteOrigin } from "@/lib/site-origin";
-import { MONTHLY_FEE_LABEL, PLAN_PRICES, stepPriceCents, type PlanKind } from "@/lib/pricing";
+import {
+  HOUR_BUNDLE,
+  MAX_HOURLY_PURCHASE,
+  MONTHLY_FEE_LABEL,
+  PLAN_PRICES,
+  stepPriceCents,
+  type PlanKind,
+} from "@/lib/pricing";
 import { accountSubscription, monthlyLineItem } from "@/lib/billing";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -122,6 +129,67 @@ export async function startPlanCheckout(formData: FormData) {
         }),
     success_url: `${origin}/home?paid=${plan}`,
     cancel_url: `${origin}${returnTo}`,
+  });
+}
+
+// Buys more setup hours: the 10-hour bundle, or some number of hours at the
+// hourly rate. They're added to the account's hours when paid.
+export async function startHoursCheckout(formData: FormData) {
+  const returnTo = "/profile";
+  const option = String(formData.get("option") ?? "") === "bundle" ? "bundle" : "hourly";
+  const { supabase, user } = await requireClient(returnTo);
+
+  const hours =
+    option === "bundle" ? HOUR_BUNDLE.hours : Math.trunc(Number(formData.get("hours")));
+  if (!Number.isFinite(hours) || hours < 1 || hours > MAX_HOURLY_PURCHASE) {
+    redirect(
+      `${returnTo}?hours_error=${encodeURIComponent(`Choose between 1 and ${MAX_HOURLY_PURCHASE} hours.`)}#hours`,
+    );
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("client_account_id")
+    .eq("id", user.id)
+    .single();
+  const { customerId } = profile?.client_account_id
+    ? await accountSubscription(createAdminClient(), profile.client_account_id)
+    : { customerId: null };
+  const rate = await getHourlyRate();
+  const origin = await siteOrigin();
+
+  await openCheckout(returnTo, {
+    mode: "payment",
+    ...(customerId ? { customer: customerId } : { customer_email: user.email }),
+    client_reference_id: user.id,
+    line_items: [
+      option === "bundle"
+        ? {
+            quantity: 1,
+            price_data: {
+              currency: "usd",
+              unit_amount: HOUR_BUNDLE.cents,
+              product_data: {
+                name: `${HOUR_BUNDLE.hours}-hour setup bundle`,
+                description: "Setup hours with Josie's team.",
+              },
+            },
+          }
+        : {
+            quantity: hours,
+            price_data: {
+              currency: "usd",
+              unit_amount: Math.round(rate * 100),
+              product_data: {
+                name: "Setup hours",
+                description: `Setup hours with Josie's team at $${rate}/hr.`,
+              },
+            },
+          },
+    ],
+    metadata: { kind: "hours", client_id: user.id, hours: String(hours) },
+    success_url: `${origin}/profile?hours=purchased#hours`,
+    cancel_url: `${origin}/profile#hours`,
   });
 }
 

@@ -23,6 +23,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   diy: "DIY",
   step: "Done-for-you step",
   monthly: "Monthly access",
+  hours: "Setup hours",
 };
 
 const day = (iso: string) =>
@@ -82,12 +83,7 @@ export function BillingSection({
                 {amount}/month &middot; payment failed. The card on file needs updating.
               </span>
             ) : live.cancel_at_period_end ? (
-              <span>
-                {amount}/month &middot;{" "}
-                <span className="font-semibold text-warning">
-                  canceled, access ends {ends ?? "at the end of this month"}
-                </span>
-              </span>
+              <span className="font-semibold text-warning">Your subscription is cancelled.</span>
             ) : (
               <span>
                 {amount}/month &middot; active, renews automatically
