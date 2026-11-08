@@ -20,10 +20,13 @@ export function StaffNav({ isDev = false }: { isDev?: boolean }) {
   const pathname = usePathname();
   const links = isDev ? [...LINKS, ...DEV_LINKS] : LINKS;
   const [newLeadCount, setNewLeadCount] = useState(0);
+  // Clients with a question waiting on our team.
+  const [askingCount, setAskingCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    createClient()
+    const supabase = createClient();
+    supabase
       .from("leads")
       .select("id", { count: "exact", head: true })
       .eq("status", "new")
@@ -31,10 +34,35 @@ export function StaffNav({ isDev = false }: { isDev?: boolean }) {
       .then(({ count }) => {
         if (!cancelled) setNewLeadCount(count ?? 0);
       });
+    supabase
+      .from("support_tickets")
+      .select("client_id")
+      .eq("status", "open")
+      .then(async ({ data }) => {
+        const ids = [...new Set((data ?? []).map((t) => t.client_id))];
+        if (ids.length === 0) {
+          if (!cancelled) setAskingCount(0);
+          return;
+        }
+        const { data: people } = await supabase
+          .from("profiles")
+          .select("client_account_id")
+          .in("id", ids);
+        const accounts = new Set((people ?? []).map((p) => p.client_account_id).filter(Boolean));
+        if (!cancelled) setAskingCount(accounts.size);
+      });
     return () => {
       cancelled = true;
     };
   }, [pathname]);
+  const clientsBubble = newLeadCount + askingCount;
+  const clientsBubbleTitle = [
+    newLeadCount > 0 && `${newLeadCount} new lead${newLeadCount === 1 ? "" : "s"}`,
+    askingCount > 0 &&
+      `${askingCount} client${askingCount === 1 ? "" : "s"} with a question`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="flex h-[64px] shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-4 sm:h-[76px] sm:px-6 lg:px-12">
@@ -60,12 +88,12 @@ export function StaffNav({ isDev = false }: { isDev?: boolean }) {
               }`}
             >
               {link.label}
-              {link.href === "/dashboard/clients" && newLeadCount > 0 && (
+              {link.href === "/dashboard/clients" && clientsBubble > 0 && (
                 <span
-                  title={`${newLeadCount} new lead${newLeadCount === 1 ? "" : "s"}`}
+                  title={clientsBubbleTitle}
                   className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 font-caption text-[10px] font-bold text-white"
                 >
-                  {newLeadCount}
+                  {clientsBubble}
                 </span>
               )}
             </Link>

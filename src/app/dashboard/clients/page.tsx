@@ -24,6 +24,7 @@ export default async function ClientsPage() {
     { data: initiations },
     { data: leads },
     { data: payments },
+    { data: openTickets },
   ] = await Promise.all([
     supabase
       .from("client_accounts")
@@ -44,6 +45,8 @@ export default async function ClientsPage() {
       .select("*")
       .order("created_at", { ascending: false }),
     supabase.from("payments").select("client_id, kind, step_id"),
+    // Client questions waiting on our team.
+    supabase.from("support_tickets").select("client_id").eq("status", "open"),
   ]);
 
   // --- Clients table ---
@@ -73,6 +76,9 @@ export default async function ClientsPage() {
       (p) => p.client_account_id === account.id,
     );
     const owner = members.find((m) => m.role === "client_owner") ?? members[0];
+
+    const memberIds = new Set(members.map((m) => m.id));
+    const openQuestions = (openTickets ?? []).filter((t) => memberIds.has(t.client_id)).length;
 
     const hoursUsed = members.reduce(
       (sum, m) => sum + (hoursByClient.get(m.id) ?? 0),
@@ -114,6 +120,7 @@ export default async function ClientsPage() {
       hoursUsed,
       hoursPurchased: Number(account.hours_purchased),
       outcome: account.outcome,
+      openQuestions,
     };
   });
 
@@ -478,6 +485,7 @@ export default async function ClientsPage() {
                               className="block px-5 py-3.5 font-semibold text-ink hover:text-accent"
                             >
                               {row.name}
+                              <QuestionBubble count={row.openQuestions} />
                             </Link>
                           </td>
                           <td className="px-5 py-3.5">
@@ -549,6 +557,7 @@ export default async function ClientsPage() {
                             className="block px-5 py-3.5 font-semibold text-ink hover:text-accent"
                           >
                             {row.name}
+                            <QuestionBubble count={row.openQuestions} />
                           </Link>
                         </td>
                         <td className="px-5 py-3.5">
@@ -595,5 +604,18 @@ export default async function ClientsPage() {
         </details>
       </section>
     </main>
+  );
+}
+
+// A red bubble with how many questions a client has waiting on our team.
+function QuestionBubble({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      title={`${count} question${count === 1 ? "" : "s"} waiting for a reply`}
+      className="ml-2 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 align-middle font-caption text-[10px] font-bold text-white"
+    >
+      {count}
+    </span>
   );
 }
