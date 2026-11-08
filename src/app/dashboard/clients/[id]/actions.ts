@@ -10,6 +10,10 @@ export async function logHours(formData: FormData) {
   const hours = Number(formData.get("hours") ?? 0);
   const description = String(formData.get("description") ?? "");
   const loggedDate = String(formData.get("logged_date") ?? "");
+  const uuid = /^[0-9a-f-]{36}$/i;
+  const stepIds = Array.from(
+    new Set(formData.getAll("step_ids").map(String).filter((v) => uuid.test(v))),
+  );
 
   const supabase = await createClient();
   const {
@@ -22,6 +26,7 @@ export async function logHours(formData: FormData) {
     hours,
     description: `Manual: ${description}`,
     logged_date: loggedDate || new Date().toISOString().slice(0, 10),
+    step_ids: stepIds,
   });
 
   revalidatePath(`/dashboard/clients/${accountId}`);

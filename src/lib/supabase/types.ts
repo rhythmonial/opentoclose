@@ -758,6 +758,7 @@ export type Database = {
           id: string
           logged_by: string | null
           logged_date: string
+          step_ids: string[]
         }
         Insert: {
           client_id: string
@@ -767,6 +768,7 @@ export type Database = {
           id?: string
           logged_by?: string | null
           logged_date?: string
+          step_ids?: string[]
         }
         Update: {
           client_id?: string
@@ -776,6 +778,7 @@ export type Database = {
           id?: string
           logged_by?: string | null
           logged_date?: string
+          step_ids?: string[]
         }
         Relationships: [
           {

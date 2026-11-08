@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
-import { ClientStatusSelect } from "@/components/ClientStatusSelect";
+import { LogHoursButton } from "@/components/LogHoursButton";
 import { StepOwnerIcon } from "@/components/StepOwnerIcon";
 import { TimerButton } from "@/components/TimerButton";
 import {
@@ -218,6 +218,7 @@ export default async function ClientDetailPage({
           : { text: "Monthly: active", tone: "bg-success-soft text-success" }
         : { text: "Monthly: canceled", tone: "bg-danger/10 text-danger" };
 
+  const stepTitleById = new Map((steps ?? []).map((st) => [st.id, st.title]));
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
   const engagementType = (initiation?.engagement_type ?? "free") as EngagementType;
   // Staff always see the full task list for a client regardless of plan;
@@ -228,15 +229,6 @@ export default async function ClientDetailPage({
   const sortedSteps = (steps ?? [])
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order);
-  let currentPhase: string | null = null;
-  if (owner) {
-    const nextStep = sortedSteps.find(
-      (s) => statusByStepId.get(s.id) !== "approved",
-    );
-    currentPhase = nextStep
-      ? (nextStep.phase ?? "General")
-      : (phases[phases.length - 1] ?? null);
-  }
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
@@ -303,7 +295,19 @@ export default async function ClientDetailPage({
             </span>
           </p>
         </div>
-        <ClientStatusSelect accountId={account.id} status={account.status} />
+        {owner && (
+          <LogHoursButton
+            accountId={account.id}
+            clientId={owner.id}
+            action={logHours}
+            lessons={sortedSteps.map((st) => ({
+              id: st.id,
+              title: st.title,
+              phase: st.phase ?? "General",
+              section: st.section,
+            }))}
+          />
+        )}
       </div>
 
       {supportTickets.length > 0 && (
@@ -328,10 +332,15 @@ export default async function ClientDetailPage({
                   created_at: m.created_at,
                   fromStaff: m.author_id !== t.client_id,
                 }));
+              // Their question up top; the thread below is the replies.
+              const [question, ...replies] = messages;
               return (
                 <div key={t.id} className="px-5 py-4">
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="min-w-0">
+                      <div className="text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                        Subject
+                      </div>
                       <div className="font-semibold text-ink">{t.subject}</div>
                       <div className="mt-0.5 text-xs text-ink-faint">
                         {asker?.email ?? "Client"}
@@ -344,10 +353,20 @@ export default async function ClientDetailPage({
                     </div>
                     <SupportStatusBadge status={t.status} />
                   </div>
+                  {question && (
+                    <div className="mb-3">
+                      <div className="text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                        Question
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap rounded-lg border border-border-soft bg-bg px-4 py-3 text-sm text-ink">
+                        {question.body}
+                      </p>
+                    </div>
+                  )}
                   <SupportThread
                     ticketId={t.id}
                     status={t.status}
-                    messages={messages}
+                    messages={replies}
                     viewerIsStaff
                     clientLabel={asker?.email ?? account.name}
                   />
@@ -508,7 +527,6 @@ export default async function ClientDetailPage({
               return (
                 <details
                   key={phase}
-                  open={phase === currentPhase}
                   className="rounded-xl border border-border bg-surface p-5"
                 >
                   <summary className="flex cursor-pointer items-center justify-between gap-4">
@@ -718,14 +736,15 @@ export default async function ClientDetailPage({
       <section className="mt-9">
         <h2 className="font-display text-lg font-bold text-ink">Work log</h2>
 
-        <div className="mt-3 flex flex-col gap-6 lg:flex-row lg:gap-8">
-          <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-border bg-surface">
+        <div className="mt-3">
+          <div className="min-w-0 overflow-x-auto rounded-xl border border-border bg-surface">
             <table className="w-full min-w-[480px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                   <th className="px-5 py-3">Date</th>
                   <th className="px-5 py-3">Hours</th>
                   <th className="px-5 py-3">Description</th>
+                  <th className="px-5 py-3">Lessons</th>
                 </tr>
               </thead>
               <tbody>
@@ -742,11 +761,17 @@ export default async function ClientDetailPage({
                       {Number(entry.hours).toFixed(1)}
                     </td>
                     <td className="px-5 py-3 text-ink">{entry.description}</td>
+                    <td className="px-5 py-3 text-ink-soft">
+                      {((entry.step_ids ?? []) as string[])
+                        .map((sid) => stepTitleById.get(sid))
+                        .filter(Boolean)
+                        .join(", ") || "—"}
+                    </td>
                   </tr>
                 ))}
                 {(hoursLog ?? []).length === 0 && (
                   <tr>
-                    <td className="px-5 py-6 text-sm text-ink-soft" colSpan={3}>
+                    <td className="px-5 py-6 text-sm text-ink-soft" colSpan={4}>
                       No hours logged yet.
                     </td>
                   </tr>
@@ -755,51 +780,6 @@ export default async function ClientDetailPage({
             </table>
           </div>
 
-          {owner && (
-            <div className="w-full shrink-0 rounded-xl border border-border bg-surface p-5 lg:w-[300px]">
-              <h3 className="text-[15px] font-bold text-ink">Log hours</h3>
-              <form action={logHours} className="mt-3 flex flex-col gap-3">
-                <input type="hidden" name="account_id" value={account.id} />
-                <input type="hidden" name="client_id" value={owner.id} />
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-ink-soft">Date</span>
-                  <input
-                    type="date"
-                    name="logged_date"
-                    defaultValue={new Date().toISOString().slice(0, 10)}
-                    className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-ink-soft">Hours</span>
-                  <input
-                    type="number"
-                    step="0.25"
-                    name="hours"
-                    required
-                    className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-ink-soft">
-                    Description
-                  </span>
-                  <textarea
-                    name="description"
-                    rows={2}
-                    required
-                    className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
-                >
-                  Log hours
-                </button>
-              </form>
-            </div>
-          )}
         </div>
       </section>
     </main>

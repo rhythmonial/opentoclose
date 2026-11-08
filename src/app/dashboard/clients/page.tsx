@@ -209,7 +209,22 @@ export default async function ClientsPage() {
     purchasesByAccount.set(accountId, list);
   }
 
-  // Open questions, oldest first, each linked to its client's page.
+  // Open questions, oldest first, each linked to its client's page, with
+  // the client's question (the ticket's first message).
+  const { data: questionMessages } = (openTickets ?? []).length
+    ? await supabase
+        .from("support_messages")
+        .select("ticket_id, body, created_at")
+        .in(
+          "ticket_id",
+          (openTickets ?? []).map((t) => t.id),
+        )
+        .order("created_at")
+    : { data: [] };
+  const questionByTicket = new Map<string, string>();
+  for (const m of questionMessages ?? []) {
+    if (!questionByTicket.has(m.ticket_id)) questionByTicket.set(m.ticket_id, m.body);
+  }
   const accountNameById = new Map(clientRows.map((r) => [r.id, r.name]));
   const techSupport = (openTickets ?? []).flatMap((t) => {
     const accountId = accountByProfileId.get(t.client_id);
@@ -220,6 +235,7 @@ export default async function ClientsPage() {
         accountId,
         accountName: accountNameById.get(accountId) ?? "Client",
         stepTitle: t.step_id ? stepTitleById.get(t.step_id) : undefined,
+        question: questionByTicket.get(t.id) ?? "",
       },
     ];
   });
@@ -399,15 +415,22 @@ export default async function ClientsPage() {
               <li key={t.id}>
                 <Link
                   href={`/dashboard/clients/${t.accountId}?ticket=${t.id}#tech-support`}
-                  className="flex flex-col gap-1 px-5 py-3.5 hover:bg-bg sm:flex-row sm:items-center sm:gap-4"
+                  className="flex flex-col gap-1 px-5 py-3.5 hover:bg-bg sm:flex-row sm:items-start sm:gap-4"
                 >
                   <span className="shrink-0 font-semibold text-ink sm:w-56 sm:truncate">
                     {t.accountName}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-ink">
-                    {t.subject}
-                    {t.stepTitle && (
-                      <span className="text-ink-faint"> &middot; {t.stepTitle}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-ink">
+                      {t.subject}
+                      {t.stepTitle && (
+                        <span className="font-normal text-ink-faint"> &middot; {t.stepTitle}</span>
+                      )}
+                    </span>
+                    {t.question && (
+                      <span className="mt-0.5 line-clamp-2 block whitespace-pre-line text-sm text-ink-soft">
+                        {t.question}
+                      </span>
                     )}
                   </span>
                   <span className="shrink-0 text-xs text-ink-faint">

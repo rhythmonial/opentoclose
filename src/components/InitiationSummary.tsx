@@ -59,7 +59,7 @@ export function InitiationSummary({
   otcPassword: string | null;
 }) {
   return (
-    <details open className="mt-5 rounded-xl border border-border bg-surface">
+    <details className="mt-5 rounded-xl border border-border bg-surface">
       <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-2 px-5 py-3.5">
         <span className="text-[15px] font-bold text-ink">Setup Initiation</span>
         <span className="text-xs text-ink-faint">
