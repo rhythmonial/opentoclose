@@ -159,10 +159,10 @@ export default async function HomePage({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-display text-2xl font-bold text-ink sm:text-[28px]">
-              Welcome back
+              Welcome {businessName}
             </h1>
             <p className="mt-1.5 text-sm text-ink-soft">
-              {businessName} &middot; here&rsquo;s where things stand.
+              Here&rsquo;s where things stand.
             </p>
           </div>
           {/* A new (free) account gets Get Started here; a paid one shows
