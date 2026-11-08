@@ -12,8 +12,8 @@ import {
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
   free: "Free",
-  custom: "Setup ($999 + $33/mo)",
-  diy: "DIY ($33/mo)",
+  custom: "Setup ($999 + $55/mo)",
+  diy: "DIY ($55/mo)",
 };
 
 const HOURS_PER_BUNDLE = 10;

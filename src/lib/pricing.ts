@@ -2,7 +2,7 @@
 // Stripe subscription that starts at checkout): DIY is the monthly fee
 // alone; Setup is a one-time setup, with a block of staff hours, plus the
 // monthly fee.
-export const MONTHLY_FEE_CENTS = 3300;
+export const MONTHLY_FEE_CENTS = 5500;
 
 export const PLAN_PRICES = {
   // `cents` is the one-time part.
@@ -28,7 +28,7 @@ export function formatDollars(cents: number) {
 
 export const MONTHLY_FEE_LABEL = `${formatDollars(MONTHLY_FEE_CENTS)}/mo`;
 
-// "$33/mo" for DIY, "$999 + $33/mo" for Setup.
+// "$55/mo" for DIY, "$999 + $55/mo" for Setup.
 export function planPriceLabel(plan: PlanKind) {
   const once = PLAN_PRICES[plan].cents;
   return once > 0 ? `${formatDollars(once)} + ${MONTHLY_FEE_LABEL}` : MONTHLY_FEE_LABEL;

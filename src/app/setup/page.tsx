@@ -99,7 +99,7 @@ export default async function SetupInitiationPage({
         {isStaff && tested && (
           <div className="mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success">
             Test submission received. A real client would now go to checkout
-            for {tested === "diy" ? "DIY ($33/mo)" : "Setup ($999 + $33/mo)"}
+            for {tested === "diy" ? "DIY ($55/mo)" : "Setup ($999 + $55/mo)"}
             {sandboxTier ? ", and this step is marked complete in your sandbox." : "."}
           </div>
         )}

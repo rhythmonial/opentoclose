@@ -130,12 +130,12 @@ export default async function ClientsPage() {
     rows: typeof clientRows;
   }[] = [
     {
-      label: "Setup ($999 + $33/mo)",
+      label: "Setup ($999 + $55/mo)",
       tier: "custom",
       rows: activeRows.filter((r) => r.engagementType === "custom"),
     },
     {
-      label: "DIY ($33/mo)",
+      label: "DIY ($55/mo)",
       tier: "diy",
       rows: activeRows.filter((r) => r.engagementType === "diy"),
     },

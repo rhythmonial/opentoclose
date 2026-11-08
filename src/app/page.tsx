@@ -61,7 +61,7 @@ const PLANS = [
   },
   {
     name: "DIY",
-    price: "$33",
+    price: "$55",
     priceNote: "/month",
     tagline: "Do it yourself, with a guide",
     features: [
@@ -79,7 +79,7 @@ const PLANS = [
   {
     name: "Setup",
     price: "$999",
-    priceNote: "+ $33/month",
+    priceNote: "+ $55/month",
     tagline: "We build it with you",
     features: [
       "Josie’s team builds your Open to Close setup",
@@ -87,7 +87,7 @@ const PLANS = [
       "You only handle the steps that need you",
       "Training videos and call replays",
       "Progress tracking and a work log",
-      "Includes monthly access ($33/month, renews until you cancel)",
+      "Includes monthly access ($55/month, renews until you cancel)",
     ],
     note: null,
     cta: { label: "Get pricing & setup details", href: "/pricing" },

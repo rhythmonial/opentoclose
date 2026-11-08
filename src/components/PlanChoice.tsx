@@ -36,7 +36,7 @@ export function PlanChoice({
               onChange={() => setPlan("diy")}
               className="h-4 w-4"
             />
-            DIY ($33/mo)
+            DIY ($55/mo)
           </span>
         </label>
         <label className={optionClass}>
@@ -49,7 +49,7 @@ export function PlanChoice({
               onChange={() => setPlan("custom")}
               className="h-4 w-4"
             />
-            Setup ($999 + $33/mo)
+            Setup ($999 + $55/mo)
           </span>
         </label>
       </div>
@@ -67,7 +67,7 @@ export function PlanChoice({
         )}
       </p>
       <p className="text-center text-xs text-ink-faint">
-        Both plans include monthly access ($33/month), which renews automatically
+        Both plans include monthly access ($55/month), which renews automatically
         until you cancel it from your profile.
       </p>
 
