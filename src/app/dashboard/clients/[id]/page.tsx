@@ -20,6 +20,11 @@ import { logHours, logTimedHours, deleteClientAccount } from "./actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { InitiationSummary } from "@/components/InitiationSummary";
 import { SavedContractDoc } from "@/components/SavedContractDoc";
+import {
+  SupportStatusBadge,
+  SupportThread,
+  type SupportMessage,
+} from "@/components/SupportThread";
 import type { ContractBlank } from "@/lib/contractBlanks";
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
@@ -47,10 +52,10 @@ export default async function ClientDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; ticket?: string }>;
 }) {
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, ticket: openedTicket } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -85,6 +90,29 @@ export default async function ClientDetailPage({
 
   const owner = (members ?? []).find((m) => m.role === "client_owner") ?? members?.[0];
   const memberIds = (members ?? []).map((m) => m.id);
+
+  // Tech support: their open questions, plus the one opened from the
+  // Clients page (so a just-sent answer stays in view).
+  const { data: ticketRows } = memberIds.length
+    ? await supabase
+        .from("support_tickets")
+        .select("id, client_id, subject, status, step_id, created_at")
+        .in("client_id", memberIds)
+        .order("created_at")
+    : { data: [] };
+  const supportTickets = (ticketRows ?? []).filter(
+    (t) => t.status === "open" || t.id === openedTicket,
+  );
+  const { data: supportMessages } = supportTickets.length
+    ? await supabase
+        .from("support_messages")
+        .select("id, ticket_id, author_id, body, created_at")
+        .in(
+          "ticket_id",
+          supportTickets.map((t) => t.id),
+        )
+        .order("created_at")
+    : { data: [] };
 
   const [
     { data: statuses },
@@ -277,6 +305,58 @@ export default async function ClientDetailPage({
         </div>
         <ClientStatusSelect accountId={account.id} status={account.status} />
       </div>
+
+      {supportTickets.length > 0 && (
+        <section
+          id="tech-support"
+          className="mt-5 rounded-xl border border-danger/30 bg-surface"
+        >
+          <div className="border-b border-border px-5 py-3.5">
+            <h2 className="text-[15px] font-bold text-ink">Tech support</h2>
+          </div>
+          <div className="divide-y divide-border">
+            {supportTickets.map((t) => {
+              const asker = (members ?? []).find((m) => m.id === t.client_id);
+              const stepTitle = t.step_id
+                ? (steps ?? []).find((s) => s.id === t.step_id)?.title
+                : undefined;
+              const messages: SupportMessage[] = (supportMessages ?? [])
+                .filter((m) => m.ticket_id === t.id)
+                .map((m) => ({
+                  id: m.id,
+                  body: m.body,
+                  created_at: m.created_at,
+                  fromStaff: m.author_id !== t.client_id,
+                }));
+              return (
+                <div key={t.id} className="px-5 py-4">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-ink">{t.subject}</div>
+                      <div className="mt-0.5 text-xs text-ink-faint">
+                        {asker?.email ?? "Client"}
+                        {stepTitle && <> &middot; {stepTitle}</>} &middot; asked{" "}
+                        {new Date(t.created_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </div>
+                    </div>
+                    <SupportStatusBadge status={t.status} />
+                  </div>
+                  <SupportThread
+                    ticketId={t.id}
+                    status={t.status}
+                    messages={messages}
+                    viewerIsStaff
+                    clientLabel={asker?.email ?? account.name}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {initiation?.upgrade_requested_at && owner && (
         <div className="mt-5 flex flex-col items-start gap-3 rounded-xl border border-accent-soft bg-accent-soft/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">

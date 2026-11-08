@@ -43,6 +43,7 @@ async function clientLabel(supabase: Supabase, clientId: string) {
 function revalidate() {
   revalidatePath("/support");
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/clients", "layout");
 }
 
 export async function createTicket(formData: FormData) {

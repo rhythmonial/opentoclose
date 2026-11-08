@@ -46,7 +46,11 @@ export default async function ClientsPage() {
       .order("created_at", { ascending: false }),
     supabase.from("payments").select("client_id, kind, step_id"),
     // Client questions waiting on our team.
-    supabase.from("support_tickets").select("client_id").eq("status", "open"),
+    supabase
+      .from("support_tickets")
+      .select("id, client_id, subject, step_id, created_at")
+      .eq("status", "open")
+      .order("created_at"),
     // Each account's latest monthly subscription.
     supabase
       .from("subscriptions")
@@ -204,6 +208,21 @@ export default async function ClientsPage() {
     if (!list.includes(label)) list.push(label);
     purchasesByAccount.set(accountId, list);
   }
+
+  // Open questions, oldest first, each linked to its client's page.
+  const accountNameById = new Map(clientRows.map((r) => [r.id, r.name]));
+  const techSupport = (openTickets ?? []).flatMap((t) => {
+    const accountId = accountByProfileId.get(t.client_id);
+    if (!accountId) return [];
+    return [
+      {
+        ...t,
+        accountId,
+        accountName: accountNameById.get(accountId) ?? "Client",
+        stepTitle: t.step_id ? stepTitleById.get(t.step_id) : undefined,
+      },
+    ];
+  });
 
   function leadPlan(lead: Lead) {
     return lead.converted_client_account_id
@@ -364,6 +383,46 @@ export default async function ClientsPage() {
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
+      {techSupport.length > 0 && (
+        <section className="mb-9">
+          <h2 className="font-display text-lg font-bold text-ink">
+            Tech support
+            <span className="ml-2 rounded-full bg-danger px-2 py-0.5 align-middle font-caption text-xs font-bold text-white">
+              {techSupport.length}
+            </span>
+          </h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Questions waiting on a reply. Open one to answer it.
+          </p>
+          <ul className="mt-4 divide-y divide-border-soft overflow-hidden rounded-xl border border-border bg-surface">
+            {techSupport.map((t) => (
+              <li key={t.id}>
+                <Link
+                  href={`/dashboard/clients/${t.accountId}?ticket=${t.id}#tech-support`}
+                  className="flex flex-col gap-1 px-5 py-3.5 hover:bg-bg sm:flex-row sm:items-center sm:gap-4"
+                >
+                  <span className="shrink-0 font-semibold text-ink sm:w-56 sm:truncate">
+                    {t.accountName}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-ink">
+                    {t.subject}
+                    {t.stepTitle && (
+                      <span className="text-ink-faint"> &middot; {t.stepTitle}</span>
+                    )}
+                  </span>
+                  <span className="shrink-0 text-xs text-ink-faint">
+                    {new Date(t.created_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold text-accent">Answer &rarr;</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <section className="relative">
         <details>
           <summary className="cursor-pointer pr-14">

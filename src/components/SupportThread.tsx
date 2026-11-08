@@ -85,7 +85,9 @@ export function SupportThread({
           placeholder={
             status === "closed" && !viewerIsStaff
               ? "Reply to reopen this question"
-              : "Write a reply"
+              : viewerIsStaff
+                ? "Write your answer"
+                : "Write a reply"
           }
           className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
         />
