@@ -1267,6 +1267,7 @@ export type Database = {
       }
       support_messages: {
         Row: {
+          attachments: Json
           author_id: string
           body: string
           created_at: string
@@ -1274,6 +1275,7 @@ export type Database = {
           ticket_id: string
         }
         Insert: {
+          attachments?: Json
           author_id: string
           body: string
           created_at?: string
@@ -1281,6 +1283,7 @@ export type Database = {
           ticket_id: string
         }
         Update: {
+          attachments?: Json
           author_id?: string
           body?: string
           created_at?: string

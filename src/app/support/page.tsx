@@ -7,7 +7,8 @@ import {
   SupportThread,
   type SupportMessage,
 } from "@/components/SupportThread";
-import { createTicket } from "./actions";
+import { AskQuestionForm } from "@/components/AskQuestionForm";
+import { signSupportAttachments } from "@/lib/signSupportAttachments";
 
 export default async function SupportPage({
   searchParams,
@@ -26,7 +27,7 @@ export default async function SupportPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, client_accounts(name)")
+    .select("role, client_accounts(name, setup_path)")
     .eq("id", user.id)
     .single();
 
@@ -37,7 +38,7 @@ export default async function SupportPage({
     redirect("/dashboard");
   }
 
-  const [{ data: step }, { data: tickets }] = await Promise.all([
+  const [{ data: step }, { data: tickets }, { data: lessonRows }] = await Promise.all([
     stepParam
       ? supabase
           .from("setup_steps")
@@ -52,18 +53,30 @@ export default async function SupportPage({
           .select("*, setup_steps(title)")
           .eq("client_id", user.id)
           .order("updated_at", { ascending: false }),
+    // Their checklist's lessons, for "Lesson you need help with".
+    supabase
+      .from("setup_steps")
+      .select("id, title, phase")
+      .eq("path", profile?.client_accounts?.setup_path ?? "custom")
+      .order("sort_order"),
   ]);
+  const lessons = (lessonRows ?? []).map((l) => ({
+    id: l.id,
+    title: l.title,
+    phase: l.phase ?? "General",
+  }));
 
   const ticketIds = (tickets ?? []).map((t) => t.id);
   const { data: messages } =
     ticketIds.length > 0
       ? await supabase
           .from("support_messages")
-          .select("id, ticket_id, author_id, body, created_at")
+          .select("id, ticket_id, author_id, body, created_at, attachments")
           .in("ticket_id", ticketIds)
           .order("created_at")
       : { data: [] };
 
+  const attachmentsByMessage = await signSupportAttachments(messages ?? []);
   const messagesByTicket = new Map<string, SupportMessage[]>();
   for (const m of messages ?? []) {
     const list = messagesByTicket.get(m.ticket_id) ?? [];
@@ -72,6 +85,7 @@ export default async function SupportPage({
       body: m.body,
       created_at: m.created_at,
       fromStaff: m.author_id !== user.id,
+      attachments: attachmentsByMessage.get(m.id),
     });
     messagesByTicket.set(m.ticket_id, list);
   }
@@ -113,44 +127,13 @@ export default async function SupportPage({
               no real client to reply to.
             </p>
           ) : (
-            <form action={createTicket} className="mt-3 flex flex-col gap-3">
-              {step && (
-                <>
-                  <input type="hidden" name="step_id" value={step.id} />
-                  <div className="rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">
-                    About: <span className="font-semibold">{step.title}</span>
-                  </div>
-                </>
-              )}
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-ink-soft">
-                  Subject
-                </span>
-                <input
-                  name="subject"
-                  required
-                  defaultValue={step ? `Question about ${step.title}` : ""}
-                  className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-ink-soft">
-                  Your question
-                </span>
-                <textarea
-                  name="message"
-                  rows={4}
-                  required
-                  className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-                />
-              </label>
-              <button
-                type="submit"
-                className="self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
-              >
-                Send question
-              </button>
-            </form>
+            <div className="mt-3">
+              <AskQuestionForm
+                lessons={lessons}
+                defaultStepId={step?.id ?? null}
+                returnTo="/support"
+              />
+            </div>
           )}
         </section>
 

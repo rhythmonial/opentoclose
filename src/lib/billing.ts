@@ -70,7 +70,43 @@ export async function syncSubscription(admin: Admin, sub: Stripe.Subscription) {
     },
     { onConflict: "stripe_subscription_id" },
   );
-  return error?.message ?? null;
+  if (error) return error.message;
+  const { data: saved } = await admin
+    .from("subscriptions")
+    .select("client_account_id")
+    .eq("stripe_subscription_id", sub.id)
+    .maybeSingle();
+  if (saved?.client_account_id) await syncAccountStatus(admin, saved.client_account_id);
+  return null;
+}
+
+// A cancelled subscription (ending at the period's end, or already ended)
+// moves the client to Completed / Churned; resuming or subscribing again
+// brings them back. Goes by the account's latest subscription, so an old
+// one's events can't undo a newer one.
+async function syncAccountStatus(admin: Admin, accountId: string) {
+  const { data: latest } = await admin
+    .from("subscriptions")
+    .select("status, cancel_at_period_end")
+    .eq("client_account_id", accountId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!latest) return;
+  const cancelled = !LIVE_STATUSES.includes(latest.status) || latest.cancel_at_period_end;
+  if (cancelled) {
+    await admin
+      .from("client_accounts")
+      .update({ status: "churned" })
+      .eq("id", accountId)
+      .in("status", ["active", "paused"]);
+  } else {
+    await admin
+      .from("client_accounts")
+      .update({ status: "active" })
+      .eq("id", accountId)
+      .eq("status", "churned");
+  }
 }
 
 // The account's subscription that still gives access, if any, and the

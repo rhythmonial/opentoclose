@@ -1,11 +1,50 @@
 import { replyToTicket, resolveTicket } from "@/app/support/actions";
+import { AttachmentInput } from "@/components/AttachmentInput";
+import type { SignedAttachment } from "@/lib/supportAttachments";
 
 export type SupportMessage = {
   id: string;
   body: string;
   created_at: string;
   fromStaff: boolean;
+  attachments?: SignedAttachment[];
 };
+
+// A message's images (thumbnails that open full size) and videos (players).
+export function AttachmentList({ attachments }: { attachments?: SignedAttachment[] }) {
+  if (!attachments?.length) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {attachments.map((a) =>
+        !a.url ? (
+          <span key={a.path} className="text-xs text-ink-faint">
+            {a.name} (unavailable)
+          </span>
+        ) : a.type.startsWith("video/") ? (
+          <video
+            key={a.path}
+            src={a.url}
+            controls
+            preload="metadata"
+            className="max-h-64 w-full max-w-sm rounded-lg border border-border bg-ink"
+          />
+        ) : (
+          <a
+            key={a.path}
+            href={a.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={a.name}
+            className="block overflow-hidden rounded-lg border border-border hover:border-accent"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={a.url} alt={a.name} className="h-28 w-auto max-w-[14rem] object-cover" />
+          </a>
+        ),
+      )}
+    </div>
+  );
+}
 
 const STATUS_STYLE: Record<string, { label: string; className: string }> = {
   open: { label: "Open", className: "bg-danger/10 text-danger" },
@@ -71,7 +110,8 @@ export function SupportThread({
               <span className="font-semibold text-ink-soft">{author}</span>
               <span>{formatWhen(m.created_at)}</span>
             </div>
-            <p className="whitespace-pre-wrap">{m.body}</p>
+            {m.body && <p className="whitespace-pre-wrap">{m.body}</p>}
+            <AttachmentList attachments={m.attachments} />
           </div>
         );
       })}
@@ -81,7 +121,6 @@ export function SupportThread({
         <textarea
           name="body"
           rows={2}
-          required
           placeholder={
             status === "closed" && !viewerIsStaff
               ? "Reply to reopen this question"
@@ -91,7 +130,9 @@ export function SupportThread({
           }
           className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
         />
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <AttachmentInput />
+          <div className="ml-auto flex flex-wrap items-center gap-2">
           {status !== "closed" && (
             <button
               type="submit"
@@ -108,6 +149,7 @@ export function SupportThread({
           >
             Send reply
           </button>
+          </div>
         </div>
       </form>
     </div>

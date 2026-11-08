@@ -20,7 +20,9 @@ import { logHours, logTimedHours, deleteClientAccount } from "./actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { InitiationSummary } from "@/components/InitiationSummary";
 import { SavedContractDoc } from "@/components/SavedContractDoc";
+import { signSupportAttachments } from "@/lib/signSupportAttachments";
 import {
+  AttachmentList,
   SupportStatusBadge,
   SupportThread,
   type SupportMessage,
@@ -106,13 +108,14 @@ export default async function ClientDetailPage({
   const { data: supportMessages } = supportTickets.length
     ? await supabase
         .from("support_messages")
-        .select("id, ticket_id, author_id, body, created_at")
+        .select("id, ticket_id, author_id, body, created_at, attachments")
         .in(
           "ticket_id",
           supportTickets.map((t) => t.id),
         )
         .order("created_at")
     : { data: [] };
+  const attachmentsByMessage = await signSupportAttachments(supportMessages ?? []);
 
   const [
     { data: statuses },
@@ -331,6 +334,7 @@ export default async function ClientDetailPage({
                   body: m.body,
                   created_at: m.created_at,
                   fromStaff: m.author_id !== t.client_id,
+                  attachments: attachmentsByMessage.get(m.id),
                 }));
               // Their question up top; the thread below is the replies.
               const [question, ...replies] = messages;
@@ -361,6 +365,7 @@ export default async function ClientDetailPage({
                       <p className="mt-1 whitespace-pre-wrap rounded-lg border border-border-soft bg-bg px-4 py-3 text-sm text-ink">
                         {question.body}
                       </p>
+                      <AttachmentList attachments={question.attachments} />
                     </div>
                   )}
                   <SupportThread

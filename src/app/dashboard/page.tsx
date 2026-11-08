@@ -4,6 +4,7 @@ import {
   SupportThread,
   type SupportMessage,
 } from "@/components/SupportThread";
+import { signSupportAttachments } from "@/lib/signSupportAttachments";
 
 export default async function DashboardHome() {
   const supabase = await createClient();
@@ -120,11 +121,12 @@ export default async function DashboardHome() {
     ticketIds.length > 0
       ? await supabase
           .from("support_messages")
-          .select("id, ticket_id, author_id, body, created_at")
+          .select("id, ticket_id, author_id, body, created_at, attachments")
           .in("ticket_id", ticketIds)
           .order("created_at")
       : { data: [] };
 
+  const attachmentsByMessage = await signSupportAttachments(ticketMessages ?? []);
   const supportTickets = (tickets ?? []).map((t) => {
     const client = profileById.get(t.client_id);
     const accountName = client?.client_account_id
@@ -137,6 +139,7 @@ export default async function DashboardHome() {
         body: m.body,
         created_at: m.created_at,
         fromStaff: m.author_id !== t.client_id,
+        attachments: attachmentsByMessage.get(m.id),
       }));
 
     return {

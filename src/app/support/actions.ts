@@ -5,6 +5,16 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, SUPPORT_INBOX } from "@/lib/email";
 import { siteOrigin } from "@/lib/site-origin";
+import { cleanAttachments, type Attachment } from "@/lib/supportAttachments";
+
+const UUID = /^[0-9a-f-]{36}$/i;
+
+// Emails mention attached files, since the files themselves stay private.
+function withAttachmentNote(body: string, attachments: Attachment[]) {
+  if (attachments.length === 0) return body;
+  const note = `(${attachments.length} image/video attachment${attachments.length === 1 ? "" : "s"})`;
+  return body ? `${body}\n\n${note}` : note;
+}
 
 async function getActor() {
   const supabase = await createClient();
@@ -47,15 +57,21 @@ function revalidate() {
 }
 
 export async function createTicket(formData: FormData) {
-  const subject = String(formData.get("subject") ?? "").trim();
+  const subject = String(formData.get("subject") ?? "").trim().slice(0, 200);
   const message = String(formData.get("message") ?? "").trim();
-  const stepId = String(formData.get("step_id") ?? "") || null;
+  const rawStep = String(formData.get("step_id") ?? "");
+  const stepId = UUID.test(rawStep) ? rawStep : null;
+  // Back to the lesson it was asked from, else the support page.
+  const asked = String(formData.get("return_to") ?? "");
+  const back = /^\/lesson\/[0-9a-f-]{36}$/i.test(asked) ? asked : "/support";
+  const fail = (msg: string) => redirect(`${back}?error=${encodeURIComponent(msg)}`);
 
   const { supabase, userId, isStaff } = await getActor();
   if (isStaff) redirect("/dashboard");
+  const attachments = cleanAttachments(formData.get("attachments"), userId);
 
   if (!subject || !message) {
-    redirect("/support?error=Please+add+a+subject+and+your+question.");
+    fail("Please add a subject and your question.");
   }
 
   const { data: ticket, error } = await supabase
@@ -65,37 +81,39 @@ export async function createTicket(formData: FormData) {
     .single();
 
   if (error || !ticket) {
-    redirect("/support?error=Something+went+wrong.+Please+try+again.");
+    fail("Something went wrong. Please try again.");
+    return;
   }
 
   await supabase
     .from("support_messages")
-    .insert({ ticket_id: ticket.id, author_id: userId, body: message });
+    .insert({ ticket_id: ticket.id, author_id: userId, body: message, attachments });
 
   const client = await clientLabel(supabase, userId);
   await sendEmail({
     to: SUPPORT_INBOX,
     subject: `New support question: ${subject}`,
     heading: `${client.label} asked a question`,
-    body: message,
+    body: withAttachmentNote(message, attachments),
     ctaLabel: "Open the support center",
-    ctaUrl: `${await siteOrigin()}/dashboard`,
+    ctaUrl: `${await siteOrigin()}/dashboard/clients`,
   });
 
   revalidate();
-  redirect("/support?sent=1");
+  redirect(back === "/support" ? "/support?sent=1" : `${back}?asked=1`);
 }
 
 export async function replyToTicket(formData: FormData) {
   const ticketId = String(formData.get("ticket_id") ?? "");
   const body = String(formData.get("body") ?? "").trim();
-  if (!body) return;
 
   const { supabase, userId, isStaff } = await getActor();
+  const attachments = cleanAttachments(formData.get("attachments"), userId);
+  if (!body && attachments.length === 0) return;
 
   await supabase
     .from("support_messages")
-    .insert({ ticket_id: ticketId, author_id: userId, body });
+    .insert({ ticket_id: ticketId, author_id: userId, body, attachments });
 
   // A staff reply hands the ticket back to the client; a client reply
   // (including on a resolved ticket) puts it back in the staff queue.
@@ -122,7 +140,7 @@ export async function replyToTicket(formData: FormData) {
         to: client.email,
         subject: `Re: ${ticket.subject}`,
         heading: "Josie’s team replied to your question",
-        body,
+        body: withAttachmentNote(body, attachments),
         ctaLabel: "View your question",
         ctaUrl: `${origin}/support`,
       });
@@ -131,7 +149,7 @@ export async function replyToTicket(formData: FormData) {
         to: SUPPORT_INBOX,
         subject: `New reply: ${ticket.subject}`,
         heading: `${client.label} replied`,
-        body,
+        body: withAttachmentNote(body, attachments),
         ctaLabel: "Open the support center",
         ctaUrl: `${origin}/dashboard`,
       });

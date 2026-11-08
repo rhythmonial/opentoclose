@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { SupportButton } from "@/components/SupportButton";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
@@ -40,10 +41,16 @@ export default async function LessonPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ paid?: string; error?: string; requested?: string; hours?: string }>;
+  searchParams: Promise<{
+    paid?: string;
+    error?: string;
+    requested?: string;
+    hours?: string;
+    asked?: string;
+  }>;
 }) {
   const { id } = await params;
-  const { paid, error, hours: hoursBought } = await searchParams;
+  const { paid, error, hours: hoursBought, asked } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -69,11 +76,25 @@ export default async function LessonPage({
       ? Promise.resolve({ data: null })
       : supabase
           .from("profiles")
-          .select("*, client_accounts(name)")
+          .select("*, client_accounts(name, setup_path)")
           .eq("id", user.id)
           .single(),
     supabase.from("setup_steps").select("*").eq("id", id).maybeSingle(),
   ]);
+
+  // Their checklist's lessons, for the Get support form.
+  const { data: lessonRows } = isStaff
+    ? { data: [] }
+    : await supabase
+        .from("setup_steps")
+        .select("id, title, phase")
+        .eq("path", profile?.client_accounts?.setup_path ?? "custom")
+        .order("sort_order");
+  const supportLessons = (lessonRows ?? []).map((l) => ({
+    id: l.id,
+    title: l.title,
+    phase: l.phase ?? "General",
+  }));
 
   if (!step) {
     notFound();
@@ -285,6 +306,13 @@ export default async function LessonPage({
         {paid && (
           <div className="mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success">
             Payment received, thank you! Our team will take it from here.
+          </div>
+        )}
+
+        {asked && (
+          <div className="mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success">
+            Question sent! We usually respond within 24 hours. You&rsquo;ll see our
+            reply in <Link href="/support" className="underline">Support</Link>.
           </div>
         )}
 
@@ -567,15 +595,16 @@ export default async function LessonPage({
                 </button>
               </form>
             )}
-            <p className="mt-5 text-sm text-ink-soft">
-              Stuck on this step?{" "}
-              <Link
-                href={`/support?step=${step.id}`}
-                className="font-semibold text-accent"
-              >
-                Ask us a question &rarr;
-              </Link>
-            </p>
+            <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border-soft pt-5">
+              <span className="text-sm text-ink-soft">Stuck on this lesson?</span>
+              {isSandboxing ? (
+                <span className="text-xs text-ink-faint">
+                  Support is off in the sandbox.
+                </span>
+              ) : (
+                <SupportButton lessons={supportLessons} stepId={step.id} />
+              )}
+            </div>
           </div>
         )}
       </div>
