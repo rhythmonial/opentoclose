@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { SupportButton } from "@/components/SupportButton";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import {
@@ -23,11 +24,11 @@ function stepRowClass(isApproved: boolean): string {
 export default async function PortalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ paid?: string; hours?: string }>;
+  searchParams: Promise<{ paid?: string; hours?: string; asked?: string }>;
 }) {
   // Set when Stripe Checkout sends them back after paying for a plan (or
   // for more hours).
-  const { paid, hours: hoursBought } = await searchParams;
+  const { paid, hours: hoursBought, asked } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -172,6 +173,16 @@ export default async function PortalPage({
       {hoursBought === "purchased" && !isStaff && (
         <div className="mx-4 mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success sm:mx-6 lg:mx-12">
           Thanks! Your new hours show up as soon as the payment goes through.
+        </div>
+      )}
+
+      {asked && !isStaff && (
+        <div className="mx-4 mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success sm:mx-6 lg:mx-12">
+          Question sent! We usually respond within 24 hours. You&rsquo;ll see our reply in{" "}
+          <Link href="/support" className="underline">
+            Support
+          </Link>
+          .
         </div>
       )}
 
@@ -455,12 +466,19 @@ export default async function PortalPage({
               Send Josie&rsquo;s team a question any time &mdash; we usually respond within 24
               hours.
             </p>
-            <Link
-              href="/support"
-              className="inline-block rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-            >
-              Ask a question
-            </Link>
+            {isStaff ? (
+              <span className="text-xs text-ink-faint">Questions are off in previews.</span>
+            ) : (
+              <SupportButton
+                variant="ask"
+                returnTo="/portal"
+                lessons={(allSteps ?? []).map((st) => ({
+                  id: st.id,
+                  title: st.title,
+                  phase: st.phase ?? "General",
+                }))}
+              />
+            )}
           </div>
         </div>
       </div>

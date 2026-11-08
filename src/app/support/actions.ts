@@ -61,9 +61,11 @@ export async function createTicket(formData: FormData) {
   const message = String(formData.get("message") ?? "").trim();
   const rawStep = String(formData.get("step_id") ?? "");
   const stepId = UUID.test(rawStep) ? rawStep : null;
-  // Back to the lesson it was asked from, else the support page.
+  // Back to the lesson or setup checklist it was asked from, else the
+  // support page.
   const asked = String(formData.get("return_to") ?? "");
-  const back = /^\/lesson\/[0-9a-f-]{36}$/i.test(asked) ? asked : "/support";
+  const back =
+    /^\/lesson\/[0-9a-f-]{36}$/i.test(asked) || asked === "/portal" ? asked : "/support";
   const fail = (msg: string) => redirect(`${back}?error=${encodeURIComponent(msg)}`);
 
   const { supabase, userId, isStaff } = await getActor();

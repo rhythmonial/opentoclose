@@ -3,14 +3,20 @@
 import { useEffect, useState } from "react";
 import { AskQuestionForm, type LessonChoice } from "@/components/AskQuestionForm";
 
-// "Get support" at the bottom of a lesson: opens the question form with
-// this lesson already picked.
+// Opens the support question form in a popup: "Get support" at the bottom
+// of a lesson (that lesson already picked), or "Ask a question" on the
+// setup checklist (they pick the lesson).
 export function SupportButton({
   lessons,
-  stepId,
+  stepId = null,
+  returnTo,
+  variant = "lesson",
 }: {
   lessons: LessonChoice[];
-  stepId: string;
+  stepId?: string | null;
+  // Where they land after sending (defaults to the lesson).
+  returnTo?: string;
+  variant?: "lesson" | "ask";
 }) {
   const [open, setOpen] = useState(false);
 
@@ -25,6 +31,15 @@ export function SupportButton({
 
   return (
     <>
+      {variant === "ask" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-block rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+        >
+          Ask a question
+        </button>
+      ) : (
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -36,6 +51,7 @@ export function SupportButton({
         </svg>
         Get support
       </button>
+      )}
 
       {open && (
         <div
@@ -53,7 +69,7 @@ export function SupportButton({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 id="support-title" className="text-[15px] font-bold text-ink">
-                  Get support
+                  {variant === "ask" ? "Ask a question" : "Get support"}
                 </h2>
                 <p className="mt-0.5 text-sm text-ink-soft">
                   Ask Josie&rsquo;s team. We usually respond within 24 hours.
@@ -74,7 +90,7 @@ export function SupportButton({
               <AskQuestionForm
                 lessons={lessons}
                 defaultStepId={stepId}
-                returnTo={`/lesson/${stepId}`}
+                returnTo={returnTo ?? (stepId ? `/lesson/${stepId}` : "/support")}
               />
             </div>
           </div>
