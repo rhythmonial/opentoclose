@@ -10,6 +10,8 @@ import {
 import { StaffNav } from "@/components/StaffNav";
 import { stepClientHref } from "@/lib/stepHref";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getHourlyRate } from "@/lib/hourlyRate";
+import { BuyHoursButton } from "@/components/BuyHoursButton";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
 
 
@@ -21,10 +23,11 @@ function stepRowClass(isApproved: boolean): string {
 export default async function PortalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ paid?: string }>;
+  searchParams: Promise<{ paid?: string; hours?: string }>;
 }) {
-  // Set when Stripe Checkout sends them back after paying for a plan.
-  const { paid } = await searchParams;
+  // Set when Stripe Checkout sends them back after paying for a plan (or
+  // for more hours).
+  const { paid, hours: hoursBought } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -145,6 +148,7 @@ export default async function PortalPage({
 
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
   const hoursPurchased = Number(profile?.client_accounts?.hours_purchased ?? 0);
+  const hourlyRate = isStaff ? 0 : await getHourlyRate();
   const businessName =
     isStaff
       ? isSandboxing
@@ -163,6 +167,12 @@ export default async function PortalPage({
           active="setup"
           sandboxTier={sandboxTier}
         />
+      )}
+
+      {hoursBought === "purchased" && !isStaff && (
+        <div className="mx-4 mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success sm:mx-6 lg:mx-12">
+          Thanks! Your new hours show up as soon as the payment goes through.
+        </div>
       )}
 
       {paid && !isStaff && (
@@ -188,6 +198,26 @@ export default async function PortalPage({
             implementation.
           </p>
         </div>
+        {/* Setup hours used, with + to buy more (clients only). */}
+        {!isStaff && (
+          <div className="flex shrink-0 items-center gap-2.5 self-start lg:pt-1.5">
+            {hoursPurchased > 0 && (
+              <span
+                className={`text-sm font-semibold ${hoursUsed > hoursPurchased ? "text-danger" : "text-ink-soft"}`}
+                title="Setup hours used"
+              >
+                {Number(hoursUsed.toFixed(1))} / {Number(hoursPurchased.toFixed(1))} hours used
+              </span>
+            )}
+            <BuyHoursButton
+              purchased={hoursPurchased}
+              used={hoursUsed}
+              hourlyRate={hourlyRate}
+              canBuy={profile?.role === "client_owner"}
+              returnTo="/portal"
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 sm:pt-7 lg:flex-row lg:gap-8 lg:px-12 lg:pb-12">
@@ -417,30 +447,6 @@ export default async function PortalPage({
         </div>
 
         <div className="flex w-full flex-col gap-5 lg:w-[340px] lg:shrink-0">
-          {hoursPurchased > 0 && (
-            <div className="rounded-xl border border-border bg-surface p-5">
-              <h3 className="mb-3 text-[15px] font-bold text-ink">Hours Used</h3>
-              <div className="mb-2 flex items-baseline justify-between">
-                <span className="font-display text-xl font-bold text-ink">
-                  {hoursUsed.toFixed(1)}
-                </span>
-                <span className="text-sm text-ink-soft">of {Number(hoursPurchased.toFixed(1))} hrs</span>
-              </div>
-              <div className="mb-3.5 h-2 overflow-hidden rounded-full bg-border-soft">
-                <div
-                  className="h-full bg-accent"
-                  style={{ width: `${Math.min(100, (hoursUsed / hoursPurchased) * 100)}%` }}
-                />
-              </div>
-              <Link
-                href="/profile#hours"
-                className="block w-full rounded-lg border border-border px-2.5 py-2.5 text-center text-sm font-semibold text-ink hover:border-accent hover:text-accent"
-              >
-                Buy more hours
-              </Link>
-            </div>
-          )}
-
           <div className="rounded-xl border border-border-soft bg-bg p-5">
             <h3 className="mb-1.5 text-sm font-bold text-ink">Need Help?</h3>
             <p className="mb-3.5 text-sm leading-relaxed text-ink-soft">

@@ -138,7 +138,8 @@ export async function startPlanCheckout(formData: FormData) {
 export async function startHoursCheckout(formData: FormData) {
   // Back to the profile, or the lesson they bought hours from.
   const asked = String(formData.get("return_to") ?? "");
-  const returnTo = /^\/lesson\/[0-9a-f-]{36}$/i.test(asked) ? asked : "/profile";
+  const returnTo =
+    /^\/lesson\/[0-9a-f-]{36}$/i.test(asked) || asked === "/portal" ? asked : "/profile";
   const anchor = returnTo === "/profile" ? "#hours" : "";
   const option = String(formData.get("option") ?? "") === "bundle" ? "bundle" : "hourly";
   const { supabase, user } = await requireClient(returnTo);

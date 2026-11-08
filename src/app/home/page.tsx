@@ -261,8 +261,8 @@ export default async function HomePage({
               <table className="w-full min-w-[34rem] text-left text-sm">
                 <thead className="bg-bg text-xs text-ink-soft">
                   <tr>
-                    <th className="px-5 py-2 font-semibold">Task</th>
-                    <th className="px-3 py-2 font-semibold">Stage</th>
+                    <th className="px-5 py-2 font-semibold">Stage</th>
+                    <th className="px-3 py-2 font-semibold">Task</th>
                     <th className="px-3 py-2 font-semibold">Done by</th>
                     <th className="px-5 py-2 text-right font-semibold">Completed</th>
                   </tr>
@@ -270,12 +270,12 @@ export default async function HomePage({
                 <tbody className="divide-y divide-border">
                   {completed.map((s) => (
                     <tr key={s.id}>
-                      <td className="px-5 py-2.5">
+                      <td className="px-5 py-2.5 text-ink-soft">{s.phase ?? "General"}</td>
+                      <td className="px-3 py-2.5">
                         <Link href={stepClientHref(s)} className="font-medium text-ink hover:text-accent">
                           {s.title}
                         </Link>
                       </td>
-                      <td className="px-3 py-2.5 text-ink-soft">{s.phase ?? "General"}</td>
                       <td className="px-3 py-2.5 text-ink-soft">
                         {effectiveOwner(s.completed_by, plan) === "client" ? "You" : "Our team"}
                       </td>
