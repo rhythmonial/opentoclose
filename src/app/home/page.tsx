@@ -136,15 +136,6 @@ export default async function HomePage({
         ? "Go to DIY"
         : "Get Started";
 
-  const upgradeTargets: { label: string; plan: string }[] =
-    engagementType === "custom"
-      ? []
-      : engagementType === "diy"
-        ? [{ label: "Upgrade to Setup", plan: "setup" }]
-        : [
-            { label: "Upgrade to DIY", plan: "diy" },
-            { label: "Upgrade to Setup", plan: "setup" },
-          ];
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
@@ -171,17 +162,26 @@ export default async function HomePage({
               {businessName} &middot; here&rsquo;s where things stand.
             </p>
           </div>
-          <span
-            className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold uppercase font-caption tracking-wide ${
-              engagementType === "diy"
-                ? "bg-warning-soft text-warning"
-                : engagementType === "free"
-                  ? "bg-border-soft text-ink-faint"
+          {/* A new (free) account gets Get Started here; a paid one shows
+              its plan. */}
+          {engagementType === "free" ? (
+            <Link
+              href="/portal"
+              className="self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
+            >
+              {setupButtonLabel} &rarr;
+            </Link>
+          ) : (
+            <span
+              className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold uppercase font-caption tracking-wide ${
+                engagementType === "diy"
+                  ? "bg-warning-soft text-warning"
                   : "bg-accent-soft text-accent"
-            }`}
-          >
-            {ENGAGEMENT_LABEL[engagementType]}
-          </span>
+              }`}
+            >
+              {ENGAGEMENT_LABEL[engagementType]}
+            </span>
+          )}
         </div>
 
         <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -222,23 +222,16 @@ export default async function HomePage({
           </div>
         </div>
 
-        <div className="mt-7 flex flex-wrap items-center gap-3">
-          <Link
-            href="/portal"
-            className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
-          >
-            {setupButtonLabel} &rarr;
-          </Link>
-          {upgradeTargets.map((t) => (
+        {engagementType !== "free" && (
+          <div className="mt-7 flex flex-wrap items-center gap-3">
             <Link
-              key={t.plan}
-              href={`/setup?plan=${t.plan}`}
-              className="rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-ink"
+              href="/portal"
+              className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white"
             >
-              {t.label}
+              {setupButtonLabel} &rarr;
             </Link>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     </main>
   );
