@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatPhone } from "@/lib/phone";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
@@ -81,7 +82,7 @@ export default async function ClientDetailPage({
   const [{ data: members }, { data: steps }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, role, email, first_login_at")
+      .select("id, role, email, name, phone, first_login_at")
       .eq("client_account_id", id)
       .order("created_at"),
     supabase
@@ -224,6 +225,17 @@ export default async function ClientDetailPage({
         : { text: "Monthly: canceled", tone: "bg-danger/10 text-danger" };
 
   const stepTitleById = new Map((steps ?? []).map((st) => [st.id, st.title]));
+  // A teammate's name and phone: the owner's from their setup form, else
+  // what's on their profile (a full name, split at the first space).
+  const memberDetails = (m: { id: string; name: string | null; phone: string | null }) => {
+    const [first = "", ...rest] = (m.name ?? "").trim().split(/\s+/);
+    const fromForm = m.id === owner?.id ? initiation : null;
+    return {
+      first: fromForm?.first_name?.trim() || first,
+      last: fromForm?.last_name?.trim() || rest.join(" "),
+      phone: fromForm?.cell_phone?.trim() || m.phone?.trim() || "",
+    };
+  };
   const hoursUsed = (hoursLog ?? []).reduce((sum, h) => sum + Number(h.hours), 0);
   const engagementType = (initiation?.engagement_type ?? "free") as EngagementType;
   // Staff always see the full task list for a client regardless of plan;
@@ -430,35 +442,67 @@ export default async function ClientDetailPage({
 
       <section className="mt-6">
         <h2 className="font-display text-lg font-bold text-ink">Team</h2>
-        <div className="mt-3 flex flex-col gap-2.5">
-          {(members ?? []).map((member) => (
-            <div
-              key={member.id}
-              className="flex items-center gap-4 rounded-xl border border-border bg-surface px-5 py-[14px]"
-            >
-              <div className="flex-1">
-                <div className="text-[15px] font-bold text-ink">
-                  {member.email ?? "Pending"}
-                </div>
-                <div className="text-sm text-ink-soft">
-                  {ROLE_LABEL[member.role] ?? member.role}
-                </div>
-              </div>
-              <span
-                className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
-                  member.first_login_at
-                    ? "bg-success-soft text-success"
-                    : "bg-accent-soft text-accent"
-                }`}
-              >
-                {(member.first_login_at ? "active" : "invited").toUpperCase()}
-              </span>
-            </div>
-          ))}
-          {(members ?? []).length === 0 && (
-            <p className="text-sm text-ink-soft">No team members yet.</p>
-          )}
-        </div>
+        {(members ?? []).length === 0 ? (
+          <p className="mt-3 text-sm text-ink-soft">No team members yet.</p>
+        ) : (
+          <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-surface">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                  <th className="px-5 py-3">Role</th>
+                  <th className="px-5 py-3">First name</th>
+                  <th className="px-5 py-3">Last name</th>
+                  <th className="px-5 py-3">Email</th>
+                  <th className="px-5 py-3">Phone</th>
+                  <th className="px-5 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {(members ?? []).map((member) => {
+                  const person = memberDetails(member);
+                  return (
+                    <tr key={member.id} className="border-b border-border-soft last:border-0">
+                      <td className="px-5 py-3 font-semibold text-ink">
+                        {ROLE_LABEL[member.role] ?? member.role}
+                      </td>
+                      <td className="px-5 py-3 text-ink">{person.first || "—"}</td>
+                      <td className="px-5 py-3 text-ink">{person.last || "—"}</td>
+                      <td className="px-5 py-3 text-ink-soft">
+                        {member.email ? (
+                          <a href={`mailto:${member.email}`} className="hover:text-accent">
+                            {member.email}
+                          </a>
+                        ) : (
+                          "Pending"
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3 text-ink-soft">
+                        {person.phone ? (
+                          <a href={`tel:${person.phone.replace(/\D/g, "")}`} className="hover:text-accent">
+                            {formatPhone(person.phone)}
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
+                            member.first_login_at
+                              ? "bg-success-soft text-success"
+                              : "bg-accent-soft text-accent"
+                          }`}
+                        >
+                          {(member.first_login_at ? "active" : "invited").toUpperCase()}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {initiation?.upgrade_requested_at && owner && (
