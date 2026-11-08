@@ -422,7 +422,7 @@ export default async function PortalPage() {
           <div className="rounded-xl border border-border-soft bg-bg p-5">
             <h3 className="mb-1.5 text-sm font-bold text-ink">Need Help?</h3>
             <p className="mb-3.5 text-sm leading-relaxed text-ink-soft">
-              Send Josie&rsquo;s team a question any time &mdash; we usually respond within a few
+              Send Josie&rsquo;s team a question any time &mdash; we usually respond within 24
               hours.
             </p>
             <Link

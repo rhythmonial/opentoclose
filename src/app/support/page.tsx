@@ -89,8 +89,8 @@ export default async function SupportPage({
           Support
         </h1>
         <p className="mt-1.5 text-sm text-ink-soft">
-          Ask Josie&rsquo;s team anything about your setup. We usually reply
-          within a few hours.
+          Ask Josie&rsquo;s team anything about your setup. We usually respond
+          within 24 hours.
         </p>
 
         <section className="mt-6 rounded-xl border border-border bg-surface p-5">
