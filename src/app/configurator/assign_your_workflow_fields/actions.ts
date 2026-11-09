@@ -12,6 +12,7 @@ import {
   workflowKeys,
   type WorkflowField,
 } from "@/lib/workflowFields";
+import { progressOwnerId } from "@/lib/accountOwner";
 
 const STEP_KEY = "assign_your_workflow_fields";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -115,9 +116,10 @@ export async function finishWorkflowFields() {
     .maybeSingle();
 
   if (step) {
+    // Progress is shared by the whole account, kept under the owner.
     await supabase.from("client_step_status").upsert(
       {
-        client_id: user.id,
+        client_id: await progressOwnerId(supabase, user.id),
         step_id: step.id,
         status: "approved",
         updated_at: new Date().toISOString(),

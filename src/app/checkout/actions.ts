@@ -17,6 +17,7 @@ import {
 import { accountSubscription, monthlyLineItem } from "@/lib/billing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { freeMonthStatus } from "@/lib/coupons";
+import { progressOwnerId } from "@/lib/accountOwner";
 
 async function requireClient(returnTo: string) {
   const supabase = await createClient();
@@ -40,7 +41,10 @@ async function requireClient(returnTo: string) {
     );
   }
 
-  return { supabase, user };
+  // Plans, hours and steps belong to the whole account: record them under
+  // the owner, so the account gets them whoever pays.
+  const ownerId = await progressOwnerId(supabase, user.id);
+  return { supabase, user, ownerId };
 }
 
 async function openCheckout(
@@ -72,7 +76,7 @@ export async function startPlanCheckout(formData: FormData) {
     : "setup") as PlanKind;
   const returnTo = String(formData.get("return_to") ?? "/home");
 
-  const { supabase, user } = await requireClient(returnTo);
+  const { supabase, user, ownerId } = await requireClient(returnTo);
   const { data: profile } = await supabase
     .from("profiles")
     .select("client_account_id")
@@ -113,7 +117,7 @@ export async function startPlanCheckout(formData: FormData) {
       },
     },
   };
-  const metadata = { kind: plan, client_id: user.id };
+  const metadata = { kind: plan, client_id: ownerId };
   const customer = customerId ? { customer: customerId } : { customer_email: user.email };
 
   await openCheckout(returnTo, {
@@ -124,7 +128,7 @@ export async function startPlanCheckout(formData: FormData) {
           mode: "subscription" as const,
           line_items: plan === "setup" ? [setupItem, monthlyLineItem()] : [monthlyLineItem()],
           subscription_data: {
-            metadata: { client_id: user.id, client_account_id: accountId ?? "" },
+            metadata: { client_id: ownerId, client_account_id: accountId ?? "" },
             ...(trialEnd ? { trial_end: trialEnd } : {}),
           },
         }),
@@ -155,7 +159,7 @@ export async function startHoursCheckout(formData: FormData) {
     /^\/lesson\/[0-9a-f-]{36}$/i.test(asked) || asked === "/portal" ? asked : "/profile";
   const anchor = returnTo === "/profile" ? "#hours" : "";
   const option = String(formData.get("option") ?? "") === "bundle" ? "bundle" : "hourly";
-  const { supabase, user } = await requireClient(returnTo);
+  const { supabase, user, ownerId } = await requireClient(returnTo);
 
   const hours =
     option === "bundle" ? HOUR_BUNDLE.hours : Math.trunc(Number(formData.get("hours")));
@@ -205,7 +209,7 @@ export async function startHoursCheckout(formData: FormData) {
             },
           },
     ],
-    metadata: { kind: "hours", client_id: user.id, hours: String(hours) },
+    metadata: { kind: "hours", client_id: ownerId, hours: String(hours) },
     success_url: `${origin}${returnTo}?hours=purchased${anchor}`,
     cancel_url: `${origin}${returnTo}${anchor}`,
   });
@@ -215,7 +219,7 @@ export async function startStepCheckout(formData: FormData) {
   const stepId = String(formData.get("step_id") ?? "");
   const returnTo = `/lesson/${stepId}`;
 
-  const { supabase, user } = await requireClient(returnTo);
+  const { supabase, user, ownerId } = await requireClient(returnTo);
 
   const { data: step } = await supabase
     .from("setup_steps")
@@ -252,7 +256,7 @@ export async function startStepCheckout(formData: FormData) {
     ],
     metadata: {
       kind: "step",
-      client_id: user.id,
+      client_id: ownerId,
       step_id: step.id,
       hours: String(hours),
     },

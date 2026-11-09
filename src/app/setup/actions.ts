@@ -7,6 +7,7 @@ import { startPlanCheckout } from "@/app/checkout/actions";
 import { cookies } from "next/headers";
 import { INVITE_COOKIE, inviteStatus, redeemCoupon } from "@/lib/coupons";
 import { getSandboxTier } from "@/lib/devSandbox";
+import { progressOwnerId } from "@/lib/accountOwner";
 
 export async function submitSetupInitiation(formData: FormData) {
   const supabase = await createClient();
@@ -17,6 +18,9 @@ export async function submitSetupInitiation(formData: FormData) {
   if (!user) {
     redirect("/login");
   }
+
+  // Teammates share the owner's progress, setup form and plan.
+  const accountUserId = await progressOwnerId(supabase, user.id);
 
   const { data: actor } = await supabase
     .from("profiles")
@@ -64,7 +68,7 @@ export async function submitSetupInitiation(formData: FormData) {
 
   const { error } = await supabase.from("setup_initiation").upsert(
     {
-      client_id: user.id,
+      client_id: accountUserId,
       first_name: owner.first,
       last_name: owner.last,
       cell_phone: owner.cell,
@@ -127,7 +131,7 @@ export async function submitSetupInitiation(formData: FormData) {
   if (step) {
     await supabase.from("client_step_status").upsert(
       {
-        client_id: user.id,
+        client_id: accountUserId,
         step_id: step.id,
         status: "approved",
         updated_at: new Date().toISOString(),
@@ -154,7 +158,7 @@ export async function submitSetupInitiation(formData: FormData) {
   const { data: current } = await supabase
     .from("setup_initiation")
     .select("engagement_type")
-    .eq("client_id", user.id)
+    .eq("client_id", accountUserId)
     .single();
   const currentPlan = current?.engagement_type ?? "free";
   const needsCheckout =

@@ -18,6 +18,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getHourlyRate } from "@/lib/hourlyRate";
 import { BuyHoursButton } from "@/components/BuyHoursButton";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
+import { progressOwnerId } from "@/lib/accountOwner";
 
 
 // Every step is required: red until it's done, then the neutral grey row.
@@ -47,6 +48,9 @@ export default async function PortalPage({
   if (!user) {
     redirect("/login");
   }
+
+  // Teammates share the owner's progress, setup form and plan.
+  const accountUserId = await progressOwnerId(supabase, user.id);
 
   const { data: realProfile } = await supabase
     .from("profiles")
@@ -99,7 +103,7 @@ export default async function PortalPage({
       .order("sort_order"),
     isSandboxing
       ? supabase.from("dev_sandbox_step_status").select("*").eq("tier", sandboxTier!)
-      : supabase.from("client_step_status").select("*").eq("client_id", user.id),
+      : supabase.from("client_step_status").select("*").eq("client_id", accountUserId),
     // Hours the team has logged for anyone on the account (read with the
     // service role; members only see their own rows).
     isSandboxing || !profile?.client_account_id
@@ -119,7 +123,7 @@ export default async function PortalPage({
       : supabase
           .from("setup_initiation")
           .select("engagement_type")
-          .eq("client_id", user.id)
+          .eq("client_id", accountUserId)
           .maybeSingle(),
     // Lessons they've asked our team to set up (still open).
     !isSandboxing && profile?.client_account_id
@@ -226,7 +230,7 @@ export default async function PortalPage({
 
       {couponApplied && (
         <div className="mx-4 mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success sm:mx-6 lg:mx-12">
-          Coupon applied! Your free month of DIY has started.
+          Your free month of DIY has started! Continue with the next lessons below.
         </div>
       )}
       {!couponApplied && (freeMonth.endedOn || freeMonth.activeUntil) && (

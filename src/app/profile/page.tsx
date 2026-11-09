@@ -285,7 +285,7 @@ export default async function ProfilePage({
   const isOwner = profile?.role === "client_owner";
 
   // Billing: the account's plan (the owner's setup form), its latest
-  // subscription, and the payments made from this login.
+  // subscription, and the payments made on the account (by the owner).
   const ownerId = (teammates ?? []).find((m) => m.role === "client_owner")?.id ?? user.id;
   // A coupon's free month (ending one that's run out first).
   const freeMonth = await freeMonthStatus(profile?.client_account_id);
@@ -306,7 +306,7 @@ export default async function ProfilePage({
     supabase
       .from("payments")
       .select("id, kind, hours, amount_cents, created_at")
-      .eq("client_id", user.id)
+      .eq("client_id", ownerId)
       .order("created_at", { ascending: false })
       .limit(30),
   ]);

@@ -2,15 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
-import { cookies } from "next/headers";
-import {
-  freeDaysLabel,
-  freeMonthDay,
-  freeMonthStatus,
-  INVITE_COOKIE,
-  inviteStatus,
-} from "@/lib/coupons";
-import { claimInvite } from "@/app/invite/actions";
+import { freeMonthDay, freeMonthStatus } from "@/lib/coupons";
 import { startPlanCheckout } from "@/app/checkout/actions";
 import { stepClientHref } from "@/lib/stepHref";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -20,6 +12,7 @@ import {
   type EngagementType,
   type PlanType,
 } from "@/lib/stepOwnership";
+import { progressOwnerId } from "@/lib/accountOwner";
 
 
 export default async function HomePage({
@@ -36,6 +29,9 @@ export default async function HomePage({
   if (!user) {
     redirect("/login");
   }
+
+  // Teammates share the owner's progress, setup form and plan.
+  const accountUserId = await progressOwnerId(supabase, user.id);
 
   const { data: realProfile } = await supabase
     .from("profiles")
@@ -65,11 +61,6 @@ export default async function HomePage({
     ? { activeUntil: null, endedOn: null }
     : await freeMonthStatus(profile?.client_account_id);
   const isOwner = profile?.role === "client_owner";
-  // An invite link they opened but haven't claimed yet.
-  const heldInvite =
-    isSandboxing || freeMonth.activeUntil
-      ? null
-      : await inviteStatus((await cookies()).get(INVITE_COOKIE)?.value);
 
   const setupPath = profile?.client_accounts?.setup_path ?? "custom";
 
@@ -86,13 +77,13 @@ export default async function HomePage({
       .order("sort_order"),
     isSandboxing
       ? supabase.from("dev_sandbox_step_status").select("*").eq("tier", sandboxTier!)
-      : supabase.from("client_step_status").select("*").eq("client_id", user.id),
+      : supabase.from("client_step_status").select("*").eq("client_id", accountUserId),
     isSandboxing
       ? Promise.resolve({ data: { engagement_type: sandboxTier! } })
       : supabase
           .from("setup_initiation")
           .select("engagement_type")
-          .eq("client_id", user.id)
+          .eq("client_id", accountUserId)
           .maybeSingle(),
     // Hours the team has logged for anyone on the account (members only
     // see their own rows, so this reads with the service role).
@@ -226,21 +217,6 @@ export default async function HomePage({
         {inviteError && (
           <div className="mb-6 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm text-danger">
             {inviteError}
-          </div>
-        )}
-        {heldInvite && (
-          <div className="mb-6 flex flex-col gap-2 rounded-lg border border-success/30 bg-success-soft px-4 py-3 text-sm text-success sm:flex-row sm:items-center sm:justify-between">
-            <span className="font-semibold">
-              You have a free {freeDaysLabel(heldInvite.freeDays)} of DIY waiting.
-            </span>
-            <form action={claimInvite}>
-              <button
-                type="submit"
-                className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
-              >
-                Start my free {freeDaysLabel(heldInvite.freeDays)}
-              </button>
-            </form>
           </div>
         )}
         {paid && (

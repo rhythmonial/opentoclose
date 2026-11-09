@@ -29,10 +29,18 @@ export async function redeemCoupon(rawCode: unknown, userId: string): Promise<Re
     .select("role, client_account_id")
     .eq("id", userId)
     .single();
-  if (profile?.role !== "client_owner" || !profile.client_account_id) {
-    return { ok: false, error: "Only the account owner can use a coupon." };
+  if (!profile?.client_account_id || !["client_owner", "client_admin"].includes(profile.role)) {
+    return { ok: false, error: "Sign in to your client account to use this invite." };
   }
   const accountId = profile.client_account_id;
+  // The plan lives on the account owner's setup form (teammates share it).
+  const { data: owner } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("client_account_id", accountId)
+    .eq("role", "client_owner")
+    .maybeSingle();
+  const ownerId = owner?.id ?? userId;
 
   const { data: coupon } = await admin.from("coupons").select("*").eq("code", code).maybeSingle();
   if (!coupon || !coupon.active) return { ok: false, error: "That coupon code isn't valid." };
@@ -50,7 +58,7 @@ export async function redeemCoupon(rawCode: unknown, userId: string): Promise<Re
   }
 
   const [{ data: initiation }, { data: used }, { live }] = await Promise.all([
-    admin.from("setup_initiation").select("engagement_type").eq("client_id", userId).maybeSingle(),
+    admin.from("setup_initiation").select("engagement_type").eq("client_id", ownerId).maybeSingle(),
     // One free month per account, whatever link it came from.
     admin
       .from("coupon_redemptions")
@@ -78,7 +86,7 @@ export async function redeemCoupon(rawCode: unknown, userId: string): Promise<Re
   await admin
     .from("setup_initiation")
     .update({ engagement_type: "diy", updated_at: new Date().toISOString() })
-    .eq("client_id", userId);
+    .eq("client_id", ownerId);
   return { ok: true, accessEndsAt };
 }
 

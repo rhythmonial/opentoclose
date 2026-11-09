@@ -21,7 +21,7 @@ export async function configuratorAccount(requested: string | null) {
   };
 }
 
-// Marks a configurator's lesson approved for the signed-in client.
+// Marks a configurator's lesson approved for the signed-in client's account.
 export async function approveStep(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
@@ -40,9 +40,16 @@ export async function approveStep(
     .eq("key", stepKey)
     .maybeSingle();
   if (!step) return;
+  // Progress is shared by the whole account, kept under the owner.
+  const { data: owner } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("client_account_id", accountId)
+    .eq("role", "client_owner")
+    .maybeSingle();
   await supabase.from("client_step_status").upsert(
     {
-      client_id: userId,
+      client_id: owner?.id ?? userId,
       step_id: step.id,
       status: "approved",
       updated_at: new Date().toISOString(),

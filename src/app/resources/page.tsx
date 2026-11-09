@@ -12,6 +12,7 @@ import {
   RESOURCE_CATEGORIES,
   type ResourceCategory,
 } from "@/lib/resourceCategories";
+import { progressOwnerId } from "@/lib/accountOwner";
 
 const EMPTY_MESSAGE: Record<ResourceCategory, string> = {
   training: "Training videos are on the way.",
@@ -82,7 +83,7 @@ export default async function ResourcesPage({
         : supabase
             .from("setup_initiation")
             .select("engagement_type")
-            .eq("client_id", user.id)
+            .eq("client_id", await progressOwnerId(supabase, user.id))
             .maybeSingle(),
       supabase
         .from("resource_items")

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { INVITE_COOKIE, inviteStatus, redeemCoupon } from "@/lib/coupons";
+import { progressOwnerId } from "@/lib/accountOwner";
 
 // Holds on to an invite link while they sign up or sign in, then claims it
 // once they're signed in.
@@ -26,14 +27,18 @@ export async function startInvite(formData: FormData) {
   await claimInvite();
 }
 
-// Claims the invite they're holding: right away if they've filled out
-// Initiate Your Setup, otherwise when they submit it (with DIY).
+// Claims the invite they're holding: right away if they've already sent
+// Initiate Your Setup; otherwise they work through Getting Started as usual
+// and it's claimed when they submit that form (with DIY).
 export async function claimInvite() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Teammates share the owner's progress, setup form and plan.
+  const accountUserId = await progressOwnerId(supabase, user.id);
 
   const jar = await cookies();
   const token = jar.get(INVITE_COOKIE)?.value;
@@ -45,9 +50,9 @@ export async function claimInvite() {
   const { data: initiation } = await supabase
     .from("setup_initiation")
     .select("id")
-    .eq("client_id", user.id)
+    .eq("client_id", accountUserId)
     .maybeSingle();
-  if (!initiation) redirect("/setup?invite=1");
+  if (!initiation) redirect("/portal");
 
   const result = await redeemCoupon(token, user.id);
   jar.delete(INVITE_COOKIE);

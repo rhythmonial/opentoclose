@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { effectiveOwner, isDelegable, type PlanType } from "@/lib/stepOwnership";
 import { getSandboxTier } from "@/lib/devSandbox";
+import { progressOwnerId } from "@/lib/accountOwner";
 
 export async function toggleLessonComplete(formData: FormData) {
   const stepId = String(formData.get("step_id") ?? "");
@@ -18,6 +19,9 @@ export async function toggleLessonComplete(formData: FormData) {
   if (!user) {
     redirect("/login");
   }
+
+  // Teammates share the owner's progress, setup form and plan.
+  const accountUserId = await progressOwnerId(supabase, user.id);
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -43,7 +47,7 @@ export async function toggleLessonComplete(formData: FormData) {
   } else {
     await supabase.from("client_step_status").upsert(
       {
-        client_id: user.id,
+        client_id: accountUserId,
         step_id: stepId,
         status: nextStatus,
         updated_at: new Date().toISOString(),
@@ -92,13 +96,13 @@ export async function toggleLessonComplete(formData: FormData) {
         : supabase
             .from("client_step_status")
             .select("step_id, status")
-            .eq("client_id", user.id),
+            .eq("client_id", accountUserId),
       sandboxTier
         ? Promise.resolve({ data: { engagement_type: sandboxTier } })
         : supabase
             .from("setup_initiation")
             .select("engagement_type")
-            .eq("client_id", user.id)
+            .eq("client_id", accountUserId)
             .maybeSingle(),
       !sandboxTier && profile?.client_account_id
         ? supabase

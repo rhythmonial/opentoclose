@@ -11,6 +11,7 @@ import { MissingFieldsNotice } from "@/components/MissingFieldsNotice";
 import { normalizeStateName } from "@/lib/usStates";
 import { submitSetupInitiation } from "./actions";
 import { getSandboxTier } from "@/lib/devSandbox";
+import { progressOwnerId } from "@/lib/accountOwner";
 
 const COMPANY_STRUCTURES = [
   "Real Estate Brokerage",
@@ -42,6 +43,9 @@ export default async function SetupInitiationPage({
     redirect("/login");
   }
 
+  // Teammates share the owner's progress, setup form and plan.
+  const accountUserId = await progressOwnerId(supabase, user.id);
+
   const [{ data: profile }, { data: existing }] = await Promise.all([
     supabase
       .from("profiles")
@@ -51,7 +55,7 @@ export default async function SetupInitiationPage({
     supabase
       .from("setup_initiation")
       .select("*")
-      .eq("client_id", user.id)
+      .eq("client_id", accountUserId)
       .maybeSingle(),
   ]);
 

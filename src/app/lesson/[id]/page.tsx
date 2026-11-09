@@ -22,6 +22,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { RequestSetupButton } from "@/components/RequestSetupButton";
 import { stepClientHref } from "@/lib/stepHref";
 import { PLAN_PRICES, formatDollars, planPriceLabel, stepPriceCents } from "@/lib/pricing";
+import { progressOwnerId } from "@/lib/accountOwner";
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not Started",
@@ -61,6 +62,9 @@ export default async function LessonPage({
   if (!user) {
     redirect("/login");
   }
+
+  // Teammates share the owner's progress, setup form and plan.
+  const accountUserId = await progressOwnerId(supabase, user.id);
 
   const { data: realProfile } = await supabase
     .from("profiles")
@@ -171,18 +175,18 @@ export default async function LessonPage({
         supabase
           .from("client_step_status")
           .select("status")
-          .eq("client_id", user.id)
+          .eq("client_id", accountUserId)
           .eq("step_id", step.id)
           .maybeSingle(),
         supabase
           .from("setup_initiation")
           .select("engagement_type")
-          .eq("client_id", user.id)
+          .eq("client_id", accountUserId)
           .maybeSingle(),
         supabase
           .from("payments")
           .select("id")
-          .eq("client_id", user.id)
+          .eq("client_id", accountUserId)
           .eq("kind", "step")
           .eq("step_id", step.id)
           .limit(1)
@@ -209,7 +213,7 @@ export default async function LessonPage({
       if (status === "not_started" && !isHandledByStaff) {
         await supabase.from("client_step_status").upsert(
           {
-            client_id: user.id,
+            client_id: accountUserId,
             step_id: step.id,
             status: "in_progress",
             updated_at: new Date().toISOString(),

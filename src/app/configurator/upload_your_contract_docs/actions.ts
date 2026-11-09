@@ -13,6 +13,7 @@ import {
   NEW_OTC_PREFIX,
   workflowKeys,
 } from "@/lib/workflowFields";
+import { progressOwnerId } from "@/lib/accountOwner";
 
 const STEP_KEY = "upload_your_contract_docs";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -112,9 +113,10 @@ export async function finishContractDocs() {
     .maybeSingle();
 
   if (step) {
+    // Progress is shared by the whole account, kept under the owner.
     await supabase.from("client_step_status").upsert(
       {
-        client_id: user.id,
+        client_id: await progressOwnerId(supabase, user.id),
         step_id: step.id,
         status: "approved",
         updated_at: new Date().toISOString(),

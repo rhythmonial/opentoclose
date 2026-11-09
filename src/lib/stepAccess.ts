@@ -2,6 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { freeMonthStatus } from "@/lib/coupons";
+import { progressOwnerId } from "@/lib/accountOwner";
 
 // Configurators past the first pillar (Getting Started) only open on a
 // paid plan (DIY, Setup or a free month). Staff always get in. Sends anyone
@@ -12,6 +13,9 @@ export async function requireStepAccess(stepKey: string) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Teammates share the owner's progress, setup form and plan.
+  const accountUserId = await progressOwnerId(supabase, user.id);
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -25,7 +29,7 @@ export async function requireStepAccess(stepKey: string) {
   const { data: initiation } = await supabase
     .from("setup_initiation")
     .select("engagement_type")
-    .eq("client_id", user.id)
+    .eq("client_id", accountUserId)
     .maybeSingle();
   if (initiation?.engagement_type === "diy" || initiation?.engagement_type === "custom") return;
 
