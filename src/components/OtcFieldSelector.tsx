@@ -447,6 +447,8 @@ function FieldRow({
           )
         )}
       </label>
+      {/* Only fields in use can be renamed. */}
+      {checked && (
       <span className="flex min-w-0 max-w-full items-center">
         <input
           key={displayName}
@@ -466,6 +468,7 @@ function FieldRow({
           className="w-[19.5rem] max-w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
         />
       </span>
+      )}
     </div>
   );
 }
