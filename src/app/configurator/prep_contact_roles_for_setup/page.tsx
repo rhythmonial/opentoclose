@@ -131,7 +131,7 @@ export default async function PrepYourContactsPage({
         </h1>
         {step?.description ? (
           <div
-            className="mt-1.5 max-w-3xl text-sm leading-relaxed text-ink-soft
+            className="mt-1.5 text-sm leading-relaxed text-ink-soft
               [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
               [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
               [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
@@ -140,7 +140,7 @@ export default async function PrepYourContactsPage({
             <ReactMarkdown>{step.description}</ReactMarkdown>
           </div>
         ) : (
-          <p className="mt-1.5 max-w-3xl text-sm text-ink-soft">
+          <p className="mt-1.5 text-sm text-ink-soft">
             Upload your contacts in whatever format you have them: an export from your CRM,
             email or phone, or a spreadsheet. Then match each of your columns to the Open to
             Close field it belongs in. We&rsquo;ve matched the ones we could; check them and

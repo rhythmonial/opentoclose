@@ -159,7 +159,7 @@ export default async function SelectOtcFieldsPage({
         </h1>
         {step?.description ? (
           <div
-            className="mt-1.5 max-w-3xl text-sm leading-relaxed text-ink-soft
+            className="mt-1.5 text-sm leading-relaxed text-ink-soft
               [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
               [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
               [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
@@ -168,14 +168,14 @@ export default async function SelectOtcFieldsPage({
             <ReactMarkdown>{step.description}</ReactMarkdown>
           </div>
         ) : (
-          <p className="mt-1.5 max-w-3xl text-sm text-ink-soft">
+          <p className="mt-1.5 text-sm text-ink-soft">
             Here are all of Open to Close&rsquo;s fields, laid out like OTC&rsquo;s Field
             Editor. The ones you assigned in Assign Your Workflow Fields are already checked.
             Check any other field
             your team needs, even if it isn&rsquo;t on your contracts; those are listed as
             fields needed. If you&rsquo;d like a field displayed under another name, type it
             in. A <span className="font-bold text-danger">*</span> marks a field Open to Close
-            requires. Check off each group when you&rsquo;re done with it.
+            requires.
           </p>
         )}
 
@@ -209,8 +209,8 @@ export default async function SelectOtcFieldsPage({
             </button>
             {!allDone && (
               <span className="text-xs text-ink-faint">
-                Check off each field group when you&rsquo;ve gone through it (
-                {groupsDone.length} of {SELECTABLE_GROUPS.length} done).
+                Click &ldquo;Done with&rdquo; at the bottom of each field group when you&rsquo;ve
+                gone through it ({groupsDone.length} of {SELECTABLE_GROUPS.length} done).
               </span>
             )}
           </form>

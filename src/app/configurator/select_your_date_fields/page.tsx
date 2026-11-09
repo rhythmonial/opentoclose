@@ -153,7 +153,7 @@ export default async function SelectYourDateFieldsPage({
         </h1>
         {step?.description ? (
           <div
-            className="mt-1.5 max-w-3xl text-sm leading-relaxed text-ink-soft
+            className="mt-1.5 text-sm leading-relaxed text-ink-soft
               [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
               [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
               [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
@@ -162,7 +162,7 @@ export default async function SelectYourDateFieldsPage({
             <ReactMarkdown>{step.description}</ReactMarkdown>
           </div>
         ) : (
-          <p className="mt-1.5 max-w-3xl text-sm text-ink-soft">
+          <p className="mt-1.5 text-sm text-ink-soft">
             Check each date your team tracks that&rsquo;s worked out from another date, then
             say how: so many calendar or business days before or after which date. If the
             number of days is a blank on the contract that the agent fills in, check that box

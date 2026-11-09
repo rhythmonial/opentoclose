@@ -156,7 +156,7 @@ export default async function CategorizeYourDocumentsPage({
         </h1>
         {step?.description ? (
           <div
-            className="mt-1.5 max-w-3xl text-sm leading-relaxed text-ink-soft
+            className="mt-1.5 text-sm leading-relaxed text-ink-soft
               [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
               [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
               [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
@@ -165,7 +165,7 @@ export default async function CategorizeYourDocumentsPage({
             <ReactMarkdown>{step.description}</ReactMarkdown>
           </div>
         ) : (
-          <p className="mt-1.5 max-w-3xl text-sm text-ink-soft">
+          <p className="mt-1.5 text-sm text-ink-soft">
             Give each of your documents one or more categories, and check whether it&rsquo;s
             used on the seller, buyer and/or listing side. Add any documents that aren&rsquo;t
             listed, and add your own categories if you need more.
