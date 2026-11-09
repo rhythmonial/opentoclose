@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
+import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
 import {
   cleanFieldNames,
@@ -24,6 +25,7 @@ export default async function SelectOtcFieldsPage({
 }: {
   searchParams: Promise<{ client?: string }>;
 }) {
+  await requireStepAccess(STEP_KEY);
   const supabase = await createClient();
   const {
     data: { user },

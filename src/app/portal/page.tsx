@@ -28,11 +28,17 @@ function stepRowClass(isApproved: boolean): string {
 export default async function PortalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ paid?: string; hours?: string; asked?: string; coupon?: string }>;
+  searchParams: Promise<{
+    paid?: string;
+    hours?: string;
+    asked?: string;
+    coupon?: string;
+    locked?: string;
+  }>;
 }) {
   // Set when Stripe Checkout sends them back after paying for a plan (or
   // for more hours).
-  const { paid, hours: hoursBought, asked, coupon } = await searchParams;
+  const { paid, hours: hoursBought, asked, coupon, locked } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -145,6 +151,15 @@ export default async function PortalPage({
 
   const requestedSteps = new Set((setupRequests ?? []).map((r) => r.step_id));
 
+  // Access: the first pillar (Getting Started) is free to everyone. Once
+  // they've sent Initiate Your Setup, every pillar shows its sections and
+  // lesson titles, but lessons past the first pillar only open on a paid
+  // plan (DIY, Setup, or a free month). Staff previewing see everything.
+  const previewAll = isStaff && !isSandboxing;
+  const hasInitiation = isSandboxing || Boolean(initiation);
+  const hasPaidPlan = engagementType === "diy" || engagementType === "custom";
+  const freePhase = steps[0]?.phase ?? "General";
+
   // Steps unlock in order: one shows once every client step before it is
   // done. Lessons our team handles (which DIY and Setup clients may do or
   // request) never hold them up. Staff previewing (not in a sandbox) see
@@ -251,6 +266,28 @@ export default async function PortalPage({
         </div>
       )}
 
+      {/* Sent Initiate Your Setup but no paid plan yet (and not just
+          after a free month, which has its own prompt). */}
+      {!isStaff &&
+        !hasPaidPlan &&
+        ((hasInitiation && !freeMonth.endedOn && !paid) || (locked && !hasInitiation)) && (
+        <div className="mx-4 mt-4 flex flex-col gap-2 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-3 text-sm text-accent sm:mx-6 sm:flex-row sm:items-center sm:justify-between lg:mx-12">
+          <span className="font-semibold">
+            {!hasInitiation
+              ? "Initiate your setup to unlock the rest of your lessons."
+              : locked
+                ? "Choose a plan to open that lesson."
+                : "Getting Started is free. Choose a plan (DIY or Setup) to open the rest of your lessons."}
+          </span>
+          <Link
+            href="/setup"
+            className="shrink-0 self-start rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
+          >
+            {hasInitiation ? "Choose a plan" : "Initiate your setup"} &rarr;
+          </Link>
+        </div>
+      )}
+
       {asked && !isStaff && (
         <div className="mx-4 mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success sm:mx-6 lg:mx-12">
           Question sent! We usually respond within 24 hours. You&rsquo;ll see our reply in{" "}
@@ -342,16 +379,17 @@ export default async function PortalPage({
                 (s) => statusByStep.get(s.id) === "approved",
               ).length;
               const isComplete = completeCount === requiredPhaseSteps.length;
-              // A pillar opens once the client reaches it.
-              const phaseUnlocked = phaseSteps.some((s) => unlocked.has(s.id));
-              const lockedInPhase = phaseSteps.filter((s) => !unlocked.has(s.id)).length;
+              // The free pillar always shows; the rest once they've sent
+              // Initiate Your Setup.
+              const phaseUnlocked = previewAll || phase === freePhase || hasInitiation;
+              const isFreePhase = phase === freePhase;
 
               if (!phaseUnlocked) {
                 return (
                   <div
                     key={phase}
                     className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-5 opacity-70"
-                    title="Unlocks when you finish the steps before it"
+                    title="Unlocks when you initiate your setup"
                   >
                     <div className="flex items-center gap-2.5">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-faint" aria-hidden>
@@ -400,16 +438,12 @@ export default async function PortalPage({
                   </summary>
 
                   <div className="mt-4 flex flex-col gap-5">
-                    {sections
-                      .filter((section) =>
-                        phaseSteps.some((s) => s.section === section && unlocked.has(s.id)),
-                      )
-                      .map((section) => {
+                    {sections.map((section) => {
                       const sectionSteps = phaseSteps.filter(
                         (s) => s.section === section,
                       );
                       const visibleSectionSteps = visiblePhaseSteps.filter(
-                        (s) => s.section === section && unlocked.has(s.id),
+                        (s) => s.section === section,
                       );
                       const sectionRequired = sectionSteps;
                       const sectionCompleteCount = sectionRequired.filter(
@@ -479,6 +513,36 @@ export default async function PortalPage({
                               </div>
                             );
 
+                            // Opens when reached in order, and (past the free
+                            // pillar) on a paid plan.
+                            const needsPlan = !isFreePhase && !hasPaidPlan;
+                            const canOpen =
+                              previewAll || (!needsPlan && unlocked.has(step.id));
+                            if (!canOpen) {
+                              return (
+                                <div
+                                  key={step.id}
+                                  title={
+                                    needsPlan
+                                      ? "Choose a plan to open this lesson"
+                                      : "Opens after the lessons before it"
+                                  }
+                                  className="flex flex-col items-start gap-3 rounded-lg border border-border-soft bg-bg px-4 py-3 opacity-75 sm:flex-row sm:items-center sm:gap-4"
+                                >
+                                  <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+                                    {titleBlock}
+                                  </div>
+                                  <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink-faint">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                      <rect x="4" y="11" width="16" height="10" rx="2" />
+                                      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                                    </svg>
+                                    {needsPlan ? "Choose a plan to open" : "Locked"}
+                                  </span>
+                                </div>
+                              );
+                            }
+
                             return (
                               <Link
                                 key={step.id}
@@ -519,16 +583,6 @@ export default async function PortalPage({
                     </details>
                       );
                     })}
-                    {lockedInPhase > 0 && (
-                      <p className="flex items-center gap-1.5 text-xs text-ink-faint">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                          <rect x="4" y="11" width="16" height="10" rx="2" />
-                          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-                        </svg>
-                        {lockedInPhase} more lesson{lockedInPhase === 1 ? "" : "s"} unlock as you
-                        finish each step.
-                      </p>
-                    )}
                 </div>
               </details>
             );

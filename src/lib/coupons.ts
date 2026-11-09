@@ -51,16 +51,17 @@ export async function redeemCoupon(rawCode: unknown, userId: string): Promise<Re
 
   const [{ data: initiation }, { data: used }, { live }] = await Promise.all([
     admin.from("setup_initiation").select("engagement_type").eq("client_id", userId).maybeSingle(),
+    // One free month per account, whatever link it came from.
     admin
       .from("coupon_redemptions")
       .select("id")
-      .eq("coupon_id", coupon.id)
       .eq("client_account_id", accountId)
+      .limit(1)
       .maybeSingle(),
     accountSubscription(admin, accountId),
   ]);
   if (!initiation) return { ok: false, error: "Fill out Initiate Your Setup first." };
-  if (used) return { ok: false, error: "You've already used this invite." };
+  if (used) return { ok: false, error: "Your account has already had its free month." };
   if (live || initiation.engagement_type !== "free") {
     return { ok: false, error: "Your account already has a plan, so this coupon doesn't apply." };
   }

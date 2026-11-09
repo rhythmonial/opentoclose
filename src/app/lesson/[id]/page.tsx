@@ -237,7 +237,17 @@ export default async function LessonPage({
   // Sandboxing shows content exactly as that tier's real client would see it
   // (locked if Free) — only a plain, non-sandboxing staff preview always
   // sees everything unlocked.
-  const canViewContent = (isStaff && !isSandboxing) || !isFreeTier;
+  // The first pillar (Getting Started) is free to everyone; the rest opens
+  // on a paid plan (DIY, Setup or a free month).
+  const { data: firstStep } = await supabase
+    .from("setup_steps")
+    .select("phase")
+    .eq("path", step.path)
+    .order("sort_order")
+    .limit(1)
+    .maybeSingle();
+  const isFreePhase = (step.phase ?? "General") === (firstStep?.phase ?? "General");
+  const canViewContent = (isStaff && !isSandboxing) || !isFreeTier || isFreePhase;
   const videoSource = step.video_url ? getVideoSource(step.video_url) : null;
   const isApproved = status === "approved";
 
@@ -362,9 +372,21 @@ export default async function LessonPage({
           </div>
         )}
 
-        {isFreeTier && (
-          <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
-            Sign up for Setup or DIY to unlock the video and resources below.
+        {!canViewContent && (
+          <div className="mt-4 flex flex-col gap-2 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-3 text-sm text-accent sm:flex-row sm:items-center sm:justify-between">
+            <span className="font-semibold">
+              {hasInitiation
+                ? "Choose a plan (DIY or Setup) to open this lesson."
+                : "Initiate your setup to unlock the rest of your lessons."}
+            </span>
+            {!isStaff && (
+              <Link
+                href="/setup"
+                className="shrink-0 self-start rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
+              >
+                {hasInitiation ? "Choose a plan" : "Initiate your setup"} &rarr;
+              </Link>
+            )}
           </div>
         )}
 
@@ -504,6 +526,7 @@ export default async function LessonPage({
           </div>
         )}
 
+        {canViewContent && (
         <div className="mt-9 border-t border-border-soft pt-6">
             {canRequestSetup && (
               <div className="mb-6 rounded-xl border border-accent-soft bg-accent-soft/40 p-5">
@@ -674,6 +697,7 @@ export default async function LessonPage({
               )}
             </div>
           </div>
+        )}
       </div>
     </main>
   );

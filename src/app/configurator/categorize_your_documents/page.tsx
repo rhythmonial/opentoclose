@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
+import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
 import { CUSTOM_PREFIX, type CategoryColor, type DocCategory } from "@/lib/documentCategories";
 import { DocumentCategorizer, type CategorizedDoc } from "@/components/DocumentCategorizer";
@@ -14,6 +15,7 @@ export default async function CategorizeYourDocumentsPage({
 }: {
   searchParams: Promise<{ client?: string }>;
 }) {
+  await requireStepAccess(STEP_KEY);
   const supabase = await createClient();
   const {
     data: { user },
