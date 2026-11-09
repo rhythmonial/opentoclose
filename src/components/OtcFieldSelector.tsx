@@ -12,25 +12,9 @@ import {
   type OtcField,
 } from "@/lib/otcFields";
 import {
-  assignFromContract,
   saveOtcFieldSelection,
   type OtcFieldSelection,
 } from "@/app/configurator/select_otc_fields/actions";
-
-// A contract field that isn't assigned to an OTC field yet.
-export type ContractFieldOption = {
-  documentId: string;
-  // Its box (or linked boxes) on the contract.
-  key: string;
-  // "Line 12: Effective Date", with the contract's name when there are
-  // several.
-  label: string;
-  // Picked in Assign Your Workflow Fields (just not assigned), or another
-  // blank on the contract.
-  picked: boolean;
-  // A choice option, which can only go to a choice field.
-  option: boolean;
-};
 
 // OTC's field types, as its Field Editor names them.
 const KIND_LABELS: Record<string, string> = {
@@ -57,7 +41,7 @@ export function OtcFieldSelector({
   initial,
   assigned,
   newFields,
-  contractFields,
+  showSummary,
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
@@ -66,8 +50,9 @@ export function OtcFieldSelector({
   assigned: Record<string, string[]>;
   // Fields the client added while assigning (shown in their sections).
   newFields: OtcField[];
-  // Contract fields not assigned yet, to assign from here.
-  contractFields: ContractFieldOption[];
+  // The "Your fields" summary (staff only; clients use it later in the
+  // course).
+  showSummary: boolean;
 }) {
   // Every section of OTC's field groups (empty ones too, as OTC shows
   // them), with the client's new fields at the end of theirs.
@@ -125,15 +110,6 @@ export function OtcFieldSelector({
     save({ picked: next });
   }
 
-  // Assigns a contract field to an OTC field; the page then reloads with
-  // it on the contract.
-  async function assign(option: ContractFieldOption, otcFieldId: string) {
-    setStatus("saving");
-    const result = await assignFromContract(accountId, option.documentId, option.key, otcFieldId);
-    setStatus(result.ok ? "saved" : "error");
-    setError(result.ok ? null : (result.error ?? "Couldn't assign that."));
-  }
-
   function setDoneFor(g: string, on: boolean) {
     const next = new Set(done);
     if (on) next.add(g);
@@ -175,19 +151,6 @@ export function OtcFieldSelector({
 
   return (
     <div ref={top} className="flex scroll-mt-4 flex-col gap-4">
-      <div className="rounded-xl border border-gold/50 bg-gold/10 px-4 py-3 text-sm text-ink">
-        <p className="font-semibold">Your fields may go by a different name here</p>
-        <p className="mt-1 text-ink-soft">
-          Open to Close&rsquo;s field names won&rsquo;t always match your contract or the words
-          your state uses. For example, <strong className="text-ink">Acceptance Date</strong> is
-          the date both sides signed, which your contract may call the Contract Date, Effective
-          Date or Binding Agreement Date. Go by what a field is for, not just its name, and do
-          your best to check every field you use in your process. The box beside each
-          field shows other names it could be; type in the name you&rsquo;d like it displayed
-          as.
-        </p>
-      </div>
-
       {/* Field group tabs, like OTC's group menu; the checkbox marks a
           group done. */}
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Field groups">
@@ -330,12 +293,6 @@ export function OtcFieldSelector({
                         else delete next[f.id];
                         save({ names: next });
                       }}
-                      contractFields={
-                        assigned[f.id]
-                          ? []
-                          : contractFields.filter((c) => !c.option || f.kind === "choice")
-                      }
-                      onAssign={(c) => void assign(c, f.id)}
                     />
                   ))}
                 </section>
@@ -362,12 +319,14 @@ export function OtcFieldSelector({
         </div>
       ))}
 
-      <YourFields
-        sections={SECTIONS}
-        isAssigned={(id) => Boolean(assigned[id])}
-        isNeeded={(id) => !assigned[id] && (isSystemRequired(id) || picked.has(id))}
-        names={names}
-      />
+      {showSummary && (
+        <YourFields
+          sections={SECTIONS}
+          isAssigned={(id) => Boolean(assigned[id])}
+          isNeeded={(id) => !assigned[id] && (isSystemRequired(id) || picked.has(id))}
+          names={names}
+        />
+      )}
     </div>
   );
 }
@@ -380,8 +339,6 @@ function FieldRow({
   onCheck,
   displayName,
   onDisplayName,
-  contractFields,
-  onAssign,
 }: {
   field: Field;
   checked: boolean;
@@ -392,19 +349,9 @@ function FieldRow({
   // How the client would like it displayed, if not OTC's name.
   displayName: string;
   onDisplayName: (value: string) => void;
-  // Contract fields it can be assigned from (none once it's assigned).
-  contractFields: ContractFieldOption[];
-  onAssign: (option: ContractFieldOption) => void;
 }) {
   const aliases = OTC_FIELD_ALIASES[field.id];
   const locked = required || Boolean(onContract);
-  const picked = contractFields.filter((c) => c.picked);
-  const others = contractFields.filter((c) => !c.picked);
-  const option = (c: ContractFieldOption) => (
-    <option key={`${c.documentId}:${c.key}`} value={`${c.documentId}:${c.key}`}>
-      {c.label}
-    </option>
-  );
   return (
     <div
       className={`ml-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border bg-surface px-3 py-2 sm:ml-6 ${
@@ -429,36 +376,17 @@ function FieldRow({
         <FieldName field={field} required={required} bold={checked} />
         {onContract ? (
           <span className="shrink-0 rounded bg-accent-soft px-1.5 py-px text-[10px] font-bold uppercase text-accent">
-            On your contract
+            Contract
           </span>
         ) : (
           checked && (
             <span className="shrink-0 rounded bg-gold/25 px-1.5 py-px text-[10px] font-bold uppercase text-ink">
-              Needed
+              Use
             </span>
           )
         )}
       </label>
       <span className="flex flex-wrap items-center gap-2">
-        {!onContract && contractFields.length > 0 && (
-          <select
-            value=""
-            onChange={(e) => {
-              const c = contractFields.find((x) => `${x.documentId}:${x.key}` === e.target.value);
-              if (c) onAssign(c);
-            }}
-            aria-label={`Assign ${field.name} from your contract`}
-            className="w-32 rounded-md border border-dashed border-border bg-bg px-2 py-1 text-xs text-ink-soft outline-none focus:border-accent"
-          >
-            <option value="">Assign field&hellip;</option>
-            {picked.length > 0 && (
-              <optgroup label="Picked, not assigned yet">{picked.map(option)}</optgroup>
-            )}
-            {others.length > 0 && (
-              <optgroup label="Other fields on your contract">{others.map(option)}</optgroup>
-            )}
-          </select>
-        )}
         <input
           key={displayName}
           defaultValue={displayName}
@@ -474,7 +402,7 @@ function FieldRow({
           }
           title={aliases ? `Could be: ${aliases.join(", ")}` : "How you'd like this field displayed"}
           aria-label={`How you'd like ${field.name} displayed`}
-          className="w-44 max-w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+          className="w-[19.5rem] max-w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
         />
       </span>
     </div>

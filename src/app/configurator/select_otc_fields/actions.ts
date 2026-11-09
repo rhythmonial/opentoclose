@@ -3,8 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
-import type { ContractBlank } from "@/lib/contractBlanks";
-import { withWorkflowTypes } from "@/lib/fieldTypes";
 import {
   cleanFieldNames,
   cleanGroupsDone,
@@ -12,14 +10,7 @@ import {
   OTC_FIELDS,
   SELECTABLE_GROUPS,
 } from "@/lib/otcFields";
-import {
-  assignContractField,
-  cleanWorkflowFields,
-  isActive,
-  newOtcFieldsFrom,
-  workflowKeys,
-  type WorkflowField,
-} from "@/lib/workflowFields";
+import { isActive, newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 
 const STEP_KEY = "select_otc_fields";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -70,47 +61,6 @@ export async function saveOtcFieldSelection(
   );
   if (error) return { ok: false, error: error.message };
   revalidatePath(PAGE);
-  return { ok: true };
-}
-
-// Assigns a contract field (from Upload Your Contracts) to an OTC field, as
-// Assign Your Workflow Fields does.
-export async function assignFromContract(
-  accountId: string | null,
-  documentId: string,
-  key: string,
-  otcFieldId: string,
-): Promise<{ ok: boolean; error?: string }> {
-  const { supabase, accountId: account } = await configuratorAccount(accountId);
-  if (!account) return { ok: false, error: "Not signed in." };
-  const { data: doc } = await supabase
-    .from("contract_documents")
-    .select("blanks, workflow_fields")
-    .eq("id", documentId)
-    .eq("client_account_id", account)
-    .maybeSingle();
-  if (!doc) return { ok: false, error: "Contract not found." };
-  const to = [...OTC_FIELDS, ...(await newFieldsOf(supabase, account))].find(
-    (f) => f.id === otcFieldId,
-  );
-  if (!to) return { ok: false, error: "Unknown field." };
-
-  const keys = workflowKeys(doc.blanks as ContractBlank[]);
-  if (keys.get(key) !== key) return { ok: false, error: "That contract field is gone." };
-  const current = cleanWorkflowFields(doc.workflow_fields, keys);
-  const kept = cleanWorkflowFields(assignContractField(current, key, to), keys);
-  const { error } = await supabase
-    .from("contract_documents")
-    .update({
-      blanks: withWorkflowTypes(doc.blanks as ContractBlank[], kept),
-      workflow_fields: kept,
-      workflow_field_ids: kept.filter(isActive).map((f) => f.id),
-      workflow_fields_updated_at: new Date().toISOString(),
-    })
-    .eq("id", documentId);
-  if (error) return { ok: false, error: error.message };
-  revalidatePath(PAGE);
-  revalidatePath("/configurator/assign_your_workflow_fields");
   return { ok: true };
 }
 
