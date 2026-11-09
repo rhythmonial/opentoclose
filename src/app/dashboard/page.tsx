@@ -409,9 +409,10 @@ export default async function DashboardHome() {
       <section className="mt-9">
         <h2 className="font-display text-lg font-bold text-ink">Invites</h2>
         <p className="mt-1 text-sm text-ink-soft">
-          Send someone a one-time link for a free month of DIY (no card). It works once, so
-          sharing it doesn&rsquo;t pass it on. When the free time ends they&rsquo;re back on Free
-          and asked to subscribe.
+          Links for a free month of DIY (no card). A one-person link works once, so sharing it
+          doesn&rsquo;t pass it on. A group link is for a mass email: anyone with it can sign up
+          and claim it once per account, up to an optional limit or last day. When the free time
+          ends they&rsquo;re back on Free and asked to subscribe.
         </p>
         <div className="mt-4 rounded-xl border border-border bg-surface p-5">
           <InviteCreateForm />
@@ -429,34 +430,81 @@ export default async function DashboardHome() {
               </thead>
               <tbody>
                 {(invites ?? []).map((c) => {
-                  const claim = (redemptions ?? []).find((r) => r.coupon_id === c.id);
-                  const claimedBy = claim
-                    ? ((inviteAccounts ?? []).find((a) => a.id === claim.client_account_id)?.name ??
-                      "a client")
-                    : null;
+                  const claims = (redemptions ?? []).filter((r) => r.coupon_id === c.id);
+                  const claim = claims[0];
+                  const isGroup = c.max_redemptions !== 1;
+                  const nameOf = (accountId: string) =>
+                    (inviteAccounts ?? []).find((a) => a.id === accountId)?.name ?? "a client";
                   const day = (iso: string) =>
                     new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                  const expired = Boolean(c.expires_at && new Date(c.expires_at) < new Date());
+                  const full = Boolean(c.max_redemptions && claims.length >= c.max_redemptions);
+                  const usable = c.active && !expired && !full;
+                  const controls = (
+                    <form action={setCouponActive} className="flex flex-wrap items-center gap-2">
+                      <input type="hidden" name="id" value={c.id} />
+                      <input type="hidden" name="active" value={String(!c.active)} />
+                      {usable && <CopyLinkButton link={`${origin}/invite/${c.code}`} />}
+                      <button type="submit" className="text-xs font-semibold text-accent hover:underline">
+                        {c.active ? "Turn off" : "Turn on"}
+                      </button>
+                    </form>
+                  );
                   return (
-                    <tr key={c.id} className="border-b border-border-soft last:border-0">
-                      <td className="px-5 py-3 font-semibold text-ink">{c.note ?? "—"}</td>
+                    <tr key={c.id} className="border-b border-border-soft align-top last:border-0">
+                      <td className="px-5 py-3 font-semibold text-ink">
+                        {c.note ?? "—"}
+                        {isGroup && (
+                          <span className="ml-2 rounded-full bg-gold/30 px-2 py-0.5 align-middle font-caption text-[10px] font-bold uppercase tracking-wide text-navy">
+                            Group
+                          </span>
+                        )}
+                      </td>
                       <td className="px-5 py-3 text-ink-soft">{c.free_days}</td>
                       <td className="px-5 py-3 text-ink-soft">{day(c.created_at)}</td>
                       <td className="px-5 py-3">
-                        {claim ? (
+                        {isGroup ? (
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-sm text-ink">
+                              <span className="font-semibold">
+                                {claims.length}
+                                {c.max_redemptions ? ` / ${c.max_redemptions}` : ""}
+                              </span>{" "}
+                              claimed
+                              {!c.active
+                                ? " · Off"
+                                : expired
+                                  ? " · Ended"
+                                  : full
+                                    ? " · Full"
+                                    : c.expires_at
+                                      ? ` · until ${day(c.expires_at)}`
+                                      : ""}
+                            </span>
+                            {claims.length > 0 && (
+                              <span className="text-xs text-ink-soft">
+                                {claims
+                                  .slice(0, 5)
+                                  .map((r) => nameOf(r.client_account_id))
+                                  .join(", ")}
+                                {claims.length > 5 ? ` and ${claims.length - 5} more` : ""}
+                              </span>
+                            )}
+                            {controls}
+                          </div>
+                        ) : claim ? (
                           <span className="text-sm text-success">
                             Claimed by{" "}
                             <Link
                               href={`/dashboard/clients/${claim.client_account_id}`}
                               className="font-semibold hover:underline"
                             >
-                              {claimedBy}
+                              {nameOf(claim.client_account_id)}
                             </Link>{" "}
                             on {day(claim.redeemed_at)}
                           </span>
                         ) : (
-                          <form action={setCouponActive} className="flex flex-wrap items-center gap-2">
-                            <input type="hidden" name="id" value={c.id} />
-                            <input type="hidden" name="active" value={String(!c.active)} />
+                          <div className="flex flex-wrap items-center gap-2">
                             <span
                               className={`rounded-full px-2.5 py-1 font-caption text-[11px] font-bold uppercase tracking-wide ${
                                 c.active ? "bg-accent-soft text-accent" : "bg-border-soft text-ink-faint"
@@ -464,14 +512,8 @@ export default async function DashboardHome() {
                             >
                               {c.active ? "Not used yet" : "Off"}
                             </span>
-                            {c.active && <CopyLinkButton link={`${origin}/invite/${c.code}`} />}
-                            <button
-                              type="submit"
-                              className="text-xs font-semibold text-accent hover:underline"
-                            >
-                              {c.active ? "Turn off" : "Turn on"}
-                            </button>
-                          </form>
+                            {controls}
+                          </div>
                         )}
                       </td>
                     </tr>

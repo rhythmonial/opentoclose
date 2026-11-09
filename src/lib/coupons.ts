@@ -60,7 +60,7 @@ export async function redeemCoupon(rawCode: unknown, userId: string): Promise<Re
     accountSubscription(admin, accountId),
   ]);
   if (!initiation) return { ok: false, error: "Fill out Initiate Your Setup first." };
-  if (used) return { ok: false, error: "You've already used this coupon." };
+  if (used) return { ok: false, error: "You've already used this invite." };
   if (live || initiation.engagement_type !== "free") {
     return { ok: false, error: "Your account already has a plan, so this coupon doesn't apply." };
   }
@@ -165,22 +165,26 @@ export function newInviteToken() {
 }
 
 // Whether an invite link can still be claimed, and for how many free days.
+// A one-time link (max 1 use) stops working once claimed; a group link (for
+// a mass email) works for anyone, once per account, up to its max uses.
 export async function inviteStatus(rawToken: unknown) {
   const code = normalizeCode(rawToken);
   if (!COUPON_CODE_PATTERN.test(code)) return null;
   const admin = createAdminClient();
   const { data: invite } = await admin
     .from("coupons")
-    .select("id, free_days, active, expires_at, is_invite")
+    .select("id, free_days, active, expires_at, is_invite, max_redemptions")
     .eq("code", code)
     .maybeSingle();
   if (!invite?.is_invite || !invite.active) return null;
   if (invite.expires_at && new Date(invite.expires_at) < new Date()) return null;
-  const { count } = await admin
-    .from("coupon_redemptions")
-    .select("id", { count: "exact", head: true })
-    .eq("coupon_id", invite.id);
-  if ((count ?? 0) > 0) return null;
+  if (invite.max_redemptions) {
+    const { count } = await admin
+      .from("coupon_redemptions")
+      .select("id", { count: "exact", head: true })
+      .eq("coupon_id", invite.id);
+    if ((count ?? 0) >= invite.max_redemptions) return null;
+  }
   return { code, freeDays: invite.free_days };
 }
 
