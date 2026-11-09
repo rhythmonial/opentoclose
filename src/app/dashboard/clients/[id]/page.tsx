@@ -384,7 +384,10 @@ export default async function ClientDetailPage({
             accountId={account.id}
             clientId={owner.id}
             action={logHours}
-            lessons={sortedSteps.map((st) => ({
+            // Only the steps our team handles (marked S).
+            lessons={sortedSteps
+              .filter((st) => st.completed_by === "staff")
+              .map((st) => ({
               id: st.id,
               title: st.title,
               phase: st.phase ?? "General",
