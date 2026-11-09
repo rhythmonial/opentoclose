@@ -241,6 +241,13 @@ export default async function HomePage({
                   style={{ width: `${Math.min(100, (hoursUsed / hoursPurchased) * 100)}%` }}
                 />
               </div>
+              <div
+                className={`mt-2 text-xs ${hoursUsed >= hoursPurchased ? "font-semibold text-danger" : "text-ink-faint"}`}
+              >
+                {hoursUsed >= hoursPurchased
+                  ? "No hours left"
+                  : `${fmtHours(hoursPurchased - hoursUsed)} hour${hoursPurchased - hoursUsed === 1 ? "" : "s"} left`}
+              </div>
             </Link>
           )}
         </div>

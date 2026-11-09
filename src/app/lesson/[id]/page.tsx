@@ -283,6 +283,7 @@ export default async function LessonPage({
       requested: Boolean(openRequest),
     };
   }
+  const hoursLeft = Math.max(0, setupHours.purchased - setupHours.used);
   const outOfHours = setupHours.purchased - setupHours.used <= 0;
   const canRequestSetup = mayRequestSetup && (clientPlan === "diy" || outOfHours);
   const hourlyRate = canBuyStep || canRequestSetup ? await getHourlyRate() : 0;
@@ -590,10 +591,22 @@ export default async function LessonPage({
                 mark it complete once it&rsquo;s done.
               </p>
             ) : isHandledByStaff ? (
-              <p className="text-sm font-medium text-ink-faint">
-                This step is handled by our team &mdash; we&rsquo;ll mark it
-                complete once it&rsquo;s done.
-              </p>
+              <div>
+                <p className="text-sm font-medium text-ink-faint">
+                  This step is handled by our team &mdash; we&rsquo;ll mark it
+                  complete once it&rsquo;s done.
+                </p>
+                {/* Setup clients: the setup hours they have left. */}
+                {clientPlan === "custom" && mayRequestSetup && !outOfHours && (
+                  <p className="mt-1.5 text-sm text-ink-soft">
+                    You have{" "}
+                    <span className="font-semibold text-ink">
+                      {Number(hoursLeft.toFixed(1))} setup hour{hoursLeft === 1 ? "" : "s"}
+                    </span>{" "}
+                    left.
+                  </p>
+                )}
+              </div>
             ) : (
               <form action={toggleLessonComplete}>
                 <input type="hidden" name="step_id" value={step.id} />
