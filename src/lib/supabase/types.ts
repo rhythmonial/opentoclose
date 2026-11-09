@@ -1271,6 +1271,69 @@ export type Database = {
           },
         ]
       }
+      coupon_redemptions: {
+        Row: {
+          access_ends_at: string
+          client_account_id: string
+          coupon_id: string
+          ended_at: string | null
+          id: string
+          redeemed_at: string
+          redeemed_by: string | null
+        }
+        Insert: {
+          access_ends_at: string
+          client_account_id: string
+          coupon_id: string
+          ended_at?: string | null
+          id?: string
+          redeemed_at?: string
+          redeemed_by?: string | null
+        }
+        Update: {
+          access_ends_at?: string
+          client_account_id?: string
+          coupon_id?: string
+          ended_at?: string | null
+          id?: string
+          redeemed_at?: string
+          redeemed_by?: string | null
+        }
+        Relationships: []
+      }
+      coupons: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          free_days: number
+          id: string
+          max_redemptions: number | null
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          free_days?: number
+          id?: string
+          max_redemptions?: number | null
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          free_days?: number
+          id?: string
+          max_redemptions?: number | null
+        }
+        Relationships: []
+      }
       setup_requests: {
         Row: {
           client_account_id: string

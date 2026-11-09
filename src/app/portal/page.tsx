@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { freeMonthDay, freeMonthStatus } from "@/lib/coupons";
+import { startPlanCheckout } from "@/app/checkout/actions";
 import { PLAN_PRICES } from "@/lib/pricing";
 import { SupportButton } from "@/components/SupportButton";
 import { createClient } from "@/lib/supabase/server";
@@ -26,11 +28,11 @@ function stepRowClass(isApproved: boolean): string {
 export default async function PortalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ paid?: string; hours?: string; asked?: string }>;
+  searchParams: Promise<{ paid?: string; hours?: string; asked?: string; coupon?: string }>;
 }) {
   // Set when Stripe Checkout sends them back after paying for a plan (or
   // for more hours).
-  const { paid, hours: hoursBought, asked } = await searchParams;
+  const { paid, hours: hoursBought, asked, coupon } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -65,6 +67,15 @@ export default async function PortalPage({
       .update({ first_login_at: new Date().toISOString() })
       .eq("id", user.id);
   }
+
+  // A coupon's free month (ending one that's run out, before the plan is
+  // read below).
+  const freeMonth =
+    isStaff
+      ? { activeUntil: null, endedOn: null }
+      : await freeMonthStatus(profile?.client_account_id);
+  const isOwner = profile?.role === "client_owner";
+  const couponApplied = Boolean(coupon) && !isStaff;
 
   const setupPath = profile?.client_accounts?.setup_path ?? "custom";
 
@@ -195,6 +206,48 @@ export default async function PortalPage({
       {hoursBought === "purchased" && !isStaff && (
         <div className="mx-4 mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success sm:mx-6 lg:mx-12">
           Thanks! Your new hours show up as soon as the payment goes through.
+        </div>
+      )}
+
+      {couponApplied && (
+        <div className="mx-4 mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success sm:mx-6 lg:mx-12">
+          Coupon applied! Your free month of DIY has started.
+        </div>
+      )}
+      {!couponApplied && (freeMonth.endedOn || freeMonth.activeUntil) && (
+        <div className="mx-4 mt-4 sm:mx-6 lg:mx-12">
+        {freeMonth.endedOn && (
+          <div className="flex flex-col gap-2 rounded-lg border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-warning sm:flex-row sm:items-center sm:justify-between">
+            <span className="font-semibold">
+              Your free month ended {freeMonthDay(freeMonth.endedOn)}. Subscribe to keep your DIY
+              access.
+            </span>
+            {isOwner ? (
+              <form action={startPlanCheckout}>
+              <input type="hidden" name="plan" value="diy" />
+              <input type="hidden" name="return_to" value="/portal" />
+              <button
+                type="submit"
+                className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
+              >
+                Subscribe
+              </button>
+            </form>
+            ) : (
+              <span className="text-xs">Ask your account owner to subscribe.</span>
+            )}
+          </div>
+        )}
+        {freeMonth.activeUntil && (
+          <div className="rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm text-accent">
+            <span className="font-semibold">Free month</span> of DIY until{" "}
+            {freeMonthDay(freeMonth.activeUntil)}.{" "}
+            <Link href="/profile#billing" className="font-semibold underline">
+              Subscribe
+            </Link>{" "}
+            any time to keep access after.
+          </div>
+        )}
         </div>
       )}
 

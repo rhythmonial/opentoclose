@@ -22,10 +22,13 @@ export function SubscriptionStatus({
   accountId,
   accountName,
   subscription,
+  freeUntil = null,
 }: {
   accountId: string;
   accountName: string;
   subscription: SubscriptionInfo;
+  // A coupon's free month, running until this date.
+  freeUntil?: string | null;
 }) {
   // Where the cancel popover opens (fixed, so the table's scrolling box
   // doesn't clip it); null when closed.
@@ -52,6 +55,13 @@ export function SubscriptionStatus({
   const s = subscription;
   const live = s && ["active", "trialing", "past_due"].includes(s.status);
 
+  if (!live && freeUntil) {
+    return (
+      <span className={`${pill} bg-accent-soft text-accent`} title="Coupon free month">
+        Free month &middot; ends {day(freeUntil)}
+      </span>
+    );
+  }
   if (!s) return <span className={`${pill} bg-border-soft text-ink-faint`}>No subscription</span>;
   if (!live) return <span className={`${pill} bg-border-soft text-ink-soft`}>Cancelled</span>;
   if (s.cancel_at_period_end) {

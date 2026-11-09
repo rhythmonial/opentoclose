@@ -71,6 +71,23 @@ export function PlanChoice({
         until you cancel it from your profile.
       </p>
 
+      {plan === "diy" && (
+        <label className="mx-auto mt-2 flex w-full max-w-xs flex-col gap-1.5">
+          <span className="text-sm font-medium text-ink">Coupon code (optional)</span>
+          <input
+            name="coupon_code"
+            autoComplete="off"
+            autoCapitalize="characters"
+            maxLength={40}
+            placeholder="Enter a code"
+            className={`${inputClass} uppercase placeholder:normal-case`}
+          />
+          <span className="text-xs text-ink-soft">
+            A valid code skips payment for its free month.
+          </span>
+        </label>
+      )}
+
       {plan === "custom" && (
         <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5">

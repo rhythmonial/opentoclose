@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { siteOrigin } from "@/lib/site-origin";
 import { accountSubscription, syncSubscription } from "@/lib/billing";
+import { redeemCoupon } from "@/lib/coupons";
 
 const back = (params: string): never => redirect(`/profile?${params}#billing`);
 
@@ -116,4 +117,19 @@ export async function cancelComplimentaryPlan() {
   revalidatePath("/profile");
   revalidatePath("/dashboard/clients", "layout");
   back("billing=canceled");
+}
+
+// Applies a coupon code from the Billing section (a free month of DIY).
+export async function redeemCouponCode(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const result = await redeemCoupon(formData.get("code"), user.id);
+  if (!result.ok) return back(`billing_error=${encodeURIComponent(result.error)}`);
+  revalidatePath("/profile");
+  revalidatePath("/portal");
+  revalidatePath("/home");
+  back("billing=coupon");
 }

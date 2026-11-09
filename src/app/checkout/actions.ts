@@ -16,6 +16,7 @@ import {
 } from "@/lib/pricing";
 import { accountSubscription, monthlyLineItem } from "@/lib/billing";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { freeMonthStatus } from "@/lib/coupons";
 
 async function requireClient(returnTo: string) {
   const supabase = await createClient();
@@ -88,6 +89,17 @@ export async function startPlanCheckout(formData: FormData) {
     );
   }
 
+  // Subscribing during a coupon's free month: billing starts when it ends
+  // (Stripe needs a trial to end at least two days out).
+  const freeUntil =
+    plan === "diy" && accountId && !live
+      ? (await freeMonthStatus(accountId)).activeUntil
+      : null;
+  const trialEnd =
+    freeUntil && new Date(freeUntil).getTime() - Date.now() > 2 * 86400000
+      ? Math.floor(new Date(freeUntil).getTime() / 1000)
+      : null;
+
   const price = PLAN_PRICES[plan];
   const origin = await siteOrigin();
   const setupItem: Stripe.Checkout.SessionCreateParams.LineItem = {
@@ -113,6 +125,7 @@ export async function startPlanCheckout(formData: FormData) {
           line_items: plan === "setup" ? [setupItem, monthlyLineItem()] : [monthlyLineItem()],
           subscription_data: {
             metadata: { client_id: user.id, client_account_id: accountId ?? "" },
+            ...(trialEnd ? { trial_end: trialEnd } : {}),
           },
         }),
     ...customer,

@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { freeMonthStatus } from "@/lib/coupons";
 import { SupportButton } from "@/components/SupportButton";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
@@ -105,6 +106,9 @@ export default async function LessonPage({
   if (step.step_type === "configurator") {
     redirect(stepClientHref(step));
   }
+
+  // End a coupon's free month that's run out before the plan is read.
+  if (!isStaff) await freeMonthStatus(profile?.client_account_id);
 
   const { data: resources } = await supabase
     .from("setup_step_resources")

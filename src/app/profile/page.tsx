@@ -7,6 +7,7 @@ import { signOut } from "@/app/login/actions";
 import { getSandboxTier } from "@/lib/devSandbox";
 import { updateProfileInfo, inviteClientAdmin, inviteStaff } from "./actions";
 import { BillingSection } from "@/components/BillingSection";
+import { freeMonthStatus } from "@/lib/coupons";
 import { InviteTeammateButton } from "@/components/InviteTeammateButton";
 import { HoursSection } from "@/components/HoursSection";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -286,6 +287,8 @@ export default async function ProfilePage({
   // Billing: the account's plan (the owner's setup form), its latest
   // subscription, and the payments made from this login.
   const ownerId = (teammates ?? []).find((m) => m.role === "client_owner")?.id ?? user.id;
+  // A coupon's free month (ending one that's run out first).
+  const freeMonth = await freeMonthStatus(profile?.client_account_id);
   const [{ data: initiation }, { data: subscriptions }, { data: payments }] = await Promise.all([
     supabase
       .from("setup_initiation")
@@ -448,8 +451,11 @@ export default async function ProfilePage({
             complimentary={
               (initiation?.engagement_type === "diy" ||
                 initiation?.engagement_type === "custom") &&
-              (subscriptions ?? []).length === 0
+              (subscriptions ?? []).length === 0 &&
+              !freeMonth.activeUntil
             }
+            freeMonth={freeMonth}
+            canRedeem={Boolean(initiation) && initiation?.engagement_type === "free"}
             payments={(payments ?? []).slice(0, 8)}
             isOwner={isOwner}
             notice={
@@ -457,7 +463,9 @@ export default async function ProfilePage({
                 ? "Your subscription is cancelled."
                 : billing === "resumed"
                   ? "Your subscription will continue."
-                  : undefined
+                  : billing === "coupon"
+                    ? "Coupon applied! Enjoy your free month of DIY."
+                    : undefined
             }
             error={billing_error}
           />

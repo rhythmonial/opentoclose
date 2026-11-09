@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 import { startPlanCheckout } from "@/app/checkout/actions";
+import { redeemCoupon } from "@/lib/coupons";
 import { getSandboxTier } from "@/lib/devSandbox";
 
 export async function submitSetupInitiation(formData: FormData) {
@@ -132,6 +133,16 @@ export async function submitSetupInitiation(formData: FormData) {
       },
       { onConflict: "client_id,step_id" },
     );
+  }
+
+  // A coupon code (DIY only) gives a free month instead of checkout.
+  const couponCode = String(formData.get("coupon_code") ?? "").trim();
+  if (chosen === "diy" && couponCode) {
+    const result = await redeemCoupon(couponCode, user.id);
+    if (!result.ok) {
+      redirect(`/setup?error=${encodeURIComponent(result.error)}`);
+    }
+    redirect("/portal?coupon=1");
   }
 
   // The plan only changes once Stripe confirms payment (see the webhook),

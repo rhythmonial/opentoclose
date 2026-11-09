@@ -26,6 +26,7 @@ export default async function ClientsPage() {
     { data: openTickets },
     { data: subscriptions },
     { data: openRequests },
+    { data: freeMonths },
   ] = await Promise.all([
     supabase
       .from("client_accounts")
@@ -63,6 +64,12 @@ export default async function ClientsPage() {
       .select("id, client_account_id, step_id, created_at")
       .is("done_at", null)
       .order("created_at"),
+    // Coupon free months still running.
+    supabase
+      .from("coupon_redemptions")
+      .select("client_account_id, access_ends_at")
+      .is("ended_at", null)
+      .gt("access_ends_at", new Date().toISOString()),
   ]);
 
   // --- Clients table ---
@@ -160,6 +167,9 @@ export default async function ClientsPage() {
       outcome: account.outcome,
       openQuestions,
       setUpRequests,
+      freeUntil:
+        (freeMonths ?? []).find((f) => f.client_account_id === account.id)?.access_ends_at ??
+        null,
       subscription,
       cancelReason: subscription?.cancel_reason ?? null,
       daysToComplete,
@@ -707,6 +717,7 @@ export default async function ClientsPage() {
                               accountId={row.id}
                               accountName={row.name}
                               subscription={row.subscription}
+                              freeUntil={row.freeUntil}
                             />
                           </td>
                         </tr>
@@ -774,6 +785,7 @@ export default async function ClientsPage() {
                             accountId={row.id}
                             accountName={row.name}
                             subscription={row.subscription}
+                            freeUntil={row.freeUntil}
                           />
                         </td>
                         <td className="px-5 py-3.5 text-ink-soft">

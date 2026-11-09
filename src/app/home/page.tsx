@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
+import { freeMonthDay, freeMonthStatus } from "@/lib/coupons";
+import { startPlanCheckout } from "@/app/checkout/actions";
 import { stepClientHref } from "@/lib/stepHref";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSandboxTier, SANDBOX_LABEL } from "@/lib/devSandbox";
@@ -48,6 +50,13 @@ export default async function HomePage({
         .select("*, client_accounts(name, setup_path, status, hours_purchased)")
         .eq("id", user.id)
         .single();
+
+  // A coupon's free month (ending one that's run out, before the plan is
+  // read below).
+  const freeMonth = isSandboxing
+    ? { activeUntil: null, endedOn: null }
+    : await freeMonthStatus(profile?.client_account_id);
+  const isOwner = profile?.role === "client_owner";
 
   const setupPath = profile?.client_accounts?.setup_path ?? "custom";
 
@@ -169,6 +178,38 @@ export default async function HomePage({
       />
 
       <div className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
+{freeMonth.endedOn && (
+          <div className="mb-6 flex flex-col gap-2 rounded-lg border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-warning sm:flex-row sm:items-center sm:justify-between">
+            <span className="font-semibold">
+              Your free month ended {freeMonthDay(freeMonth.endedOn)}. Subscribe to keep your DIY
+              access.
+            </span>
+            {isOwner ? (
+              <form action={startPlanCheckout}>
+              <input type="hidden" name="plan" value="diy" />
+              <input type="hidden" name="return_to" value="/home" />
+              <button
+                type="submit"
+                className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
+              >
+                Subscribe
+              </button>
+            </form>
+            ) : (
+              <span className="text-xs">Ask your account owner to subscribe.</span>
+            )}
+          </div>
+        )}
+        {freeMonth.activeUntil && (
+          <div className="mb-6 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm text-accent">
+            <span className="font-semibold">Free month</span> of DIY until{" "}
+            {freeMonthDay(freeMonth.activeUntil)}.{" "}
+            <Link href="/profile#billing" className="font-semibold underline">
+              Subscribe
+            </Link>{" "}
+            any time to keep access after.
+          </div>
+        )}
         {paid && (
           <div className="mb-6 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm font-semibold text-success">
             Payment received, welcome to {paid === "diy" ? "DIY" : "Setup"}!
