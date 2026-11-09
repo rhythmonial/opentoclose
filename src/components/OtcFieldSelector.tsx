@@ -125,14 +125,20 @@ export function OtcFieldSelector({
     }, 500);
   }
 
+  // Unchecking a field also drops its display name (typed again if it's
+  // checked again).
   function setChecked(ids: string[], on: boolean) {
     const next = new Set(picked);
+    const nextNames = { ...names };
     for (const id of ids) {
       if (isSystemRequired(id) || assigned[id]) continue;
       if (on) next.add(id);
-      else next.delete(id);
+      else {
+        next.delete(id);
+        delete nextNames[id];
+      }
     }
-    save({ picked: next });
+    save({ picked: next, names: nextNames });
   }
 
   // Marks this group done and moves on to the next one not done yet.
