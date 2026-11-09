@@ -21,6 +21,7 @@ import {
 import { cleanFieldNames, OTC_FIELDS } from "@/lib/otcFields";
 import { configuratorAccount } from "@/lib/configuratorAccount";
 import { progressOwnerId } from "@/lib/accountOwner";
+import { cleanOrder } from "@/lib/docOrder";
 import { stepClientHref } from "@/lib/stepHref";
 
 const STEP_KEY = "assign_your_workflow_fields";
@@ -170,8 +171,13 @@ export async function finishWorkflowFields() {
         .single()
     : { data: null };
 
-  // Every picked field needs its type (and follow-up) answered first.
-  const { data: docs } = await supabase.from("contract_documents").select("workflow_fields");
+  // Every contract gone through, and every picked field's type (and
+  // follow-up) answered first.
+  const { data: docs } = await supabase
+    .from("contract_documents")
+    .select("workflow_fields, assign_done_at, is_scanned")
+    .eq("client_account_id", profile?.client_account_id ?? "");
+  if ((docs ?? []).some((d) => !d.is_scanned && !d.assign_done_at)) redirect(PAGE);
   const picked = (docs ?? [])
     .flatMap((d) => (Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : []))
     .filter(isActive);
@@ -294,6 +300,43 @@ export async function mapCreatedField(
       .eq("id", doc.id);
     if (error) return { ok: false, error: error.message };
   }
+  revalidatePath(PAGE);
+  return { ok: true };
+}
+
+// Saves the client's own order of their contracts in this lesson.
+export async function reorderAssignDocs(
+  accountId: string | null,
+  ids: string[],
+): Promise<{ ok: boolean }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false };
+  const { data: docs } = await supabase
+    .from("contract_documents")
+    .select("id")
+    .eq("client_account_id", account);
+  const order = cleanOrder(ids, (docs ?? []).map((d) => d.id));
+  if (!order) return { ok: false };
+  for (const [i, id] of order.entries()) {
+    await supabase.from("contract_documents").update({ assign_order: i }).eq("id", id);
+  }
+  revalidatePath(PAGE);
+  return { ok: true };
+}
+
+// Marks a contract done in this lesson (they got through its last page).
+export async function markDocAssigned(
+  accountId: string | null,
+  documentId: string,
+): Promise<{ ok: boolean }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false };
+  const { error } = await supabase
+    .from("contract_documents")
+    .update({ assign_done_at: new Date().toISOString() })
+    .eq("id", documentId)
+    .eq("client_account_id", account);
+  if (error) return { ok: false };
   revalidatePath(PAGE);
   return { ok: true };
 }

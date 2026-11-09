@@ -6,6 +6,7 @@ import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { AssignWorkflowWorkspace } from "@/components/AssignWorkflowWorkspace";
+import { inAssignOrder } from "@/lib/docOrder";
 import { newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldsTester } from "@/components/WorkflowFieldsTester";
 import { cleanFieldNames, OTC_FIELDS } from "@/lib/otcFields";
@@ -15,7 +16,7 @@ const STEP_KEY = "assign_your_workflow_fields";
 export default async function AssignWorkflowFieldsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string }>;
+  searchParams: Promise<{ client?: string; doc?: string }>;
 }) {
   await requireStepAccess(STEP_KEY);
   const supabase = await createClient();
@@ -44,7 +45,7 @@ export default async function AssignWorkflowFieldsPage({
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
   const sandboxTier = isStaff ? await getSandboxTier() : null;
   // Staff open a client's work from that client's page (?client=<account>).
-  const { client } = await searchParams;
+  const { client, doc: openDoc } = await searchParams;
   const { data: staffClient } =
     isStaff && client && /^[0-9a-f-]{36}$/i.test(client)
       ? await supabase.from("client_accounts").select("id, name").eq("id", client).maybeSingle()
@@ -54,7 +55,7 @@ export default async function AssignWorkflowFieldsPage({
   const testMode = isStaff && !staffClient;
 
   // Scans have no fields to pick from.
-  const { data: docs } = accountId
+  const { data: unordered } = accountId
     ? await supabase
         .from("contract_documents")
         .select("*")
@@ -62,6 +63,8 @@ export default async function AssignWorkflowFieldsPage({
         .eq("is_scanned", false)
         .order("created_at")
     : { data: [] };
+  // In their own order here (which starts from their upload order).
+  const docs = unordered ? inAssignOrder(unordered) : unordered;
 
   const { data: signed } =
     docs && docs.length > 0
@@ -181,6 +184,7 @@ export default async function AssignWorkflowFieldsPage({
                         blanks: doc.blanks as ContractBlank[],
                         fields: fieldsOf(doc),
                         reviewed: Boolean(doc.reviewed_at),
+                        done: Boolean(doc.assign_done_at),
                       },
                     ]
                   : [];
@@ -188,6 +192,7 @@ export default async function AssignWorkflowFieldsPage({
               otcFields={addedOtcFields}
               editing={{ accountId: staffClient?.id ?? null, names: fieldNames }}
               canFinish={!isStaff}
+              initialDocId={openDoc ?? null}
             />
           )}
         </div>

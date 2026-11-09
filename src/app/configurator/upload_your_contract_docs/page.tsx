@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
+import { SortableGroup } from "@/components/dnd/SortableGroup";
+import { inUploadOrder } from "@/lib/docOrder";
 import { createClient } from "@/lib/supabase/server";
 import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
@@ -10,7 +12,7 @@ import { withWorkflowTypes } from "@/lib/fieldTypes";
 import { cleanWorkflowFields, workflowKeys } from "@/lib/workflowFields";
 import { SavedContractDoc } from "@/components/SavedContractDoc";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
-import { deleteContractDocument, finishContractDocs } from "./actions";
+import { deleteContractDocument, finishContractDocs, reorderUploadDocs } from "./actions";
 
 const STEP_KEY = "upload_your_contract_docs";
 
@@ -55,13 +57,14 @@ export default async function UploadContractDocsPage({
   // Staff with no client picked get the test mode.
   const testMode = isStaff && !staffClient;
 
-  const { data: docs } = accountId
+  const { data: unordered } = accountId
     ? await supabase
         .from("contract_documents")
         .select("*")
         .eq("client_account_id", accountId)
         .order("created_at")
     : { data: [] };
+  const docs = unordered ? inUploadOrder(unordered) : unordered;
 
   const { data: signed } =
     docs && docs.length > 0
@@ -152,8 +155,17 @@ export default async function UploadContractDocsPage({
             <h2 className="text-[15px] font-bold text-ink">
               {staffClient ? "Their" : "Your"} uploaded documents ({docs.length})
             </h2>
-            <div className="mt-3 flex flex-col gap-3">
-              {docs.map((doc) => (
+            <p className="mt-0.5 text-xs text-ink-faint">
+              Drag the handle beside a document to put them in the order you like.
+            </p>
+            <div className="mt-3">
+              <SortableGroup
+                gapClass="gap-3"
+                handleClass="mt-5"
+                onReorder={reorderUploadDocs.bind(null, staffClient?.id ?? null)}
+                items={docs.map((doc) => ({
+                  id: doc.id,
+                  node: (
                 <SavedContractDoc
                   key={doc.id}
                   id={doc.id}
@@ -184,7 +196,9 @@ export default async function UploadContractDocsPage({
                     </form>
                   }
                 />
-              ))}
+                  ),
+                }))}
+              />
             </div>
 
             {!isStaff && (

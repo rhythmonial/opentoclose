@@ -879,7 +879,16 @@ export function ContractReviewer({
                             defaultTitle={anchor.optionTitle ?? titleFrom(anchor)}
                             onCreate={(choice, title) => {
                               if ("id" in choice) {
-                                assignChoice(keyOf(anchor), choice.id, null, title);
+                                // A choice field created on this contract
+                                // goes with its name (OTC creates it by name).
+                                assignChoice(
+                                  keyOf(anchor),
+                                  choice.id,
+                                  choice.id.startsWith(NEW_OTC_PREFIX)
+                                    ? (choiceNameOf(choice.id) ?? null)
+                                    : null,
+                                  title,
+                                );
                                 setRecentChoice(choice.id);
                                 return;
                               }
@@ -1285,7 +1294,7 @@ function ChoiceFieldPrompt({
         <input
           autoFocus={!choice}
           value={adding}
-          onChange={(e) => setAdding(capitalized(e.target.value))}
+          onChange={(e) => setAdding(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -1325,7 +1334,7 @@ function ChoiceFieldPrompt({
           <input
             autoFocus={Boolean(choice)}
             value={title}
-            onChange={(e) => setTitle(capitalized(e.target.value))}
+            onChange={(e) => setTitle(e.target.value)}
             maxLength={120}
             placeholder="Option title, e.g. FHA"
             aria-label="Option title"

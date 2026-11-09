@@ -260,31 +260,6 @@ export function WorkflowFieldPicker({
     update(next);
   }
 
-  // Choice options on this contract with no choice field yet (besides
-  // `except`), offered after picking one option's choice field.
-  const unlinkedOptions = (except: string) =>
-    active
-      .filter(
-        (f) =>
-          f.id !== except && f.type === "choice" && f.choice_role === "option" && !f.question_id,
-      )
-      .map((f) => ({
-        key: f.id,
-        label: labelOf(f.id),
-        page: members.get(f.id)?.[0]?.page ?? 0,
-      }))
-      .sort((a, b) => a.page - b.page);
-
-  // Ties the options `keys` to the same choice field as `from`.
-  function linkOptions(keys: string[], from: WorkflowField) {
-    const next = new Map(picks);
-    for (const k of keys) {
-      const f = next.get(k);
-      if (f) next.set(k, withChoiceOf(f, from));
-    }
-    update(next);
-  }
-
   function changePage(n: number) {
     setOpenId(null);
     if (onPageChange) onPageChange(n);
@@ -446,11 +421,6 @@ export function WorkflowFieldPicker({
                   recentChoices={recentChoices}
                   otcFields={otcFields}
                   onChange={(f) => setField(keyOf(open), f)}
-                  unlinkedOptions={unlinkedOptions(keyOf(open))}
-                  onLinkOptions={(keys) => {
-                    const from = picks.get(keyOf(open));
-                    if (from) linkOptions(keys, from);
-                  }}
                   onClose={() => setOpenId(null)}
                 />
               )}
@@ -547,8 +517,6 @@ function FieldTypeMenu({
   recentChoices,
   otcFields,
   onChange,
-  unlinkedOptions = [],
-  onLinkOptions,
   onClose,
 }: {
   // The box that was clicked, and the key of the field it belongs to.
@@ -563,13 +531,11 @@ function FieldTypeMenu({
   otcFields: OtcField[];
   onChange: (field: WorkflowField | null) => void;
   // Other options on the contract with no choice field yet.
-  unlinkedOptions?: { key: string; label: string; page: number }[];
-  onLinkOptions?: (keys: string[]) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<
-    "types" | "questions" | "new" | "otc" | "otc-new" | "option-title" | "siblings"
+    "types" | "questions" | "new" | "otc" | "otc-new" | "option-title"
   >(
     value?.choice_role === "option" && !value.removed && !value.question_id
       ? "questions"
@@ -766,10 +732,8 @@ function FieldTypeMenu({
       ...(field.isNew ? { question_text: field.name, question_section: field.sectionId } : {}),
       ...(isOption && value?.option_title ? { option_title: value.option_title } : {}),
     });
-    // Offer the contract's other options with no choice field yet; then an
-    // option that already has a title is done, otherwise ask for one.
-    if (unlinkedOptions.length > 0 && onLinkOptions) setView("siblings");
-    else if (isOption && value?.option_title) onClose();
+    // An option that already has a title is done, otherwise ask for one.
+    if (isOption && value?.option_title) onClose();
     else setView("option-title");
   }
 
@@ -834,20 +798,6 @@ function FieldTypeMenu({
                 </button>
                 {value?.question_id && clearButton}
               </div>
-              {value?.question_id && unlinkedOptions.length > 0 && onLinkOptions && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-menu-item
-                  onClick={() => setView("siblings")}
-                  className={`${itemClass} font-semibold text-accent`}
-                >
-                  <span aria-hidden className="w-3.5 shrink-0 text-center">
-                    +
-                  </span>
-                  Add other options to {optionOf}
-                </button>
-              )}
               <div className="my-1 border-t border-border" />
             </>
           )}
@@ -965,17 +915,6 @@ function FieldTypeMenu({
           }
           onBack={() => setView("questions")}
         />
-      ) : view === "siblings" && value ? (
-        <SiblingOptionsForm
-          choiceField={optionOf ?? "this choice field"}
-          options={unlinkedOptions}
-          page={blank.page}
-          onDone={(keys) => {
-            if (keys.length > 0) onLinkOptions?.(keys);
-            if (value.option_title) onClose();
-            else setView("option-title");
-          }}
-        />
       ) : view === "option-title" && value ? (
         <OptionTitleForm
           choiceField={optionOf ?? "this choice field"}
@@ -1042,76 +981,6 @@ function suggestedTitle(label: string) {
   if (label === "Unlabeled field") return "";
   const t = label.replace(/^[\s,:;.]+|[\s,:;.]+$/g, "");
   return t.charAt(0).toUpperCase() + t.slice(1);
-}
-
-// After an option's choice field is picked: the contract's other options
-// with no choice field yet, to add to the same one (those on this page are
-// ticked to start).
-function SiblingOptionsForm({
-  choiceField,
-  options,
-  page,
-  onDone,
-}: {
-  choiceField: string;
-  options: { key: string; label: string; page: number }[];
-  page: number;
-  onDone: (keys: string[]) => void;
-}) {
-  const [picked, setPicked] = useState(
-    () => new Set(options.filter((o) => o.page === page).map((o) => o.key)),
-  );
-  return (
-    <div className="flex flex-col gap-2 p-1.5">
-      <p className="text-xs text-ink-soft">
-        Add other options to <span className="font-semibold text-ink">{choiceField}</span>?
-      </p>
-      <div className="max-h-48 overflow-y-auto rounded-md border border-border">
-        {options.map((o) => (
-          <label
-            key={o.key}
-            className="flex cursor-pointer items-start gap-2 px-2.5 py-1.5 text-sm text-ink hover:bg-bg"
-          >
-            <input
-              type="checkbox"
-              checked={picked.has(o.key)}
-              onChange={() =>
-                setPicked((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(o.key)) next.delete(o.key);
-                  else next.add(o.key);
-                  return next;
-                })
-              }
-              className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
-            />
-            <span className="min-w-0">
-              <span className="block truncate">{o.label}</span>
-              <span className="text-xs text-ink-faint">Page {o.page}</span>
-            </span>
-          </label>
-        ))}
-      </div>
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => onDone([])}
-          className="text-xs font-semibold text-ink-soft"
-        >
-          Skip
-        </button>
-        <button
-          type="button"
-          data-autofocus
-          onClick={() => onDone([...picked])}
-          disabled={picked.size === 0}
-          className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-        >
-          Add {picked.size || ""} option{picked.size === 1 ? "" : "s"}
-        </button>
-      </div>
-    </div>
-  );
 }
 
 // Asks what a choice option is called in its choice field's list.

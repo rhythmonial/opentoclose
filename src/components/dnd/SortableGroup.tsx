@@ -20,9 +20,14 @@ import { CSS } from "@dnd-kit/utilities";
 export function SortableGroup({
   items,
   onReorder,
+  gapClass = "gap-1.5",
+  handleClass = "mt-2",
 }: {
   items: { id: string; node: ReactNode }[];
-  onReorder: (orderedIds: string[]) => void | Promise<void>;
+  onReorder: (orderedIds: string[]) => void | Promise<unknown>;
+  // Space between rows, and the drag handle's offset from a row's top.
+  gapClass?: string;
+  handleClass?: string;
 }) {
   // A stable id keeps dnd-kit's accessibility ids the same on server and
   // client, avoiding a hydration mismatch.
@@ -60,9 +65,9 @@ export function SortableGroup({
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={order} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-1.5">
+        <div className={`flex flex-col ${gapClass}`}>
           {order.map((id) => (
-            <SortableRow key={id} id={id}>
+            <SortableRow key={id} id={id} handleClass={handleClass}>
               {byId.get(id)}
             </SortableRow>
           ))}
@@ -72,7 +77,15 @@ export function SortableGroup({
   );
 }
 
-function SortableRow({ id, children }: { id: string; children: ReactNode }) {
+function SortableRow({
+  id,
+  handleClass,
+  children,
+}: {
+  id: string;
+  handleClass: string;
+  children: ReactNode;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id });
 
@@ -89,7 +102,7 @@ function SortableRow({ id, children }: { id: string; children: ReactNode }) {
         {...listeners}
         type="button"
         aria-label="Drag to reorder"
-        className="mt-2 flex shrink-0 cursor-grab touch-none items-center text-ink-faint active:cursor-grabbing"
+        className={`${handleClass} flex shrink-0 cursor-grab touch-none items-center text-ink-faint hover:text-ink active:cursor-grabbing`}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <circle cx="8" cy="6" r="1.6" />

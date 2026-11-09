@@ -14,6 +14,8 @@ import {
   workflowKeys,
 } from "@/lib/workflowFields";
 import { progressOwnerId } from "@/lib/accountOwner";
+import { cleanOrder } from "@/lib/docOrder";
+import { configuratorAccount } from "@/lib/configuratorAccount";
 
 const STEP_KEY = "upload_your_contract_docs";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -176,7 +178,26 @@ export async function saveContractReview(input: {
   const pages = doc.page_count ?? 0;
 
   const uuid = /^[0-9a-f-]{36}$/i;
-  const blanks: ContractBlank[] = tidyGroups(input.blanks
+  // An option tied to a choice field the client created takes that field's
+  // name from another of its options (or the saved workflow fields) when it
+  // doesn't carry it, so it stays tied.
+  const createdNames = new Map<string, string>();
+  for (const f of cleanWorkflowFields(doc.workflow_fields, workflowKeys(doc.blanks as ContractBlank[]))) {
+    if (f.question_id?.startsWith(NEW_OTC_PREFIX) && f.question_text) createdNames.set(f.question_id, f.question_text);
+  }
+  for (const b of input.blanks) {
+    if (b.choiceOf?.startsWith(NEW_OTC_PREFIX) && typeof b.choiceName === "string" && b.choiceName.trim()) {
+      createdNames.set(b.choiceOf, b.choiceName.trim());
+    }
+  }
+  const withName = (b: ContractBlank): ContractBlank =>
+    b.fieldType === "choice_option" &&
+    b.choiceOf?.startsWith(NEW_OTC_PREFIX) &&
+    !(typeof b.choiceName === "string" && b.choiceName.trim()) &&
+    createdNames.has(b.choiceOf)
+      ? { ...b, choiceName: createdNames.get(b.choiceOf) }
+      : b;
+  const blanks: ContractBlank[] = tidyGroups(input.blanks.map(withName)
     .slice(0, 3000)
     .filter((b) => KINDS.has(b.kind) && b.page >= 1 && b.page <= pages)
     .map((b) => ({
@@ -252,6 +273,26 @@ export async function saveContractReview(input: {
     .eq("id", input.id);
   if (error) return { ok: false, error: error.message };
 
+  revalidatePath(PAGE);
+  return { ok: true };
+}
+
+// Saves the client's own order of their contracts in this lesson.
+export async function reorderUploadDocs(
+  accountId: string | null,
+  ids: string[],
+): Promise<{ ok: boolean }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false };
+  const { data: docs } = await supabase
+    .from("contract_documents")
+    .select("id")
+    .eq("client_account_id", account);
+  const order = cleanOrder(ids, (docs ?? []).map((d) => d.id));
+  if (!order) return { ok: false };
+  for (const [i, id] of order.entries()) {
+    await supabase.from("contract_documents").update({ upload_order: i }).eq("id", id);
+  }
   revalidatePath(PAGE);
   return { ok: true };
 }

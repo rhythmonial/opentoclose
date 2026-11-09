@@ -554,6 +554,9 @@ export type Database = {
       }
       contract_documents: {
         Row: {
+          assign_done_at: string | null
+          assign_order: number | null
+          upload_order: number | null
           blank_count: number
           blanks: Json
           client_account_id: string
@@ -572,6 +575,9 @@ export type Database = {
           workflow_fields_updated_at: string | null
         }
         Insert: {
+          assign_done_at?: string | null
+          assign_order?: number | null
+          upload_order?: number | null
           blank_count?: number
           blanks?: Json
           client_account_id: string
@@ -590,6 +596,9 @@ export type Database = {
           workflow_fields_updated_at?: string | null
         }
         Update: {
+          assign_done_at?: string | null
+          assign_order?: number | null
+          upload_order?: number | null
           blank_count?: number
           blanks?: Json
           client_account_id?: string
