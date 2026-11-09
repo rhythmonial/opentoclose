@@ -6,9 +6,11 @@ import { createClient } from "@/lib/supabase/server";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { withWorkflowTypes } from "@/lib/fieldTypes";
 import {
+  choiceGroupOf,
   cleanWorkflowFields,
   isActive,
   isComplete,
+  withChoiceOf,
   workflowKeys,
   type WorkflowField,
 } from "@/lib/workflowFields";
@@ -27,12 +29,14 @@ export async function saveWorkflowFields(
 
   const { data: doc } = await supabase
     .from("contract_documents")
-    .select("blanks")
+    .select("blanks, workflow_fields, client_account_id")
     .eq("id", documentId)
     .single();
   if (!doc) return { ok: false, error: "Document not found." };
 
-  const kept = cleanWorkflowFields(fields, workflowKeys(doc.blanks as ContractBlank[]));
+  const keys = workflowKeys(doc.blanks as ContractBlank[]);
+  const kept = cleanWorkflowFields(fields, keys);
+  const before = cleanWorkflowFields(doc.workflow_fields, keys);
 
   const { error } = await supabase
     .from("contract_documents")
@@ -46,8 +50,66 @@ export async function saveWorkflowFields(
     .eq("id", documentId);
   if (error) return { ok: false, error: error.message };
 
+  await shareChoiceFields(supabase, doc.client_account_id, documentId, before, kept);
+
   revalidatePath(PAGE);
   return { ok: true };
+}
+
+// Options whose choice field was just picked on one contract: the same
+// choice field goes to the options on the account's other contracts that
+// shared their old choice field (or its name), and to ones already tied to
+// the new choice field that hadn't been confirmed yet.
+async function shareChoiceFields(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  accountId: string,
+  documentId: string,
+  before: WorkflowField[],
+  after: WorkflowField[],
+) {
+  const byOldGroup = new Map<string, WorkflowField>();
+  const byNewGroup = new Map<string, WorkflowField>();
+  for (const f of after) {
+    if (!isActive(f) || f.choice_role !== "option" || !f.question_confirmed) continue;
+    const was = before.find((b) => b.id === f.id);
+    if (was && was.question_id === f.question_id && was.question_confirmed) continue;
+    const oldGroup = was ? choiceGroupOf(was) : null;
+    const newGroup = choiceGroupOf(f);
+    if (oldGroup) byOldGroup.set(oldGroup, f);
+    if (newGroup) byNewGroup.set(newGroup, f);
+  }
+  if (byOldGroup.size === 0 && byNewGroup.size === 0) return;
+
+  const { data: others } = await supabase
+    .from("contract_documents")
+    .select("id, blanks, workflow_fields")
+    .eq("client_account_id", accountId)
+    .neq("id", documentId);
+  for (const other of others ?? []) {
+    const blanks = other.blanks as ContractBlank[];
+    const fields = cleanWorkflowFields(other.workflow_fields, workflowKeys(blanks));
+    let changed = false;
+    const next = fields.map((f) => {
+      if (!isActive(f) || f.choice_role !== "option") return f;
+      const group = choiceGroupOf(f);
+      if (!group) return f;
+      const source =
+        byOldGroup.get(group) ?? (!f.question_confirmed ? byNewGroup.get(group) : undefined);
+      if (!source || (f.question_id === source.question_id && f.question_confirmed)) return f;
+      changed = true;
+      return withChoiceOf(f, source);
+    });
+    if (!changed) continue;
+    await supabase
+      .from("contract_documents")
+      .update({
+        blanks: withWorkflowTypes(blanks, next),
+        workflow_fields: next,
+        workflow_field_ids: next.filter(isActive).map((f) => f.id),
+        workflow_fields_updated_at: new Date().toISOString(),
+      })
+      .eq("id", other.id);
+  }
 }
 
 // Records the contract's line number for each of a document's boxes, read

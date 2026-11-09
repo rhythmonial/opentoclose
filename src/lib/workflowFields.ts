@@ -28,6 +28,9 @@ export type WorkflowField = {
   // (with its wording in question_text).
   question_id?: string;
   question_text?: string;
+  // The client picked this option's choice field in Assign Your Workflow
+  // Fields (one carried over from Upload Your Contracts still needs it).
+  question_confirmed?: boolean;
   // For an option whose choice field the client is adding to OTC (a
   // NEW_OTC_PREFIX question_id): the section it goes in.
   question_section?: string;
@@ -92,10 +95,38 @@ export function isComplete(field: WorkflowField): boolean {
   if (field.type === "choice") {
     return (
       field.choice_role === "question" ||
-      (field.choice_role === "option" && Boolean(field.question_id) && Boolean(field.option_title))
+      (field.choice_role === "option" &&
+        Boolean(field.question_id) &&
+        Boolean(field.question_confirmed) &&
+        Boolean(field.option_title))
     );
   }
   return true;
+}
+
+// Which options belong together: the ones tied to the same choice field,
+// or (for choice fields typed in) one with the same name. Picking a choice
+// field for one of them sets it for all of them.
+export function choiceGroupOf(f: WorkflowField): string | null {
+  if (f.type !== "choice" || f.choice_role !== "option" || !f.question_id) return null;
+  const isNew =
+    f.question_id.startsWith(NEW_OTC_PREFIX) || f.question_id.startsWith(NEW_QUESTION_PREFIX);
+  return isNew && f.question_text
+    ? `name:${f.question_text.trim().toLowerCase()}`
+    : `id:${f.question_id}`;
+}
+
+// An option pointed at a choice field (copied from `from`), confirmed.
+export function withChoiceOf(
+  f: WorkflowField,
+  from: Pick<WorkflowField, "question_id" | "question_text" | "question_section">,
+): WorkflowField {
+  const next: WorkflowField = { ...f, question_id: from.question_id, question_confirmed: true };
+  delete next.question_text;
+  delete next.question_section;
+  if (from.question_text) next.question_text = from.question_text;
+  if (from.question_section) next.question_section = from.question_section;
+  return next;
 }
 
 // A field the workflow tracks (picked and not removed).
@@ -157,6 +188,7 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
         if (isNew && typeof f.question_text === "string") {
           clean.question_text = f.question_text.trim().slice(0, 200);
         }
+        if (f.question_confirmed === true) clean.question_confirmed = true;
         if (typeof f.option_title === "string" && f.option_title.trim()) {
           clean.option_title = f.option_title.trim().slice(0, 120);
         }
@@ -199,6 +231,7 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
       delete f.question_id;
       delete f.question_text;
       delete f.question_section;
+      delete f.question_confirmed;
     }
   }
   return out;
@@ -250,6 +283,7 @@ export function reassignTo(f: WorkflowField, to: OtcField): WorkflowField {
   delete next.removed;
   if (f.type === "choice" && f.choice_role === "option") {
     next.question_id = to.id;
+    next.question_confirmed = true;
     delete next.question_text;
     delete next.question_section;
     if (to.isNew) {

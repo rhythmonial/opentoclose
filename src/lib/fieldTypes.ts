@@ -137,6 +137,9 @@ function withChoiceInfo(f: WorkflowField, info: BoxInfo): WorkflowField {
   const next: WorkflowField = { ...f };
   if (info.type === "choice_option") {
     if (info.choiceOf) {
+      // A different choice field set while uploading needs picking again
+      // in Assign Your Workflow Fields.
+      if (info.choiceOf !== f.question_id) delete next.question_confirmed;
       next.question_id = info.choiceOf;
       delete next.question_text;
       delete next.question_section;

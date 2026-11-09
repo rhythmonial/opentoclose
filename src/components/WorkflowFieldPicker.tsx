@@ -20,7 +20,9 @@ import {
   cleanWorkflowFields,
   fieldTag,
   isActive,
+  choiceGroupOf,
   isComplete,
+  withChoiceOf,
   NEW_OTC_PREFIX,
   needsOtcField,
   newOtcFieldsFrom,
@@ -173,8 +175,65 @@ export function WorkflowFieldPicker({
 
   function setField(key: string, field: WorkflowField | null) {
     const next = new Map(picks);
+    const before = picks.get(key);
     if (field) next.set(key, field);
     else next.delete(key);
+
+    const isOptionField = (f?: WorkflowField | null) =>
+      Boolean(f && isActive(f) && f.type === "choice" && f.choice_role === "option");
+    // Picking a choice field for an option sets it for every option that
+    // shared its old choice field (or name), and for the contract's own
+    // choice field box if it had one.
+    if (
+      field &&
+      isOptionField(field) &&
+      field.question_id &&
+      field.question_confirmed &&
+      (before?.question_id !== field.question_id || !before?.question_confirmed)
+    ) {
+      const oldGroup = before ? choiceGroupOf(before) : null;
+      const newGroup = choiceGroupOf(field);
+      for (const [k, f] of next) {
+        if (k === key || !isOptionField(f)) continue;
+        const group = choiceGroupOf(f);
+        if (group && (group === oldGroup || (group === newGroup && !f.question_confirmed))) {
+          next.set(k, withChoiceOf(f, field));
+        }
+      }
+      const box = before?.question_id ? next.get(before.question_id) : undefined;
+      if (box && isActive(box) && box.choice_role === "question") {
+        const assigned: WorkflowField = { ...box, otc_field: field.question_id };
+        delete assigned.otc_field_name;
+        delete assigned.otc_section;
+        if (field.question_text) assigned.otc_field_name = field.question_text;
+        if (field.question_section) assigned.otc_section = field.question_section;
+        next.set(before!.question_id!, assigned);
+      }
+    }
+    // Giving a contract's choice field box its OTC field ties the options
+    // under it to that field too.
+    if (
+      field &&
+      isActive(field) &&
+      field.choice_role === "question" &&
+      field.otc_field &&
+      field.otc_field !== before?.otc_field
+    ) {
+      for (const [k, f] of next) {
+        if (!isOptionField(f)) continue;
+        if (f.question_id === key || (before?.otc_field && f.question_id === before.otc_field)) {
+          next.set(
+            k,
+            withChoiceOf(f, {
+              question_id: field.otc_field,
+              question_text: field.otc_field_name,
+              question_section: field.otc_section,
+            }),
+          );
+        }
+      }
+    }
+
     // A field that stops being a choice field (changed or removed)
     // leaves its options needing a new one.
     const isQuestion = (f?: WorkflowField | null) =>
@@ -185,6 +244,7 @@ export function WorkflowFieldPicker({
           const rest = { ...f };
           delete rest.question_id;
           delete rest.question_text;
+          delete rest.question_confirmed;
           next.set(k, rest);
         }
       }
@@ -467,7 +527,7 @@ function FieldTypeMenu({
   const [view, setView] = useState<
     "types" | "questions" | "new" | "otc" | "otc-new" | "option-title"
   >(
-    value?.choice_role === "option" && !value.question_id
+    value?.choice_role === "option" && !value.removed && (!value.question_id || !value.question_confirmed)
       ? "questions"
       : value?.choice_role === "option" && !value.option_title
         ? "option-title"
@@ -580,7 +640,13 @@ function FieldTypeMenu({
 
   const isOption = value?.type === "choice" && value.choice_role === "option";
   const isContact = value?.type === "contact";
-  const otcPool = otcFields.filter((f) => isContactRole(f) === isContact);
+  // Choice fields the client created only fit choice fields (options pick
+  // theirs from the choice field list).
+  const otcPool = otcFields.filter(
+    (f) =>
+      isContactRole(f) === isContact &&
+      !(f.isNew && f.kind === "choice" && value?.choice_role !== "question"),
+  );
   const choicePool = otcFields.filter((f) => !isContactRole(f) && f.kind === "choice");
   const recentChoiceFields = recentChoices
     .map((id) => choicePool.find((f) => f.id === id))
@@ -593,10 +659,13 @@ function FieldTypeMenu({
       type: "choice",
       choice_role: "option",
       question_id: field.id,
+      question_confirmed: true,
       ...(field.isNew ? { question_text: field.name, question_section: field.sectionId } : {}),
       ...(isOption && value?.option_title ? { option_title: value.option_title } : {}),
     });
-    setView("option-title");
+    // An option that already has a title is done; otherwise ask for one.
+    if (isOption && value?.option_title) onClose();
+    else setView("option-title");
   }
 
   const optionOf = isOption
@@ -648,6 +717,9 @@ function FieldTypeMenu({
               >
                 <span className="text-[11px] font-medium text-ink-faint">
                   Option for {optionOf}
+                  {!value?.question_confirmed && (
+                    <span className="text-danger"> &middot; pick its choice field</span>
+                  )}
                 </span>
                 <span className="flex w-full items-center gap-2">
                   <span className="min-w-0 flex-1 truncate font-semibold">
