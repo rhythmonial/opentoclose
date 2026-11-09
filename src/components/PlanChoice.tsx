@@ -12,12 +12,38 @@ export function PlanChoice({
   defaultPlan,
   defaultOtcUsername,
   otcPasswordSaved,
+  freeOffer = null,
 }: {
   defaultPlan: "diy" | "custom";
   defaultOtcUsername: string;
   otcPasswordSaved: boolean;
+  // Invited to a free stretch of DIY: the one service shown, with how long
+  // it lasts (before they submit) or how many days are left (after).
+  freeOffer?: { label: string; started: boolean } | null;
 }) {
   const [plan, setPlan] = useState(defaultPlan);
+
+  if (freeOffer) {
+    return (
+      <div className="flex flex-col items-center gap-2 text-center sm:col-span-2">
+        <input type="hidden" name="engagement_type" value="diy" />
+        <div className="w-full max-w-md rounded-lg border border-accent bg-accent-soft px-4 py-3">
+          <div className="text-sm font-semibold text-ink">Free OTC Setup DIY</div>
+          <div className="mt-0.5 text-xs font-semibold text-accent">
+            {freeOffer.started ? `${freeOffer.label} left` : `${freeOffer.label} free`}
+          </div>
+        </div>
+        <p className="text-sm text-ink-soft">
+          You&rsquo;re set up with our step-by-step checklist, videos and resources for setting up
+          Open to Close yourself. No card needed.
+          {!freeOffer.started && " Your free time starts when you submit this form."}
+        </p>
+        <p className="text-xs text-ink-faint">
+          When it ends, you can subscribe to keep your access.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-1.5 sm:col-span-2">

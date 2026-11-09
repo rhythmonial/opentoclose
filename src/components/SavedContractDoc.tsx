@@ -2,6 +2,7 @@
 
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { ContractReviewer } from "@/components/ContractReviewer";
+import { DocumentBoundary } from "@/components/DocumentBoundary";
 import { saveContractReview } from "@/app/configurator/upload_your_contract_docs/actions";
 
 // One uploaded contract, with its page-by-page review.
@@ -76,15 +77,17 @@ export function SavedContractDoc({
             {reviewed ? "Review again" : "Review pages"}
           </summary>
           <div className="mt-3">
-            <ContractReviewer
-              source={url}
-              pageCount={pageCount}
-              initialBlanks={blanks}
-              initialConfirmed={confirmedPages}
-              onSave={(next, confirmed) =>
-                saveContractReview({ id, blanks: next, confirmedPages: confirmed })
-              }
-            />
+            <DocumentBoundary>
+              <ContractReviewer
+                source={url}
+                pageCount={pageCount}
+                initialBlanks={blanks}
+                initialConfirmed={confirmedPages}
+                onSave={(next, confirmed) =>
+                  saveContractReview({ id, blanks: next, confirmedPages: confirmed })
+                }
+              />
+            </DocumentBoundary>
           </div>
         </details>
       )}

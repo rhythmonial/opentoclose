@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { openPdf } from "@/lib/pdfjs";
+import { drawPdfPage, openPdf } from "@/lib/pdfjs";
 
 // Opens a PDF from bytes or a URL for as long as the component using it is
 // mounted.
@@ -44,26 +44,9 @@ export function PdfPageCanvas({
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
-    // Cleanup can run before the page has loaded (or twice in dev), so a
-    // flag stops a late render from drawing over a newer one.
-    let cancelled = false;
-    let task: { cancel: () => void; promise: Promise<void> } | null = null;
-    doc.getPage(page).then((p) => {
-      if (cancelled) return;
-      // A fixed render width, since the container may not be laid out yet.
-      const base = p.getViewport({ scale: 1 });
-      const target = 1000 * Math.min(window.devicePixelRatio || 1, 2);
-      const viewport = p.getViewport({ scale: target / base.width });
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      task = p.render({ canvas, viewport });
-      // A cancelled render rejects; that's expected.
-      task.promise.catch(() => {});
-    });
-    return () => {
-      cancelled = true;
-      task?.cancel();
-    };
+    // Waits for the last page to stop drawing first, so moving through
+    // pages quickly can't trip over a canvas that's still busy.
+    return drawPdfPage(doc, page, canvas);
   }, [doc, page]);
 
   return <canvas ref={ref} className="block h-auto w-full" />;

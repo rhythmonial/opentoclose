@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { freeDaysLabel, INVITE_COOKIE, inviteStatus } from "@/lib/coupons";
+import {
+  daysUntil,
+  freeDaysLabel,
+  freeMonthStatus,
+  INVITE_COOKIE,
+  inviteStatus,
+} from "@/lib/coupons";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ToolsQuestions } from "@/components/ToolsQuestions";
@@ -79,8 +85,18 @@ export default async function SetupInitiationPage({
         ? "custom"
         : "diy";
   const hasPaidPlan = paidPlan === "custom" || paidPlan === "diy";
-  // An invite link they're holding: DIY with a free month, no payment.
+  // An invite link they're holding (DIY free for its days, no payment), or
+  // the free time they're already in.
   const invite = hasPaidPlan ? null : await inviteStatus((await cookies()).get(INVITE_COOKIE)?.value);
+  const freeMonth = isStaff
+    ? { activeUntil: null, endedOn: null }
+    : await freeMonthStatus(profile?.client_account_id);
+  const daysLeft = freeMonth.activeUntil ? daysUntil(freeMonth.activeUntil) : 0;
+  const freeOffer = invite
+    ? { label: freeDaysLabel(invite.freeDays), started: false }
+    : freeMonth.activeUntil
+      ? { label: `${daysLeft} day${daysLeft === 1 ? "" : "s"}`, started: true }
+      : null;
 
   return (
     <main className="flex flex-1 items-center justify-center bg-bg px-4 py-12">
@@ -119,12 +135,6 @@ export default async function SetupInitiationPage({
         {error && (
           <div className="mt-5 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
             {error}
-          </div>
-        )}
-        {invite && (
-          <div className="mt-5 rounded-lg border border-success/30 bg-success-soft px-4 py-3 text-sm font-semibold text-success">
-            Your invite is ready: choose DIY and submit to start your free{" "}
-            {freeDaysLabel(invite.freeDays)}. No payment needed.
           </div>
         )}
 
@@ -212,6 +222,7 @@ export default async function SetupInitiationPage({
           </h2>
           <PlanChoice
             defaultPlan={invite ? "diy" : defaultEngagementType}
+            freeOffer={freeOffer}
             defaultOtcUsername={existing?.otc_username ?? ""}
             otcPasswordSaved={existing?.otc_password_set ?? false}
           />
@@ -221,11 +232,13 @@ export default async function SetupInitiationPage({
             type="submit"
             className="mt-2 justify-self-center rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50 sm:col-span-2"
           >
-            {hasPaidPlan
-              ? isUpdate
-                ? "Save Changes"
-                : "Submit"
-              : "Continue to Payment"}
+            {freeOffer
+              ? "Submit"
+              : hasPaidPlan
+                ? isUpdate
+                  ? "Save Changes"
+                  : "Submit"
+                : "Continue to Payment"}
           </button>
         </fieldset>
         </form>

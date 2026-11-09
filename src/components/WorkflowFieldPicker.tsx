@@ -27,6 +27,7 @@ import {
   workflowKeys,
   type WorkflowField,
 } from "@/lib/workflowFields";
+import { createSaveQueue } from "@/lib/saveQueue";
 
 type Field = ContractBlank & { id: string };
 
@@ -79,7 +80,11 @@ export function WorkflowFieldPicker({
   const [saveState, setSaveState] = useState<
     "saving" | "saved" | "error" | null
   >(null);
-  const timer = useRef<number | null>(null);
+  const onSaveRef = useRef(onSave);
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
+  const saver = useRef<ReturnType<typeof createSaveQueue<WorkflowField[]>> | null>(null);
   const linesRead = useRef(false);
 
   useEffect(() => {
@@ -156,12 +161,14 @@ export function WorkflowFieldPicker({
     setPicks(next);
     onChange?.([...next.values()]);
     if (!onSave) return;
-    if (timer.current) window.clearTimeout(timer.current);
-    setSaveState("saving");
-    timer.current = window.setTimeout(async () => {
-      const result = await onSave([...next.values()]);
-      setSaveState(result.ok ? "saved" : "error");
-    }, 600);
+    // One save at a time, with the latest picks.
+    saver.current ??= createSaveQueue(
+      (fields: WorkflowField[]) =>
+        onSaveRef.current ? onSaveRef.current(fields) : Promise.resolve({ ok: true }),
+      setSaveState,
+      600,
+    );
+    saver.current.push([...next.values()]);
   }
 
   function setField(key: string, field: WorkflowField | null) {

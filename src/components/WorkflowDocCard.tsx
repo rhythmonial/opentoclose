@@ -8,6 +8,7 @@ import {
   saveContractLines,
   saveWorkflowFields,
 } from "@/app/configurator/assign_your_workflow_fields/actions";
+import { DocumentBoundary } from "@/components/DocumentBoundary";
 
 // One uploaded contract in Assign Your Workflow Fields.
 export function WorkflowDocCard({
@@ -47,15 +48,17 @@ export function WorkflowDocCard({
         </p>
       )}
       <div className="mt-3">
-        <WorkflowFieldPicker
-          source={url}
-          pageCount={pageCount}
-          blanks={blanks}
-          initialFields={fields}
-          extraOtcFields={otcFields}
-          onSave={(picked) => saveWorkflowFields(id, picked)}
-          onLineNumbers={(lines) => saveContractLines(id, lines)}
-        />
+        <DocumentBoundary>
+          <WorkflowFieldPicker
+            source={url}
+            pageCount={pageCount}
+            blanks={blanks}
+            initialFields={fields}
+            extraOtcFields={otcFields}
+            onSave={(picked) => saveWorkflowFields(id, picked)}
+            onLineNumbers={(lines) => saveContractLines(id, lines)}
+          />
+        </DocumentBoundary>
       </div>
     </details>
   );

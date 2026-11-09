@@ -201,3 +201,8 @@ export const freeDaysLabel = (days: number) =>
   days % 30 === 0
     ? `${days / 30} month${days === 30 ? "" : "s"}`
     : `${days} day${days === 1 ? "" : "s"}`;
+
+// Whole days left until a date (at least 1 while it's still ahead).
+export function daysUntil(iso: string) {
+  return Math.max(1, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000));
+}

@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { openPdf } from "@/lib/pdfjs";
+import { openPdf, drawPdfPage } from "@/lib/pdfjs";
 import { fieldLabel, tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 import { FIELD_TYPE_OPTIONS, type BoxFieldType } from "@/lib/fieldTypes";
 import { isContactRole, OTC_FIELDS } from "@/lib/otcFields";
 import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
+import { createSaveQueue } from "@/lib/saveQueue";
 
 // Open to Close's choice fields, for naming a new choice field.
 const OTC_CHOICE_FIELDS = OTC_FIELDS.filter((f) => f.kind === "choice");
@@ -116,7 +117,6 @@ export function ContractReviewer({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
-  const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,37 +141,30 @@ export function ContractReviewer({
     if (!doc || !canvas) return;
     // Cleanup can run before the page has loaded (or twice in dev), so a
     // flag stops a late render from drawing over a newer one.
-    let cancelled = false;
-    let task: { cancel: () => void; promise: Promise<void> } | null = null;
-    doc.getPage(page).then((p) => {
-      if (cancelled) return;
-      // Render at a fixed, sharp width and let CSS scale it to fit; the
-      // container may not have its final width yet when this runs.
-      const base = p.getViewport({ scale: 1 });
-      const target = 1000 * Math.min(window.devicePixelRatio || 1, 2);
-      const viewport = p.getViewport({ scale: target / base.width });
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      setPageSize({ width: base.width, height: base.height });
-      task = p.render({ canvas, viewport });
-      // A cancelled render rejects; that's expected.
-      task.promise.catch(() => {});
-    });
-    return () => {
-      cancelled = true;
-      task?.cancel();
-    };
+    // Waits for the last page to stop drawing first, so moving through
+    // pages quickly can't trip over a canvas that's still busy.
+    return drawPdfPage(doc, page, canvas, setPageSize);
   }, [doc, page]);
 
-  // Save shortly after the last change, so dragging doesn't save every frame.
+  // Save shortly after the last change (so dragging doesn't save every
+  // frame), one save at a time with the latest changes.
+  const onSaveRef = useRef(onSave);
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
+  const saver = useRef<ReturnType<
+    typeof createSaveQueue<{ blanks: ContractBlank[]; confirmed: number[] }>
+  > | null>(null);
   function commit(nextBlanks: ContractBlank[], nextConfirmed: number[]) {
     if (!onSave) return;
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    setSaveState("saving");
-    saveTimer.current = window.setTimeout(async () => {
-      const result = await onSave(nextBlanks, nextConfirmed);
-      setSaveState(result.ok ? "saved" : "error");
-    }, 700);
+    saver.current ??= createSaveQueue(
+      (v) =>
+        onSaveRef.current
+          ? onSaveRef.current(v.blanks, v.confirmed)
+          : Promise.resolve({ ok: true }),
+      setSaveState,
+    );
+    saver.current.push({ blanks: nextBlanks, confirmed: nextConfirmed });
   }
 
   function changeBlanks(next: ContractBlank[]) {
