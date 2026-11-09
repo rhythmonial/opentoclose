@@ -467,7 +467,7 @@ function FieldRow({
           }}
           maxLength={120}
           placeholder={
-            aliases ? `Could be: ${aliases.slice(0, 3).join(", ")}…` : "Display as (optional)"
+            aliases ? `${aliases.slice(0, 3).join(", ")}…` : "Display as (optional)"
           }
           title={aliases ? `Could be: ${aliases.join(", ")}` : "How you'd like this field displayed"}
           aria-label={`How you'd like ${field.name} displayed`}
