@@ -80,7 +80,9 @@ export default async function AssignWorkflowFieldsPage({
     Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : [];
   const picked = (docs ?? []).flatMap(fieldsOf).filter(isActive);
   const pickedCount = picked.length;
-  const addedOtcFields = newOtcFieldsFrom(picked);
+  // Fields the client created, on any contract (removed fields included, so
+  // a created choice field stays available after its option is removed).
+  const addedOtcFields = newOtcFieldsFrom((docs ?? []).flatMap(fieldsOf));
   const needsAnswer = picked.filter((f) => !isComplete(f)).length;
 
   return (

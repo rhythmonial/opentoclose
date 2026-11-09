@@ -125,7 +125,9 @@ export function WorkflowFieldPicker({
   // Built-in OTC fields, plus the ones the client has added.
   const otcFields = [
     ...OTC_FIELDS,
-    ...[...newOtcFieldsFrom(active), ...extraOtcFields].filter(
+    // (Removed fields count too, so taking out the only option using a
+    // choice field they created doesn't make that choice field disappear.)
+    ...[...newOtcFieldsFrom([...picks.values()]), ...extraOtcFields].filter(
       (f, i, all) => all.findIndex((g) => g.id === f.id) === i,
     ),
   ];
