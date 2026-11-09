@@ -77,3 +77,43 @@ export async function openBillingPortal() {
   }
   redirect(url);
 }
+
+// Cancels a paid plan given at no charge (no Stripe subscription, e.g. set
+// up by our team). Like a paid plan ending: DIY goes back to Free, and the
+// account moves to Completed / Churned.
+export async function cancelComplimentaryPlan() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, client_account_id")
+    .eq("id", user.id)
+    .single();
+  if (profile?.role !== "client_owner" || !profile.client_account_id) {
+    return back(`billing_error=${encodeURIComponent("Only the account owner can change billing.")}`);
+  }
+  const admin = createAdminClient();
+  const { count } = await admin
+    .from("subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("client_account_id", profile.client_account_id);
+  if (count) {
+    return back(`billing_error=${encodeURIComponent("Your plan is billed monthly; cancel it above.")}`);
+  }
+  await admin
+    .from("setup_initiation")
+    .update({ engagement_type: "free", updated_at: new Date().toISOString() })
+    .eq("client_id", user.id)
+    .eq("engagement_type", "diy");
+  await admin
+    .from("client_accounts")
+    .update({ status: "churned" })
+    .eq("id", profile.client_account_id)
+    .in("status", ["active", "paused"]);
+  revalidatePath("/profile");
+  revalidatePath("/dashboard/clients", "layout");
+  back("billing=canceled");
+}

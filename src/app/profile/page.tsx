@@ -445,6 +445,11 @@ export default async function ProfilePage({
           <BillingSection
             plan={initiation?.engagement_type ?? null}
             subscription={subscriptions?.[0] ?? null}
+            complimentary={
+              (initiation?.engagement_type === "diy" ||
+                initiation?.engagement_type === "custom") &&
+              (subscriptions ?? []).length === 0
+            }
             payments={(payments ?? []).slice(0, 8)}
             isOwner={isOwner}
             notice={

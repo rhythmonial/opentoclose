@@ -1,8 +1,10 @@
 import {
+  cancelComplimentaryPlan,
   cancelSubscription,
   openBillingPortal,
   resumeSubscription,
 } from "@/app/profile/billing-actions";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { startPlanCheckout } from "@/app/checkout/actions";
 import {
   ENGAGEMENT_LABELS,
@@ -36,6 +38,7 @@ export function BillingSection({
   subscription,
   payments,
   isOwner,
+  complimentary = false,
   notice,
   error,
 }: {
@@ -44,6 +47,8 @@ export function BillingSection({
   subscription: Subscription | null;
   payments: Payment[];
   isOwner: boolean;
+  // A paid plan given at no charge (no Stripe subscription ever).
+  complimentary?: boolean;
   notice?: string;
   error?: string;
 }) {
@@ -60,7 +65,7 @@ export function BillingSection({
     <section id="billing" className="scroll-mt-6 rounded-xl border border-border bg-surface p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-[15px] font-bold text-ink">Billing</h2>
-        {isOwner && !live && (
+        {isOwner && !live && !complimentary && (
           <form action={startPlanCheckout}>
             <input type="hidden" name="plan" value="diy" />
             <input type="hidden" name="return_to" value="/profile" />
@@ -103,6 +108,8 @@ export function BillingSection({
                 {ends ? ` on ${ends}` : " each month"}
               </span>
             )
+          ) : complimentary ? (
+            <span>Included at no charge</span>
           ) : subscription?.status === "canceled" ? (
             <span className="text-ink-soft">
               Ended{subscription.current_period_end ? ` ${day(subscription.current_period_end)}` : ""}
@@ -120,6 +127,20 @@ export function BillingSection({
               <button type="submit" className={`${button} hover:!border-danger hover:!text-danger`}>
                 Cancel subscription
               </button>
+            </form>
+          )}
+          {complimentary && (
+            <form action={cancelComplimentaryPlan}>
+              <ConfirmSubmitButton
+                confirmMessage={
+                  plan === "diy"
+                    ? "Cancel your DIY plan? Your account goes back to Free right away."
+                    : "Cancel your plan?"
+                }
+                className={`${button} hover:!border-danger hover:!text-danger`}
+              >
+                Cancel subscription
+              </ConfirmSubmitButton>
             </form>
           )}
           {live?.cancel_at_period_end && (
