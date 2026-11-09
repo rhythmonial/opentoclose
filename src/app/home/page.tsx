@@ -2,7 +2,15 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
-import { freeMonthDay, freeMonthStatus } from "@/lib/coupons";
+import { cookies } from "next/headers";
+import {
+  freeDaysLabel,
+  freeMonthDay,
+  freeMonthStatus,
+  INVITE_COOKIE,
+  inviteStatus,
+} from "@/lib/coupons";
+import { claimInvite } from "@/app/invite/actions";
 import { startPlanCheckout } from "@/app/checkout/actions";
 import { stepClientHref } from "@/lib/stepHref";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -17,9 +25,9 @@ import {
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ paid?: string }>;
+  searchParams: Promise<{ paid?: string; invite_error?: string }>;
 }) {
-  const { paid } = await searchParams;
+  const { paid, invite_error: inviteError } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -57,6 +65,11 @@ export default async function HomePage({
     ? { activeUntil: null, endedOn: null }
     : await freeMonthStatus(profile?.client_account_id);
   const isOwner = profile?.role === "client_owner";
+  // An invite link they opened but haven't claimed yet.
+  const heldInvite =
+    isSandboxing || freeMonth.activeUntil
+      ? null
+      : await inviteStatus((await cookies()).get(INVITE_COOKIE)?.value);
 
   const setupPath = profile?.client_accounts?.setup_path ?? "custom";
 
@@ -208,6 +221,26 @@ export default async function HomePage({
               Subscribe
             </Link>{" "}
             any time to keep access after.
+          </div>
+        )}
+        {inviteError && (
+          <div className="mb-6 rounded-lg border border-danger/30 bg-danger/5 px-4 py-2.5 text-sm text-danger">
+            {inviteError}
+          </div>
+        )}
+        {heldInvite && (
+          <div className="mb-6 flex flex-col gap-2 rounded-lg border border-success/30 bg-success-soft px-4 py-3 text-sm text-success sm:flex-row sm:items-center sm:justify-between">
+            <span className="font-semibold">
+              You have a free {freeDaysLabel(heldInvite.freeDays)} of DIY waiting.
+            </span>
+            <form action={claimInvite}>
+              <button
+                type="submit"
+                className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
+              >
+                Start my free {freeDaysLabel(heldInvite.freeDays)}
+              </button>
+            </form>
           </div>
         )}
         {paid && (

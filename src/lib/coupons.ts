@@ -152,3 +152,39 @@ export async function freeMonthStatus(accountId: string | null | undefined): Pro
 
 export const freeMonthDay = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+// Invite links: a one-time coupon whose code is the secret in the link
+// (/invite/<token>). The token rides along in a cookie through sign-up and
+// Initiate Your Setup until the free month is claimed.
+export const INVITE_COOKIE = "invite_token";
+
+export function newInviteToken() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(20));
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+}
+
+// Whether an invite link can still be claimed, and for how many free days.
+export async function inviteStatus(rawToken: unknown) {
+  const code = normalizeCode(rawToken);
+  if (!COUPON_CODE_PATTERN.test(code)) return null;
+  const admin = createAdminClient();
+  const { data: invite } = await admin
+    .from("coupons")
+    .select("id, free_days, active, expires_at, is_invite")
+    .eq("code", code)
+    .maybeSingle();
+  if (!invite?.is_invite || !invite.active) return null;
+  if (invite.expires_at && new Date(invite.expires_at) < new Date()) return null;
+  const { count } = await admin
+    .from("coupon_redemptions")
+    .select("id", { count: "exact", head: true })
+    .eq("coupon_id", invite.id);
+  if ((count ?? 0) > 0) return null;
+  return { code, freeDays: invite.free_days };
+}
+
+export const freeDaysLabel = (days: number) =>
+  days % 30 === 0
+    ? `${days / 30} month${days === 30 ? "" : "s"}`
+    : `${days} day${days === 1 ? "" : "s"}`;

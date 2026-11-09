@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 import { startPlanCheckout } from "@/app/checkout/actions";
-import { redeemCoupon } from "@/lib/coupons";
+import { cookies } from "next/headers";
+import { INVITE_COOKIE, inviteStatus, redeemCoupon } from "@/lib/coupons";
 import { getSandboxTier } from "@/lib/devSandbox";
 
 export async function submitSetupInitiation(formData: FormData) {
@@ -135,10 +136,13 @@ export async function submitSetupInitiation(formData: FormData) {
     );
   }
 
-  // A coupon code (DIY only) gives a free month instead of checkout.
-  const couponCode = String(formData.get("coupon_code") ?? "").trim();
-  if (chosen === "diy" && couponCode) {
-    const result = await redeemCoupon(couponCode, user.id);
+  // An invite link they're holding (DIY only) gives a free month instead
+  // of checkout.
+  const jar = await cookies();
+  const inviteToken = jar.get(INVITE_COOKIE)?.value;
+  if (chosen === "diy" && inviteToken && (await inviteStatus(inviteToken))) {
+    const result = await redeemCoupon(inviteToken, user.id);
+    jar.delete(INVITE_COOKIE);
     if (!result.ok) {
       redirect(`/setup?error=${encodeURIComponent(result.error)}`);
     }

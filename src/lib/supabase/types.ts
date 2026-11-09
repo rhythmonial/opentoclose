@@ -1310,7 +1310,9 @@ export type Database = {
           expires_at: string | null
           free_days: number
           id: string
+          is_invite: boolean
           max_redemptions: number | null
+          note: string | null
         }
         Insert: {
           active?: boolean
@@ -1320,7 +1322,9 @@ export type Database = {
           expires_at?: string | null
           free_days?: number
           id?: string
+          is_invite?: boolean
           max_redemptions?: number | null
+          note?: string | null
         }
         Update: {
           active?: boolean
@@ -1330,7 +1334,9 @@ export type Database = {
           expires_at?: string | null
           free_days?: number
           id?: string
+          is_invite?: boolean
           max_redemptions?: number | null
+          note?: string | null
         }
         Relationships: []
       }

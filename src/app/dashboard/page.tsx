@@ -1,5 +1,8 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { CouponCreateForm } from "@/components/CouponCreateForm";
+import { InviteCreateForm } from "@/components/InviteCreateForm";
+import { CopyLinkButton } from "@/components/CopyLinkButton";
+import { siteOrigin } from "@/lib/site-origin";
 import { setCouponActive } from "./coupon-actions";
 import {
   SupportStatusBadge,
@@ -11,11 +14,18 @@ import { signSupportAttachments } from "@/lib/signSupportAttachments";
 export default async function DashboardHome() {
   const supabase = await createClient();
 
-  // Coupon codes and how often each has been used.
-  const [{ data: coupons }, { data: redemptions }] = await Promise.all([
-    supabase.from("coupons").select("*").order("created_at", { ascending: false }),
-    supabase.from("coupon_redemptions").select("coupon_id"),
+  // Invite links and who claimed them.
+  const [{ data: invites }, { data: redemptions }, { data: inviteAccounts }] = await Promise.all([
+    supabase
+      .from("coupons")
+      .select("*")
+      .eq("is_invite", true)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase.from("coupon_redemptions").select("coupon_id, client_account_id, redeemed_at"),
+    supabase.from("client_accounts").select("id, name"),
   ]);
+  const origin = await siteOrigin();
 
   const [
     { data: accounts },
@@ -397,68 +407,72 @@ export default async function DashboardHome() {
       </section>
 
       <section className="mt-9">
-        <h2 className="font-display text-lg font-bold text-ink">Coupons</h2>
+        <h2 className="font-display text-lg font-bold text-ink">Invites</h2>
         <p className="mt-1 text-sm text-ink-soft">
-          A code gives a free stretch of DIY access (a month by default) with no card or
-          subscription. Clients enter it when they pick DIY in Initiate Your Setup, or in
-          Billing. When it ends they&rsquo;re back on Free and asked to subscribe.
+          Send someone a one-time link for a free month of DIY (no card). It works once, so
+          sharing it doesn&rsquo;t pass it on. When the free time ends they&rsquo;re back on Free
+          and asked to subscribe.
         </p>
         <div className="mt-4 rounded-xl border border-border bg-surface p-5">
-          <CouponCreateForm />
+          <InviteCreateForm />
         </div>
-        {(coupons ?? []).length > 0 && (
+        {(invites ?? []).length > 0 && (
           <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-surface">
-            <table className="w-full min-w-[600px] text-left text-sm">
+            <table className="w-full min-w-[620px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-                  <th className="px-5 py-3">Code</th>
+                  <th className="px-5 py-3">For</th>
                   <th className="px-5 py-3">Free days</th>
-                  <th className="px-5 py-3">Uses</th>
-                  <th className="px-5 py-3">Usable until</th>
+                  <th className="px-5 py-3">Created</th>
                   <th className="px-5 py-3">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {(coupons ?? []).map((c) => {
-                  const uses = (redemptions ?? []).filter((r) => r.coupon_id === c.id).length;
-                  const expired = Boolean(c.expires_at && new Date(c.expires_at) < new Date());
+                {(invites ?? []).map((c) => {
+                  const claim = (redemptions ?? []).find((r) => r.coupon_id === c.id);
+                  const claimedBy = claim
+                    ? ((inviteAccounts ?? []).find((a) => a.id === claim.client_account_id)?.name ??
+                      "a client")
+                    : null;
+                  const day = (iso: string) =>
+                    new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
                   return (
                     <tr key={c.id} className="border-b border-border-soft last:border-0">
-                      <td className="px-5 py-3 font-mono font-semibold text-ink">{c.code}</td>
+                      <td className="px-5 py-3 font-semibold text-ink">{c.note ?? "—"}</td>
                       <td className="px-5 py-3 text-ink-soft">{c.free_days}</td>
-                      <td className="px-5 py-3 text-ink-soft">
-                        {uses}
-                        {c.max_redemptions ? ` / ${c.max_redemptions}` : ""}
-                      </td>
-                      <td className="px-5 py-3 text-ink-soft">
-                        {c.expires_at
-                          ? new Date(c.expires_at).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })
-                          : "—"}
-                      </td>
+                      <td className="px-5 py-3 text-ink-soft">{day(c.created_at)}</td>
                       <td className="px-5 py-3">
-                        <form action={setCouponActive} className="flex items-center gap-2">
-                          <input type="hidden" name="id" value={c.id} />
-                          <input type="hidden" name="active" value={String(!c.active)} />
-                          <span
-                            className={`rounded-full px-2.5 py-1 font-caption text-[11px] font-bold uppercase tracking-wide ${
-                              c.active && !expired
-                                ? "bg-success-soft text-success"
-                                : "bg-border-soft text-ink-faint"
-                            }`}
-                          >
-                            {!c.active ? "Off" : expired ? "Expired" : "Active"}
+                        {claim ? (
+                          <span className="text-sm text-success">
+                            Claimed by{" "}
+                            <Link
+                              href={`/dashboard/clients/${claim.client_account_id}`}
+                              className="font-semibold hover:underline"
+                            >
+                              {claimedBy}
+                            </Link>{" "}
+                            on {day(claim.redeemed_at)}
                           </span>
-                          <button
-                            type="submit"
-                            className="text-xs font-semibold text-accent hover:underline"
-                          >
-                            {c.active ? "Turn off" : "Turn on"}
-                          </button>
-                        </form>
+                        ) : (
+                          <form action={setCouponActive} className="flex flex-wrap items-center gap-2">
+                            <input type="hidden" name="id" value={c.id} />
+                            <input type="hidden" name="active" value={String(!c.active)} />
+                            <span
+                              className={`rounded-full px-2.5 py-1 font-caption text-[11px] font-bold uppercase tracking-wide ${
+                                c.active ? "bg-accent-soft text-accent" : "bg-border-soft text-ink-faint"
+                              }`}
+                            >
+                              {c.active ? "Not used yet" : "Off"}
+                            </span>
+                            {c.active && <CopyLinkButton link={`${origin}/invite/${c.code}`} />}
+                            <button
+                              type="submit"
+                              className="text-xs font-semibold text-accent hover:underline"
+                            >
+                              {c.active ? "Turn off" : "Turn on"}
+                            </button>
+                          </form>
+                        )}
                       </td>
                     </tr>
                   );

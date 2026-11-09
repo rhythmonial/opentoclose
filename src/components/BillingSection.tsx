@@ -2,7 +2,6 @@ import {
   cancelComplimentaryPlan,
   cancelSubscription,
   openBillingPortal,
-  redeemCouponCode,
   resumeSubscription,
 } from "@/app/profile/billing-actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
@@ -41,7 +40,6 @@ export function BillingSection({
   isOwner,
   complimentary = false,
   freeMonth = { activeUntil: null, endedOn: null },
-  canRedeem = false,
   notice,
   error,
 }: {
@@ -54,8 +52,6 @@ export function BillingSection({
   complimentary?: boolean;
   // A coupon's free month: running until, or ended on (not subscribed).
   freeMonth?: { activeUntil: string | null; endedOn: string | null };
-  // On Free with their setup form done: can enter a coupon code.
-  canRedeem?: boolean;
   notice?: string;
   error?: string;
 }) {
@@ -189,23 +185,6 @@ export function BillingSection({
         <p className="mt-2 text-xs text-ink-faint">
           Subscribe any time to keep DIY after your free month. Billing starts when it ends.
         </p>
-      )}
-      {canRedeem && isOwner && !live && !freeMonth.activeUntil && (
-        <form action={redeemCouponCode} className="mt-4 flex flex-wrap items-center gap-2">
-          <input
-            name="code"
-            required
-            maxLength={40}
-            autoComplete="off"
-            autoCapitalize="characters"
-            placeholder="Coupon code"
-            aria-label="Coupon code"
-            className="w-44 rounded-lg border border-border bg-bg px-3 py-2 text-sm uppercase text-ink outline-none placeholder:normal-case focus:border-accent"
-          />
-          <button type="submit" className={button}>
-            Apply
-          </button>
-        </form>
       )}
 
       {payments.length > 0 && (

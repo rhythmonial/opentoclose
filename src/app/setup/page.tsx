@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { freeDaysLabel, INVITE_COOKIE, inviteStatus } from "@/lib/coupons";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ToolsQuestions } from "@/components/ToolsQuestions";
@@ -73,6 +75,8 @@ export default async function SetupInitiationPage({
         ? "custom"
         : "diy";
   const hasPaidPlan = paidPlan === "custom" || paidPlan === "diy";
+  // An invite link they're holding: DIY with a free month, no payment.
+  const invite = hasPaidPlan ? null : await inviteStatus((await cookies()).get(INVITE_COOKIE)?.value);
 
   return (
     <main className="flex flex-1 items-center justify-center bg-bg px-4 py-12">
@@ -111,6 +115,12 @@ export default async function SetupInitiationPage({
         {error && (
           <div className="mt-5 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
             {error}
+          </div>
+        )}
+        {invite && (
+          <div className="mt-5 rounded-lg border border-success/30 bg-success-soft px-4 py-3 text-sm font-semibold text-success">
+            Your invite is ready: choose DIY and submit to start your free{" "}
+            {freeDaysLabel(invite.freeDays)}. No payment needed.
           </div>
         )}
 
@@ -197,7 +207,7 @@ export default async function SetupInitiationPage({
             Your OTC Setup
           </h2>
           <PlanChoice
-            defaultPlan={defaultEngagementType}
+            defaultPlan={invite ? "diy" : defaultEngagementType}
             defaultOtcUsername={existing?.otc_username ?? ""}
             otcPasswordSaved={existing?.otc_password_set ?? false}
           />

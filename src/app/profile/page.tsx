@@ -455,7 +455,6 @@ export default async function ProfilePage({
               !freeMonth.activeUntil
             }
             freeMonth={freeMonth}
-            canRedeem={Boolean(initiation) && initiation?.engagement_type === "free"}
             payments={(payments ?? []).slice(0, 8)}
             isOwner={isOwner}
             notice={
@@ -463,9 +462,7 @@ export default async function ProfilePage({
                 ? "Your subscription is cancelled."
                 : billing === "resumed"
                   ? "Your subscription will continue."
-                  : billing === "coupon"
-                    ? "Coupon applied! Enjoy your free month of DIY."
-                    : undefined
+                  : undefined
             }
             error={billing_error}
           />
