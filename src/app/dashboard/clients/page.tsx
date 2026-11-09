@@ -25,6 +25,7 @@ export default async function ClientsPage() {
     { data: payments },
     { data: openTickets },
     { data: subscriptions },
+    { data: openRequests },
   ] = await Promise.all([
     supabase
       .from("client_accounts")
@@ -56,6 +57,12 @@ export default async function ClientsPage() {
       .from("subscriptions")
       .select("client_account_id, status, cancel_at_period_end, current_period_end, cancel_reason")
       .order("created_at", { ascending: false }),
+    // Lessons clients asked our team to set up, still to do.
+    supabase
+      .from("setup_requests")
+      .select("id, client_account_id, step_id, created_at")
+      .is("done_at", null)
+      .order("created_at"),
   ]);
 
   // --- Clients table ---
@@ -88,6 +95,9 @@ export default async function ClientsPage() {
 
     const memberIds = new Set(members.map((m) => m.id));
     const openQuestions = (openTickets ?? []).filter((t) => memberIds.has(t.client_id)).length;
+    const setUpRequests = (openRequests ?? []).filter(
+      (r) => r.client_account_id === account.id,
+    ).length;
 
     const hoursUsed = members.reduce(
       (sum, m) => sum + (hoursByClient.get(m.id) ?? 0),
@@ -149,6 +159,7 @@ export default async function ClientsPage() {
       hoursPurchased: Number(account.hours_purchased),
       outcome: account.outcome,
       openQuestions,
+      setUpRequests,
       subscription,
       cancelReason: subscription?.cancel_reason ?? null,
       daysToComplete,
@@ -239,6 +250,13 @@ export default async function ClientsPage() {
       },
     ];
   });
+
+  // Set ups clients have requested, oldest first.
+  const setUpRequestRows = (openRequests ?? []).map((r) => ({
+    ...r,
+    accountName: accountNameById.get(r.client_account_id) ?? "Client",
+    stepTitle: stepTitleById.get(r.step_id) ?? "Removed lesson",
+  }));
 
   function leadPlan(lead: Lead) {
     return lead.converted_client_account_id
@@ -399,6 +417,61 @@ export default async function ClientsPage() {
 
   return (
     <main className="px-4 py-7 sm:px-6 sm:py-9 lg:px-12">
+      {setUpRequestRows.length > 0 && (
+        <section className="mb-9">
+          <h2 className="font-display text-lg font-bold text-ink">
+            Set up requests
+            <span className="ml-2 rounded-full bg-gold px-2 py-0.5 align-middle font-caption text-xs font-bold text-navy">
+              {setUpRequestRows.length}
+            </span>
+          </h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Lessons clients asked our team to set up with their setup hours. They clear once
+            the lesson is marked complete.
+          </p>
+          <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-surface">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                  <th className="px-5 py-3">Client</th>
+                  <th className="px-5 py-3">Lesson</th>
+                  <th className="px-5 py-3">Requested</th>
+                  <th className="px-5 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {setUpRequestRows.map((r) => (
+                  <tr key={r.id} className="border-b border-border-soft last:border-0 hover:bg-bg">
+                    <td className="whitespace-nowrap px-5 py-3.5 font-semibold text-ink">
+                      <Link href={`/dashboard/clients/${r.client_account_id}`}>{r.accountName}</Link>
+                    </td>
+                    <td className="px-5 py-3.5 text-ink">
+                      <span className="mr-1.5 text-gold" aria-hidden>
+                        &#9733;
+                      </span>
+                      {r.stepTitle}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3.5 text-xs text-ink-faint">
+                      {new Date(r.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3.5 text-right">
+                      <Link
+                        href={`/dashboard/clients/${r.client_account_id}`}
+                        className="font-semibold text-accent"
+                      >
+                        Open &rarr;
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
       {techSupport.length > 0 && (
         <section className="mb-9">
           <h2 className="font-display text-lg font-bold text-ink">
@@ -608,6 +681,7 @@ export default async function ClientsPage() {
                             >
                               {row.name}
                               <QuestionBubble count={row.openQuestions} />
+                              <SetUpStar count={row.setUpRequests} />
                             </Link>
                           </td>
                           <td className="px-5 py-3.5">
@@ -681,6 +755,7 @@ export default async function ClientsPage() {
                           >
                             {row.name}
                             <QuestionBubble count={row.openQuestions} />
+                            <SetUpStar count={row.setUpRequests} />
                           </Link>
                         </td>
                         <td className="px-5 py-3.5">
@@ -743,6 +818,19 @@ function QuestionBubble({ count }: { count: number }) {
       className="ml-2 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 align-middle font-caption text-[10px] font-bold text-white"
     >
       {count}
+    </span>
+  );
+}
+
+// A gold star with how many lessons a client asked our team to set up.
+function SetUpStar({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      title={`${count} set up${count === 1 ? "" : "s"} requested`}
+      className="ml-2 inline-flex h-[18px] items-center gap-0.5 rounded-full bg-gold px-1.5 align-middle font-caption text-[10px] font-bold text-navy"
+    >
+      &#9733; {count}
     </span>
   );
 }

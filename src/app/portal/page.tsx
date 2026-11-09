@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TopNav } from "@/components/TopNav";
 import {
   effectiveOwner,
+  isDelegable,
   type EngagementType,
   type PlanType,
 } from "@/lib/stepOwnership";
@@ -72,6 +73,7 @@ export default async function PortalPage({
     { data: statuses },
     { data: hoursLog },
     { data: initiation },
+    { data: setupRequests },
   ] = await Promise.all([
     supabase
       .from("setup_steps")
@@ -102,6 +104,14 @@ export default async function PortalPage({
           .select("engagement_type")
           .eq("client_id", user.id)
           .maybeSingle(),
+    // Lessons they've asked our team to set up (still open).
+    !isSandboxing && profile?.client_account_id
+      ? supabase
+          .from("setup_requests")
+          .select("step_id")
+          .eq("client_account_id", profile.client_account_id)
+          .is("done_at", null)
+      : Promise.resolve({ data: [] as { step_id: string }[] }),
   ]);
 
   // Plain staff preview (no sandbox active) has no setup_initiation row of
@@ -122,11 +132,15 @@ export default async function PortalPage({
   // Every plan sees every step, including the ones our team handles.
   const steps = allSteps ?? [];
 
+  const requestedSteps = new Set((setupRequests ?? []).map((r) => r.step_id));
+
   // Steps unlock in order: one shows once every client step before it is
-  // done (the team's steps show when reached but don't hold the client
-  // up). Staff previewing (not in a sandbox) see everything.
-  const isClientStep = (s: { completed_by: string }) =>
-    effectiveOwner(s.completed_by, plan) === "client";
+  // done. Lessons our team handles hold DIY and Setup clients up too (they
+  // do it themselves or request a set up), but not once requested. Staff
+  // previewing (not in a sandbox) see everything.
+  const isClientStep = (s: { id: string; completed_by: string }) =>
+    effectiveOwner(s.completed_by, plan) === "client" ||
+    (isDelegable(s.completed_by, engagementType) && !requestedSteps.has(s.id));
   const unlocked = new Set<string>();
   {
     let blocked = false;
@@ -140,7 +154,9 @@ export default async function PortalPage({
   // Only the section holding the client's next task starts expanded: the
   // first unfinished step after their last completed one (falling back to
   // the earliest unfinished step).
-  const isDone = (s: { id: string }) => statusByStep.get(s.id) === "approved";
+  // (A lesson they've asked our team to set up counts as handled here.)
+  const isDone = (s: { id: string }) =>
+    statusByStep.get(s.id) === "approved" || requestedSteps.has(s.id);
   const lastDoneIndex = steps.findLastIndex(isDone);
   const nextStep =
     steps.find((s, i) => i > lastDoneIndex && !isDone(s)) ??
@@ -388,10 +404,10 @@ export default async function PortalPage({
                             const href = stepClientHref(step);
                             const isApproved = status === "approved";
                             const isClientManaged =
-                              effectiveOwner(
-                                step.completed_by,
-                                plan,
-                              ) === "client";
+                              effectiveOwner(step.completed_by, plan) === "client" ||
+                              isDelegable(step.completed_by, engagementType);
+                            const isRequested =
+                              requestedSteps.has(step.id) && !isApproved;
 
                             const titleBlock = (
                               <div className="min-w-0 flex-1">
@@ -421,7 +437,15 @@ export default async function PortalPage({
                                   {titleBlock}
                                 </div>
                                 <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
-                                  {isClientManaged ? (
+                                  {isRequested ? (
+                                    // They asked our team to set it up.
+                                    <span className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gold/60 bg-gold/15 px-3 py-2 text-sm font-semibold text-navy">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-gold" aria-hidden>
+                                        <path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" />
+                                      </svg>
+                                      Set up requested
+                                    </span>
+                                  ) : isClientManaged ? (
                                     <span className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
                                       {status === "not_started"
                                         ? "Start"

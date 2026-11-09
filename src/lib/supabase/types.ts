@@ -1271,6 +1271,33 @@ export type Database = {
           },
         ]
       }
+      setup_requests: {
+        Row: {
+          client_account_id: string
+          created_at: string
+          done_at: string | null
+          id: string
+          requested_by: string | null
+          step_id: string
+        }
+        Insert: {
+          client_account_id: string
+          created_at?: string
+          done_at?: string | null
+          id?: string
+          requested_by?: string | null
+          step_id: string
+        }
+        Update: {
+          client_account_id?: string
+          created_at?: string
+          done_at?: string | null
+          id?: string
+          requested_by?: string | null
+          step_id?: string
+        }
+        Relationships: []
+      }
       support_messages: {
         Row: {
           attachments: Json

@@ -95,7 +95,15 @@ export default async function ClientDetailPage({
   const owner = (members ?? []).find((m) => m.role === "client_owner") ?? members?.[0];
   const memberIds = (members ?? []).map((m) => m.id);
 
-    const { data: ticketRows } = memberIds.length
+    // Lessons they asked our team to set up (still to do): starred below.
+  const { data: openSetUpRequests } = await supabase
+    .from("setup_requests")
+    .select("step_id")
+    .eq("client_account_id", id)
+    .is("done_at", null);
+  const requestedStepIds = new Set((openSetUpRequests ?? []).map((r) => r.step_id));
+
+  const { data: ticketRows } = memberIds.length
     ? await supabase
         .from("support_tickets")
         .select("id, client_id, subject, status, step_id, created_at")
@@ -241,7 +249,9 @@ export default async function ClientDetailPage({
   const progressed = new Set(["approved", "submitted", "returned"]);
   const startedPhases = new Set(
     sortedSteps
-      .filter((st) => progressed.has(statusByStepId.get(st.id) ?? ""))
+      .filter(
+        (st) => progressed.has(statusByStepId.get(st.id) ?? "") || requestedStepIds.has(st.id),
+      )
       .map((st) => st.phase ?? "General"),
   );
   const visiblePhases = phases.filter(
@@ -588,7 +598,17 @@ export default async function ClientDetailPage({
                     <h3 className="font-display text-base font-bold text-ink">
                       {phase}
                     </h3>
-                    <span className="text-xs font-semibold text-ink-faint">
+                    <span className="flex items-center gap-2 text-xs font-semibold text-ink-faint">
+                      {(() => {
+                        const starred = phaseSteps.filter((st) =>
+                          requestedStepIds.has(st.id),
+                        ).length;
+                        return starred > 0 ? (
+                          <span className="rounded-full bg-gold px-2 py-0.5 font-caption text-[10px] font-bold text-navy">
+                            &#9733; {starred} requested
+                          </span>
+                        ) : null;
+                      })()}
                       {completeCount} / {phaseSteps.length} complete
                     </span>
                   </summary>
@@ -622,6 +642,14 @@ export default async function ClientDetailPage({
                                         />
                                         <div>
                                           <div className="text-sm font-bold text-ink">
+                                            {requestedStepIds.has(step.id) && (
+                                              <span
+                                                className="mr-1 text-gold"
+                                                title="They asked our team to set this up"
+                                              >
+                                                &#9733;
+                                              </span>
+                                            )}
                                             {step.title}
                                             {purchasedStepIds.has(step.id) && (
                                               <span className="ml-2 rounded-full bg-gold/30 px-2 py-0.5 text-[10px] font-bold uppercase font-caption tracking-wide text-navy">

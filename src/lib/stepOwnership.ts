@@ -23,3 +23,10 @@ export function effectiveOwner(
 ): EffectiveOwner {
   return completedBy === "staff" ? "staff" : "client";
 }
+
+// Lessons our team handles (marked S) that paying clients (DIY or Setup)
+// may do themselves or ask our team to set up with their setup hours.
+// Either way, the lesson stops holding them up once it's done or requested.
+export function isDelegable(completedBy: string, engagement: string | null | undefined) {
+  return completedBy === "staff" && (engagement === "diy" || engagement === "custom");
+}

@@ -22,6 +22,8 @@ export function StaffNav({ isDev = false }: { isDev?: boolean }) {
   const [newLeadCount, setNewLeadCount] = useState(0);
   // Clients with a question waiting on our team.
   const [askingCount, setAskingCount] = useState(0);
+  // Clients waiting on a set up they requested.
+  const [requestingCount, setRequestingCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,15 +53,26 @@ export function StaffNav({ isDev = false }: { isDev?: boolean }) {
         const accounts = new Set((people ?? []).map((p) => p.client_account_id).filter(Boolean));
         if (!cancelled) setAskingCount(accounts.size);
       });
+    supabase
+      .from("setup_requests")
+      .select("client_account_id")
+      .is("done_at", null)
+      .then(({ data }) => {
+        if (!cancelled) {
+          setRequestingCount(new Set((data ?? []).map((r) => r.client_account_id)).size);
+        }
+      });
     return () => {
       cancelled = true;
     };
   }, [pathname]);
-  const clientsBubble = newLeadCount + askingCount;
+  const clientsBubble = newLeadCount + askingCount + requestingCount;
   const clientsBubbleTitle = [
     newLeadCount > 0 && `${newLeadCount} new lead${newLeadCount === 1 ? "" : "s"}`,
     askingCount > 0 &&
       `${askingCount} client${askingCount === 1 ? "" : "s"} with a question`,
+    requestingCount > 0 &&
+      `${requestingCount} client${requestingCount === 1 ? "" : "s"} waiting on a set up`,
   ]
     .filter(Boolean)
     .join(" · ");

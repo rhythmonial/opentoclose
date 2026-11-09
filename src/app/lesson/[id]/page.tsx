@@ -8,6 +8,7 @@ import { StaffNav } from "@/components/StaffNav";
 import { getVideoSource } from "@/lib/videoEmbed";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import {
+  isDelegable,
   effectiveOwner,
   type EngagementType,
   type PlanType,
@@ -139,8 +140,10 @@ export default async function LessonPage({
       hasInitiation = true;
       // Free accounts follow the DIY checklist.
       const ownershipPlan: PlanType = sandboxTier === "custom" ? "custom" : "diy";
+      // Lessons our team handles are theirs to do or request on DIY/Setup.
       isHandledByStaff =
-        effectiveOwner(step.completed_by, ownershipPlan) === "staff";
+        effectiveOwner(step.completed_by, ownershipPlan) === "staff" &&
+        !isDelegable(step.completed_by, sandboxTier);
 
       // First visit to a not-yet-started task marks it in progress, so the
       // portal list can show "Continue" instead of "Start" afterward —
@@ -191,8 +194,10 @@ export default async function LessonPage({
       isPurchased = Boolean(purchase);
       // Free accounts follow the DIY checklist.
       const ownershipPlan: PlanType = engagementType === "custom" ? "custom" : "diy";
+      // Lessons our team handles are theirs to do or request on DIY/Setup.
       isHandledByStaff =
-        effectiveOwner(step.completed_by, ownershipPlan) === "staff" ||
+        (effectiveOwner(step.completed_by, ownershipPlan) === "staff" &&
+          !isDelegable(step.completed_by, engagementType)) ||
         isPurchased;
 
       // First visit to a not-yet-started task marks it in progress, so the
@@ -219,7 +224,9 @@ export default async function LessonPage({
   if (isEditorPreview) {
     clientPlan = "diy";
     hasInitiation = true;
-    isHandledByStaff = effectiveOwner(step.completed_by, "diy") === "staff";
+    isHandledByStaff =
+      effectiveOwner(step.completed_by, "diy") === "staff" &&
+      !isDelegable(step.completed_by, "diy");
   }
   const previewing = isSandboxing || isEditorPreview;
 
@@ -240,12 +247,12 @@ export default async function LessonPage({
     !isApproved &&
     !isPurchased &&
     !isPaidStep;
-  // Clients can ask our team to set up a step our team handles, with their
-  // setup hours (bought or buy-now): DIY clients always, Setup clients once
-  // their hours run out. Previews show it as that plan's client would.
-  const mayRequestSetup =
-    (clientPlan === "diy" || clientPlan === "custom") &&
-    step.completed_by === "staff" &&
+  // On lessons our team handles, DIY and Setup clients can do it themselves
+  // or ask our team to set it up with their setup hours (Setup clients use
+  // their remaining hours; anyone out of hours can buy more). Previews show
+  // it as that plan's client would.
+  const canRequestSetup =
+    isDelegable(step.completed_by, clientPlan) &&
     !isApproved &&
     (isStaff || Boolean(profile?.client_account_id));
   let setupHours = {
@@ -254,7 +261,7 @@ export default async function LessonPage({
     used: 0,
     requested: false,
   };
-  if (mayRequestSetup && !isStaff && profile?.client_account_id) {
+  if (canRequestSetup && !isStaff && profile?.client_account_id) {
     const admin = createAdminClient();
     const [{ data: account }, { data: members }, { data: openRequest }] = await Promise.all([
       admin
@@ -264,12 +271,11 @@ export default async function LessonPage({
         .single(),
       admin.from("profiles").select("id").eq("client_account_id", profile.client_account_id),
       supabase
-        .from("support_tickets")
+        .from("setup_requests")
         .select("id")
-        .eq("client_id", user.id)
+        .eq("client_account_id", profile.client_account_id)
         .eq("step_id", step.id)
-        .neq("status", "closed")
-        .like("subject", "Set up request: %")
+        .is("done_at", null)
         .limit(1)
         .maybeSingle(),
     ]);
@@ -284,9 +290,20 @@ export default async function LessonPage({
     };
   }
   const hoursLeft = Math.max(0, setupHours.purchased - setupHours.used);
-  const outOfHours = setupHours.purchased - setupHours.used <= 0;
-  const canRequestSetup = mayRequestSetup && (clientPlan === "diy" || outOfHours);
+  const outOfHours = hoursLeft <= 0;
   const hourlyRate = canBuyStep || canRequestSetup ? await getHourlyRate() : 0;
+
+  // The lesson after this one, to move on once they've requested a set up.
+  const { data: nextLesson } = setupHours.requested
+    ? await supabase
+        .from("setup_steps")
+        .select("id, key, step_type")
+        .eq("path", step.path)
+        .gt("sort_order", step.sort_order)
+        .order("sort_order")
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
@@ -487,20 +504,46 @@ export default async function LessonPage({
             {canRequestSetup && (
               <div className="mb-6 rounded-xl border border-accent-soft bg-accent-soft/40 p-5">
                 <h2 className="text-[15px] font-bold text-ink">Want our team to set this up?</h2>
-                <p className="mt-1 mb-3 text-sm text-ink-soft">
-                  {clientPlan === "custom"
-                    ? "You’re out of setup hours. Add more and request a set up, and we’ll do it for you."
-                    : "Request a set up and we’ll do it for you using your setup hours."}
-                </p>
-                <RequestSetupButton
-                  stepId={step.id}
-                  stepTitle={step.title}
-                  purchased={setupHours.purchased}
-                  used={setupHours.used}
-                  hourlyRate={hourlyRate}
-                  canBuy={isStaff || profile?.role === "client_owner"}
-                  requested={setupHours.requested}
-                />
+                {!setupHours.requested && (
+                  <p className="mt-1 mb-3 text-sm text-ink-soft">
+                    Do it yourself below, or request a set up and we&rsquo;ll do it for you
+                    {outOfHours
+                      ? ". You’re out of setup hours, so add more to request one."
+                      : clientPlan === "custom"
+                        ? " using your remaining setup hours."
+                        : " using your setup hours."}
+                    {!outOfHours && (
+                      <>
+                        {" "}
+                        You have{" "}
+                        <span className="font-semibold text-ink">
+                          {Number(hoursLeft.toFixed(1))} hour{hoursLeft === 1 ? "" : "s"}
+                        </span>{" "}
+                        left.
+                      </>
+                    )}
+                  </p>
+                )}
+                <div className={setupHours.requested ? "mt-2" : ""}>
+                  <RequestSetupButton
+                    stepId={step.id}
+                    stepTitle={step.title}
+                    purchased={setupHours.purchased}
+                    used={setupHours.used}
+                    hourlyRate={hourlyRate}
+                    canBuy={isStaff || profile?.role === "client_owner"}
+                    requested={setupHours.requested}
+                    requestDisabled={previewing}
+                  />
+                </div>
+                {setupHours.requested && nextLesson && (
+                  <Link
+                    href={stepClientHref(nextLesson)}
+                    className="mt-3 inline-block rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90"
+                  >
+                    Next lesson &rarr;
+                  </Link>
+                )}
               </div>
             )}
             {canBuyStep && (
@@ -591,22 +634,10 @@ export default async function LessonPage({
                 mark it complete once it&rsquo;s done.
               </p>
             ) : isHandledByStaff ? (
-              <div>
-                <p className="text-sm font-medium text-ink-faint">
-                  This step is handled by our team &mdash; we&rsquo;ll mark it
-                  complete once it&rsquo;s done.
-                </p>
-                {/* Setup clients: the setup hours they have left. */}
-                {clientPlan === "custom" && mayRequestSetup && !outOfHours && (
-                  <p className="mt-1.5 text-sm text-ink-soft">
-                    You have{" "}
-                    <span className="font-semibold text-ink">
-                      {Number(hoursLeft.toFixed(1))} setup hour{hoursLeft === 1 ? "" : "s"}
-                    </span>{" "}
-                    left.
-                  </p>
-                )}
-              </div>
+              <p className="text-sm font-medium text-ink-faint">
+                This step is handled by our team &mdash; we&rsquo;ll mark it
+                complete once it&rsquo;s done.
+              </p>
             ) : (
               <form action={toggleLessonComplete}>
                 <input type="hidden" name="step_id" value={step.id} />

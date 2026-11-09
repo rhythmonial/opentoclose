@@ -16,6 +16,7 @@ export function RequestSetupButton({
   canBuy,
   requested,
   disabled,
+  requestDisabled = false,
 }: {
   stepId: string;
   stepTitle: string;
@@ -27,6 +28,8 @@ export function RequestSetupButton({
   // Already requested (and not closed yet).
   requested: boolean;
   disabled?: boolean;
+  // Previews: the popup opens but can't send a request.
+  requestDisabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const left = purchased - used;
@@ -42,8 +45,14 @@ export function RequestSetupButton({
 
   if (requested) {
     return (
-      <p className="rounded-xl border border-success/30 bg-success-soft px-4 py-3 text-sm font-medium text-success">
-        Set up requested. Our team will be in touch to get it done.
+      <p className="flex items-start gap-2 rounded-xl border border-success/30 bg-success-soft px-4 py-3 text-sm font-medium text-success">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="mt-0.5 shrink-0 text-gold" aria-hidden>
+          <path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" />
+        </svg>
+        <span>
+          Set up requested. Our team will set this up for you with your setup hours, so you
+          can move on to the next lesson.
+        </span>
       </p>
     );
   }
@@ -88,7 +97,8 @@ export function RequestSetupButton({
               </button>
             </div>
             <p className="mt-1 text-sm text-ink-soft">
-              Our team will set up &ldquo;{stepTitle}&rdquo; for you using your setup hours.
+              Our team will set up &ldquo;{stepTitle}&rdquo; for you using your setup hours,
+              and you can move on to the next lesson.
             </p>
 
             <h3 className="mt-4 text-xs font-bold uppercase tracking-wide text-ink-faint">
@@ -101,10 +111,16 @@ export function RequestSetupButton({
                 <input type="hidden" name="step_id" value={stepId} />
                 <button
                   type="submit"
-                  className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90"
+                  disabled={requestDisabled}
+                  className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
                 >
-                  Request
+                  Use my setup hours
                 </button>
+                {requestDisabled && (
+                  <p className="mt-1.5 text-center text-xs text-ink-faint">
+                    Requests are off in previews.
+                  </p>
+                )}
               </form>
             ) : (
               <>

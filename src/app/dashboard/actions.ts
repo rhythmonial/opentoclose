@@ -78,6 +78,21 @@ export async function markStaffStepComplete(formData: FormData) {
     { onConflict: "client_id,step_id" },
   );
 
+  // A set up they requested is done.
+  const { data: client } = await supabase
+    .from("profiles")
+    .select("client_account_id")
+    .eq("id", clientId)
+    .single();
+  if (client?.client_account_id) {
+    await supabase
+      .from("setup_requests")
+      .update({ done_at: new Date().toISOString() })
+      .eq("client_account_id", client.client_account_id)
+      .eq("step_id", stepId)
+      .is("done_at", null);
+  }
+
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/clients", "layout");
 }

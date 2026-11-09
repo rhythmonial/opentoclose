@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { effectiveOwner, type PlanType } from "@/lib/stepOwnership";
+import { effectiveOwner, isDelegable, type PlanType } from "@/lib/stepOwnership";
 import { getSandboxTier } from "@/lib/devSandbox";
 
 export async function toggleLessonComplete(formData: FormData) {
@@ -21,7 +21,7 @@ export async function toggleLessonComplete(formData: FormData) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, client_account_id")
     .eq("id", user.id)
     .single();
   const isStaff =
@@ -52,6 +52,17 @@ export async function toggleLessonComplete(formData: FormData) {
     );
   }
 
+  // Done themselves: any set up they'd requested for it is no longer needed.
+  if (!sandboxTier && nextStatus === "approved" && profile?.client_account_id) {
+    await supabase
+      .from("setup_requests")
+      .update({ done_at: new Date().toISOString() })
+      .eq("client_account_id", profile.client_account_id)
+      .eq("step_id", stepId)
+      .is("done_at", null);
+    revalidatePath("/dashboard/clients", "layout");
+  }
+
   revalidatePath(`/lesson/${stepId}`);
   revalidatePath("/portal");
   revalidatePath("/home");
@@ -66,7 +77,7 @@ export async function toggleLessonComplete(formData: FormData) {
 
   if (!step) return;
 
-  const [{ data: allSteps }, { data: statuses }, { data: initiation }] =
+  const [{ data: allSteps }, { data: statuses }, { data: initiation }, { data: requests }] =
     await Promise.all([
       supabase
         .from("setup_steps")
@@ -89,7 +100,15 @@ export async function toggleLessonComplete(formData: FormData) {
             .select("engagement_type")
             .eq("client_id", user.id)
             .maybeSingle(),
+      !sandboxTier && profile?.client_account_id
+        ? supabase
+            .from("setup_requests")
+            .select("step_id")
+            .eq("client_account_id", profile.client_account_id)
+            .is("done_at", null)
+        : Promise.resolve({ data: [] as { step_id: string }[] }),
     ]);
+  const requested = new Set((requests ?? []).map((r) => r.step_id));
 
   // Free accounts follow the DIY checklist.
   const plan: PlanType =
@@ -100,10 +119,13 @@ export async function toggleLessonComplete(formData: FormData) {
       .map((s) => s.step_id),
   );
 
+  // Next: their own lessons, and lessons our team handles that they can do
+  // or request (unless already requested).
   const next = (allSteps ?? []).find(
     (s) =>
       s.sort_order > step.sort_order &&
-      effectiveOwner(s.completed_by, plan) === "client" &&
+      (effectiveOwner(s.completed_by, plan) === "client" ||
+        (isDelegable(s.completed_by, initiation?.engagement_type) && !requested.has(s.id))) &&
       !approvedStepIds.has(s.id),
   );
 
