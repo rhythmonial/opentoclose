@@ -212,6 +212,17 @@ export default async function LessonPage({
     }
   }
 
+  // The editor's "View as the client sees it" preview shows the end of the
+  // lesson as a DIY client sees it (the plan with the set-up and purchase
+  // options), with payments, completing and support turned off.
+  const isEditorPreview = isStaff && !isSandboxing;
+  if (isEditorPreview) {
+    clientPlan = "diy";
+    hasInitiation = true;
+    isHandledByStaff = effectiveOwner(step.completed_by, "diy") === "staff";
+  }
+  const previewing = isSandboxing || isEditorPreview;
+
   // Sandboxing shows content exactly as that tier's real client would see it
   // (locked if Free) — only a plain, non-sandboxing staff preview always
   // sees everything unlocked.
@@ -230,13 +241,12 @@ export default async function LessonPage({
     !isPurchased &&
     !isPaidStep;
   // DIY clients can ask our team to set up a step our team handles, with
-  // their setup hours (bought or buy-now). Not in the sandbox (no account).
+  // their setup hours (bought or buy-now). Previews show it with no hours.
   const canRequestSetup =
-    !isStaff &&
     clientPlan === "diy" &&
     step.completed_by === "staff" &&
     !isApproved &&
-    Boolean(profile?.client_account_id);
+    (isStaff || Boolean(profile?.client_account_id));
   const hourlyRate = canBuyStep || canRequestSetup ? await getHourlyRate() : 0;
   let setupHours = { purchased: 0, used: 0, requested: false };
   if (canRequestSetup && profile?.client_account_id) {
@@ -291,8 +301,8 @@ export default async function LessonPage({
 
         {isStaff && !isSandboxing && (
           <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
-            Previewing this lesson the way a client sees it &mdash; actions
-            are disabled here.
+            Previewing this lesson the way a DIY client sees it &mdash;
+            payments and actions are off here.
           </div>
         )}
 
@@ -464,8 +474,7 @@ export default async function LessonPage({
           </div>
         )}
 
-        {(!isStaff || isSandboxing) && (
-          <div className="mt-9 border-t border-border-soft pt-6">
+        <div className="mt-9 border-t border-border-soft pt-6">
             {canRequestSetup && (
               <div className="mb-6 rounded-xl border border-accent-soft bg-accent-soft/40 p-5">
                 <h2 className="text-[15px] font-bold text-ink">Want our team to set this up?</h2>
@@ -478,7 +487,7 @@ export default async function LessonPage({
                   purchased={setupHours.purchased}
                   used={setupHours.used}
                   hourlyRate={hourlyRate}
-                  canBuy={profile?.role === "client_owner"}
+                  canBuy={isStaff || profile?.role === "client_owner"}
                   requested={setupHours.requested}
                 />
               </div>
@@ -500,14 +509,14 @@ export default async function LessonPage({
                   <input type="hidden" name="step_id" value={step.id} />
                   <button
                     type="submit"
-                    disabled={isSandboxing}
+                    disabled={previewing}
                     className="rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-50 bg-navy text-white"
                   >
                     Have our team do it &rarr;
                   </button>
-                  {isSandboxing && (
+                  {previewing && (
                     <span className="ml-3 text-xs text-ink-faint">
-                      Checkout is off in the sandbox.
+                      Checkout is off in previews.
                     </span>
                   )}
                 </form>
@@ -538,7 +547,7 @@ export default async function LessonPage({
                         />
                         <button
                           type="submit"
-                          disabled={isSandboxing}
+                          disabled={previewing}
                           className={`rounded-lg px-4 py-2.5 text-sm font-semibold disabled:opacity-50 ${
                             plan === "setup"
                               ? "bg-navy text-white"
@@ -550,9 +559,9 @@ export default async function LessonPage({
                         </button>
                       </form>
                     ))}
-                    {isSandboxing && (
+                    {previewing && (
                       <span className="text-xs text-ink-faint">
-                        Checkout is off in the sandbox.
+                        Checkout is off in previews.
                       </span>
                     )}
                   </div>
@@ -585,7 +594,8 @@ export default async function LessonPage({
                 />
                 <button
                   type="submit"
-                  className={`rounded-lg px-5 py-2.5 text-sm font-semibold ${
+                  disabled={isEditorPreview}
+                  className={`rounded-lg px-5 py-2.5 text-sm font-semibold disabled:opacity-50 ${
                     isApproved
                       ? "border border-border text-ink"
                       : "bg-accent text-white"
@@ -597,16 +607,15 @@ export default async function LessonPage({
             )}
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border-soft pt-5">
               <span className="text-sm text-ink-soft">Stuck on this lesson?</span>
-              {isSandboxing ? (
+              {previewing ? (
                 <span className="text-xs text-ink-faint">
-                  Support is off in the sandbox.
+                  Support is off in previews.
                 </span>
               ) : (
                 <SupportButton lessons={supportLessons} stepId={step.id} />
               )}
             </div>
           </div>
-        )}
       </div>
     </main>
   );
