@@ -9,6 +9,7 @@ import { WorkflowDocCard } from "@/components/WorkflowDocCard";
 import { WorkflowFieldsSummary } from "@/components/WorkflowFieldsSummary";
 import { isActive, isComplete, newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldsTester } from "@/components/WorkflowFieldsTester";
+import { cleanFieldNames, OTC_FIELDS } from "@/lib/otcFields";
 import { finishWorkflowFields } from "./actions";
 
 const STEP_KEY = "assign_your_workflow_fields";
@@ -84,6 +85,18 @@ export default async function AssignWorkflowFieldsPage({
   // a created choice field stays available after its option is removed).
   const addedOtcFields = newOtcFieldsFrom((docs ?? []).flatMap(fieldsOf));
   const needsAnswer = picked.filter((f) => !isComplete(f)).length;
+  // What they'd like fields called (shared with Finalize Your Fields).
+  const { data: selection } = accountId
+    ? await supabase
+        .from("client_otc_field_selections")
+        .select("field_names")
+        .eq("client_account_id", accountId)
+        .maybeSingle()
+    : { data: null };
+  const fieldNames = cleanFieldNames(
+    selection?.field_names,
+    new Map([...OTC_FIELDS, ...addedOtcFields].map((f) => [f.id, f.name] as const)),
+  );
 
   return (
     <main className="flex flex-1 justify-center bg-bg px-4 py-12">
@@ -180,6 +193,17 @@ export default async function AssignWorkflowFieldsPage({
                 );
               })}
 
+              <div className="mt-6">
+                <WorkflowFieldsSummary
+                  docs={docs.map((d) => ({
+                    id: d.id,
+                    name: d.file_name,
+                    blanks: d.blanks as ContractBlank[],
+                    fields: fieldsOf(d),
+                  }))}
+                  editing={{ accountId: staffClient?.id ?? null, names: fieldNames }}
+                />
+              </div>
               {!isStaff && (
               <form
                 action={finishWorkflowFields}
@@ -190,7 +214,7 @@ export default async function AssignWorkflowFieldsPage({
                   disabled={pickedCount === 0 || needsAnswer > 0}
                   className="rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 >
-                  I&rsquo;m Done Picking Fields
+                  I&rsquo;m Done With This Page
                 </button>
                 {pickedCount === 0 ? (
                   <span className="text-xs text-ink-faint">
@@ -206,17 +230,6 @@ export default async function AssignWorkflowFieldsPage({
                 )}
               </form>
               )}
-
-              <div className="mt-6">
-                <WorkflowFieldsSummary
-                  docs={docs.map((d) => ({
-                    id: d.id,
-                    name: d.file_name,
-                    blanks: d.blanks as ContractBlank[],
-                    fields: fieldsOf(d),
-                  }))}
-                />
-              </div>
             </div>
           )}
         </div>

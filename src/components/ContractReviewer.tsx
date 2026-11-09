@@ -110,6 +110,8 @@ export function ContractReviewer({
   const [askChoice, setAskChoice] = useState<string | null>(null);
   // The contact (its key) being asked for its contact role.
   const [askRole, setAskRole] = useState<string | null>(null);
+  // The choice field the most recently saved option went to.
+  const [recentChoice, setRecentChoice] = useState<string | null>(null);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "error" | null>(null);
@@ -351,11 +353,11 @@ export function ContractReviewer({
     return out;
   })();
   const choiceNameOf = (id?: string) => choiceFields.find((c) => c.id === id)?.name;
-  // The choice field the last option was tied to (the next one is likely
-  // for it too).
-  const lastChoiceOf = [...blanks]
-    .reverse()
-    .find((b) => b.fieldType === "choice_option" && b.choiceOf)?.choiceOf;
+  // The choice field the last option was saved to (the next one is likely
+  // for it too), else the last one tied to an option on the contract.
+  const lastChoiceOf =
+    recentChoice ??
+    [...blanks].reverse().find((b) => b.fieldType === "choice_option" && b.choiceOf)?.choiceOf;
 
   // Closes the options and opens the type menu on the choice field's box
   // (for when Choice field was the wrong type).
@@ -878,25 +880,17 @@ export function ContractReviewer({
                             onCreate={(choice, title) => {
                               if ("id" in choice) {
                                 assignChoice(keyOf(anchor), choice.id, null, title);
+                                setRecentChoice(choice.id);
                                 return;
                               }
                               const otc = OTC_CHOICE_FIELDS.find(
                                 (f) => f.name.toLowerCase() === choice.name.toLowerCase(),
                               );
-                              if (otc) assignChoice(keyOf(anchor), otc.id, null, title);
-                              else
-                                assignChoice(
-                                  keyOf(anchor),
-                                  `${NEW_OTC_PREFIX}${crypto.randomUUID()}`,
-                                  choice.name,
-                                  title,
-                                );
+                              const id = otc?.id ?? `${NEW_OTC_PREFIX}${crypto.randomUUID()}`;
+                              assignChoice(keyOf(anchor), id, otc ? null : choice.name, title);
+                              setRecentChoice(id);
                             }}
                             onBack={() => setAskChoice(null)}
-                            onSkip={() => {
-                              setAskChoice(null);
-                              setSelected(null);
-                            }}
                           />
                         ) : (
                         <>
@@ -1221,14 +1215,12 @@ function ChoiceFieldPrompt({
   defaultTitle,
   onCreate,
   onBack,
-  onSkip,
 }: {
   choiceFields: { id: string; name: string; where?: string }[];
   preselect?: string;
   defaultTitle: string;
   onCreate: (choice: { id: string } | { name: string }, title: string) => void;
   onBack: () => void;
-  onSkip: () => void;
 }) {
   const capitalized = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
   // The choice field picked: one in the list, or a new one by name.
@@ -1345,13 +1337,10 @@ function ChoiceFieldPrompt({
             title={!choice ? "Choose or add its choice field first" : undefined}
             className="shrink-0 rounded-md bg-accent px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50"
           >
-            Create option
+            Save option
           </button>
         </span>
       </form>
-      <button type="button" onClick={onSkip} className="self-start text-[11px] font-semibold text-ink-faint hover:text-ink">
-        Skip for now (choose it in Assign Your Workflow Fields)
-      </button>
     </span>
   );
 }

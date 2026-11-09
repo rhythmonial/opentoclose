@@ -28,8 +28,8 @@ export type WorkflowField = {
   // (with its wording in question_text).
   question_id?: string;
   question_text?: string;
-  // The client picked this option's choice field in Assign Your Workflow
-  // Fields (one carried over from Upload Your Contracts still needs it).
+  // The client picked (or re-picked) this option's choice field in Assign
+  // Your Workflow Fields; options keep the one chosen in Upload otherwise.
   question_confirmed?: boolean;
   // For an option whose choice field the client is adding to OTC (a
   // NEW_OTC_PREFIX question_id): the section it goes in.
@@ -95,10 +95,7 @@ export function isComplete(field: WorkflowField): boolean {
   if (field.type === "choice") {
     return (
       field.choice_role === "question" ||
-      (field.choice_role === "option" &&
-        Boolean(field.question_id) &&
-        Boolean(field.question_confirmed) &&
-        Boolean(field.option_title))
+      (field.choice_role === "option" && Boolean(field.question_id) && Boolean(field.option_title))
     );
   }
   return true;

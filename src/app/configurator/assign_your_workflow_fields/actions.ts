@@ -10,11 +10,18 @@ import {
   cleanWorkflowFields,
   isActive,
   isComplete,
+  NEW_OTC_PREFIX,
+  newOtcFieldsFrom,
+  otcTargetOf,
+  reassignTo,
   withChoiceOf,
   workflowKeys,
   type WorkflowField,
 } from "@/lib/workflowFields";
+import { cleanFieldNames, OTC_FIELDS } from "@/lib/otcFields";
+import { configuratorAccount } from "@/lib/configuratorAccount";
 import { progressOwnerId } from "@/lib/accountOwner";
+import { stepClientHref } from "@/lib/stepHref";
 
 const STEP_KEY = "assign_your_workflow_fields";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -170,10 +177,11 @@ export async function finishWorkflowFields() {
     .filter(isActive);
   if (picked.length === 0 || picked.some((f) => !isComplete(f))) redirect(PAGE);
 
+  const path = account?.setup_path ?? "custom";
   const { data: step } = await supabase
     .from("setup_steps")
-    .select("id")
-    .eq("path", account?.setup_path ?? "custom")
+    .select("id, sort_order")
+    .eq("path", path)
     .eq("key", STEP_KEY)
     .maybeSingle();
 
@@ -190,5 +198,102 @@ export async function finishWorkflowFields() {
     );
   }
 
-  redirect("/portal");
+  // On to the next lesson.
+  const { data: next } = step
+    ? await supabase
+        .from("setup_steps")
+        .select("id, key, step_type")
+        .eq("path", path)
+        .gt("sort_order", step.sort_order)
+        .order("sort_order")
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
+  redirect(next ? stepClientHref(next) : "/portal");
+}
+
+// The account's contracts and the fields the client created on them.
+async function accountContracts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  accountId: string,
+) {
+  const { data } = await supabase
+    .from("contract_documents")
+    .select("id, blanks, workflow_fields")
+    .eq("client_account_id", accountId);
+  const docs = (data ?? []).map((d) => {
+    const blanks = (Array.isArray(d.blanks) ? d.blanks : []) as ContractBlank[];
+    return { id: d.id, blanks, fields: cleanWorkflowFields(d.workflow_fields, workflowKeys(blanks)) };
+  });
+  return { docs, created: newOtcFieldsFrom(docs.flatMap((d) => d.fields)) };
+}
+
+// Saves what the client calls an OTC field (blank goes back to its OTC
+// name). Shared with Finalize Your Fields.
+export async function saveFieldName(
+  accountId: string | null,
+  otcId: string,
+  name: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const { created } = await accountContracts(supabase, account);
+  const known = new Map([...OTC_FIELDS, ...created].map((f) => [f.id, f.name] as const));
+  if (!known.has(otcId)) return { ok: false, error: "Unknown field." };
+  const { data: saved } = await supabase
+    .from("client_otc_field_selections")
+    .select("field_names")
+    .eq("client_account_id", account)
+    .maybeSingle();
+  const names = cleanFieldNames(saved?.field_names, known);
+  const clean = name.trim().slice(0, 120);
+  if (clean) names[otcId] = clean;
+  else delete names[otcId];
+  const { error } = await supabase.from("client_otc_field_selections").upsert(
+    {
+      client_account_id: account,
+      field_names: cleanFieldNames(names, known),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "client_account_id" },
+  );
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  revalidatePath("/configurator/select_otc_fields");
+  return { ok: true };
+}
+
+// Points a field the client created at an existing OTC field instead, on
+// every contract (or, with no OTC field, leaves it as a new field).
+export async function mapCreatedField(
+  accountId: string | null,
+  createdId: string,
+  otcId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const to = OTC_FIELDS.find((f) => f.id === otcId);
+  if (!to || !createdId.startsWith(NEW_OTC_PREFIX)) return { ok: false, error: "Unknown field." };
+  const { docs } = await accountContracts(supabase, account);
+  for (const doc of docs) {
+    let changed = false;
+    const next = doc.fields.map((f) => {
+      if (otcTargetOf(f) !== createdId) return f;
+      changed = true;
+      return reassignTo(f, to);
+    });
+    if (!changed) continue;
+    const { error } = await supabase
+      .from("contract_documents")
+      .update({
+        blanks: withWorkflowTypes(doc.blanks, next),
+        workflow_fields: next,
+        workflow_field_ids: next.filter(isActive).map((f) => f.id),
+        workflow_fields_updated_at: new Date().toISOString(),
+      })
+      .eq("id", doc.id);
+    if (error) return { ok: false, error: error.message };
+  }
+  revalidatePath(PAGE);
+  return { ok: true };
 }

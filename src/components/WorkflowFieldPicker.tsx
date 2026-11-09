@@ -564,7 +564,7 @@ function FieldTypeMenu({
   const [view, setView] = useState<
     "types" | "questions" | "new" | "otc" | "otc-new" | "option-title" | "siblings"
   >(
-    value?.choice_role === "option" && !value.removed && (!value.question_id || !value.question_confirmed)
+    value?.choice_role === "option" && !value.removed && !value.question_id
       ? "questions"
       : value?.choice_role === "option" && !value.option_title
         ? "option-title"
@@ -818,9 +818,6 @@ function FieldTypeMenu({
                 >
                   <span className="text-[11px] font-medium text-ink-faint">
                     Option for {optionOf}
-                    {!value?.question_confirmed && (
-                      <span className="text-danger"> &middot; pick its choice field</span>
-                    )}
                   </span>
                   <span className="flex w-full items-center gap-2">
                     <span className="min-w-0 flex-1 truncate font-semibold">
@@ -830,7 +827,7 @@ function FieldTypeMenu({
                   </span>
                 </button>
               </div>
-              {value?.question_confirmed && unlinkedOptions.length > 0 && onLinkOptions && (
+              {value?.question_id && unlinkedOptions.length > 0 && onLinkOptions && (
                 <button
                   type="button"
                   role="menuitem"

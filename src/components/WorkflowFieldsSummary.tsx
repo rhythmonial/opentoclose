@@ -1,6 +1,7 @@
 import { fieldLabel, type ContractBlank } from "@/lib/contractBlanks";
 import {
   isContactRole,
+  kindMatches,
   OTC_FIELDS,
   sectionById,
   SYSTEM_REQUIRED_FIELDS,
@@ -12,6 +13,7 @@ import {
   otcTargetOf,
   type WorkflowField,
 } from "@/lib/workflowFields";
+import { FieldRenameInput, NewFieldMapper } from "@/components/WorkflowFieldNameCell";
 
 export type SummaryDoc = {
   id: string;
@@ -149,7 +151,16 @@ function Chips({ items }: { items: string[] }) {
 // they appear on it, then everything they added that Open to Close doesn't
 // have yet (fields, contact roles) and the options they titled for each
 // choice field, kept for building their OTC account later.
-export function WorkflowFieldsSummary({ docs }: { docs: SummaryDoc[] }) {
+// With `editing`, each assigned field can be renamed (saved with Finalize
+// Your Fields), and a field the client added can be pointed at an Open to
+// Close field instead.
+export function WorkflowFieldsSummary({
+  docs,
+  editing,
+}: {
+  docs: SummaryDoc[];
+  editing?: { accountId: string | null; names: Record<string, string> };
+}) {
   const active = docs.flatMap((d) => d.fields).filter(isActive);
   const added = newOtcFieldsFrom(active);
   const otcName = (id?: string) =>
@@ -232,6 +243,9 @@ export function WorkflowFieldsSummary({ docs }: { docs: SummaryDoc[] }) {
                       <th className="px-3 py-2 font-semibold">Page</th>
                       <th className="px-3 py-2 font-semibold">Field</th>
                       <th className="px-3 py-2 font-semibold">Type</th>
+                      {editing && (
+                        <th className="px-3 py-2 font-semibold">Rename or assign</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -280,6 +294,30 @@ export function WorkflowFieldsSummary({ docs }: { docs: SummaryDoc[] }) {
                           <td className="whitespace-nowrap px-3 py-2 text-ink-soft">
                             {typeLabel(f)}
                           </td>
+                          {editing && (
+                            <td className="px-3 py-1.5">
+                              {target && isNewId(target) ? (
+                                <NewFieldMapper
+                                  accountId={editing.accountId}
+                                  createdId={target}
+                                  createdName={name ?? ""}
+                                  choices={OTC_FIELDS.filter((o) =>
+                                    option
+                                      ? o.kind === "choice"
+                                      : kindMatches(o.kind, f.type, f.decimal_format),
+                                  )}
+                                />
+                              ) : target && name && OTC_FIELDS.some((o) => o.id === target) ? (
+                                <FieldRenameInput
+                                  key={`${target}:${editing.names[target] ?? ""}`}
+                                  accountId={editing.accountId}
+                                  otcId={target}
+                                  otcName={name}
+                                  initial={editing.names[target] ?? ""}
+                                />
+                              ) : null}
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
