@@ -7,7 +7,10 @@ import {
   OTC_FIELD_ALIASES,
   OTC_SECTIONS,
   SELECTABLE_GROUPS,
+  CUSTOM_FIELD_KINDS,
   slugOf,
+  splitOptions,
+  type CustomField,
   type Kind,
   type OtcField,
 } from "@/lib/otcFields";
@@ -27,7 +30,14 @@ const KIND_LABELS: Record<string, string> = {
   choice: "Choice",
 };
 
-type Field = { id: string; name: string; kind?: Kind; isNew?: boolean };
+type Field = {
+  id: string;
+  name: string;
+  kind?: Kind;
+  isNew?: boolean;
+  // A field the client added here.
+  custom?: CustomField;
+};
 
 // Finalize Your Fields, laid out like OTC's Field Editor: a tab per field
 // group (checked off when the client has finished it), its sections, and
@@ -56,6 +66,9 @@ export function OtcFieldSelector({
 }) {
   // Every section of OTC's field groups (empty ones too, as OTC shows
   // them), with the client's new fields at the end of theirs.
+  const [custom, setCustom] = useState<CustomField[]>(initial.custom);
+  // The section a field is being added to, or the field being edited.
+  const [dialog, setDialog] = useState<{ sectionId: string; field?: CustomField } | null>(null);
   const SECTIONS = OTC_SECTIONS.filter((s) => s.id !== CONTACT_ROLES_SECTION).map((s) => ({
     ...s,
     fields: [
@@ -63,9 +76,13 @@ export function OtcFieldSelector({
       ...newFields
         .filter((f) => f.sectionId === s.id)
         .map((f): Field => ({ id: f.id, name: f.name, kind: f.kind, isNew: true })),
+      ...custom
+        .filter((f) => f.sectionId === s.id)
+        .map((f): Field => ({ id: f.id, name: f.name, kind: f.kind, isNew: true, custom: f })),
     ],
   }));
   const ALL_FIELDS = SECTIONS.flatMap((s) => s.fields);
+  const customIds = new Set(custom.map((f) => f.id));
 
   const [picked, setPicked] = useState<Set<string>>(() => new Set(initial.fields));
   const [names, setNames] = useState<Record<string, string>>(initial.names);
@@ -80,13 +97,20 @@ export function OtcFieldSelector({
   const timer = useRef<number | null>(null);
   const top = useRef<HTMLDivElement>(null);
 
-  function save(next: { picked?: Set<string>; names?: Record<string, string>; done?: Set<string> }) {
+  function save(next: {
+    picked?: Set<string>;
+    names?: Record<string, string>;
+    done?: Set<string>;
+    custom?: CustomField[];
+  }) {
     const p = next.picked ?? picked;
     const n = next.names ?? names;
     const d = next.done ?? done;
+    const c = next.custom ?? custom;
     if (next.picked) setPicked(p);
     if (next.names) setNames(n);
     if (next.done) setDone(d);
+    if (next.custom) setCustom(c);
     setStatus("saving");
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(async () => {
@@ -94,6 +118,7 @@ export function OtcFieldSelector({
         fields: [...p],
         names: n,
         groupsDone: [...d],
+        custom: c,
       });
       setStatus(result.ok ? "saved" : "error");
       setError(result.ok ? null : (result.error ?? "Couldn't save."));
@@ -121,7 +146,9 @@ export function OtcFieldSelector({
     }
   }
 
-  const isOn = (id: string) => isSystemRequired(id) || Boolean(assigned[id]) || picked.has(id);
+  // Fields they added here are always in use.
+  const isOn = (id: string) =>
+    isSystemRequired(id) || Boolean(assigned[id]) || picked.has(id) || customIds.has(id);
   const q = query.trim().toLowerCase();
   const matches = (f: { id: string; name: string }, sectionName: string) =>
     (!onlyChecked || isOn(f.id)) &&
@@ -242,8 +269,21 @@ export function OtcFieldSelector({
                       <Star />
                       {s.name}
                     </h3>
+                    <span className="flex items-center gap-1.5 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setDialog({ sectionId: s.id })}
+                        aria-label={`Add your own field to ${s.name}`}
+                        title={`Add your own field to ${s.name}`}
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-base font-semibold leading-none text-accent hover:bg-accent-soft"
+                      >
+                        +
+                      </button>
                     {ids.length > 0 && (
-                      <span className="flex items-center gap-1.5 text-xs">
+                      <>
+                        <span aria-hidden className="text-border">
+                          |
+                        </span>
                         <button
                           type="button"
                           onClick={() => setChecked(ids, true)}
@@ -261,15 +301,24 @@ export function OtcFieldSelector({
                         >
                           None
                         </button>
-                      </span>
+                      </>
                     )}
+                    </span>
                   </div>
                   {s.fields.length === 0 && (
                     <p className="ml-3 px-3 text-xs text-ink-faint sm:ml-6">
                       No fields in this section yet.
                     </p>
                   )}
-                  {s.fields.map((f) => (
+                  {s.fields.map((f) =>
+                    f.custom ? (
+                      <CustomFieldRow
+                        key={f.id}
+                        field={f.custom}
+                        onEdit={() => setDialog({ sectionId: s.id, field: f.custom })}
+                        onDelete={() => save({ custom: custom.filter((c) => c.id !== f.id) })}
+                      />
+                    ) : (
                     <FieldRow
                       key={f.id}
                       field={f}
@@ -285,7 +334,8 @@ export function OtcFieldSelector({
                         save({ names: next });
                       }}
                     />
-                  ))}
+                    ),
+                  )}
                 </section>
               );
             })}
@@ -310,11 +360,31 @@ export function OtcFieldSelector({
         </div>
       ))}
 
+      {dialog && (
+        <CustomFieldDialog
+          sectionName={OTC_SECTIONS.find((x) => x.id === dialog.sectionId)?.name ?? ""}
+          field={dialog.field}
+          onClose={() => setDialog(null)}
+          onSave={(value) => {
+            const next = dialog.field
+              ? custom.map((c) => (c.id === dialog.field!.id ? { ...c, ...value } : c))
+              : [
+                  ...custom,
+                  { id: `new-otc:${crypto.randomUUID()}`, sectionId: dialog.sectionId, ...value },
+                ];
+            save({ custom: next });
+            setDialog(null);
+          }}
+        />
+      )}
+
       {showSummary && (
         <YourFields
           sections={SECTIONS}
           isAssigned={(id) => Boolean(assigned[id])}
-          isNeeded={(id) => !assigned[id] && (isSystemRequired(id) || picked.has(id))}
+          isNeeded={(id) =>
+            !assigned[id] && (isSystemRequired(id) || picked.has(id) || customIds.has(id))
+          }
           names={names}
         />
       )}
@@ -496,5 +566,160 @@ function Star() {
     <svg aria-hidden width="13" height="13" viewBox="0 0 24 24" className="shrink-0 fill-accent">
       <path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z" />
     </svg>
+  );
+}
+
+// A field the client added here: always in use, with its type (and a
+// choice field's options), to edit or delete.
+function CustomFieldRow({
+  field,
+  onEdit,
+  onDelete,
+}: {
+  field: CustomField;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const options = field.kind === "choice" && field.options?.length ? field.options.join(", ") : "";
+  return (
+    <div className="ml-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-accent/40 bg-surface px-3 py-2 sm:ml-6">
+      <span className="flex min-w-[14rem] flex-1 items-center gap-2.5">
+        <input type="checkbox" checked disabled readOnly className="h-4 w-4 shrink-0" aria-label={`${field.name} (in use)`} />
+        <span className="min-w-0 text-sm" title={options ? `Options: ${options}` : undefined}>
+          <span aria-hidden className="inline-block w-2.5" />
+          <span className="font-semibold text-accent">{field.name}</span>
+          <span className="text-ink-soft"> ({KIND_LABELS[field.kind ?? ""]})</span>
+          <span className="ml-1.5 rounded bg-gold/20 px-1 py-px align-middle text-[10px] font-bold uppercase text-ink">
+            New
+          </span>
+          {options && <span className="ml-1.5 text-xs text-ink-soft">{options}</span>}
+        </span>
+        <span className="shrink-0 rounded bg-gold/25 px-1.5 py-px text-[10px] font-bold uppercase text-ink">
+          Use
+        </span>
+      </span>
+      <span className="flex items-center gap-3 text-xs font-semibold">
+        <button type="button" onClick={onEdit} className="text-accent hover:underline">
+          Edit
+        </button>
+        <button type="button" onClick={onDelete} className="text-danger hover:underline">
+          Delete
+        </button>
+      </span>
+    </div>
+  );
+}
+
+// Adds (or edits) a field of the client's own: its name, its type, and for
+// a choice field, its options separated by commas.
+function CustomFieldDialog({
+  sectionName,
+  field,
+  onSave,
+  onClose,
+}: {
+  sectionName: string;
+  field?: CustomField;
+  onSave: (value: { name: string; kind: Kind; options?: string[] }) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(field?.name ?? "");
+  const [kind, setKind] = useState<Kind>(field?.kind ?? "text");
+  const [options, setOptions] = useState(field?.options?.join(", ") ?? "");
+  const parsed = splitOptions(options);
+  const ready = name.trim().length > 0 && (kind !== "choice" || parsed.length > 0);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="custom-field-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!ready) return;
+          onSave({
+            name: name.trim().slice(0, 120),
+            kind,
+            ...(kind === "choice" ? { options: parsed } : {}),
+          });
+        }}
+        className="w-full max-w-md rounded-xl border border-border bg-surface p-5 shadow-xl"
+      >
+        <h2 id="custom-field-title" className="font-display text-lg font-bold text-ink">
+          {field ? "Edit your field" : "Add your own field"}
+        </h2>
+        <p className="mt-0.5 text-sm text-ink-soft">In {sectionName}</p>
+
+        <label className="mt-4 block text-sm font-semibold text-ink">
+          Field name
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={120}
+            placeholder="e.g. HOA Transfer Fee"
+            className="mt-1 w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm font-normal text-ink outline-none focus:border-accent"
+          />
+        </label>
+
+        <label className="mt-3 block text-sm font-semibold text-ink">
+          Field type
+          <select
+            value={kind}
+            onChange={(e) => setKind(e.target.value as Kind)}
+            className="mt-1 w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm font-normal text-ink outline-none focus:border-accent"
+          >
+            {CUSTOM_FIELD_KINDS.map((k) => (
+              <option key={k.value} value={k.value}>
+                {k.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {kind === "choice" && (
+          <label className="mt-3 block text-sm font-semibold text-ink">
+            Choice options
+            <textarea
+              value={options}
+              onChange={(e) => setOptions(e.target.value)}
+              rows={3}
+              placeholder="e.g. Yes, No, Not Sure"
+              className="mt-1 w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm font-normal text-ink outline-none focus:border-accent"
+            />
+            <span className="mt-1 block text-xs font-normal text-ink-faint">
+              Separate each option with a comma.
+              {parsed.length > 0 && ` ${parsed.length} option${parsed.length === 1 ? "" : "s"}.`}
+            </span>
+          </label>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-ink-soft hover:text-ink"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={!ready}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {field ? "Save field" : "Add field"}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

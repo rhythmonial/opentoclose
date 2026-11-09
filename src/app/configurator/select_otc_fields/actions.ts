@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
 import {
+  cleanCustomFields,
   cleanFieldNames,
+  type CustomField,
   cleanGroupsDone,
   cleanOtcSelection,
   OTC_FIELDS,
@@ -21,6 +23,8 @@ export type OtcFieldSelection = {
   // Field id -> how the client would like it displayed.
   names: Record<string, string>;
   groupsDone: string[];
+  // Fields they added themselves.
+  custom: CustomField[];
 };
 
 type Supabase = Awaited<ReturnType<typeof configuratorAccount>>["supabase"];
@@ -46,8 +50,11 @@ export async function saveOtcFieldSelection(
 ): Promise<{ ok: boolean; error?: string }> {
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   if (!account) return { ok: false, error: "Not signed in." };
+  const custom = cleanCustomFields(selection.custom);
   const known = new Map(
-    [...OTC_FIELDS, ...(await newFieldsOf(supabase, account))].map((f) => [f.id, f.name] as const),
+    [...OTC_FIELDS, ...(await newFieldsOf(supabase, account)), ...custom].map(
+      (f) => [f.id, f.name] as const,
+    ),
   );
   const { error } = await supabase.from("client_otc_field_selections").upsert(
     {
@@ -55,6 +62,7 @@ export async function saveOtcFieldSelection(
       fields: cleanOtcSelection(selection.fields),
       field_names: cleanFieldNames(selection.names, known),
       groups_done: cleanGroupsDone(selection.groupsDone),
+      custom_fields: custom,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "client_account_id" },

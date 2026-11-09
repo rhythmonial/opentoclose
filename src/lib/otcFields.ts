@@ -556,3 +556,61 @@ export function cleanFieldNames(raw: unknown, known: Map<string, string>): Recor
   }
   return out;
 }
+
+// A field a client adds themselves in Finalize Your Fields (one Open to
+// Close doesn't have and isn't on their contracts), in one of OTC's
+// sections, with its choices when it's a choice field.
+export type CustomField = {
+  id: string;
+  name: string;
+  sectionId: string;
+  kind: Kind;
+  options?: string[];
+};
+
+export const CUSTOM_FIELD_KINDS: { value: Kind; label: string }[] = [
+  { value: "text", label: "Text" },
+  { value: "text_area", label: "Text Area" },
+  { value: "currency", label: "Decimal: Dollar" },
+  { value: "percentage", label: "Decimal: Percentage" },
+  { value: "date", label: "Date" },
+  { value: "number", label: "Number" },
+  { value: "choice", label: "Choice" },
+];
+
+// Choice options typed in one box, separated by commas.
+export function splitOptions(raw: string): string[] {
+  const out: string[] = [];
+  for (const part of raw.split(",")) {
+    const t = part.trim().slice(0, 120);
+    if (t && !out.some((o) => o.toLowerCase() === t.toLowerCase())) out.push(t);
+  }
+  return out.slice(0, 100);
+}
+
+export function cleanCustomFields(raw: unknown): CustomField[] {
+  if (!Array.isArray(raw)) return [];
+  const kinds = new Set(CUSTOM_FIELD_KINDS.map((k) => k.value));
+  const out: CustomField[] = [];
+  for (const item of raw.slice(0, 200)) {
+    const f = item as Partial<CustomField> | null;
+    if (!f || typeof f.id !== "string" || !/^new-otc:[0-9a-f-]{36}$/i.test(f.id)) continue;
+    const name = String(f.name ?? "").trim().slice(0, 120);
+    if (!name || out.some((o) => o.id === f.id)) continue;
+    // Any of OTC's field sections (empty ones too), not contact roles.
+    if (
+      typeof f.sectionId !== "string" ||
+      f.sectionId === CONTACT_ROLES_SECTION ||
+      !OTC_SECTION_IDS.has(f.sectionId)
+    )
+      continue;
+    if (!kinds.has(f.kind as Kind)) continue;
+    const field: CustomField = { id: f.id, name, sectionId: f.sectionId, kind: f.kind as Kind };
+    if (field.kind === "choice" && Array.isArray(f.options)) {
+      const options = splitOptions(f.options.map(String).join(","));
+      if (options.length > 0) field.options = options;
+    }
+    out.push(field);
+  }
+  return out;
+}

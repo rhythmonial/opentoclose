@@ -416,6 +416,7 @@ export type Database = {
       }
       client_otc_field_selections: {
         Row: {
+          custom_fields: Json
           client_account_id: string
           fields: string[]
           field_names: Json
@@ -423,6 +424,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          custom_fields?: Json
           client_account_id: string
           fields?: string[]
           field_names?: Json
@@ -430,6 +432,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          custom_fields?: Json
           client_account_id?: string
           fields?: string[]
           field_names?: Json

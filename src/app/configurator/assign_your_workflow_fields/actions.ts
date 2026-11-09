@@ -18,7 +18,7 @@ import {
   workflowKeys,
   type WorkflowField,
 } from "@/lib/workflowFields";
-import { cleanFieldNames, OTC_FIELDS } from "@/lib/otcFields";
+import { cleanCustomFields, cleanFieldNames, OTC_FIELDS } from "@/lib/otcFields";
 import { configuratorAccount } from "@/lib/configuratorAccount";
 import { progressOwnerId } from "@/lib/accountOwner";
 import { cleanOrder } from "@/lib/docOrder";
@@ -244,13 +244,18 @@ export async function saveFieldName(
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   if (!account) return { ok: false, error: "Not signed in." };
   const { created } = await accountContracts(supabase, account);
-  const known = new Map([...OTC_FIELDS, ...created].map((f) => [f.id, f.name] as const));
-  if (!known.has(otcId)) return { ok: false, error: "Unknown field." };
   const { data: saved } = await supabase
     .from("client_otc_field_selections")
-    .select("field_names")
+    .select("field_names, custom_fields")
     .eq("client_account_id", account)
     .maybeSingle();
+  // Fields added in Finalize Your Fields keep their display names too.
+  const known = new Map(
+    [...OTC_FIELDS, ...created, ...cleanCustomFields(saved?.custom_fields)].map(
+      (f) => [f.id, f.name] as const,
+    ),
+  );
+  if (!known.has(otcId)) return { ok: false, error: "Unknown field." };
   const names = cleanFieldNames(saved?.field_names, known);
   const clean = name.trim().slice(0, 120);
   if (clean) names[otcId] = clean;

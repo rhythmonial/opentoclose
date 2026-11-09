@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
 import {
+  cleanCustomFields,
   cleanFieldNames,
   cleanGroupsDone,
   cleanOtcSelection,
@@ -60,7 +61,7 @@ export default async function SelectOtcFieldsPage({
     ? await Promise.all([
         supabase
           .from("client_otc_field_selections")
-          .select("fields, field_names, groups_done")
+          .select("fields, field_names, groups_done, custom_fields")
           .eq("client_account_id", accountId)
           .maybeSingle(),
         supabase
@@ -96,9 +97,10 @@ export default async function SelectOtcFieldsPage({
   const newFields = newOtcFieldsFrom(
     summaryDocs.flatMap((d) => d.fields).filter(isActive),
   ).filter((f) => !isContactRole(f) && assigned[f.id]);
+  const custom = cleanCustomFields(saved?.custom_fields);
   const names = cleanFieldNames(
     saved?.field_names,
-    new Map([...OTC_FIELDS, ...newFields].map((f) => [f.id, f.name] as const)),
+    new Map([...OTC_FIELDS, ...newFields, ...custom].map((f) => [f.id, f.name] as const)),
   );
 
   const groupsDone = cleanGroupsDone(saved?.groups_done);
@@ -184,7 +186,7 @@ export default async function SelectOtcFieldsPage({
             <OtcFieldSelector
               key={accountId}
               accountId={isStaff ? accountId : null}
-              initial={{ fields: selected, names, groupsDone }}
+              initial={{ fields: selected, names, groupsDone, custom }}
               showSummary={isStaff}
               assigned={assigned}
               newFields={newFields}
