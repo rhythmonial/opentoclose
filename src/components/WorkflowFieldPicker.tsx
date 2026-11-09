@@ -799,6 +799,36 @@ function FieldTypeMenu({
               &rsaquo;
             </span>
           </button>
+          {/* Back to blank: drops the OTC field (or an option's choice
+              field) picked here, keeping the field's type. */}
+          {(value?.otc_field || (isOption && value?.question_id)) && (
+            <>
+              <div className="my-1 border-t border-border" />
+              <button
+                type="button"
+                role="menuitem"
+                data-menu-item
+                onClick={() => {
+                  const cleared: WorkflowField = { ...value };
+                  delete cleared.otc_field;
+                  delete cleared.otc_field_name;
+                  delete cleared.otc_section;
+                  delete cleared.question_id;
+                  delete cleared.question_text;
+                  delete cleared.question_section;
+                  delete cleared.question_confirmed;
+                  onChange(cleared);
+                  onClose();
+                }}
+                className={itemClass}
+              >
+                <span aria-hidden className="w-3.5 shrink-0 text-center text-ink-faint">
+                  &#8634;
+                </span>
+                Clear selection
+              </button>
+            </>
+          )}
           {/* Always last. The field stays on the page, grayed out. */}
           <div className="my-1 border-t border-border" />
           <button
