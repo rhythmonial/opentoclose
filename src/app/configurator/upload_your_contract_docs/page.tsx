@@ -13,7 +13,11 @@ import { deleteContractDocument, finishContractDocs } from "./actions";
 
 const STEP_KEY = "upload_your_contract_docs";
 
-export default async function UploadContractDocsPage() {
+export default async function UploadContractDocsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ client?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -39,7 +43,15 @@ export default async function UploadContractDocsPage() {
 
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
   const sandboxTier = isStaff ? await getSandboxTier() : null;
-  const accountId = isStaff ? null : (profile?.client_account_id ?? null);
+  // Staff open a client's work from that client's page (?client=<account>).
+  const { client } = await searchParams;
+  const { data: staffClient } =
+    isStaff && client && /^[0-9a-f-]{36}$/i.test(client)
+      ? await supabase.from("client_accounts").select("id, name").eq("id", client).maybeSingle()
+      : { data: null };
+  const accountId = isStaff ? (staffClient?.id ?? null) : (profile?.client_account_id ?? null);
+  // Staff with no client picked get the test mode.
+  const testMode = isStaff && !staffClient;
 
   const { data: docs } = accountId
     ? await supabase
@@ -70,17 +82,33 @@ export default async function UploadContractDocsPage() {
     <main className="flex flex-1 justify-center bg-bg px-4 py-12">
       <div className="w-full max-w-4xl">
         <Link
-          href={isStaff && !sandboxTier ? "/dashboard/tasks" : "/portal"}
+          href={
+            staffClient
+              ? `/dashboard/clients/${staffClient.id}`
+              : isStaff && !sandboxTier
+                ? "/dashboard/tasks"
+                : "/portal"
+          }
           className="text-sm font-medium text-accent"
         >
           &larr;{" "}
-          {isStaff && !sandboxTier ? "Back to editor" : "Back to your setup"}
+          {staffClient
+            ? `Back to ${staffClient.name}`
+            : isStaff && !sandboxTier
+              ? "Back to editor"
+              : "Back to your setup"}
         </Link>
 
-        {isStaff && (
+        {testMode && (
           <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
             Test mode &mdash; drop in any PDF to see what blanks it finds.
             Nothing is uploaded or saved.
+          </div>
+        )}
+        {staffClient && (
+          <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
+            Viewing {staffClient.name}&rsquo;s contracts &mdash; changes you make are saved to
+            their account.
           </div>
         )}
 
@@ -105,14 +133,22 @@ export default async function UploadContractDocsPage() {
           </p>
         )}
 
-        <div className="mt-6">
-          <ContractUploader accountId={accountId} testMode={isStaff} />
-        </div>
+        {/* Only the client uploads their own contracts. */}
+        {!staffClient && (
+          <div className="mt-6">
+            <ContractUploader accountId={accountId} testMode={isStaff} />
+          </div>
+        )}
+        {staffClient && (!docs || docs.length === 0) && (
+          <p className="mt-6 rounded-xl border border-border bg-surface p-6 text-sm text-ink-soft">
+            {staffClient.name} hasn&rsquo;t uploaded any contracts yet.
+          </p>
+        )}
 
         {docs && docs.length > 0 && (
           <section className="mt-8">
             <h2 className="text-[15px] font-bold text-ink">
-              Your uploaded documents ({docs.length})
+              {staffClient ? "Their" : "Your"} uploaded documents ({docs.length})
             </h2>
             <div className="mt-3 flex flex-col gap-3">
               {docs.map((doc) => (
@@ -149,6 +185,7 @@ export default async function UploadContractDocsPage() {
               ))}
             </div>
 
+            {!isStaff && (
             <form
               action={finishContractDocs}
               className="mt-6 flex flex-col items-center gap-2"
@@ -168,6 +205,7 @@ export default async function UploadContractDocsPage() {
                 </span>
               )}
             </form>
+            )}
           </section>
         )}
       </div>

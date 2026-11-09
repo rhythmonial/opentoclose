@@ -103,10 +103,21 @@ export default async function CategorizeYourDocumentsPage({
     <main className="flex flex-1 justify-center bg-bg px-4 py-12">
       <div className="w-full max-w-4xl">
         <Link
-          href={isStaff && !sandboxTier ? "/dashboard/tasks" : "/portal"}
+          href={
+            isStaff && !sandboxTier
+              ? accountId
+                ? `/dashboard/clients/${accountId}`
+                : "/dashboard/tasks"
+              : "/portal"
+          }
           className="text-sm font-medium text-accent"
         >
-          &larr; {isStaff && !sandboxTier ? "Back to editor" : "Back to your setup"}
+          &larr;{" "}
+          {isStaff && !sandboxTier
+            ? accountId
+              ? `Back to ${(clients ?? []).find((c) => c.id === accountId)?.name ?? "client"}`
+              : "Back to editor"
+            : "Back to your setup"}
         </Link>
 
         {isStaff && (

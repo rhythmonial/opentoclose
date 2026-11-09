@@ -12,7 +12,11 @@ import { finishWorkflowFields } from "./actions";
 
 const STEP_KEY = "assign_your_workflow_fields";
 
-export default async function AssignWorkflowFieldsPage() {
+export default async function AssignWorkflowFieldsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ client?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -38,7 +42,15 @@ export default async function AssignWorkflowFieldsPage() {
 
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
   const sandboxTier = isStaff ? await getSandboxTier() : null;
-  const accountId = isStaff ? null : (profile?.client_account_id ?? null);
+  // Staff open a client's work from that client's page (?client=<account>).
+  const { client } = await searchParams;
+  const { data: staffClient } =
+    isStaff && client && /^[0-9a-f-]{36}$/i.test(client)
+      ? await supabase.from("client_accounts").select("id, name").eq("id", client).maybeSingle()
+      : { data: null };
+  const accountId = isStaff ? (staffClient?.id ?? null) : (profile?.client_account_id ?? null);
+  // Staff with no client picked get the test mode.
+  const testMode = isStaff && !staffClient;
 
   // Scans have no fields to pick from.
   const { data: docs } = accountId
@@ -73,17 +85,33 @@ export default async function AssignWorkflowFieldsPage() {
     <main className="flex flex-1 justify-center bg-bg px-4 py-12">
       <div className="w-full max-w-4xl">
         <Link
-          href={isStaff && !sandboxTier ? "/dashboard/tasks" : "/portal"}
+          href={
+            staffClient
+              ? `/dashboard/clients/${staffClient.id}`
+              : isStaff && !sandboxTier
+                ? "/dashboard/tasks"
+                : "/portal"
+          }
           className="text-sm font-medium text-accent"
         >
           &larr;{" "}
-          {isStaff && !sandboxTier ? "Back to editor" : "Back to your setup"}
+          {staffClient
+            ? `Back to ${staffClient.name}`
+            : isStaff && !sandboxTier
+              ? "Back to editor"
+              : "Back to your setup"}
         </Link>
 
-        {isStaff && (
+        {testMode && (
           <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
             Test mode &mdash; clients see the contracts they uploaded here. Try
             it with any PDF below; nothing is uploaded or saved.
+          </div>
+        )}
+        {staffClient && (
+          <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
+            Viewing {staffClient.name}&rsquo;s workflow fields &mdash; changes you make are
+            saved to their account.
           </div>
         )}
 
@@ -110,8 +138,12 @@ export default async function AssignWorkflowFieldsPage() {
         )}
 
         <div className="mt-6">
-          {isStaff ? (
+          {testMode ? (
             <WorkflowFieldsTester />
+          ) : staffClient && (!docs || docs.length === 0) ? (
+            <div className="rounded-xl border border-border bg-surface p-6 text-sm text-ink-soft">
+              {staffClient.name} hasn&rsquo;t uploaded any contracts yet.
+            </div>
           ) : !docs || docs.length === 0 ? (
             <div className="rounded-xl border border-border bg-surface p-6 text-sm text-ink-soft">
               You haven&rsquo;t uploaded any contracts yet. Upload them in the{" "}
@@ -144,6 +176,7 @@ export default async function AssignWorkflowFieldsPage() {
                 );
               })}
 
+              {!isStaff && (
               <form
                 action={finishWorkflowFields}
                 className="mt-4 flex flex-col items-center gap-2"
@@ -168,6 +201,7 @@ export default async function AssignWorkflowFieldsPage() {
                   )
                 )}
               </form>
+              )}
 
               <div className="mt-6">
                 <WorkflowFieldsSummary

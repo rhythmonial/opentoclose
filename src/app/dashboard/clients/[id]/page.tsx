@@ -599,7 +599,7 @@ export default async function ClientDetailPage({
                         <h4 className="text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
                           {section}
                         </h4>
-                        <div className="mt-2 flex flex-col gap-2.5">
+                        <div className="mt-2 flex flex-col gap-1.5">
                           {phaseSteps
                             .filter((s) => s.section === section)
                             .map((step) => {
@@ -612,10 +612,10 @@ export default async function ClientDetailPage({
                               return (
                                 <div
                                   key={step.id}
-                                  className="rounded-lg border border-border-soft bg-bg p-4"
+                                  className="rounded-lg border border-border-soft bg-bg px-3.5 py-2"
                                 >
                                   <details>
-                                    <summary className="flex cursor-pointer flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                                    <summary className="flex cursor-pointer flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                                       <div className="flex items-center gap-2.5">
                                         <StepOwnerIcon
                                           completedBy={step.completed_by}
@@ -631,8 +631,21 @@ export default async function ClientDetailPage({
                                           </div>
                                         </div>
                                       </div>
+                                      <span className="flex items-center gap-2 self-start sm:self-auto">
+                                      {/* Their work in a configurator, opened
+                                          as they see it (changes save to
+                                          their account). */}
+                                      {step.step_type === "configurator" &&
+                                        step.key !== "setup_initiation" && (
+                                          <Link
+                                            href={`/configurator/${step.key}?client=${account.id}`}
+                                            className="rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-semibold text-accent hover:border-accent"
+                                          >
+                                            Open
+                                          </Link>
+                                        )}
                                       <span
-                                        className={`self-start rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide sm:self-auto ${
+                                        className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
                                           status === "approved"
                                             ? "bg-success-soft text-success"
                                             : status === "returned"
@@ -645,10 +658,11 @@ export default async function ClientDetailPage({
                                       >
                                         {STEP_STATUS_LABEL[status].toUpperCase()}
                                       </span>
+                                      </span>
                                     </summary>
 
                                     <div
-                                      className="mt-3 text-sm leading-relaxed text-ink-soft
+                                      className="mt-2 pb-1 text-sm leading-relaxed text-ink-soft
                                         [&_h1]:mt-3 [&_h1]:font-display [&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-ink
                                         [&_h2]:mt-3 [&_h2]:font-display [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-ink
                                         [&_h3]:mt-2 [&_h3]:font-bold [&_h3]:text-ink
