@@ -240,16 +240,21 @@ export default async function LessonPage({
     !isApproved &&
     !isPurchased &&
     !isPaidStep;
-  // DIY clients can ask our team to set up a step our team handles, with
-  // their setup hours (bought or buy-now). Previews show it with no hours.
-  const canRequestSetup =
-    clientPlan === "diy" &&
+  // Clients can ask our team to set up a step our team handles, with their
+  // setup hours (bought or buy-now): DIY clients always, Setup clients once
+  // their hours run out. Previews show it as that plan's client would.
+  const mayRequestSetup =
+    (clientPlan === "diy" || clientPlan === "custom") &&
     step.completed_by === "staff" &&
     !isApproved &&
     (isStaff || Boolean(profile?.client_account_id));
-  const hourlyRate = canBuyStep || canRequestSetup ? await getHourlyRate() : 0;
-  let setupHours = { purchased: 0, used: 0, requested: false };
-  if (canRequestSetup && profile?.client_account_id) {
+  let setupHours = {
+    // The Setup sandbox comes with the 10-hour bundle.
+    purchased: isSandboxing && clientPlan === "custom" ? PLAN_PRICES.setup.hours : 0,
+    used: 0,
+    requested: false,
+  };
+  if (mayRequestSetup && !isStaff && profile?.client_account_id) {
     const admin = createAdminClient();
     const [{ data: account }, { data: members }, { data: openRequest }] = await Promise.all([
       admin
@@ -278,6 +283,9 @@ export default async function LessonPage({
       requested: Boolean(openRequest),
     };
   }
+  const outOfHours = setupHours.purchased - setupHours.used <= 0;
+  const canRequestSetup = mayRequestSetup && (clientPlan === "diy" || outOfHours);
+  const hourlyRate = canBuyStep || canRequestSetup ? await getHourlyRate() : 0;
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
@@ -479,7 +487,9 @@ export default async function LessonPage({
               <div className="mb-6 rounded-xl border border-accent-soft bg-accent-soft/40 p-5">
                 <h2 className="text-[15px] font-bold text-ink">Want our team to set this up?</h2>
                 <p className="mt-1 mb-3 text-sm text-ink-soft">
-                  Request a set up and we&rsquo;ll do it for you using your setup hours.
+                  {clientPlan === "custom"
+                    ? "You’re out of setup hours. Add more and request a set up, and we’ll do it for you."
+                    : "Request a set up and we’ll do it for you using your setup hours."}
                 </p>
                 <RequestSetupButton
                   stepId={step.id}
