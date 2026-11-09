@@ -135,12 +135,11 @@ export default async function PortalPage({
   const requestedSteps = new Set((setupRequests ?? []).map((r) => r.step_id));
 
   // Steps unlock in order: one shows once every client step before it is
-  // done. Lessons our team handles hold DIY and Setup clients up too (they
-  // do it themselves or request a set up), but not once requested. Staff
-  // previewing (not in a sandbox) see everything.
-  const isClientStep = (s: { id: string; completed_by: string }) =>
-    effectiveOwner(s.completed_by, plan) === "client" ||
-    (isDelegable(s.completed_by, engagementType) && !requestedSteps.has(s.id));
+  // done. Lessons our team handles (which DIY and Setup clients may do or
+  // request) never hold them up. Staff previewing (not in a sandbox) see
+  // everything.
+  const isClientStep = (s: { completed_by: string }) =>
+    effectiveOwner(s.completed_by, plan) === "client";
   const unlocked = new Set<string>();
   {
     let blocked = false;

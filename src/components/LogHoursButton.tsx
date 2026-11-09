@@ -173,7 +173,11 @@ export function LogHoursButton({
                   />
                   <div className="max-h-56 overflow-y-auto rounded-lg border border-border bg-bg">
                     {groups.length === 0 && (
-                      <p className="px-3 py-3 text-sm text-ink-faint">No lessons match.</p>
+                      <p className="px-3 py-3 text-sm text-ink-faint">
+                        {lessons.length === 0
+                          ? "They haven’t requested any set ups yet."
+                          : "No lessons match."}
+                      </p>
                     )}
                     {groups.map(([phase, list]) => (
                       <div key={phase}>

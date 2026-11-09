@@ -120,7 +120,7 @@ export async function toggleLessonComplete(formData: FormData) {
   );
 
   // Next: their own lessons, and lessons our team handles that they can do
-  // or request (unless already requested).
+  // or request (unless already requested). (These never block them.)
   const next = (allSteps ?? []).find(
     (s) =>
       s.sort_order > step.sort_order &&

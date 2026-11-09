@@ -95,13 +95,16 @@ export default async function ClientDetailPage({
   const owner = (members ?? []).find((m) => m.role === "client_owner") ?? members?.[0];
   const memberIds = (members ?? []).map((m) => m.id);
 
-    // Lessons they asked our team to set up (still to do): starred below.
-  const { data: openSetUpRequests } = await supabase
+    // Lessons they asked our team to set up: open ones are starred below;
+  // every one they've requested is what hours get logged against.
+  const { data: setUpRequests } = await supabase
     .from("setup_requests")
-    .select("step_id")
-    .eq("client_account_id", id)
-    .is("done_at", null);
-  const requestedStepIds = new Set((openSetUpRequests ?? []).map((r) => r.step_id));
+    .select("step_id, done_at")
+    .eq("client_account_id", id);
+  const requestedStepIds = new Set(
+    (setUpRequests ?? []).filter((r) => !r.done_at).map((r) => r.step_id),
+  );
+  const everRequestedStepIds = new Set((setUpRequests ?? []).map((r) => r.step_id));
 
   const { data: ticketRows } = memberIds.length
     ? await supabase
@@ -394,9 +397,9 @@ export default async function ClientDetailPage({
             accountId={account.id}
             clientId={owner.id}
             action={logHours}
-            // Only the steps our team handles (marked S).
+            // Only the lessons they've asked our team to set up.
             lessons={sortedSteps
-              .filter((st) => st.completed_by === "staff")
+              .filter((st) => everRequestedStepIds.has(st.id))
               .map((st) => ({
               id: st.id,
               title: st.title,
