@@ -7,6 +7,8 @@ export type LessonOption = {
   title: string;
   phase: string;
   section: string;
+  // Already complete: shown checked and can't be picked.
+  done?: boolean;
 };
 
 // A + button on a client's page that opens the Log hours form: date, hours,
@@ -181,17 +183,25 @@ export function LogHoursButton({
                         {list.map((l) => (
                           <label
                             key={l.id}
-                            className="flex cursor-pointer items-start gap-2.5 px-3 py-1.5 text-sm text-ink hover:bg-surface"
+                            title={l.done ? "Complete" : undefined}
+                            className={`flex items-start gap-2.5 px-3 py-1.5 text-sm ${
+                              l.done
+                                ? "cursor-default text-ink-faint"
+                                : "cursor-pointer text-ink hover:bg-surface"
+                            }`}
                           >
                             <input
                               type="checkbox"
-                              checked={picked.has(l.id)}
+                              checked={l.done || picked.has(l.id)}
+                              disabled={l.done}
                               onChange={() => toggle(l.id)}
-                              className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
+                              className="mt-0.5 h-4 w-4 shrink-0 accent-accent disabled:opacity-50"
                             />
                             <span className="min-w-0">
                               {l.title}
-                              <span className="ml-1.5 text-xs text-ink-faint">{l.section}</span>
+                              <span className="ml-1.5 text-xs text-ink-faint">
+                                {l.done ? "Complete" : l.section}
+                              </span>
                             </span>
                           </label>
                         ))}

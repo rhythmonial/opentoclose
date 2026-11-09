@@ -392,6 +392,7 @@ export default async function ClientDetailPage({
               title: st.title,
               phase: st.phase ?? "General",
               section: st.section,
+              done: statusByStepId.get(st.id) === "approved",
             }))}
           />
         )}
