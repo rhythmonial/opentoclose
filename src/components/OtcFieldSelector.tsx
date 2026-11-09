@@ -110,13 +110,6 @@ export function OtcFieldSelector({
     save({ picked: next });
   }
 
-  function setDoneFor(g: string, on: boolean) {
-    const next = new Set(done);
-    if (on) next.add(g);
-    else next.delete(g);
-    save({ done: next });
-  }
-
   // Marks this group done and moves on to the next one not done yet.
   function finishGroup() {
     const next = new Set(done).add(group);
@@ -151,45 +144,43 @@ export function OtcFieldSelector({
 
   return (
     <div ref={top} className="flex scroll-mt-4 flex-col gap-4">
-      {/* Field group tabs, like OTC's group menu; the checkbox marks a
-          group done. */}
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Field groups">
+      {/* Field group tabs, like OTC's group menu, always on one row (they
+          share the width). A group marked done has a check. */}
+      <div className="flex gap-1 sm:gap-2" role="tablist" aria-label="Field groups">
         {SELECTABLE_GROUPS.map((g) => {
           const active = !q && g === group;
           const [on, total] = groupCount(g);
           return (
-            <div
+            <button
               key={g}
-              className={`flex items-center gap-2 rounded-lg border pl-3 text-sm font-semibold transition-colors ${
+              type="button"
+              role="tab"
+              aria-selected={active}
+              title={`${g}: ${on} of ${total} checked${done.has(g) ? " · done" : ""}`}
+              onClick={() => {
+                setGroup(g);
+                setQuery("");
+              }}
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-x-1 rounded-lg border px-0.5 py-1.5 text-[9px] font-semibold min-[360px]:text-[10px] leading-tight transition-colors sm:flex-row sm:px-3 sm:py-2 sm:text-sm ${
                 active
                   ? "border-emerald-500 bg-emerald-500 text-white"
                   : "border-border bg-surface text-ink-soft hover:border-emerald-500"
               }`}
             >
-              <input
-                type="checkbox"
-                checked={done.has(g)}
-                onChange={(e) => setDoneFor(g, e.target.checked)}
-                aria-label={`${g} done`}
-                title={done.has(g) ? "Done" : "Mark this group done"}
-                className="h-4 w-4 cursor-pointer accent-emerald-600"
-              />
-              <button
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => {
-                  setGroup(g);
-                  setQuery("");
-                }}
-                className="py-2 pr-3 text-left"
-              >
-                {g}
-                <span className={`ml-1.5 text-xs font-normal ${active ? "text-white/80" : "text-ink-faint"}`}>
-                  {on}/{total}
+              {done.has(g) && (
+                <span aria-hidden className={`hidden shrink-0 sm:inline ${active ? "text-white" : "text-emerald-600"}`}>
+                  &#10003;
                 </span>
-              </button>
-            </div>
+              )}
+              {/* On a phone the name can take two lines; wider, one. */}
+              <span className="min-w-0 max-w-full break-words text-center sm:truncate">{g}</span>
+              <span
+                className={`shrink-0 text-[10px] font-normal sm:text-xs ${active ? "text-white/80" : "text-ink-faint"}`}
+              >
+                {done.has(g) && <span className="sm:hidden">&#10003; </span>}
+                {on}/{total}
+              </span>
+            </button>
           );
         })}
       </div>
@@ -386,7 +377,7 @@ function FieldRow({
           )
         )}
       </label>
-      <span className="flex flex-wrap items-center gap-2">
+      <span className="flex min-w-0 max-w-full items-center">
         <input
           key={displayName}
           defaultValue={displayName}

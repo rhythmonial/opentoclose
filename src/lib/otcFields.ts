@@ -316,16 +316,16 @@ const FIELD_SECTIONS: [
       ["Referral W9 Received", "choice"],
     ],
   ],
-  ["Additional Fields (Not In Use)", "Open House Details", []],
-  ["Additional Fields (Not In Use)", "Showing Details", []],
-  ["Additional Fields (Not In Use)", "New Construction Details", []],
-  ["Additional Fields (Not In Use)", "Rental Details", []],
-  ["Additional Fields (Not In Use)", "Radon Details", []],
-  ["Additional Fields (Not In Use)", "Pool Details", []],
-  ["Additional Fields (Not In Use)", "Survey Details", []],
+  ["Additional Fields", "Open House Details", []],
+  ["Additional Fields", "Showing Details", []],
+  ["Additional Fields", "New Construction Details", []],
+  ["Additional Fields", "Rental Details", []],
+  ["Additional Fields", "Radon Details", []],
+  ["Additional Fields", "Pool Details", []],
+  ["Additional Fields", "Survey Details", []],
   [
-    "Additional Fields (Not In Use)",
-    "Additional Fields (Not In Use)",
+    "Additional Fields",
+    "Additional Fields",
     [
       ["Inclusions", "text_area"],
       ["Exclusions", "text_area"],
@@ -334,10 +334,10 @@ const FIELD_SECTIONS: [
       ["Extension Agreement - Date", "date"],
     ],
   ],
-  ["Additional Fields (Not In Use)", "Termite & Pest Details", []],
-  ["Additional Fields (Not In Use)", "Solar Details", []],
+  ["Additional Fields", "Termite & Pest Details", []],
+  ["Additional Fields", "Solar Details", []],
   [
-    "Additional Fields (Not In Use)",
+    "Additional Fields",
     "Well Details",
     [
       ["Well Onsite", "choice"],
@@ -346,7 +346,7 @@ const FIELD_SECTIONS: [
     ],
   ],
   [
-    "Additional Fields (Not In Use)",
+    "Additional Fields",
     "Septic Details",
     [
       ["Septic Onsite", "choice"],
@@ -355,7 +355,7 @@ const FIELD_SECTIONS: [
     ],
   ],
   [
-    "Additional Fields (Not In Use)",
+    "Additional Fields",
     "Team Commission Details",
     [
       ["Gross Commission Amount", "currency"],
@@ -369,7 +369,7 @@ const FIELD_SECTIONS: [
     ],
   ],
   [
-    "Additional Fields (Not In Use)",
+    "Additional Fields",
     "Brokerage Commission Details",
     [
       ["Brokerage Split Flat Fee Amount", "currency"],
@@ -387,7 +387,9 @@ export const OTC_SECTIONS: OtcSection[] = [
     fields: CONTACT_ROLES.map((name) => ({ name, kind: "contact" as const })),
   },
   ...FIELD_SECTIONS.map(([group, name, fields]) => ({
-    id: slug(name),
+    // Ids stay as they were when OTC called this section "Additional Fields
+    // (Not In Use)", so saved fields keep matching.
+    id: slug(name === "Additional Fields" ? "Additional Fields (Not In Use)" : name),
     group,
     name,
     fields: fields.map(([field, kind]) => ({ name: field, kind })),
