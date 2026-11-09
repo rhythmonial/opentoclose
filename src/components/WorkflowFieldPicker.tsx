@@ -808,7 +808,6 @@ function FieldTypeMenu({
           {isOption && optionOf && (
             <>
               <div className="flex items-end gap-1 px-1">
-                {value?.question_id && clearButton}
                 <button
                   type="button"
                   role="menuitem"
@@ -826,6 +825,7 @@ function FieldTypeMenu({
                     <span className="text-xs font-semibold text-accent">Change</span>
                   </span>
                 </button>
+                {value?.question_id && clearButton}
               </div>
               {value?.question_id && unlinkedOptions.length > 0 && onLinkOptions && (
                 <button
@@ -847,7 +847,6 @@ function FieldTypeMenu({
           {assigned && (
             <>
               <div className="flex items-end gap-1 px-1">
-                {clearButton}
                 <button
                   type="button"
                   role="menuitem"
@@ -867,6 +866,7 @@ function FieldTypeMenu({
                     </span>
                   </span>
                 </button>
+                {clearButton}
               </div>
               <div className="my-1 border-t border-border" />
             </>
