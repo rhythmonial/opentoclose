@@ -5,12 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
 import type { ContractBlank } from "@/lib/contractBlanks";
-import { WorkflowDocCard } from "@/components/WorkflowDocCard";
-import { WorkflowFieldsSummary } from "@/components/WorkflowFieldsSummary";
-import { isActive, isComplete, newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
+import { AssignWorkflowWorkspace } from "@/components/AssignWorkflowWorkspace";
+import { newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldsTester } from "@/components/WorkflowFieldsTester";
 import { cleanFieldNames, OTC_FIELDS } from "@/lib/otcFields";
-import { finishWorkflowFields } from "./actions";
 
 const STEP_KEY = "assign_your_workflow_fields";
 
@@ -79,12 +77,9 @@ export default async function AssignWorkflowFieldsPage({
   );
   const fieldsOf = (d: { workflow_fields: unknown }) =>
     Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : [];
-  const picked = (docs ?? []).flatMap(fieldsOf).filter(isActive);
-  const pickedCount = picked.length;
   // Fields the client created, on any contract (removed fields included, so
   // a created choice field stays available after its option is removed).
   const addedOtcFields = newOtcFieldsFrom((docs ?? []).flatMap(fieldsOf));
-  const needsAnswer = picked.filter((f) => !isComplete(f)).length;
   // What they'd like fields called (shared with Finalize Your Fields).
   const { data: selection } = accountId
     ? await supabase
@@ -173,64 +168,27 @@ export default async function AssignWorkflowFieldsPage({
               lesson first, then come back here to pick your workflow fields.
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {docs.map((doc, i) => {
+            <AssignWorkflowWorkspace
+              docs={docs.flatMap((doc) => {
                 const url = urlByPath.get(doc.storage_path);
-                if (!url) return null;
-                return (
-                  <WorkflowDocCard
-                    key={doc.id}
-                    id={doc.id}
-                    fileName={doc.file_name}
-                    url={url}
-                    pageCount={doc.page_count ?? 0}
-                    blanks={doc.blanks as ContractBlank[]}
-                    fields={fieldsOf(doc)}
-                    otcFields={addedOtcFields}
-                    reviewed={Boolean(doc.reviewed_at)}
-                    defaultOpen={i === 0}
-                  />
-                );
+                return url
+                  ? [
+                      {
+                        id: doc.id,
+                        fileName: doc.file_name,
+                        url,
+                        pageCount: doc.page_count ?? 0,
+                        blanks: doc.blanks as ContractBlank[],
+                        fields: fieldsOf(doc),
+                        reviewed: Boolean(doc.reviewed_at),
+                      },
+                    ]
+                  : [];
               })}
-
-              <div className="mt-6">
-                <WorkflowFieldsSummary
-                  docs={docs.map((d) => ({
-                    id: d.id,
-                    name: d.file_name,
-                    blanks: d.blanks as ContractBlank[],
-                    fields: fieldsOf(d),
-                  }))}
-                  editing={{ accountId: staffClient?.id ?? null, names: fieldNames }}
-                />
-              </div>
-              {!isStaff && (
-              <form
-                action={finishWorkflowFields}
-                className="mt-4 flex flex-col items-center gap-2"
-              >
-                <button
-                  type="submit"
-                  disabled={pickedCount === 0 || needsAnswer > 0}
-                  className="rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                >
-                  I&rsquo;m Done With This Page
-                </button>
-                {pickedCount === 0 ? (
-                  <span className="text-xs text-ink-faint">
-                    Pick at least one field to finish.
-                  </span>
-                ) : (
-                  needsAnswer > 0 && (
-                    <span className="text-xs text-danger">
-                      {needsAnswer} field{needsAnswer === 1 ? " still needs" : "s still need"} an
-                      answer. They&rsquo;re outlined in red.
-                    </span>
-                  )
-                )}
-              </form>
-              )}
-            </div>
+              otcFields={addedOtcFields}
+              editing={{ accountId: staffClient?.id ?? null, names: fieldNames }}
+              canFinish={!isStaff}
+            />
           )}
         </div>
       </div>

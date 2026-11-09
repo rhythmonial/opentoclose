@@ -52,6 +52,8 @@ export function WorkflowFieldPicker({
   onSave,
   onChange,
   onLineNumbers,
+  page: pageProp,
+  onPageChange,
 }: {
   source: ArrayBuffer | string;
   pageCount: number;
@@ -65,9 +67,13 @@ export function WorkflowFieldPicker({
   // Gets the contract's line number for each box (by id), when some boxes
   // haven't had theirs read yet.
   onLineNumbers?: (lines: Record<string, number | null>) => Promise<unknown>;
+  // The page shown, when the parent keeps track of it.
+  page?: number;
+  onPageChange?: (page: number) => void;
 }) {
   const { doc, error } = usePdfDocument(source);
-  const [page, setPage] = useState(1);
+  const [ownPage, setOwnPage] = useState(1);
+  const page = pageProp ?? ownPage;
   const [picks, setPicks] = useState(
     () =>
       new Map(
@@ -281,7 +287,8 @@ export function WorkflowFieldPicker({
 
   function changePage(n: number) {
     setOpenId(null);
-    setPage(n);
+    if (onPageChange) onPageChange(n);
+    else setOwnPage(n);
   }
 
   return (
@@ -712,7 +719,7 @@ function FieldTypeMenu({
       onClick={clearSelection}
       aria-label="Clear selection"
       title="Clear selection"
-      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-faint hover:bg-bg hover:text-accent focus-visible:bg-bg focus-visible:text-accent focus-visible:outline-none"
+      className="mb-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-faint hover:bg-bg hover:text-accent focus-visible:bg-bg focus-visible:text-accent focus-visible:outline-none"
     >
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />

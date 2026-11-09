@@ -20,7 +20,11 @@ export function WorkflowDocCard({
   fields,
   otcFields,
   reviewed,
-  defaultOpen,
+  open,
+  onToggle,
+  page,
+  onPageChange,
+  onFieldsChange,
 }: {
   id: string;
   fileName: string;
@@ -31,10 +35,22 @@ export function WorkflowDocCard({
   // OTC fields the client has added on any of their contracts.
   otcFields: OtcField[];
   reviewed: boolean;
-  defaultOpen: boolean;
+  open: boolean;
+  onToggle: (open: boolean) => void;
+  page: number;
+  onPageChange: (page: number) => void;
+  onFieldsChange: (fields: WorkflowField[]) => void;
 }) {
   return (
-    <details open={defaultOpen} className="rounded-xl border border-border bg-surface p-4">
+    <details
+      id={`contract-${id}`}
+      open={open}
+      onToggle={(e) => {
+        const now = e.currentTarget.open;
+        if (now !== open) onToggle(now);
+      }}
+      className="scroll-mt-4 rounded-xl border border-border bg-surface p-4"
+    >
       <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2">
         <span className="min-w-0 truncate text-sm font-semibold text-ink">{fileName}</span>
         <span className="text-xs text-ink-faint">
@@ -55,6 +71,9 @@ export function WorkflowDocCard({
             blanks={blanks}
             initialFields={fields}
             extraOtcFields={otcFields}
+            page={page}
+            onPageChange={onPageChange}
+            onChange={onFieldsChange}
             onSave={(picked) => saveWorkflowFields(id, picked)}
             onLineNumbers={(lines) => saveContractLines(id, lines)}
           />

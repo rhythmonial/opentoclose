@@ -154,12 +154,16 @@ function Chips({ items }: { items: string[] }) {
 // With `editing`, each assigned field can be renamed (saved with Finalize
 // Your Fields), and a field the client added can be pointed at an Open to
 // Close field instead.
+// With `onlyPage`, the assigned fields table lists just the fields on that
+// page of that contract.
 export function WorkflowFieldsSummary({
   docs,
   editing,
+  onlyPage,
 }: {
   docs: SummaryDoc[];
   editing?: { accountId: string | null; names: Record<string, string> };
+  onlyPage?: { docId: string; page: number };
 }) {
   const active = docs.flatMap((d) => d.fields).filter(isActive);
   const added = newOtcFieldsFrom(active);
@@ -167,7 +171,16 @@ export function WorkflowFieldsSummary({
     id ? [...OTC_FIELDS, ...added].find((f) => f.id === id)?.name : undefined;
   const isNewId = (id?: string) =>
     Boolean(id && added.some((f) => f.id === id));
-  const assigned = docs.map((d) => ({ doc: d, rows: inContractOrder(d) }));
+  const onThatPage = (d: SummaryDoc, f: WorkflowField) =>
+    d.blanks.some(
+      (b) => (b.id === f.id || b.group === f.id) && b.page === onlyPage!.page,
+    );
+  const assigned = docs
+    .filter((d) => !onlyPage || d.id === onlyPage.docId)
+    .map((d) => ({
+      doc: d,
+      rows: inContractOrder(d).filter((r) => !onlyPage || onThatPage(d, r.field)),
+    }));
   const newFields = added.filter((f) => !isContactRole(f));
   const newRoles = added.filter((f) => isContactRole(f));
 
@@ -207,9 +220,20 @@ export function WorkflowFieldsSummary({
         Your workflow fields
       </h2>
       <p className="mt-1 text-sm text-ink-soft">
-        Every field you&rsquo;ve assigned, in the order it appears on your
-        contract, then the fields, contact roles and choice options you&rsquo;ve
-        added. We&rsquo;ll use these when we build your account.
+        {onlyPage ? (
+          <>
+            The fields you&rsquo;ve assigned on the page you&rsquo;re working on,
+            in the order they appear, then the fields, contact roles and choice
+            options you&rsquo;ve added on all your contracts. We&rsquo;ll use these
+            when we build your account.
+          </>
+        ) : (
+          <>
+            Every field you&rsquo;ve assigned, in the order it appears on your
+            contract, then the fields, contact roles and choice options you&rsquo;ve
+            added. We&rsquo;ll use these when we build your account.
+          </>
+        )}
       </p>
 
       <div className="mt-4">
@@ -218,19 +242,20 @@ export function WorkflowFieldsSummary({
 
       <div className="mt-4 flex flex-col gap-4">
         <h3 className="text-xs font-bold uppercase tracking-wide text-ink-faint">
-          Assigned fields
+          {onlyPage ? `Assigned fields on page ${onlyPage.page}` : "Assigned fields"}
         </h3>
         {assigned.every((a) => a.rows.length === 0) && (
           <p className="text-sm text-ink-faint">
-            Nothing yet. Fields you assign will be listed here in contract
-            order.
+            {onlyPage
+              ? "Nothing on this page yet. Fields you assign here will be listed in contract order."
+              : "Nothing yet. Fields you assign will be listed here in contract order."}
           </p>
         )}
         {assigned
           .filter((a) => a.rows.length > 0)
           .map(({ doc, rows }) => (
             <div key={doc.id}>
-              {docs.length > 1 && (
+              {(docs.length > 1 || onlyPage) && (
                 <p className="mb-1.5 truncate text-sm font-semibold text-ink">
                   {doc.name}
                 </p>
