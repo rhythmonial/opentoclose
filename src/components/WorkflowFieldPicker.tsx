@@ -342,6 +342,25 @@ export function WorkflowFieldPicker({
         you restore it.
       </p>
 
+      <div className="flex flex-wrap items-center gap-4 text-xs text-ink-soft">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-4 rounded-sm border-2 border-gold/70 bg-gold/10" />
+          Contract field
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-4 rounded-sm border-2 border-accent bg-accent/30" />
+          Workflow field
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-4 rounded-sm border-2 border-danger bg-danger/15" />
+          Needs an answer
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-4 rounded-sm border-2 border-zinc-400 bg-zinc-400/40" />
+          Removed
+        </span>
+      </div>
+
       <div className="relative overflow-hidden rounded-lg border border-border bg-white">
         {error ? (
           <p className="p-6 text-sm text-danger">{error}</p>
@@ -440,24 +459,6 @@ export function WorkflowFieldPicker({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 text-xs text-ink-soft">
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-4 rounded-sm border-2 border-gold/70 bg-gold/10" />
-          Contract field
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-4 rounded-sm border-2 border-accent bg-accent/30" />
-          Workflow field
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-4 rounded-sm border-2 border-danger bg-danger/15" />
-          Needs an answer
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-4 rounded-sm border-2 border-zinc-400 bg-zinc-400/40" />
-          Removed
-        </span>
-      </div>
     </div>
   );
 }
