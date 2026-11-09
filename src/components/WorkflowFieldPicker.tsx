@@ -575,8 +575,16 @@ function FieldTypeMenu({
   const [newName, setNewName] = useState("");
   // Kept current so the listeners below are set up once, when it opens.
   const closeRef = useRef(onClose);
+  // Takes the field out of the workflow (it stays on the page, grayed out).
+  const removeField = () => {
+    if (value?.removed) return;
+    onChange({ ...(value ?? { id: fieldKey }), removed: true });
+    onClose();
+  };
+  const removeRef = useRef(removeField);
   useEffect(() => {
     closeRef.current = onClose;
+    removeRef.current = removeField;
   });
 
   useEffect(() => {
@@ -593,6 +601,20 @@ function FieldTypeMenu({
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
+      const t = e.target as HTMLElement | null;
+      const typing =
+        t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+      // Delete (or Backspace) removes the field, as in Upload Your
+      // Contracts, unless they're typing in a box.
+      if ((e.key === "Delete" || e.key === "Backspace") && !typing) {
+        e.preventDefault();
+        removeRef.current();
+        return;
+      }
+      // Typing a letter while the menu has focus starts a search.
+      if (!typing && e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        ref.current?.querySelector<HTMLInputElement>("input[data-autofocus]")?.focus();
+      }
     };
     document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
@@ -602,12 +624,18 @@ function FieldTypeMenu({
     };
   }, []);
 
-  // Focus the first choice whenever the menu opens or changes view.
+  // Focus the first choice whenever the menu opens or changes view. When it
+  // first opens on a search box, the menu itself takes focus instead, so
+  // Delete removes the field; typing a letter moves into the search box.
+  const firstView = useRef(view);
+  const moved = useRef(false);
   useEffect(() => {
-    (
+    if (view !== firstView.current) moved.current = true;
+    const target =
       ref.current?.querySelector<HTMLElement>("[data-autofocus]") ??
-      ref.current?.querySelector<HTMLElement>("[data-menu-item], input")
-    )?.focus();
+      ref.current?.querySelector<HTMLElement>("[data-menu-item], input");
+    if (!moved.current && target?.tagName === "INPUT") ref.current?.focus();
+    else target?.focus();
   }, [view]);
 
   function onMenuKey(e: React.KeyboardEvent) {
@@ -659,6 +687,37 @@ function FieldTypeMenu({
   const assigned = value?.otc_field
     ? otcFields.find((f) => f.id === value.otc_field)
     : undefined;
+
+  // Back to blank: drops the OTC field (or an option's choice field)
+  // picked here, keeping the field's type and an option's title.
+  function clearSelection() {
+    if (!value) return;
+    const cleared: WorkflowField = { ...value };
+    delete cleared.otc_field;
+    delete cleared.otc_field_name;
+    delete cleared.otc_section;
+    delete cleared.question_id;
+    delete cleared.question_text;
+    delete cleared.question_section;
+    delete cleared.question_confirmed;
+    onChange(cleared);
+    onClose();
+  }
+  const clearButton = (
+    <button
+      type="button"
+      data-menu-item
+      onClick={clearSelection}
+      aria-label="Clear selection"
+      title="Clear selection"
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-faint hover:bg-bg hover:text-accent focus-visible:bg-bg focus-visible:text-accent focus-visible:outline-none"
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+        <path d="M3 3v5h5" />
+      </svg>
+    </button>
+  );
 
   // Open below the field, or above it near the bottom of the page, and keep
   // it on the page sideways.
@@ -715,8 +774,9 @@ function FieldTypeMenu({
       role="menu"
       aria-label={`Field type for ${label}`}
       onKeyDown={onMenuKey}
+      tabIndex={-1}
       style={style}
-      className="absolute z-20 flex w-72 flex-col rounded-lg border border-border bg-surface p-1 text-left shadow-lg"
+      className="absolute z-20 flex w-72 flex-col rounded-lg border border-border bg-surface p-1 text-left shadow-lg outline-none"
     >
       {value?.removed ? (
         // A removed field only offers to come back, with its answers.
@@ -745,26 +805,29 @@ function FieldTypeMenu({
         <>
           {isOption && optionOf && (
             <>
-              <button
-                type="button"
-                role="menuitem"
-                data-menu-item
-                onClick={() => setView("option-title")}
-                className={`${itemClass} flex-col !items-start gap-0`}
-              >
-                <span className="text-[11px] font-medium text-ink-faint">
-                  Option for {optionOf}
-                  {!value?.question_confirmed && (
-                    <span className="text-danger"> &middot; pick its choice field</span>
-                  )}
-                </span>
-                <span className="flex w-full items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate font-semibold">
-                    {value?.option_title || "No title yet"}
+              <div className="flex items-end gap-1 px-1">
+                {value?.question_id && clearButton}
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-menu-item
+                  onClick={() => setView("option-title")}
+                  className={`${itemClass} min-w-0 flex-1 flex-col !items-start gap-0 !px-1.5`}
+                >
+                  <span className="text-[11px] font-medium text-ink-faint">
+                    Option for {optionOf}
+                    {!value?.question_confirmed && (
+                      <span className="text-danger"> &middot; pick its choice field</span>
+                    )}
                   </span>
-                  <span className="text-xs font-semibold text-accent">Change</span>
-                </span>
-              </button>
+                  <span className="flex w-full items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate font-semibold">
+                      {value?.option_title || "No title yet"}
+                    </span>
+                    <span className="text-xs font-semibold text-accent">Change</span>
+                  </span>
+                </button>
+              </div>
               {value?.question_confirmed && unlinkedOptions.length > 0 && onLinkOptions && (
                 <button
                   type="button"
@@ -784,25 +847,28 @@ function FieldTypeMenu({
           )}
           {assigned && (
             <>
-              <button
-                type="button"
-                role="menuitem"
-                data-menu-item
-                onClick={() => setView("otc")}
-                className={`${itemClass} flex-col !items-start gap-0`}
-              >
-                <span className="text-[11px] font-medium text-ink-faint">
-                  {isContactRole(assigned) ? "Contact role" : "OTC field"}
-                </span>
-                <span className="flex w-full items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate font-semibold">
-                    {assigned.name}
+              <div className="flex items-end gap-1 px-1">
+                {clearButton}
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-menu-item
+                  onClick={() => setView("otc")}
+                  className={`${itemClass} min-w-0 flex-1 flex-col !items-start gap-0 !px-1.5`}
+                >
+                  <span className="text-[11px] font-medium text-ink-faint">
+                    {isContactRole(assigned) ? "Contact role" : "OTC field"}
                   </span>
-                  <span className="text-xs font-semibold text-accent">
-                    Change
+                  <span className="flex w-full items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate font-semibold">
+                      {assigned.name}
+                    </span>
+                    <span className="text-xs font-semibold text-accent">
+                      Change
+                    </span>
                   </span>
-                </span>
-              </button>
+                </button>
+              </div>
               <div className="my-1 border-t border-border" />
             </>
           )}
@@ -850,51 +916,10 @@ function FieldTypeMenu({
               &rsaquo;
             </span>
           </button>
-          {/* Back to blank: drops the OTC field (or an option's choice
-              field) picked here, keeping the field's type. */}
-          {(value?.otc_field || (isOption && value?.question_id)) && (
-            <>
-              <div className="my-1 border-t border-border" />
-              <button
-                type="button"
-                role="menuitem"
-                data-menu-item
-                onClick={() => {
-                  const cleared: WorkflowField = { ...value };
-                  delete cleared.otc_field;
-                  delete cleared.otc_field_name;
-                  delete cleared.otc_section;
-                  delete cleared.question_id;
-                  delete cleared.question_text;
-                  delete cleared.question_section;
-                  delete cleared.question_confirmed;
-                  onChange(cleared);
-                  onClose();
-                }}
-                className={itemClass}
-              >
-                <span aria-hidden className="w-3.5 shrink-0 text-center text-ink-faint">
-                  &#8634;
-                </span>
-                Clear selection
-              </button>
-            </>
-          )}
-          {/* Always last. The field stays on the page, grayed out. */}
-          <div className="my-1 border-t border-border" />
-          <button
-            type="button"
-            role="menuitem"
-            data-menu-item
-            onClick={() => {
-              onChange({ ...(value ?? { id: fieldKey }), removed: true });
-              onClose();
-            }}
-            className={`${itemClass} !text-danger hover:!bg-danger/10 focus-visible:!bg-danger/10`}
-          >
-            <Check on={false} />
-            Remove from workflow
-          </button>
+          <p className="mt-1 px-2.5 text-[11px] text-ink-faint">
+            Press <span className="font-semibold">Delete</span> to remove this field from the
+            workflow.
+          </p>
           {/* What the hovered (or focused) type is for. */}
           <p
             aria-live="polite"
