@@ -54,6 +54,7 @@ export function WorkflowFieldPicker({
   onLineNumbers,
   page: pageProp,
   onPageChange,
+  syncKey,
 }: {
   source: ArrayBuffer | string;
   pageCount: number;
@@ -70,6 +71,9 @@ export function WorkflowFieldPicker({
   // The page shown, when the parent keeps track of it.
   page?: number;
   onPageChange?: (page: number) => void;
+  // When this changes, the fields start over from `initialFields` (after a
+  // change made elsewhere on the page).
+  syncKey?: number;
 }) {
   const { doc, error } = usePdfDocument(source);
   const [ownPage, setOwnPage] = useState(1);
@@ -82,6 +86,13 @@ export function WorkflowFieldPicker({
         ),
       ),
   );
+  const [syncedKey, setSyncedKey] = useState(syncKey);
+  if (syncKey !== syncedKey) {
+    setSyncedKey(syncKey);
+    setPicks(
+      new Map(cleanWorkflowFields(initialFields, workflowKeys(blanks)).map((f) => [f.id, f] as const)),
+    );
+  }
   // The box that was clicked (its menu opens under it).
   const [openId, setOpenId] = useState<string | null>(null);
   const [hoverKey, setHoverKey] = useState<string | null>(null);
@@ -649,6 +660,7 @@ function FieldTypeMenu({
   function assignOtc(field: OtcField) {
     if (!value) return;
     const next: WorkflowField = { ...value, otc_field: field.id };
+    delete next.was_new;
     delete next.otc_field_name;
     delete next.otc_section;
     if (field.isNew) {
@@ -668,6 +680,7 @@ function FieldTypeMenu({
   function clearSelection() {
     if (!value) return;
     const cleared: WorkflowField = { ...value };
+    delete cleared.was_new;
     delete cleared.otc_field;
     delete cleared.otc_field_name;
     delete cleared.otc_section;

@@ -25,12 +25,10 @@ export type SummaryDoc = {
 // The workflow field type, as the field menu names it.
 export function typeLabel(f: WorkflowField) {
   if (f.type === "decimal") {
-    return f.decimal_format === "percentage"
-      ? "Decimal Percent"
-      : "Decimal Dollar";
+    return f.decimal_format === "percentage" ? "Percent" : "Dollar";
   }
   if (f.type === "choice")
-    return f.choice_role === "option" ? "Choice option" : "Choice field";
+    return f.choice_role === "option" ? "Choice" : "Choice field";
   return KIND_LABELS[f.type ?? ""] ?? "";
 }
 
@@ -57,8 +55,8 @@ const KIND_LABELS: Record<string, string> = {
   contact: "Contact",
   text: "Text",
   text_area: "Text area",
-  currency: "Decimal Dollar",
-  percentage: "Decimal Percent",
+  currency: "Dollar",
+  percentage: "Percent",
   date: "Date",
   number: "Number",
   choice: "Choice",
@@ -162,7 +160,13 @@ export function WorkflowFieldsSummary({
   onlyPage,
 }: {
   docs: SummaryDoc[];
-  editing?: { accountId: string | null; names: Record<string, string> };
+  editing?: {
+    accountId: string | null;
+    names: Record<string, string>;
+    // Applies a change made from the table (assigning a field the client
+    // added to an OTC field, or undoing that) to the fields on screen.
+    onFieldsChanged?: (change: (fields: WorkflowField[]) => WorkflowField[]) => void;
+  };
   onlyPage?: { docId: string; page: number };
 }) {
   const active = docs.flatMap((d) => d.fields).filter(isActive);
@@ -181,6 +185,47 @@ export function WorkflowFieldsSummary({
       doc: d,
       rows: inContractOrder(d).filter((r) => !onlyPage || onThatPage(d, r.field)),
     }));
+  // One row per field: a choice field's options on one row, their titles
+  // separated by commas.
+  type Row = {
+    field: WorkflowField;
+    first: ContractBlank;
+    fields: WorkflowField[];
+    option: boolean;
+    target?: string;
+    name?: string;
+    titles: string[];
+    needs: boolean;
+  };
+  const tableRows = (list: { field: WorkflowField; first: ContractBlank }[]) => {
+    const out: Row[] = [];
+    for (const { field: f, first } of list) {
+      const option = f.type === "choice" && f.choice_role === "option";
+      const target = option
+        ? (questionOtc.get(f.question_id ?? "") ?? f.question_id)
+        : f.otc_field;
+      const name = otcName(target) ?? (option ? f.question_text : undefined);
+      const title = option && f.option_title ? f.option_title : undefined;
+      const same = option && name ? out.find((r) => r.option && r.target === target) : undefined;
+      if (same) {
+        same.fields.push(f);
+        if (title && !same.titles.includes(title)) same.titles.push(title);
+        same.needs ||= !isComplete(f);
+        continue;
+      }
+      out.push({
+        field: f,
+        first,
+        fields: [f],
+        option,
+        target,
+        name,
+        titles: title ? [title] : [],
+        needs: !isComplete(f),
+      });
+    }
+    return out;
+  };
   const newFields = added.filter((f) => !isContactRole(f));
   const newRoles = added.filter((f) => isContactRole(f));
 
@@ -255,66 +300,63 @@ export function WorkflowFieldsSummary({
           .filter((a) => a.rows.length > 0)
           .map(({ doc, rows }) => (
             <div key={doc.id}>
-              {(docs.length > 1 || onlyPage) && (
+              {docs.length > 1 && !onlyPage && (
                 <p className="mb-1.5 truncate text-sm font-semibold text-ink">
                   {doc.name}
                 </p>
               )}
               <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full min-w-[28rem] text-left text-sm">
+                <table className="w-full min-w-[30rem] text-left text-sm">
                   <thead className="bg-bg text-xs text-ink-soft">
                     <tr>
-                      <th className="px-3 py-2 font-semibold">Line</th>
-                      <th className="px-3 py-2 font-semibold">Page</th>
+                      <th className="w-12 px-3 py-2 font-semibold">Line</th>
                       <th className="px-3 py-2 font-semibold">Field</th>
-                      <th className="px-3 py-2 font-semibold">Type</th>
+                      <th className="w-20 px-3 py-2 font-semibold">Type</th>
                       {editing && (
-                        <th className="px-3 py-2 font-semibold">Rename or assign</th>
+                        <th className="w-[11.5rem] px-3 py-2 font-semibold">Rename or assign</th>
                       )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {rows.map(({ field: f, first }) => {
-                      const option =
-                        f.type === "choice" && f.choice_role === "option";
-                      const target = option
-                        ? (questionOtc.get(f.question_id ?? "") ?? f.question_id)
-                        : f.otc_field;
-                      const name =
-                        otcName(target) ??
-                        (option ? f.question_text : undefined);
+                    {tableRows(rows).map((row) => {
+                      const { field: f, first, target, name, titles, needs } = row;
+                      const text = name
+                        ? `${name}${titles.length > 0 ? ` → ${titles.join(", ")}` : ""}`
+                        : fieldLabel(first);
+                      const was = row.fields.find((x) => x.was_new)?.was_new;
                       return (
-                        <tr key={f.id} className="align-top">
-                          <td className="px-3 py-2 text-ink-faint">{first.line ?? "—"}</td>
-                          <td className="px-3 py-2 text-ink-soft">
-                            {first.page}
+                        <tr key={f.id}>
+                          <td className="whitespace-nowrap px-3 py-2 text-ink-faint">
+                            {first.line ?? "—"}
                           </td>
-                          {/* The field they picked; until it has one, the
-                              contract's wording, to help find it. */}
-                          <td className="px-3 py-2 text-ink">
-                            {name ? (
-                              <>
-                                {name}
-                                {option && f.option_title && (
-                                  <span className="text-ink-soft">
-                                    {" "}
-                                    &rarr; {f.option_title}
-                                  </span>
+                          {/* The field they picked (and for a choice field,
+                              its options); until it has one, the contract's
+                              wording, to help find it. */}
+                          <td className="max-w-0 px-3 py-2 text-ink">
+                            <span className="flex min-w-0 items-center gap-1.5" title={text}>
+                              <span className={`min-w-0 truncate ${name ? "" : "text-ink-faint"}`}>
+                                {name ? (
+                                  <>
+                                    {name}
+                                    {titles.length > 0 && (
+                                      <span className="text-ink-soft"> &rarr; {titles.join(", ")}</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  text
                                 )}
-                                {isNewId(target) && (
-                                  <span className="ml-1.5 rounded bg-gold/20 px-1 py-px text-[10px] font-bold uppercase text-ink">
-                                    New
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-ink-faint">{fieldLabel(first)}</span>
-                            )}
-                            {!isComplete(f) && (
-                              <span className="text-xs font-semibold text-danger">
-                                {" · "}Needs an answer
                               </span>
-                            )}
+                              {name && isNewId(target) && (
+                                <span className="shrink-0 rounded bg-gold/20 px-1 py-px text-[10px] font-bold uppercase text-ink">
+                                  New
+                                </span>
+                              )}
+                              {needs && (
+                                <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-danger">
+                                  Needs an answer
+                                </span>
+                              )}
+                            </span>
                           </td>
                           <td className="whitespace-nowrap px-3 py-2 text-ink-soft">
                             {typeLabel(f)}
@@ -327,10 +369,11 @@ export function WorkflowFieldsSummary({
                                   createdId={target}
                                   createdName={name ?? ""}
                                   choices={OTC_FIELDS.filter((o) =>
-                                    option
+                                    row.option
                                       ? o.kind === "choice"
                                       : kindMatches(o.kind, f.type, f.decimal_format),
                                   )}
+                                  onMapped={editing.onFieldsChanged}
                                 />
                               ) : target && name && OTC_FIELDS.some((o) => o.id === target) ? (
                                 <FieldRenameInput
@@ -339,6 +382,8 @@ export function WorkflowFieldsSummary({
                                   otcId={target}
                                   otcName={name}
                                   initial={editing.names[target] ?? ""}
+                                  revertTo={was}
+                                  onReverted={editing.onFieldsChanged}
                                 />
                               ) : null}
                             </td>

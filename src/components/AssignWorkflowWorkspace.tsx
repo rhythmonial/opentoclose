@@ -58,6 +58,18 @@ export function AssignWorkflowWorkspace({
     initialDocId && docs.some((d) => d.id === initialDocId) ? initialDocId : null,
   );
   const [finishing, setFinishing] = useState(false);
+  // Bumped when a change made from the fields table (on every contract)
+  // needs to show on the open contract.
+  const [syncKey, setSyncKey] = useState(0);
+  const editingHere = {
+    ...editing,
+    onFieldsChanged: (change: (fields: WorkflowField[]) => WorkflowField[]) => {
+      setFieldsByDoc((prev) =>
+        Object.fromEntries(Object.entries(prev).map(([id, fields]) => [id, change(fields)])),
+      );
+      setSyncKey((k) => k + 1);
+    },
+  };
 
   const fieldsOf = (id: string) => fieldsByDoc[id] ?? [];
   const needsIn = (id: string) => fieldsOf(id).filter(isActive).filter((f) => !isComplete(f)).length;
@@ -198,6 +210,7 @@ export function AssignWorkflowWorkspace({
             extraOtcFields={otcFields}
             page={page}
             onPageChange={setPage}
+            syncKey={syncKey}
             onChange={(fields) => setFieldsByDoc((prev) => ({ ...prev, [doc.id]: fields }))}
             onSave={(picked) => saveWorkflowFields(doc.id, picked)}
             onLineNumbers={(lines) => saveContractLines(doc.id, lines)}
@@ -208,7 +221,7 @@ export function AssignWorkflowWorkspace({
       <div className="mt-6">
         <WorkflowFieldsSummary
           docs={[{ id: doc.id, name: doc.fileName, blanks: doc.blanks, fields: fieldsOf(doc.id) }]}
-          editing={editing}
+          editing={editingHere}
           onlyPage={{ docId: doc.id, page }}
         />
       </div>

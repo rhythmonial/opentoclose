@@ -12,8 +12,8 @@ import {
   isComplete,
   NEW_OTC_PREFIX,
   newOtcFieldsFrom,
-  otcTargetOf,
-  reassignTo,
+  mapCreated,
+  unmapCreated,
   withChoiceOf,
   workflowKeys,
   type WorkflowField,
@@ -270,25 +270,37 @@ export async function saveFieldName(
 }
 
 // Points a field the client created at an existing OTC field instead, on
-// every contract (or, with no OTC field, leaves it as a new field).
+// every contract.
 export async function mapCreatedField(
   accountId: string | null,
   createdId: string,
   otcId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const { supabase, accountId: account } = await configuratorAccount(accountId);
-  if (!account) return { ok: false, error: "Not signed in." };
   const to = OTC_FIELDS.find((f) => f.id === otcId);
   if (!to || !createdId.startsWith(NEW_OTC_PREFIX)) return { ok: false, error: "Unknown field." };
+  return changeAccountFields(accountId, (fields) => mapCreated(fields, createdId, to));
+}
+
+// Undoes mapCreatedField: back to the field the client created.
+export async function unmapCreatedField(
+  accountId: string | null,
+  createdId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!createdId.startsWith(NEW_OTC_PREFIX)) return { ok: false, error: "Unknown field." };
+  return changeAccountFields(accountId, (fields) => unmapCreated(fields, createdId));
+}
+
+// Changes the workflow fields on every one of the account's contracts.
+async function changeAccountFields(
+  accountId: string | null,
+  change: (fields: WorkflowField[]) => WorkflowField[],
+): Promise<{ ok: boolean; error?: string }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
   const { docs } = await accountContracts(supabase, account);
   for (const doc of docs) {
-    let changed = false;
-    const next = doc.fields.map((f) => {
-      if (otcTargetOf(f) !== createdId) return f;
-      changed = true;
-      return reassignTo(f, to);
-    });
-    if (!changed) continue;
+    const next = change(doc.fields);
+    if (JSON.stringify(next) === JSON.stringify(doc.fields)) continue;
     const { error } = await supabase
       .from("contract_documents")
       .update({

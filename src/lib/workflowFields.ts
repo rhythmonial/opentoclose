@@ -46,6 +46,9 @@ export type WorkflowField = {
   // A choice field's options that aren't on the contract (titles), added
   // in Upload Your Contracts.
   options?: string[];
+  // A field the client added, pointed at an Open to Close field from the
+  // workflow fields table: what it was, so it can be put back.
+  was_new?: { id: string; name: string; section?: string };
 };
 
 export const NEW_QUESTION_PREFIX = "new:";
@@ -213,6 +216,26 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
         }
       }
     }
+    // Only while it's on an Open to Close field.
+    const target = otcTargetOf(clean);
+    const was = f.was_new as WorkflowField["was_new"] | undefined;
+    if (
+      target &&
+      OTC_FIELD_IDS.has(target) &&
+      was &&
+      typeof was.id === "string" &&
+      was.id.startsWith(NEW_OTC_PREFIX) &&
+      typeof was.name === "string" &&
+      was.name.trim()
+    ) {
+      clean.was_new = {
+        id: was.id.slice(0, 80),
+        name: was.name.trim().slice(0, 120),
+        ...(typeof was.section === "string" && OTC_SECTION_IDS.has(was.section)
+          ? { section: was.section }
+          : {}),
+      };
+    }
     out.push(clean);
   }
   const questions = new Set(
@@ -278,6 +301,7 @@ export const otcTargetOf = (f: WorkflowField) =>
 export function reassignTo(f: WorkflowField, to: OtcField): WorkflowField {
   const next: WorkflowField = { ...f };
   delete next.removed;
+  delete next.was_new;
   if (f.type === "choice" && f.choice_role === "option") {
     next.question_id = to.id;
     next.question_confirmed = true;
@@ -302,6 +326,30 @@ export function reassignTo(f: WorkflowField, to: OtcField): WorkflowField {
   delete next.choice_role;
   if (to.kind) Object.assign(next, typeFor(to.kind));
   return next;
+}
+
+// Fields the client added as `createdId`, pointed at the Open to Close
+// field `to` instead (remembering what they were).
+export function mapCreated(fields: WorkflowField[], createdId: string, to: OtcField): WorkflowField[] {
+  return fields.map((f) => {
+    if (otcTargetOf(f) !== createdId) return f;
+    const option = f.type === "choice" && f.choice_role === "option";
+    const name = option ? f.question_text : f.otc_field_name;
+    const section = option ? f.question_section : f.otc_section;
+    const next = reassignTo(f, to);
+    if (name) next.was_new = { id: createdId, name, ...(section ? { section } : {}) };
+    return next;
+  });
+}
+
+// Puts fields pointed at an Open to Close field with mapCreated back on the
+// field the client added.
+export function unmapCreated(fields: WorkflowField[], createdId: string): WorkflowField[] {
+  return fields.map((f) => {
+    if (f.was_new?.id !== createdId) return f;
+    const was = f.was_new;
+    return reassignTo(f, { id: was.id, name: was.name, sectionId: was.section ?? "", isNew: true });
+  });
 }
 
 // The workflow field type that fills an OTC field of this kind.
