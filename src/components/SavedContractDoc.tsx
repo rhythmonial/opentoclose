@@ -30,16 +30,22 @@ export function SavedContractDoc({
   defaultOpen?: boolean;
   actions?: React.ReactNode;
 }) {
-  const reviewed = pageCount > 0 && confirmedPages.length === pageCount;
+  // What's been saved here since the page loaded (the page's copy catches
+  // up after).
+  const [latest, setLatest] = useState<{ blanks: ContractBlank[]; confirmed: number[] } | null>(null);
+  const current = latest ?? { blanks, confirmed: confirmedPages };
+  const reviewed = pageCount > 0 && current.confirmed.length === pageCount;
   // Reviewing a reviewed document again starts from the page they pick,
-  // which goes back to unconfirmed.
+  // which goes back to unconfirmed; confirming it saves and comes back to
+  // the pages.
   const [again, setAgain] = useState<{ page: number; confirmed: number[] } | null>(null);
   const [saving, setSaving] = useState(false);
   async function reviewPage(n: number) {
-    const confirmed = confirmedPages.filter((p) => p !== n);
+    const confirmed = current.confirmed.filter((p) => p !== n);
     setSaving(true);
-    await saveContractReview({ id, blanks, confirmedPages: confirmed });
+    await saveContractReview({ id, blanks: current.blanks, confirmedPages: confirmed });
     setSaving(false);
+    setLatest({ blanks: current.blanks, confirmed });
     setAgain({ page: n, confirmed });
   }
 
@@ -60,7 +66,7 @@ export function SavedContractDoc({
               </span>
             ) : (
               <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
-                {confirmedPages.length} of {pageCount} pages confirmed
+                {current.confirmed.length} of {pageCount} pages confirmed
               </span>
             ))}
           {url && (
@@ -112,14 +118,19 @@ export function SavedContractDoc({
             ) : (
               <DocumentBoundary>
                 <ContractReviewer
+                  key={again ? `again-${again.page}` : "review"}
                   source={url}
                   pageCount={pageCount}
-                  initialBlanks={blanks}
-                  initialConfirmed={again?.confirmed ?? confirmedPages}
+                  initialBlanks={current.blanks}
+                  initialConfirmed={again?.confirmed ?? current.confirmed}
                   initialPage={again?.page ?? 1}
                   onSave={(next, confirmed) =>
                     saveContractReview({ id, blanks: next, confirmedPages: confirmed })
                   }
+                  onAllConfirmed={(next, confirmed) => {
+                    setLatest({ blanks: next, confirmed });
+                    setAgain(null);
+                  }}
                 />
               </DocumentBoundary>
             )}

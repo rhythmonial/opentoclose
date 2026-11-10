@@ -38,5 +38,14 @@ export function createSaveQueue<T>(
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => void flush(), delay);
     },
+    // Sends what's waiting now, and resolves once every save is done.
+    async settle() {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      while (running || pending) {
+        if (running) await new Promise((r) => setTimeout(r, 50));
+        else await flush();
+      }
+    },
   };
 }

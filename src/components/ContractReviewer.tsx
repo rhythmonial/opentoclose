@@ -85,6 +85,7 @@ export function ContractReviewer({
   initialConfirmed = [],
   initialPage = 1,
   onSave,
+  onAllConfirmed,
 }: {
   // The file's bytes (just picked) or a signed URL (already uploaded).
   source: ArrayBuffer | string;
@@ -94,6 +95,9 @@ export function ContractReviewer({
   // The page to open on.
   initialPage?: number;
   onSave?: (blanks: ContractBlank[], confirmed: number[]) => Promise<{ ok: boolean; error?: string }>;
+  // Called once the last unconfirmed page is confirmed and saved (instead of
+  // staying on the page).
+  onAllConfirmed?: (blanks: ContractBlank[], confirmed: number[]) => void;
 }) {
   const [blanks, setBlanks] = useState(initialBlanks);
   const [confirmed, setConfirmed] = useState(initialConfirmed);
@@ -567,6 +571,11 @@ export function ContractReviewer({
       : [...confirmed, page].sort((a, b) => a - b);
     setConfirmed(next);
     commit(blanks, next);
+    if (!isConfirmed && onAllConfirmed && next.length === pageCount) {
+      const latest = blanks;
+      void (saver.current?.settle() ?? Promise.resolve()).then(() => onAllConfirmed(latest, next));
+      return;
+    }
     if (!isConfirmed) {
       // Move on to the next page still waiting for review.
       const nextPage = Array.from({ length: pageCount }, (_, i) => i + 1).find(
