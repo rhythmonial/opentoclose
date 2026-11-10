@@ -42,7 +42,7 @@ type Field = {
 // Finalize Your Fields, laid out like OTC's Field Editor: a tab per field
 // group (checked off when the client has finished it), its sections, and
 // their fields, each as "* Name (Type)" (* when OTC requires it). Fields
-// assigned in Assign Your Workflow Fields are checked; the client checks
+// assigned in Assign Your Fields are checked; the client checks
 // any others they need, which are listed as fields needed. System required
 // fields are always checked. Other names a field goes by show on hover and
 // match the search.
@@ -429,7 +429,7 @@ function FieldRow({
         className={`flex min-w-[14rem] flex-1 items-center gap-2.5 ${locked ? "cursor-default" : "cursor-pointer"}`}
         title={
           onContract
-            ? `On your contract (change it in Assign Your Workflow Fields):\n${onContract.join("\n")}`
+            ? `On your contract (change it in Assign Your Fields):\n${onContract.join("\n")}`
             : undefined
         }
       >
@@ -519,7 +519,7 @@ function YourFields({
   const columns = [
     {
       title: "On your contracts",
-      empty: "None yet. Assign fields in Assign Your Workflow Fields.",
+      empty: "None yet. Assign fields in Assign Your Fields.",
       sections: list(isAssigned),
     },
     {

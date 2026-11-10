@@ -1717,7 +1717,7 @@ function ContactRolePrompt({
         </span>
       )}
       <button type="button" onClick={onSkip} className="self-start text-[11px] font-semibold text-ink-faint hover:text-ink">
-        Skip for now (choose it in Assign Your Workflow Fields)
+        Skip for now (choose it in Assign Your Fields)
       </button>
     </span>
   );

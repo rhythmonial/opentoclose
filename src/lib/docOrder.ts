@@ -1,5 +1,5 @@
 // The order a client put their contracts in: their Upload Your Contracts
-// order, or in Assign Your Workflow Fields their own order there (which
+// order, or in Assign Your Fields their own order there (which
 // starts from the upload order). Contracts added since go last, oldest
 // first.
 type Ordered = {

@@ -1,5 +1,5 @@
 // A contract field's type, chosen on its boxes in Upload Your Contracts and
-// carried into Assign Your Workflow Fields (where it says which Open to
+// carried into Assign Your Fields (where it says which Open to
 // Close fields it can fill). The two stay in step: a type set while
 // uploading becomes the workflow field's type, and changing the type while
 // assigning updates the boxes.
@@ -147,7 +147,7 @@ function withChoiceInfo(f: WorkflowField, info: BoxInfo): WorkflowField {
   if (info.type === "choice_option") {
     if (info.choiceOf) {
       // A different choice field set while uploading needs picking again
-      // in Assign Your Workflow Fields.
+      // in Assign Your Fields.
       if (info.choiceOf !== f.question_id) delete next.question_confirmed;
       next.question_id = info.choiceOf;
       delete next.question_text;

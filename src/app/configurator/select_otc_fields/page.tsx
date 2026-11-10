@@ -74,7 +74,7 @@ export default async function SelectOtcFieldsPage({
     : [{ data: null }, { data: [] }];
   const selected = cleanOtcSelection(saved?.fields ?? []);
 
-  // The fields assigned in Assign Your Workflow Fields: each OTC field and
+  // The fields assigned in Assign Your Fields: each OTC field and
   // where it's on the contracts (in contract order), plus fields the client
   // added there.
   const summaryDocs = (docs ?? []).map((d) => ({
@@ -172,7 +172,7 @@ export default async function SelectOtcFieldsPage({
         ) : (
           <p className="mt-1.5 text-sm text-ink-soft">
             Here are all of Open to Close&rsquo;s fields, laid out like OTC&rsquo;s Field
-            Editor. The ones you assigned in Assign Your Workflow Fields are already checked.
+            Editor. The ones you assigned in Assign Your Fields are already checked.
             Check any other field
             your team needs, even if it isn&rsquo;t on your contracts; those are listed as
             fields needed. If you&rsquo;d like a field displayed under another name, type it

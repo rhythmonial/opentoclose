@@ -594,8 +594,11 @@ function FieldTypeMenu({
       const typing =
         t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
       // Delete (or Backspace) removes the field, as in Upload Your
-      // Contracts, unless they're typing in a box.
-      if ((e.key === "Delete" || e.key === "Backspace") && !typing) {
+      // Contracts, unless they're typing in a box (Delete still does in an
+      // empty search box).
+      const emptySearch =
+        t instanceof HTMLInputElement && t.hasAttribute("data-autofocus") && t.value === "";
+      if ((!typing && (e.key === "Delete" || e.key === "Backspace")) || (emptySearch && e.key === "Delete")) {
         e.preventDefault();
         removeRef.current();
         return;
@@ -613,18 +616,13 @@ function FieldTypeMenu({
     };
   }, []);
 
-  // Focus the first choice whenever the menu opens or changes view. When it
-  // first opens on a search box, the menu itself takes focus instead, so
-  // Delete removes the field; typing a letter moves into the search box.
-  const firstView = useRef(view);
-  const moved = useRef(false);
+  // Focus the search box (or else the first choice) whenever the menu opens
+  // or changes view, so they can start typing right away.
   useEffect(() => {
-    if (view !== firstView.current) moved.current = true;
     const target =
       ref.current?.querySelector<HTMLElement>("[data-autofocus]") ??
       ref.current?.querySelector<HTMLElement>("[data-menu-item], input");
-    if (!moved.current && target?.tagName === "INPUT") ref.current?.focus();
-    else target?.focus();
+    target?.focus();
   }, [view]);
 
   function onMenuKey(e: React.KeyboardEvent) {

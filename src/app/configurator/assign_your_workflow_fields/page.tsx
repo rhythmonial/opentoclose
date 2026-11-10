@@ -131,7 +131,7 @@ export default async function AssignWorkflowFieldsPage({
         )}
 
         <h1 className="mt-3 font-display text-2xl font-bold text-ink">
-          {step?.title ?? "Assign Your Workflow Fields"}
+          {step?.title ?? "Assign Your Fields"}
         </h1>
         {step?.description ? (
           <div

@@ -256,7 +256,7 @@ export async function saveContractReview(input: {
     .sort((a, b) => a - b);
 
   // The types chosen here become the workflow fields' types (see
-  // fieldTypes), ready for Assign Your Workflow Fields.
+  // fieldTypes), ready for Assign Your Fields.
   const keys = workflowKeys(blanks);
   const fields = cleanWorkflowFields(
     withBoxTypes(

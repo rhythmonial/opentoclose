@@ -28,7 +28,7 @@ export type WorkspaceDoc = {
   done: boolean;
 };
 
-// Assign Your Workflow Fields: the client's contracts in a list (in their
+// Assign Your Fields: the client's contracts in a list (in their
 // own order, dragged into place). Clicking one opens just that contract, a
 // page at a time, with the fields on the page listed below it; "I'm Done
 // With This Page" goes on to the next page, and after the last page, back

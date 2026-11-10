@@ -7,7 +7,7 @@ import { WorkflowFieldPicker } from "@/components/WorkflowFieldPicker";
 import { WorkflowFieldsSummary } from "@/components/WorkflowFieldsSummary";
 import type { WorkflowField } from "@/lib/workflowFields";
 
-// Staff test mode for Assign Your Workflow Fields: pick any PDF, it's read
+// Staff test mode for Assign Your Fields: pick any PDF, it's read
 // for fields the way an upload is, and the picker runs on it. Nothing is
 // uploaded or saved.
 export function WorkflowFieldsTester() {
