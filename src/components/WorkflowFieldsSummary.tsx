@@ -9,6 +9,7 @@ import {
   isActive,
   isComplete,
   newOtcFieldsFrom,
+  optionTitlesOf,
   type WorkflowField,
 } from "@/lib/workflowFields";
 import { FieldRenameInput, NewFieldMapper } from "@/components/WorkflowFieldNameCell";
@@ -135,11 +136,11 @@ export function WorkflowFieldsSummary({
         ? (questionOtc.get(f.question_id ?? "") ?? f.question_id)
         : f.otc_field;
       const name = otcName(target) ?? (option ? f.question_text : undefined);
-      const title = option && f.option_title ? f.option_title : undefined;
+      const titles = option ? optionTitlesOf(f) : [];
       const same = option && name ? out.find((r) => r.option && r.target === target) : undefined;
       if (same) {
         same.fields.push(f);
-        if (title && !same.titles.includes(title)) same.titles.push(title);
+        for (const t of titles) if (!same.titles.includes(t)) same.titles.push(t);
         same.needs ||= !isComplete(f);
         continue;
       }
@@ -150,7 +151,7 @@ export function WorkflowFieldsSummary({
         option,
         target,
         name,
-        titles: title ? [title] : [],
+        titles: [...titles],
         needs: !isComplete(f),
       });
     }
@@ -175,9 +176,8 @@ export function WorkflowFieldsSummary({
     options.set(choiceId, list);
   };
   for (const f of active) {
-    if (f.choice_role !== "option" || !f.question_id || !f.option_title)
-      continue;
-    addOption(questionOtc.get(f.question_id) ?? f.question_id, f.option_title);
+    if (f.choice_role !== "option" || !f.question_id) continue;
+    for (const t of optionTitlesOf(f)) addOption(questionOtc.get(f.question_id) ?? f.question_id, t);
   }
   for (const f of active) {
     if (f.choice_role !== "question" || !f.otc_field) continue;

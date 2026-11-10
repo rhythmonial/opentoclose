@@ -42,6 +42,9 @@ export type ContractBlank = {
   choiceOf?: string;
   choiceName?: string;
   optionTitle?: string;
+  // When one box (or linked boxes) stands for several options of its
+  // choice field: all their titles (optionTitle is the first).
+  optionTitles?: string[];
   // A contact's role: an Open to Close contact role (its id), or one the
   // client added (a NEW_OTC_PREFIX id, with the name in contactRoleName).
   contactRole?: string;

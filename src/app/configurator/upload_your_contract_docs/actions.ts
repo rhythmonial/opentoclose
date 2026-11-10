@@ -239,6 +239,9 @@ export async function saveContractReview(input: {
       ...(b.fieldType === "choice_option" && typeof b.optionTitle === "string" && b.optionTitle.trim()
         ? { optionTitle: b.optionTitle.trim().slice(0, 120) }
         : {}),
+      ...(b.fieldType === "choice_option" && cleanTitles(b.optionTitles).length > 1
+        ? { optionTitles: cleanTitles(b.optionTitles).slice(0, 50) }
+        : {}),
       ...(b.line === null || (Number.isInteger(b.line) && b.line! > 0 && b.line! < 100000)
         ? { line: b.line }
         : {}),

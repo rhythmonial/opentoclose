@@ -37,6 +37,9 @@ export type WorkflowField = {
   // A choice option's title, as it should read in the choice field's list
   // of selections (e.g. "Conventional").
   option_title?: string;
+  // Every title when the option stands for several (option_title is the
+  // first).
+  option_titles?: string[];
   // The Open to Close field it fills: a built-in one (see otcFields), or a
   // NEW_OTC_PREFIX id for one the client is adding, with its name and the
   // section it goes in.
@@ -189,7 +192,11 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
           clean.question_text = f.question_text.trim().slice(0, 200);
         }
         if (f.question_confirmed === true) clean.question_confirmed = true;
-        if (typeof f.option_title === "string" && f.option_title.trim()) {
+        const titles = cleanTitles(f.option_titles);
+        if (titles.length > 1) {
+          clean.option_title = titles[0];
+          clean.option_titles = titles.slice(0, 50);
+        } else if (typeof f.option_title === "string" && f.option_title.trim()) {
           clean.option_title = f.option_title.trim().slice(0, 120);
         }
         if (
@@ -381,3 +388,7 @@ export function cleanTitles(raw: unknown): string[] {
   }
   return out.slice(0, 100);
 }
+
+// An option's titles (one, or several when it stands for several).
+export const optionTitlesOf = (f: Pick<WorkflowField, "option_title" | "option_titles">) =>
+  f.option_titles?.length ? f.option_titles : f.option_title ? [f.option_title] : [];

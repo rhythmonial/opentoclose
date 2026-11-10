@@ -9,7 +9,13 @@ import {
   type CustomField,
   type OtcField,
 } from "@/lib/otcFields";
-import { isActive, newOtcFieldsFrom, otcTargetOf, type WorkflowField } from "@/lib/workflowFields";
+import {
+  isActive,
+  newOtcFieldsFrom,
+  optionTitlesOf,
+  otcTargetOf,
+  type WorkflowField,
+} from "@/lib/workflowFields";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -71,8 +77,8 @@ export async function loadFieldUse(supabase: Supabase, accountId: string): Promi
     if (!list.some((t) => t.toLowerCase() === title.toLowerCase())) list.push(title);
   };
   for (const f of active) {
-    if (f.choice_role === "option" && f.question_id && f.option_title) {
-      add(questionOtc.get(f.question_id) ?? f.question_id, f.option_title);
+    if (f.choice_role === "option" && f.question_id) {
+      for (const t of optionTitlesOf(f)) add(questionOtc.get(f.question_id) ?? f.question_id, t);
     }
     if (f.choice_role === "question" && f.otc_field) for (const t of f.options ?? []) add(f.otc_field, t);
   }

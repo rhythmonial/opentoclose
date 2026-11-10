@@ -26,6 +26,7 @@ import {
   NEW_OTC_PREFIX,
   needsOtcField,
   newOtcFieldsFrom,
+  optionTitlesOf,
   workflowKeys,
   type WorkflowField,
 } from "@/lib/workflowFields";
@@ -745,6 +746,7 @@ function FieldTypeMenu({
       question_confirmed: true,
       ...(field.isNew ? { question_text: field.name, question_section: field.sectionId } : {}),
       ...(isOption && value?.option_title ? { option_title: value.option_title } : {}),
+      ...(isOption && value?.option_titles?.length ? { option_titles: value.option_titles } : {}),
     });
     // An option that already has a title is done, otherwise ask for one.
     if (isOption && value?.option_title) onClose();
@@ -805,7 +807,9 @@ function FieldTypeMenu({
                   </span>
                   <span className="flex w-full items-center gap-2">
                     <span className="min-w-0 flex-1 truncate font-semibold">
-                      {value?.option_title || "No title yet"}
+                      {value && optionTitlesOf(value).length > 0
+                        ? optionTitlesOf(value).join(", ")
+                        : "No title yet"}
                     </span>
                     <span className="text-xs font-semibold text-accent">Change</span>
                   </span>
@@ -936,7 +940,14 @@ function FieldTypeMenu({
           // usually the option's title.
           defaultTitle={value.option_title ?? suggestedTitle(label)}
           onSave={(title) => {
-            onChange({ ...value, option_title: title });
+            onChange({
+              ...value,
+              option_title: title,
+              // The first of several titles is the one changed.
+              ...(value.option_titles?.length
+                ? { option_titles: [title, ...value.option_titles.slice(1)] }
+                : {}),
+            });
             onClose();
           }}
           onChangeField={() => setView("questions")}

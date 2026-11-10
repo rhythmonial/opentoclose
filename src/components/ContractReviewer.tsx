@@ -237,6 +237,7 @@ export function ContractReviewer({
         if (fieldType !== "choice_option") {
           delete next.choiceOf;
           delete next.optionTitle;
+          delete next.optionTitles;
         }
         if (fieldType !== "choice_field") delete next.choiceOptions;
         if (fieldType !== "contact") {
@@ -274,6 +275,7 @@ export function ContractReviewer({
           delete next.fieldType;
           delete next.choiceOf;
           delete next.optionTitle;
+          delete next.optionTitles;
         } else {
           next.fieldType = "choice_option";
           next.choiceOf = optionsFor;
@@ -284,15 +286,19 @@ export function ContractReviewer({
     );
   }
 
-  // Ties a choice option (its key) to a choice field and titles it.
-  function assignChoice(key: string, choiceOf: string, choiceName: string | null, title: string) {
+  // Ties a choice option (its key) to a choice field and titles it (with
+  // several titles when the one box stands for several options).
+  function assignChoice(key: string, choiceOf: string, choiceName: string | null, titles: string[]) {
+    const clean = titles.map((t) => t.trim().slice(0, 120)).filter(Boolean);
     changeBlanks(
       blanks.map((b) => {
         if (keyOf(b) !== key) return b;
         const next: ContractBlank = { ...b, fieldType: "choice_option", choiceOf };
         if (choiceName) next.choiceName = choiceName;
         else delete next.choiceName;
-        if (title.trim()) next.optionTitle = title.trim().slice(0, 120);
+        if (clean[0]) next.optionTitle = clean[0];
+        if (clean.length > 1) next.optionTitles = clean;
+        else delete next.optionTitles;
         return next;
       }),
     );
@@ -386,6 +392,10 @@ export function ContractReviewer({
         const next = { ...b };
         if (title.trim()) next.optionTitle = title.trim().slice(0, 120);
         else delete next.optionTitle;
+        // The first of several titles is the one changed.
+        if (next.optionTitles?.length && next.optionTitle) {
+          next.optionTitles = [next.optionTitle, ...next.optionTitles.slice(1)];
+        }
         return next;
       }),
     );
@@ -799,7 +809,7 @@ export function ContractReviewer({
                             </>
                           )}
                           {b.fieldType === "choice_option" && b.optionTitle
-                            ? `Option: ${b.optionTitle}`
+                            ? `Option: ${(b.optionTitles?.length ? b.optionTitles : [b.optionTitle]).join(", ")}`
                             : b.fieldType === "contact" && roleNameOf(b.contactRole)
                               ? `Contact: ${roleNameOf(b.contactRole)}`
                               : b.fieldType && TYPE_TAGS[b.fieldType]}
@@ -913,8 +923,12 @@ export function ContractReviewer({
                             choiceFields={choiceFields.filter((c) => c.id !== keyOf(anchor))}
                             // Its own choice field, or the one last used.
                             preselect={anchor.choiceOf ?? lastChoiceOf}
-                            defaultTitle={anchor.optionTitle ?? titleFrom(anchor)}
-                            onCreate={(choice, title) => {
+                            defaultTitles={
+                              anchor.optionTitles?.length
+                                ? anchor.optionTitles
+                                : [anchor.optionTitle ?? titleFrom(anchor)]
+                            }
+                            onCreate={(choice, titles) => {
                               if ("id" in choice) {
                                 // A choice field created on this contract
                                 // goes with its name (OTC creates it by name).
@@ -924,7 +938,7 @@ export function ContractReviewer({
                                   choice.id.startsWith(NEW_OTC_PREFIX)
                                     ? (choiceNameOf(choice.id) ?? null)
                                     : null,
-                                  title,
+                                  titles,
                                 );
                                 setRecentChoice(choice.id);
                                 return;
@@ -933,7 +947,7 @@ export function ContractReviewer({
                                 (f) => f.name.toLowerCase() === choice.name.toLowerCase(),
                               );
                               const id = otc?.id ?? `${NEW_OTC_PREFIX}${crypto.randomUUID()}`;
-                              assignChoice(keyOf(anchor), id, otc ? null : choice.name, title);
+                              assignChoice(keyOf(anchor), id, otc ? null : choice.name, titles);
                               setRecentChoice(id);
                             }}
                             onBack={() => setAskChoice(null)}
@@ -1032,7 +1046,9 @@ export function ContractReviewer({
                               <span className="min-w-0 truncate">
                                 {anchor.choiceOf
                                   ? `Option for ${choiceNameOf(anchor.choiceOf) ?? "a choice field"}${
-                                      anchor.optionTitle ? `: ${anchor.optionTitle}` : ""
+                                      anchor.optionTitle
+                                        ? `: ${(anchor.optionTitles?.length ? anchor.optionTitles : [anchor.optionTitle]).join(", ")}`
+                                        : ""
                                     }`
                                   : "No choice field yet"}
                               </span>
@@ -1256,14 +1272,14 @@ function ChoiceOptionsPanel({
 function ChoiceFieldPrompt({
   choiceFields,
   preselect,
-  defaultTitle,
+  defaultTitles,
   onCreate,
   onBack,
 }: {
   choiceFields: { id: string; name: string; where?: string }[];
   preselect?: string;
-  defaultTitle: string;
-  onCreate: (choice: { id: string } | { name: string }, title: string) => void;
+  defaultTitles: string[];
+  onCreate: (choice: { id: string } | { name: string }, titles: string[]) => void;
   onBack: () => void;
 }) {
   const capitalized = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -1272,7 +1288,9 @@ function ChoiceFieldPrompt({
     preselect && choiceFields.some((c) => c.id === preselect) ? { id: preselect } : null,
   );
   const [adding, setAdding] = useState("");
-  const [title, setTitle] = useState(() => capitalized(defaultTitle));
+  // The option's title, or several when this box stands for several options.
+  const [titles, setTitles] = useState(() => defaultTitles.map(capitalized));
+  const filled = titles.map((t) => t.trim()).filter(Boolean);
   // Opens scrolled to the choice field picked to start (usually the last
   // one, at the bottom of a long list).
   const list = useRef<HTMLSpanElement>(null);
@@ -1369,29 +1387,54 @@ function ChoiceFieldPrompt({
         className="flex flex-col gap-1.5 border-t border-border pt-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (choice && title.trim()) onCreate(choice, title.trim());
+          if (choice && filled.length > 0) onCreate(choice, filled);
         }}
       >
-        <span className="text-xs font-semibold text-ink">2. The option</span>
-        <span className="flex items-center gap-1.5">
-          <input
-            autoFocus={Boolean(choice)}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={120}
-            placeholder="Option title, e.g. FHA"
-            aria-label="Option title"
-            className="min-w-0 flex-1 rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent"
-          />
-          <button
-            type="submit"
-            disabled={!choice || !title.trim()}
-            title={!choice ? "Choose or add its choice field first" : undefined}
-            className="shrink-0 rounded-md bg-accent px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50"
-          >
-            Save option
-          </button>
+        <span className="text-xs font-semibold text-ink">
+          2. The option{titles.length > 1 ? "s" : ""}
         </span>
+        {titles.map((t, i) => (
+          <span key={i} className="flex items-center gap-1.5">
+            <input
+              autoFocus={i === titles.length - 1 && (titles.length > 1 || Boolean(choice))}
+              value={t}
+              onChange={(e) => setTitles((all) => all.map((x, j) => (j === i ? e.target.value : x)))}
+              maxLength={120}
+              placeholder="Option title, e.g. FHA"
+              aria-label={`Option title ${i + 1}`}
+              className="min-w-0 flex-1 rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent"
+            />
+            {i === titles.length - 1 ? (
+              <button
+                type="button"
+                onClick={() => setTitles((all) => [...all, ""])}
+                aria-label="Add another option for this box"
+                title="Add another option for this box"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-accent text-sm font-semibold leading-none text-accent hover:bg-accent-soft/50"
+              >
+                +
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setTitles((all) => all.filter((_, j) => j !== i))}
+                aria-label={`Remove option ${i + 1}`}
+                title="Remove this option"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sm leading-none text-ink-faint hover:text-danger"
+              >
+                &times;
+              </button>
+            )}
+          </span>
+        ))}
+        <button
+          type="submit"
+          disabled={!choice || filled.length === 0}
+          title={!choice ? "Choose or add its choice field first" : undefined}
+          className="self-end rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          {filled.length > 1 ? "Save options" : "Save option"}
+        </button>
       </form>
     </span>
   );

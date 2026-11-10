@@ -109,6 +109,7 @@ type BoxInfo = {
   choiceOf?: string;
   choiceName?: string;
   optionTitle?: string;
+  optionTitles?: string[];
   options?: string[];
   contactRole?: string;
   contactRoleName?: string;
@@ -124,6 +125,9 @@ function infoByKey(blanks: ContractBlank[]) {
       ...(b.fieldType === "choice_option" && b.choiceOf ? { choiceOf: b.choiceOf } : {}),
       ...(b.fieldType === "choice_option" && b.choiceName ? { choiceName: b.choiceName } : {}),
       ...(b.fieldType === "choice_option" && b.optionTitle ? { optionTitle: b.optionTitle } : {}),
+      ...(b.fieldType === "choice_option" && (b.optionTitles?.length ?? 0) > 1
+        ? { optionTitles: b.optionTitles }
+        : {}),
       ...(b.fieldType === "choice_field" && b.choiceOptions?.length ? { options: b.choiceOptions } : {}),
       ...(b.fieldType === "contact" && b.contactRole ? { contactRole: b.contactRole } : {}),
       ...(b.fieldType === "contact" && b.contactRoleName ? { contactRoleName: b.contactRoleName } : {}),
@@ -149,6 +153,8 @@ function withChoiceInfo(f: WorkflowField, info: BoxInfo): WorkflowField {
       }
     }
     if (info.optionTitle) next.option_title = info.optionTitle;
+    if (info.optionTitles) next.option_titles = info.optionTitles;
+    else delete next.option_titles;
   }
   if (info.type === "choice_field") {
     if (info.options) next.options = info.options;
@@ -212,6 +218,7 @@ export function withWorkflowTypes(
     delete next.choiceOf;
     delete next.choiceName;
     delete next.optionTitle;
+    delete next.optionTitles;
     delete next.choiceOptions;
     delete next.contactRole;
     delete next.contactRoleName;
@@ -229,6 +236,7 @@ export function withWorkflowTypes(
         next.choiceName = f.question_text;
       }
       if (f.option_title) next.optionTitle = f.option_title;
+      if ((f.option_titles?.length ?? 0) > 1) next.optionTitles = f.option_titles;
     }
     if (f.choice_role === "question" && f.options?.length) next.choiceOptions = f.options;
     return next;
