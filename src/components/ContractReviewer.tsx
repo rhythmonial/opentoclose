@@ -1,4 +1,5 @@
 "use client";
+import { PageCount, pageCountTitle } from "@/components/PageCount";
 
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
@@ -678,6 +679,19 @@ export function ContractReviewer({
   // A link is typed when any of its boxes is.
   const typedGroups = new Set(blanks.filter((b) => b.group && b.fieldType && !b.removed).map((b) => b.group!));
   const isTyped = (b: ContractBlank) => Boolean(b.fieldType || (b.group && typedGroups.has(b.group)));
+  // Per page, its fields (linked boxes count once) and how many still need
+  // a field type.
+  const fieldsOnPage = (n: number) => {
+    const all = new Set<string>();
+    const left = new Set<string>();
+    blanks.forEach((b, i) => {
+      if (b.page !== n || b.removed) return;
+      const key = b.group ?? `box-${i}`;
+      all.add(key);
+      if (!isTyped(b)) left.add(key);
+    });
+    return { total: all.size, left: left.size };
+  };
 
   return (
     <div ref={rootRef} className="flex scroll-mt-4 flex-col gap-3">
@@ -687,6 +701,7 @@ export function ContractReviewer({
             <button
               key={n}
               type="button"
+              title={pageCountTitle(fieldsOnPage(n))}
               onClick={() => {
                 setPage(n);
                 setSelected(null);
@@ -708,6 +723,7 @@ export function ContractReviewer({
                 </svg>
               )}
               Page {n}
+              <PageCount {...fieldsOnPage(n)} current={n === page} />
             </button>
           ))}
         </div>
@@ -1722,3 +1738,4 @@ function ContactRolePrompt({
     </span>
   );
 }
+
