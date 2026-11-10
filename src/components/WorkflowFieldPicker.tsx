@@ -560,6 +560,8 @@ function FieldTypeMenu({
         : "types",
   );
   const [help, setHelp] = useState<string | null>(null);
+  // How far it's been dragged.
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
   // What they searched for before choosing to add a new one: its name.
   const [newName, setNewName] = useState("");
   // Kept current so the listeners below are set up once, when it opens.
@@ -699,7 +701,7 @@ function FieldTypeMenu({
       onClick={clearSelection}
       aria-label="Clear selection"
       title="Clear selection"
-      className="mb-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-faint hover:bg-bg hover:text-accent focus-visible:bg-bg focus-visible:text-accent focus-visible:outline-none"
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-faint hover:bg-bg hover:text-accent focus-visible:bg-bg focus-visible:text-accent focus-visible:outline-none"
     >
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
@@ -756,14 +758,33 @@ function FieldTypeMenu({
     ? (otcFields.find((f) => f.id === value?.question_id)?.name ?? value?.question_text)
     : undefined;
 
+  // Dragged from anywhere that isn't a button or box (its title line, its
+  // labels) to move it out of the way.
+  function startDrag(e: React.PointerEvent) {
+    const t = e.target as HTMLElement;
+    if (e.button !== 0 || t.closest("button, input, select, textarea, a, label")) return;
+    e.preventDefault();
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const base = offset;
+    const onMove = (ev: PointerEvent) => setOffset({ x: base.x + ev.clientX - sx, y: base.y + ev.clientY - sy });
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
   return (
     <div
       ref={ref}
       role="menu"
       aria-label={`Field type for ${label}`}
       onKeyDown={onMenuKey}
+      onPointerDown={startDrag}
       tabIndex={-1}
-      style={style}
+      style={{ ...style, transform: `translate(${offset.x}px, ${offset.y}px)` }}
       className="absolute z-20 flex w-72 flex-col rounded-lg border border-border bg-surface p-1 text-left shadow-lg outline-none"
     >
       {value?.removed ? (
@@ -793,54 +814,52 @@ function FieldTypeMenu({
         <>
           {isOption && optionOf && (
             <>
-              <div className="flex items-end gap-1 px-1">
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-menu-item
-                  onClick={() => setView("option-title")}
-                  className={`${itemClass} min-w-0 flex-1 flex-col !items-start gap-0 !px-1.5`}
-                >
-                  <span className="text-[11px] font-medium text-ink-faint">
-                    Option for {optionOf}
+              <div className="flex cursor-move select-none flex-col px-2.5 py-1" title="Drag to move">
+                <span className="text-[11px] font-medium text-ink-faint">
+                  Option for {optionOf}
+                </span>
+                <span className="flex w-full items-center gap-1">
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                    {value && optionTitlesOf(value).length > 0
+                      ? optionTitlesOf(value).join(", ")
+                      : "No title yet"}
                   </span>
-                  <span className="flex w-full items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate font-semibold">
-                      {value && optionTitlesOf(value).length > 0
-                        ? optionTitlesOf(value).join(", ")
-                        : "No title yet"}
-                    </span>
-                    <span className="text-xs font-semibold text-accent">Change</span>
-                  </span>
-                </button>
-                {value?.question_id && clearButton}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-menu-item
+                    onClick={() => setView("option-title")}
+                    className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-semibold text-accent hover:bg-bg focus-visible:bg-bg focus-visible:outline-none"
+                  >
+                    Change
+                  </button>
+                  {value?.question_id && clearButton}
+                </span>
               </div>
               <div className="my-1 border-t border-border" />
             </>
           )}
           {assigned && (
             <>
-              <div className="flex items-end gap-1 px-1">
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-menu-item
-                  onClick={() => setView("otc")}
-                  className={`${itemClass} min-w-0 flex-1 flex-col !items-start gap-0 !px-1.5`}
-                >
-                  <span className="text-[11px] font-medium text-ink-faint">
-                    {isContactRole(assigned) ? "Contact role" : "OTC field"}
+              <div className="flex cursor-move select-none flex-col px-2.5 py-1" title="Drag to move">
+                <span className="text-[11px] font-medium text-ink-faint">
+                  {isContactRole(assigned) ? "Contact role" : "OTC field"}
+                </span>
+                <span className="flex w-full items-center gap-1">
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                    {assigned.name}
                   </span>
-                  <span className="flex w-full items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate font-semibold">
-                      {assigned.name}
-                    </span>
-                    <span className="text-xs font-semibold text-accent">
-                      Change
-                    </span>
-                  </span>
-                </button>
-                {clearButton}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-menu-item
+                    onClick={() => setView("otc")}
+                    className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-semibold text-accent hover:bg-bg focus-visible:bg-bg focus-visible:outline-none"
+                  >
+                    Change
+                  </button>
+                  {clearButton}
+                </span>
               </div>
               <div className="my-1 border-t border-border" />
             </>
