@@ -741,10 +741,13 @@ function FieldTypeMenu({
   const isContact = value?.type === "contact";
   // Choice fields the client created only fit choice fields (options pick
   // theirs from the choice field list).
+  // Only fields of the box's type (a date box lists date fields); its type
+  // is changed first to fill a field of another type.
   const otcPool = otcFields.filter(
     (f) =>
       isContactRole(f) === isContact &&
-      !(f.isNew && f.kind === "choice" && value?.choice_role !== "question"),
+      !(f.isNew && f.kind === "choice" && value?.choice_role !== "question") &&
+      (isContact || !value?.type || kindMatches(f.kind, value.type, value.decimal_format)),
   );
   const choicePool = otcFields.filter((f) => !isContactRole(f) && f.kind === "choice");
   const recentChoiceFields = recentChoices
@@ -989,18 +992,12 @@ function FieldTypeMenu({
           title={
             isContact
               ? "Which contact role is this in Open to Close?"
-              : "Which Open to Close field does this fill?"
+              : `Which Open to Close ${
+                  TYPE_NAMES[(value.type === "decimal" ? value.decimal_format : value.type) ?? ""] ?? ""
+                } field does this fill?`.replace("  ", " ")
           }
           backLabel="Field type"
           pool={otcPool}
-          suggested={
-            isContact
-              ? []
-              : otcPool.filter((f) => kindMatches(f.kind, value.type, value.decimal_format))
-          }
-          suggestedLabel={`Suggested for ${
-            TYPE_NAMES[(value.type === "decimal" ? value.decimal_format : value.type) ?? ""] ?? ""
-          } fields`}
           selectedId={value.otc_field}
           searchPlaceholder={isContact ? "Search contact roles" : "Search OTC fields"}
           emptyText={isContact ? "No contact roles match." : "No OTC fields match."}
