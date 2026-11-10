@@ -97,6 +97,9 @@ export function WorkflowFieldPicker({
   // The box that was clicked (its menu opens under it).
   const [openId, setOpenId] = useState<string | null>(null);
   const [hoverKey, setHoverKey] = useState<string | null>(null);
+  // The field under the pointer: the other fields' tags hide so they don't
+  // cover the contract around it.
+  const [hoverField, setHoverField] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<
     "saving" | "saved" | "error" | null
   >(null);
@@ -391,8 +394,14 @@ export function WorkflowFieldPicker({
                     type="button"
                     data-workflow-field
                     onClick={() => setOpenId(isOpen ? null : b.id)}
-                    onPointerEnter={() => linked && setHoverKey(key)}
-                    onPointerLeave={() => setHoverKey(null)}
+                    onPointerEnter={() => {
+                      if (linked) setHoverKey(key);
+                      setHoverField(key);
+                    }}
+                    onPointerLeave={() => {
+                      setHoverKey(null);
+                      setHoverField(null);
+                    }}
                     aria-pressed={picked}
                     aria-expanded={isOpen}
                     aria-label={`${label}${linked ? " (linked lines)" : ""}${
@@ -429,7 +438,7 @@ export function WorkflowFieldPicker({
                       height: `${b.height * 100}%`,
                     }}
                   >
-                    {picked && pick && showTag && (
+                    {picked && pick && showTag && (hoverField === null || hoverField === key) && (
                       <span
                         className={`pointer-events-none absolute -top-3.5 left-0 whitespace-nowrap rounded px-1 py-px text-[9px] font-bold leading-tight ${
                           done ? "bg-success text-white" : linked ? "bg-gold text-ink" : "bg-danger text-white"
