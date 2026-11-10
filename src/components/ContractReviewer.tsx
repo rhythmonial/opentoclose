@@ -6,7 +6,7 @@ import { openPdf, drawPdfPage } from "@/lib/pdfjs";
 import { fieldLabel, tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 import { FIELD_TYPE_OPTIONS, type BoxFieldType } from "@/lib/fieldTypes";
 import { isContactRole, OTC_FIELDS } from "@/lib/otcFields";
-import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
+import { NEW_OTC_PREFIX, placeholderText } from "@/lib/workflowFields";
 import { createSaveQueue } from "@/lib/saveQueue";
 
 // Open to Close's choice fields, for naming a new choice field.
@@ -408,6 +408,20 @@ export function ContractReviewer({
     if (index < 0) return;
     setPage(blanks[index].page);
     setSelected(index);
+  }
+
+  // What a number is when left blank on the contract (all its boxes).
+  function setIfBlank(key: string, value: string) {
+    const clean = value.trim().slice(0, 20);
+    changeBlanks(
+      blanks.map((b) => {
+        if (keyOf(b) !== key) return b;
+        const next = { ...b };
+        if (clean) next.ifBlank = clean;
+        else delete next.ifBlank;
+        return next;
+      }),
+    );
   }
 
   function setOptionTitle(key: string, title: string) {
@@ -1121,6 +1135,30 @@ export function ContractReviewer({
                           <span className="block h-[2.75rem] w-[21rem] overflow-hidden rounded-md bg-bg px-2 py-1.5 text-[11px] leading-snug text-ink-soft">
                             {typeHelp ?? "Hover over a type to see what it's for."}
                           </span>
+                          {anchor.fieldType === "number" && (
+                            <label className="flex w-[21rem] items-center gap-2 text-xs text-ink">
+                              <span className="shrink-0 font-semibold">If left blank</span>
+                              <input
+                                key={keyOf(anchor)}
+                                defaultValue={anchor.ifBlank ?? ""}
+                                onBlur={(e) => {
+                                  if (e.target.value.trim() !== (anchor.ifBlank ?? "")) {
+                                    setIfBlank(keyOf(anchor), e.target.value);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                }}
+                                maxLength={20}
+                                placeholder="e.g. 3"
+                                aria-label="What the contract says it is if left blank"
+                                className="w-20 rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent"
+                              />
+                              <span className="text-ink-faint">
+                                {anchor.line ? `Placeholder: ${placeholderText(anchor.line, anchor.ifBlank)}` : "Shown in its placeholder text"}
+                              </span>
+                            </label>
+                          )}
                           {anchor.fieldType === "contact" && (
                             <button
                               type="button"

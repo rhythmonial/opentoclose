@@ -45,6 +45,9 @@ export type ContractBlank = {
   // When one box (or linked boxes) stands for several options of its
   // choice field: all their titles (optionTitle is the first).
   optionTitles?: string[];
+  // For a number: what the contract says it is when it's left blank (e.g.
+  // "3"), for the field's placeholder text.
+  ifBlank?: string;
   // Taken off the contract by the client (grayed out, kept so it can be
   // put back): it isn't a field anywhere else.
   removed?: boolean;

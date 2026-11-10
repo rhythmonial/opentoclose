@@ -11,7 +11,13 @@ import {
   sectionById,
   type OtcField,
 } from "@/lib/otcFields";
-import { isActive, newOtcFieldsFrom, otcTargetOf, type WorkflowField } from "@/lib/workflowFields";
+import {
+  isActive,
+  newOtcFieldsFrom,
+  otcTargetOf,
+  placeholderText,
+  type WorkflowField,
+} from "@/lib/workflowFields";
 import { calcComplete, cleanCalc, type DateCalc } from "@/lib/dateCalculations";
 import { buildDateRows, type DateOption } from "@/lib/dateRows";
 import { inUploadOrder } from "@/lib/docOrder";
@@ -95,6 +101,9 @@ export default async function SelectYourDateFieldsPage({
   // Where each field first appears on the contracts (in their upload order,
   // top to bottom).
   const contractOrder = new Map<string, number>();
+  // Days fields with a value for when they're left blank: their placeholder
+  // text (the date's Days stays blank).
+  const blankNotes: Record<string, string> = {};
   for (const d of inUploadOrder(docs ?? [])) {
     const doc = {
       id: "",
@@ -102,9 +111,12 @@ export default async function SelectYourDateFieldsPage({
       blanks: (Array.isArray(d.blanks) ? d.blanks : []) as ContractBlank[],
       fields: Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : [],
     };
-    for (const { field } of inContractOrder(doc)) {
+    for (const { field, first } of inContractOrder(doc)) {
       const target = otcTargetOf(field);
       if (target && !contractOrder.has(target)) contractOrder.set(target, contractOrder.size);
+      if (target && field.type === "number" && field.if_blank && !blankNotes[target]) {
+        blankNotes[target] = placeholderText(first.line, field.if_blank);
+      }
     }
   }
   const built = buildDateRows({
@@ -208,6 +220,7 @@ export default async function SelectYourDateFieldsPage({
               numbers={numberOptions}
               initial={calcs}
               auto={built.auto}
+              blankNotes={blankNotes}
             />
           )}
         </div>

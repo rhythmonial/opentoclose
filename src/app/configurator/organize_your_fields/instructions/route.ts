@@ -31,6 +31,7 @@ export async function GET(request: Request) {
     inUse: use.inUse,
     names: use.names,
     choiceEdits: cleanChoiceEdits(saved?.choice_edits, fields),
+    placeholders: use.placeholders,
   });
   const fileName = `Organize Your Fields - ${account.name}`.replace(/[^\w .-]/g, "").slice(0, 100);
   return new Response(Buffer.from(bytes), {

@@ -49,6 +49,9 @@ export type WorkflowField = {
   // A choice field's options that aren't on the contract (titles), added
   // in Upload Your Contracts.
   options?: string[];
+  // For a number: what the contract says it is when left blank (for its
+  // placeholder text).
+  if_blank?: string;
   // A field the client added, pointed at an Open to Close field from the
   // workflow fields table: what it was, so it can be put back.
   was_new?: { id: string; name: string; section?: string };
@@ -226,6 +229,9 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
         }
       }
     }
+    if (type === "number" && typeof f.if_blank === "string" && f.if_blank.trim()) {
+      clean.if_blank = f.if_blank.trim().slice(0, 20);
+    }
     // Only while it's on an Open to Close field.
     const target = otcTargetOf(clean);
     const was = f.was_new as WorkflowField["was_new"] | undefined;
@@ -395,3 +401,10 @@ export function cleanTitles(raw: unknown): string[] {
 // An option's titles (one, or several when it stands for several).
 export const optionTitlesOf = (f: Pick<WorkflowField, "option_title" | "option_titles">) =>
   f.option_titles?.length ? f.option_titles : f.option_title ? [f.option_title] : [];
+
+// A field's placeholder text: where it is on the contract, and for a number
+// what it is if left blank ("LINE 134, if blank = 3").
+export function placeholderText(line: number | null | undefined, ifBlank?: string) {
+  const parts = [line ? `LINE ${line}` : null, ifBlank ? `if blank = ${ifBlank}` : null].filter(Boolean);
+  return parts.join(", ");
+}

@@ -52,7 +52,7 @@ export default async function OrganizeYourFieldsPage({
   // Without a client (staff testing), the fields every account starts with.
   const use: FieldUse = accountId
     ? await loadFieldUse(supabase, accountId)
-    : { inUse: new Set(SYSTEM_REQUIRED_IDS), newFields: [], custom: [], names: {}, contractOptions: {} };
+    : { inUse: new Set(SYSTEM_REQUIRED_IDS), newFields: [], custom: [], names: {}, contractOptions: {}, placeholders: {} };
   const fields = orgFields(use.inUse, use.newFields, use.custom, use.contractOptions);
   const [{ data: saved }, { data: account }] = accountId
     ? await Promise.all([

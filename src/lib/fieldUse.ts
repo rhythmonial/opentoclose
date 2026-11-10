@@ -1,4 +1,6 @@
 import type { createClient } from "@/lib/supabase/server";
+import type { ContractBlank } from "@/lib/contractBlanks";
+import { inUploadOrder } from "@/lib/docOrder";
 import {
   cleanCustomFields,
   cleanFieldNames,
@@ -14,6 +16,7 @@ import {
   newOtcFieldsFrom,
   optionTitlesOf,
   otcTargetOf,
+  placeholderText,
   type WorkflowField,
 } from "@/lib/workflowFields";
 
@@ -31,6 +34,9 @@ export type FieldUse = {
   names: Record<string, string>;
   // Choice options on their contracts, by the field they're for.
   contractOptions: Record<string, string[]>;
+  // Each field's placeholder text, from where it first appears on their
+  // contracts ("LINE 134, if blank = 3").
+  placeholders: Record<string, string>;
 };
 
 export async function loadFieldUse(supabase: Supabase, accountId: string): Promise<FieldUse> {
@@ -42,7 +48,7 @@ export async function loadFieldUse(supabase: Supabase, accountId: string): Promi
       .maybeSingle(),
     supabase
       .from("contract_documents")
-      .select("workflow_fields")
+      .select("blanks, workflow_fields, created_at, upload_order")
       .eq("client_account_id", accountId)
       .eq("is_scanned", false),
   ]);
@@ -82,5 +88,23 @@ export async function loadFieldUse(supabase: Supabase, accountId: string): Promi
     }
     if (f.choice_role === "question" && f.otc_field) for (const t of f.options ?? []) add(f.otc_field, t);
   }
-  return { inUse, newFields, custom, names, contractOptions };
+  // Placeholder text from each field's first box, contract by contract in
+  // their upload order, top to bottom.
+  const placeholders: Record<string, string> = {};
+  for (const d of inUploadOrder(docs ?? [])) {
+    const blanks = (Array.isArray(d.blanks) ? d.blanks : []) as ContractBlank[];
+    const fields = (Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : []).filter(isActive);
+    const boxes = blanks
+      .filter((b) => b.id && !b.removed)
+      .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
+    const byKey = new Map(fields.map((f) => [f.id, f] as const));
+    for (const b of boxes) {
+      const f = byKey.get(b.group ?? b.id!);
+      const target = f ? otcTargetOf(f) : undefined;
+      if (!f || !target || target in placeholders) continue;
+      const text = placeholderText(b.line, f.if_blank);
+      if (text) placeholders[target] = text;
+    }
+  }
+  return { inUse, newFields, custom, names, contractOptions, placeholders };
 }

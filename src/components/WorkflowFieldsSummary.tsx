@@ -10,6 +10,7 @@ import {
   isComplete,
   newOtcFieldsFrom,
   optionTitlesOf,
+  placeholderText,
   type WorkflowField,
 } from "@/lib/workflowFields";
 import { FieldRenameInput, NewFieldMapper } from "@/components/WorkflowFieldNameCell";
@@ -239,6 +240,7 @@ export function WorkflowFieldsSummary({
                       <th className="w-12 px-3 py-2 font-semibold">Line</th>
                       <th className="px-3 py-2 font-semibold">Field</th>
                       <th className="w-20 px-3 py-2 font-semibold">Type</th>
+                      <th className="px-3 py-2 font-semibold">Placeholder text</th>
                       {editing && (
                         <th className="w-[11.5rem] px-3 py-2 font-semibold">Rename or assign</th>
                       )}
@@ -287,6 +289,9 @@ export function WorkflowFieldsSummary({
                           </td>
                           <td className="whitespace-nowrap px-3 py-2 text-ink-soft">
                             {typeLabel(f)}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 text-xs text-ink-soft">
+                            {placeholderText(first.line, f.if_blank) || "—"}
                           </td>
                           {editing && (
                             <td className="px-3 py-1.5">

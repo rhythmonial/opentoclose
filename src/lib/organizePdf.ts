@@ -129,6 +129,7 @@ export async function organizeInstructionsPdf({
   inUse,
   names,
   choiceEdits,
+  placeholders = {},
 }: {
   accountName: string;
   layout: Layout;
@@ -136,6 +137,8 @@ export async function organizeInstructionsPdf({
   inUse: Set<string>;
   names: Record<string, string>;
   choiceEdits: ChoiceEdits;
+  // Field id -> its placeholder text ("LINE 134, if blank = 3").
+  placeholders?: Record<string, string>;
 }): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.setTitle(`Organize Your Fields - ${plain(accountName)}`);
@@ -253,6 +256,22 @@ export async function organizeInstructionsPdf({
       if (c.remove.length) w.text(`Delete: ${c.remove.join(", ")}`, { indent: 42, gap: 1 });
       if (c.add.length) w.text(`Add: ${c.add.join(", ")}`, { indent: 42, gap: 1 });
       w.y -= 3;
+    });
+  }
+
+  // Placeholder text, field by field in the order they were organized.
+  const withPlaceholder = layout.flatMap((g) =>
+    g.sections.flatMap((sec) =>
+      sec.fields
+        .filter((id) => placeholders[id])
+        .map((id) => ({ group: g.group, section: sec.id, id })),
+    ),
+  );
+  if (withPlaceholder.length > 0) {
+    part(`Add placeholder text (${withPlaceholder.length})`);
+    withPlaceholder.forEach((p, i) => {
+      const name = fields.find((f) => f.id === p.id)?.name ?? p.id;
+      w.text(`"${name}": ${placeholders[p.id]}`, { indent: 14, gap: 2, prefix: `${n}.${i + 1}` });
     });
   }
 

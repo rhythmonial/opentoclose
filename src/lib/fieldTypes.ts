@@ -110,6 +110,7 @@ type BoxInfo = {
   choiceName?: string;
   optionTitle?: string;
   optionTitles?: string[];
+  ifBlank?: string;
   options?: string[];
   contactRole?: string;
   contactRoleName?: string;
@@ -128,6 +129,7 @@ function infoByKey(blanks: ContractBlank[]) {
       ...(b.fieldType === "choice_option" && (b.optionTitles?.length ?? 0) > 1
         ? { optionTitles: b.optionTitles }
         : {}),
+      ...(b.fieldType === "number" && b.ifBlank ? { ifBlank: b.ifBlank } : {}),
       ...(b.fieldType === "choice_field" && b.choiceOptions?.length ? { options: b.choiceOptions } : {}),
       ...(b.fieldType === "contact" && b.contactRole ? { contactRole: b.contactRole } : {}),
       ...(b.fieldType === "contact" && b.contactRoleName ? { contactRoleName: b.contactRoleName } : {}),
@@ -139,6 +141,9 @@ function infoByKey(blanks: ContractBlank[]) {
 // A field with what its boxes say about its choice field / option.
 function withChoiceInfo(f: WorkflowField, info: BoxInfo): WorkflowField {
   const next: WorkflowField = { ...f };
+  // A number's value when left blank on the contract.
+  if (info.type === "number" && info.ifBlank) next.if_blank = info.ifBlank;
+  else delete next.if_blank;
   if (info.type === "choice_option") {
     if (info.choiceOf) {
       // A different choice field set while uploading needs picking again
@@ -219,6 +224,7 @@ export function withWorkflowTypes(
     delete next.choiceName;
     delete next.optionTitle;
     delete next.optionTitles;
+    delete next.ifBlank;
     delete next.choiceOptions;
     delete next.contactRole;
     delete next.contactRoleName;
@@ -239,6 +245,7 @@ export function withWorkflowTypes(
       if ((f.option_titles?.length ?? 0) > 1) next.optionTitles = f.option_titles;
     }
     if (f.choice_role === "question" && f.options?.length) next.choiceOptions = f.options;
+    if (f.type === "number" && f.if_blank) next.ifBlank = f.if_blank;
     return next;
   });
 }
