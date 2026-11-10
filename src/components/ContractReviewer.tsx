@@ -809,8 +809,8 @@ export function ContractReviewer({
                               {b.fieldType && " "}
                             </>
                           )}
-                          {b.fieldType === "choice_option" && b.optionTitle
-                            ? `Option: ${(b.optionTitles?.length ? b.optionTitles : [b.optionTitle]).join(", ")}`
+                          {b.fieldType === "choice_option" && choiceNameOf(b.choiceOf)
+                            ? `Option: ${choiceNameOf(b.choiceOf)}`
                             : b.fieldType === "contact" && roleNameOf(b.contactRole)
                               ? `Contact: ${roleNameOf(b.contactRole)}`
                               : b.fieldType && TYPE_TAGS[b.fieldType]}
