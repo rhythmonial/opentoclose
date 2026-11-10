@@ -86,6 +86,7 @@ export function ContractReviewer({
   initialPage = 1,
   onSave,
   onAllConfirmed,
+  onConfirmedChange,
 }: {
   // The file's bytes (just picked) or a signed URL (already uploaded).
   source: ArrayBuffer | string;
@@ -98,6 +99,8 @@ export function ContractReviewer({
   // Called once the last unconfirmed page is confirmed and saved (instead of
   // staying on the page).
   onAllConfirmed?: (blanks: ContractBlank[], confirmed: number[]) => void;
+  // Told the confirmed pages as they change (the count then shows outside).
+  onConfirmedChange?: (confirmed: number[]) => void;
 }) {
   const [blanks, setBlanks] = useState(initialBlanks);
   const [confirmed, setConfirmed] = useState(initialConfirmed);
@@ -570,6 +573,7 @@ export function ContractReviewer({
       ? confirmed.filter((n) => n !== page)
       : [...confirmed, page].sort((a, b) => a - b);
     setConfirmed(next);
+    onConfirmedChange?.(next);
     commit(blanks, next);
     if (!isConfirmed && onAllConfirmed && next.length === pageCount) {
       const latest = blanks;
@@ -642,13 +646,25 @@ export function ContractReviewer({
             </button>
           ))}
         </div>
-        <span className="text-xs text-ink-faint">
-          {confirmed.length} of {pageCount} pages confirmed
-          {saveState === "saving" && " · Saving…"}
-          {saveState === "saved" && " · Saved"}
-          {saveState === "error" && (
-            <span className="text-danger"> · Couldn&rsquo;t save</span>
-          )}
+        <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+          <span className="text-xs text-ink-faint">
+            {!onConfirmedChange && `${confirmed.length} of ${pageCount} pages confirmed`}
+            {!onConfirmedChange && saveState && " · "}
+            {saveState === "saving" && "Saving…"}
+            {saveState === "saved" && "Saved"}
+            {saveState === "error" && <span className="text-danger">Couldn&rsquo;t save</span>}
+          </span>
+          <button
+            type="button"
+            onClick={toggleConfirmed}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+              pageConfirmed
+                ? "border border-success/40 bg-success-soft text-success"
+                : "bg-accent text-white"
+            }`}
+          >
+            {pageConfirmed ? `Page ${page} confirmed ✓ (undo)` : `Confirm page ${page} looks right`}
+          </button>
         </span>
       </div>
 
@@ -1043,26 +1059,11 @@ export function ContractReviewer({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-ink-faint">
-          {onPage.length} box{onPage.length === 1 ? "" : "es"} on page {page}
-          {" · "}
-          {onPage.filter((b) => b.fieldType).length} with a field type
-        </span>
-        <button
-          type="button"
-          onClick={toggleConfirmed}
-          className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-            pageConfirmed
-              ? "border border-success/40 bg-success-soft text-success"
-              : "bg-accent text-white"
-          }`}
-        >
-          {pageConfirmed
-            ? `Page ${page} confirmed ✓ (undo)`
-            : `Confirm page ${page} looks right`}
-        </button>
-      </div>
+      <span className="text-xs text-ink-faint">
+        {onPage.length} box{onPage.length === 1 ? "" : "es"} on page {page}
+        {" · "}
+        {onPage.filter((b) => b.fieldType).length} with a field type
+      </span>
     </div>
   );
 }

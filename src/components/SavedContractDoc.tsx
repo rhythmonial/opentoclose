@@ -35,6 +35,9 @@ export function SavedContractDoc({
   const [latest, setLatest] = useState<{ blanks: ContractBlank[]; confirmed: number[] } | null>(null);
   const current = latest ?? { blanks, confirmed: confirmedPages };
   const reviewed = pageCount > 0 && current.confirmed.length === pageCount;
+  // Pages confirmed as they're confirmed in the reviewer.
+  const [live, setLive] = useState<number[] | null>(null);
+  const confirmedCount = (live ?? current.confirmed).length;
   // Reviewing a reviewed document again starts from the page they pick,
   // which goes back to unconfirmed; confirming it saves and comes back to
   // the pages.
@@ -46,6 +49,7 @@ export function SavedContractDoc({
     await saveContractReview({ id, blanks: current.blanks, confirmedPages: confirmed });
     setSaving(false);
     setLatest({ blanks: current.blanks, confirmed });
+    setLive(null);
     setAgain({ page: n, confirmed });
   }
 
@@ -66,7 +70,7 @@ export function SavedContractDoc({
               </span>
             ) : (
               <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
-                {current.confirmed.length} of {pageCount} pages confirmed
+                {confirmedCount} of {pageCount} pages confirmed
               </span>
             ))}
           {url && (
@@ -93,6 +97,11 @@ export function SavedContractDoc({
         <details open={defaultOpen} className="mt-3">
           <summary className="cursor-pointer text-sm font-semibold text-accent">
             {reviewed ? "Review again" : "Review pages"}
+            {!reviewed && (
+              <span className="ml-2 text-xs font-normal text-ink-faint">
+                {confirmedCount} of {pageCount} pages confirmed
+              </span>
+            )}
           </summary>
           <div className="mt-3">
             {reviewed && !again ? (
@@ -127,8 +136,10 @@ export function SavedContractDoc({
                   onSave={(next, confirmed) =>
                     saveContractReview({ id, blanks: next, confirmedPages: confirmed })
                   }
+                  onConfirmedChange={setLive}
                   onAllConfirmed={(next, confirmed) => {
                     setLatest({ blanks: next, confirmed });
+                    setLive(null);
                     setAgain(null);
                   }}
                 />
