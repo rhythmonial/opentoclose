@@ -77,7 +77,7 @@ const FIELD_SECTIONS: [
       ["Address", "text"],
       ["Unit Number", "text"],
       ["City", "text"],
-      ["State", "choice"],
+      ["State", "text"],
       ["Zip", "text"],
       ["County", "choice"],
       ["Country", "text"],
@@ -614,3 +614,8 @@ export function cleanCustomFields(raw: unknown): CustomField[] {
   }
   return out;
 }
+
+// The options Open to Close's own choice fields come with, by field id.
+// Fields not listed here start with none in Organize Your Fields (the
+// client can still add theirs).
+export const OTC_CHOICE_OPTIONS: Record<string, string[]> = {};

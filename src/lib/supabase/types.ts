@@ -416,6 +416,7 @@ export type Database = {
       }
       client_field_organization: {
         Row: {
+          choice_edits: Json
           client_account_id: string
           done_at: string | null
           layout: Json
@@ -423,6 +424,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          choice_edits?: Json
           client_account_id: string
           done_at?: string | null
           layout?: Json
@@ -430,6 +432,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          choice_edits?: Json
           client_account_id?: string
           done_at?: string | null
           layout?: Json

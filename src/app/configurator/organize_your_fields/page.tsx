@@ -7,7 +7,7 @@ import { getSandboxTier } from "@/lib/devSandbox";
 import { stepClientHref } from "@/lib/stepHref";
 import { SYSTEM_REQUIRED_IDS } from "@/lib/otcFields";
 import { loadFieldUse, type FieldUse } from "@/lib/fieldUse";
-import { orgFields, reconcileLayout } from "@/lib/fieldOrganization";
+import { cleanChoiceEdits, orgFields, reconcileLayout } from "@/lib/fieldOrganization";
 import { FieldOrganizer } from "@/components/FieldOrganizer";
 import { finishOrganizeFields } from "./actions";
 
@@ -52,13 +52,13 @@ export default async function OrganizeYourFieldsPage({
   // Without a client (staff testing), the fields every account starts with.
   const use: FieldUse = accountId
     ? await loadFieldUse(supabase, accountId)
-    : { inUse: new Set(SYSTEM_REQUIRED_IDS), newFields: [], custom: [], names: {} };
-  const fields = orgFields(use.inUse, use.newFields, use.custom);
+    : { inUse: new Set(SYSTEM_REQUIRED_IDS), newFields: [], custom: [], names: {}, contractOptions: {} };
+  const fields = orgFields(use.inUse, use.newFields, use.custom, use.contractOptions);
   const [{ data: saved }, { data: account }] = accountId
     ? await Promise.all([
         supabase
           .from("client_field_organization")
-          .select("layout, done_at")
+          .select("layout, done_at, choice_edits")
           .eq("client_account_id", accountId)
           .maybeSingle(),
         supabase.from("client_accounts").select("setup_path").eq("id", accountId).maybeSingle(),
@@ -159,8 +159,9 @@ export default async function OrganizeYourFieldsPage({
           <p className="mt-1.5 text-sm text-ink-soft">
             Here are the fields you chose in Finalize Your Fields, in Open to Close&rsquo;s field
             groups. Put them in the order your team would like to see them: drag sections up or
-            down within a group, move a section to another group, and drag fields within their
-            section. When you&rsquo;re done, you&rsquo;ll get step-by-step instructions (a PDF) for
+            down within a group or move one to another group, and drag fields within a section or
+            move one to another section. For choice fields, mark the options you don&rsquo;t want
+            and add any that are missing. When you&rsquo;re done, you&rsquo;ll get step-by-step instructions (a PDF) for
             setting them up this way, with a list of the fields you don&rsquo;t use to archive.
           </p>
         )}
@@ -197,6 +198,7 @@ export default async function OrganizeYourFieldsPage({
             fields={fields}
             names={use.names}
             initialLayout={layout}
+            initialChoiceEdits={cleanChoiceEdits(saved?.choice_edits, fields)}
           />
         </div>
 

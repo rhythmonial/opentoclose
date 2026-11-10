@@ -1,5 +1,6 @@
 import {
   CONTACT_ROLES_SECTION,
+  OTC_CHOICE_OPTIONS,
   OTC_FIELDS,
   OTC_SECTIONS,
   type CustomField,
@@ -9,7 +10,8 @@ import {
 
 // Organize Your Fields: the client arranges the fields they use the way
 // they'd like them in Open to Close: sections within a field group (or
-// moved to another group) and fields within their section.
+// moved to another group) and fields within a section (or moved to another
+// section), and says which choice options to keep, delete or add.
 
 export type OrgField = {
   id: string;
@@ -17,11 +19,18 @@ export type OrgField = {
   // "" for a field the client added without a section (they pick one here).
   sectionId: string;
   kind?: Kind;
-  // Added by the client (to be created in OTC), with a choice field's
-  // options when they gave them.
+  // Added by the client (to be created in OTC).
   isNew?: boolean;
+  // A choice field's options Open to Close already has (its own fields).
+  defaults?: string[];
+  // Options the client wants that it doesn't have yet: ones on their
+  // contracts, or that they typed for a field they added.
   options?: string[];
 };
+
+// Per choice field, options the client wants deleted (shown red) and ones
+// they typed in to add.
+export type ChoiceEdits = Record<string, { removed: string[]; added: string[] }>;
 
 export type OrgSection = { id: string; name: string; group: string };
 
@@ -46,15 +55,34 @@ export const ORG_SECTIONS: OrgSection[] = OTC_SECTIONS.filter(
 
 export const ORG_GROUPS = [...new Set(ORG_SECTIONS.map((s) => s.group))];
 
+const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+const without = (list: string[], drop: string[]) =>
+  list.filter((x) => !drop.some((d) => sameText(d, x)));
+
 // The fields the client uses, in OTC's order, then the ones they added.
+// `contractOptions` holds the choice options on their contracts, by the
+// field they're for.
 export function orgFields(
   inUse: Set<string>,
   newFields: OtcField[],
   custom: CustomField[],
+  contractOptions: Record<string, string[]> = {},
 ): OrgField[] {
   return [
     ...OTC_FIELDS.filter((f) => f.sectionId !== CONTACT_ROLES_SECTION && inUse.has(f.id)).map(
-      (f) => ({ id: f.id, name: f.name, sectionId: f.sectionId, kind: f.kind }),
+      (f): OrgField => {
+        if (f.kind !== "choice") return { id: f.id, name: f.name, sectionId: f.sectionId, kind: f.kind };
+        const defaults = OTC_CHOICE_OPTIONS[f.id] ?? [];
+        const extra = without(contractOptions[f.id] ?? [], defaults);
+        return {
+          id: f.id,
+          name: f.name,
+          sectionId: f.sectionId,
+          kind: f.kind,
+          defaults,
+          ...(extra.length ? { options: extra } : {}),
+        };
+      },
     ),
     ...newFields.map((f) => ({
       id: f.id,
@@ -62,6 +90,9 @@ export function orgFields(
       sectionId: ORG_SECTIONS.some((s) => s.id === f.sectionId) ? f.sectionId : "",
       kind: f.kind,
       isNew: true,
+      ...(f.kind === "choice" && contractOptions[f.id]?.length
+        ? { options: contractOptions[f.id] }
+        : {}),
     })),
     ...custom.map((f) => ({
       id: f.id,
@@ -87,8 +118,8 @@ export function defaultLayout(fields: OrgField[]): Layout {
 }
 
 // A saved layout, brought up to date with the fields in use now: anything
-// unknown is dropped, a field stays in its own section, and sections or
-// fields that weren't in it go where Open to Close has them (at the end).
+// unknown is dropped, and sections or fields that weren't in it go where
+// Open to Close has them (at the end).
 export function reconcileLayout(raw: unknown, fields: OrgField[]): Layout {
   const base = defaultLayout(fields);
   if (!Array.isArray(raw)) return base;
@@ -104,13 +135,8 @@ export function reconcileLayout(raw: unknown, fields: OrgField[]): Layout {
       const id = typeof s?.id === "string" ? s.id : "";
       if (!sectionGroup.has(id) || seenSections.has(id)) continue;
       seenSections.add(id);
-      // A field stays in its own section; one without a section goes in
-      // the section the client picked for it.
       const ids = (Array.isArray(s.fields) ? s.fields : []).filter(
-        (f): f is string =>
-          typeof f === "string" &&
-          (fieldSection.get(f) === id || fieldSection.get(f) === "") &&
-          !seenFields.has(f),
+        (f): f is string => typeof f === "string" && fieldSection.has(f) && !seenFields.has(f),
       );
       ids.forEach((f) => seenFields.add(f));
       target.sections.push({ id, fields: ids });
@@ -199,6 +225,9 @@ export function reorderSteps(start: string[], target: string[]): { id: string; a
 export type Instructions = {
   // Sections moved to another field group.
   sectionMoves: { section: string; from: string; to: string }[];
+  // Open to Close's fields moved to another section (after the section
+  // moves; each lands at the end of its new section).
+  fieldMoves: { field: string; from: string; to: string }[];
   // Per group, the sections to drag (after the moves above).
   sectionOrder: { group: string; steps: { section: string; after: string | null }[] }[];
   // Per section, the fields to drag.
@@ -209,10 +238,12 @@ export type Instructions = {
   }[];
 };
 
-// What to do in Open to Close to get from its layout to the client's.
-// Sections moved to another group land at the end of it there.
+// What to do in Open to Close to get from its layout to the client's:
+// fields they added are created in the section they ended up in (at the
+// end), then sections move to other groups (landing at the end), then
+// fields move to other sections (landing at the end), then the drags.
 export function instructionsFor(layout: Layout, fields: OrgField[]): Instructions {
-  const base = defaultLayout(fields);
+  const base = defaultLayout(fields.filter((f) => !f.isNew));
   const groupOf = (l: Layout, id: string) =>
     l.find((g) => g.sections.some((s) => s.id === id))?.group;
   const sectionName = (id: string) => ORG_SECTIONS.find((s) => s.id === id)?.name ?? id;
@@ -241,12 +272,30 @@ export function instructionsFor(layout: Layout, fields: OrgField[]): Instruction
     if (steps.length > 0) sectionOrder.push({ group: g.group, steps });
   }
 
+  const home = new Map(fields.map((f) => [f.id, f.sectionId] as const));
+  const fieldMoves: { field: string; from: string; to: string }[] = [];
+  for (const g of layout) {
+    for (const s of g.sections) {
+      for (const id of s.fields) {
+        const f = fields.find((x) => x.id === id);
+        if (f && !f.isNew && home.get(id) !== s.id) {
+          fieldMoves.push({ field: id, from: home.get(id)!, to: s.id });
+        }
+      }
+    }
+  }
+
   const fieldOrder: Instructions["fieldOrder"] = [];
   for (const g of layout) {
     for (const s of g.sections) {
-      // Fields added without a section go at the end of the one picked.
-      const own = base.flatMap((b) => b.sections).find((b) => b.id === s.id)?.fields ?? [];
-      const start = [...own, ...s.fields.filter((id) => !own.includes(id))];
+      // OTC's own fields still here, then the ones added here, then the
+      // ones moved here, in the order the steps above do them.
+      const own = (base.flatMap((b) => b.sections).find((b) => b.id === s.id)?.fields ?? []).filter(
+        (id) => s.fields.includes(id),
+      );
+      const added = fields.filter((f) => f.isNew && s.fields.includes(f.id)).map((f) => f.id);
+      const movedIn = fieldMoves.filter((m) => m.to === s.id).map((m) => m.field);
+      const start = [...own, ...added, ...movedIn];
       const steps = reorderSteps(start, s.fields).map((x) => ({
         field: fieldName(x.id),
         after: x.after ? fieldName(x.after) : null,
@@ -257,6 +306,11 @@ export function instructionsFor(layout: Layout, fields: OrgField[]): Instruction
 
   return {
     sectionMoves: sectionMoves.map((m) => ({ ...m, section: sectionName(m.section) })),
+    fieldMoves: fieldMoves.map((m) => ({
+      field: fieldName(m.field),
+      from: sectionName(m.from),
+      to: sectionName(m.to),
+    })),
     sectionOrder,
     fieldOrder,
   };
@@ -275,3 +329,59 @@ export function fieldsToArchive(inUse: Set<string>) {
       .filter((s) => s.fields.length > 0),
   })).filter((g) => g.sections.length > 0);
 }
+
+export function cleanChoiceEdits(raw: unknown, fields: OrgField[]): ChoiceEdits {
+  const out: ChoiceEdits = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  const choice = new Set(fields.filter((f) => f.kind === "choice").map((f) => f.id));
+  const list = (v: unknown) => {
+    const items: string[] = [];
+    for (const x of Array.isArray(v) ? v.slice(0, 200) : []) {
+      const t = String(x ?? "").trim().slice(0, 120);
+      if (t && !items.some((i) => sameText(i, t))) items.push(t);
+    }
+    return items;
+  };
+  for (const [id, edit] of Object.entries(raw as Record<string, { removed?: unknown; added?: unknown }>)) {
+    if (!choice.has(id)) continue;
+    const removed = list(edit?.removed);
+    const added = list(edit?.added);
+    if (removed.length || added.length) out[id] = { removed, added };
+  }
+  return out;
+}
+
+// A choice field's options as the client has them: OTC's, the ones from
+// their contracts (or that they gave a field they added), and the ones they
+// typed in, each marked deleted or not.
+export function choiceOptions(f: OrgField, edit?: ChoiceEdits[string]) {
+  const all: { title: string; isNew: boolean }[] = [];
+  const push = (title: string, isNew: boolean) => {
+    if (!all.some((o) => sameText(o.title, title))) all.push({ title, isNew });
+  };
+  for (const t of f.defaults ?? []) push(t, false);
+  for (const t of f.options ?? []) push(t, true);
+  for (const t of edit?.added ?? []) push(t, true);
+  return all.map((o) => ({ ...o, removed: (edit?.removed ?? []).some((r) => sameText(r, o.title)) }));
+}
+
+// For the PDF: per field, the options to delete and to add. A field the
+// client added just gets the options it keeps.
+export function choiceChanges(fields: OrgField[], edits: ChoiceEdits) {
+  return fields
+    .filter((f) => f.kind === "choice" && !f.isNew)
+    .map((f) => {
+      const options = choiceOptions(f, edits[f.id]);
+      return {
+        field: f,
+        remove: options.filter((o) => !o.isNew && o.removed).map((o) => o.title),
+        add: options.filter((o) => o.isNew && !o.removed).map((o) => o.title),
+      };
+    })
+    .filter((c) => c.remove.length > 0 || c.add.length > 0);
+}
+
+export const keptOptions = (f: OrgField, edits: ChoiceEdits) =>
+  choiceOptions(f, edits[f.id])
+    .filter((o) => !o.removed)
+    .map((o) => o.title);

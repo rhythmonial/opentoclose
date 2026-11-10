@@ -3,7 +3,10 @@ import {
   fieldsToArchive,
   instructionsFor,
   ORG_SECTIONS,
+  choiceChanges,
+  keptOptions,
   sectionOf,
+  type ChoiceEdits,
   type Layout,
   type OrgField,
 } from "@/lib/fieldOrganization";
@@ -116,20 +119,23 @@ class Writer {
 
 // Step-by-step instructions for setting up the client's fields in Open to
 // Close the way they organized them: archive the fields they don't use, add
-// the ones they created, move sections between field groups, then put
-// sections and fields in order (and rename the ones they gave another name).
+// the ones they created, move sections between field groups and fields
+// between sections, put sections and fields in order, then update choice
+// options (and rename the fields they gave another name).
 export async function organizeInstructionsPdf({
   accountName,
   layout,
   fields,
   inUse,
   names,
+  choiceEdits,
 }: {
   accountName: string;
   layout: Layout;
   fields: OrgField[];
   inUse: Set<string>;
   names: Record<string, string>;
+  choiceEdits: ChoiceEdits;
 }): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.setTitle(`Organize Your Fields - ${plain(accountName)}`);
@@ -183,8 +189,9 @@ export async function organizeInstructionsPdf({
         : `Add "${f.name}"${kind(f)} (no section was chosen for it in Organize Your Fields).`,
       { indent: 14, gap: 1, prefix: `${n}.${i + 1}` },
     );
-    if (f.options?.length) {
-      w.text(`Options: ${f.options.join(", ")}`, { indent: 42, color: SOFT, size: 10, gap: 3 });
+    const options = f.kind === "choice" ? keptOptions(f, choiceEdits) : [];
+    if (options.length) {
+      w.text(`Options: ${options.join(", ")}`, { indent: 42, color: SOFT, size: 10, gap: 3 });
     }
   });
 
@@ -192,6 +199,15 @@ export async function organizeInstructionsPdf({
   if (steps.sectionMoves.length === 0) nothing();
   steps.sectionMoves.forEach((m, i) =>
     w.text(`Move the "${m.section}" section from ${m.from} to ${m.to} (it goes at the end of ${m.to}).`, {
+      indent: 14,
+      prefix: `${n}.${i + 1}`,
+    }),
+  );
+
+  part("Move fields to another section");
+  if (steps.fieldMoves.length === 0) nothing();
+  steps.fieldMoves.forEach((m, i) =>
+    w.text(`Move "${m.field}" from the ${m.from} section to ${m.to} (it goes at the end of ${m.to}).`, {
       indent: 14,
       prefix: `${n}.${i + 1}`,
     }),
@@ -227,6 +243,17 @@ export async function organizeInstructionsPdf({
       );
     }
     w.y -= 3;
+  }
+
+  const changes = choiceChanges(fields, choiceEdits);
+  if (changes.length > 0) {
+    part(`Update choice options (${changes.length})`);
+    changes.forEach((c, i) => {
+      w.text(`"${c.field.name}"`, { font: w.bold, indent: 14, gap: 1, prefix: `${n}.${i + 1}` });
+      if (c.remove.length) w.text(`Delete: ${c.remove.join(", ")}`, { indent: 42, gap: 1 });
+      if (c.add.length) w.text(`Add: ${c.add.join(", ")}`, { indent: 42, gap: 1 });
+      w.y -= 3;
+    });
   }
 
   if (renamed.length > 0) {

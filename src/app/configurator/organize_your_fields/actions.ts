@@ -4,7 +4,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
 import { loadFieldUse } from "@/lib/fieldUse";
-import { cleanMoves, orgFields, reconcileLayout, type Layout, type Move } from "@/lib/fieldOrganization";
+import {
+  cleanChoiceEdits,
+  cleanMoves,
+  orgFields,
+  reconcileLayout,
+  type ChoiceEdits,
+  type Layout,
+  type Move,
+} from "@/lib/fieldOrganization";
 
 const STEP_KEY = "organize_your_fields";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -15,11 +23,13 @@ export async function saveFieldOrganization(
   accountId: string | null,
   layout: Layout,
   moves: Move[],
+  choiceEdits: ChoiceEdits,
 ): Promise<{ ok: boolean; error?: string }> {
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   if (!account) return { ok: false, error: "Not signed in." };
   const use = await loadFieldUse(supabase, account);
-  const clean = reconcileLayout(layout, orgFields(use.inUse, use.newFields, use.custom));
+  const fields = orgFields(use.inUse, use.newFields, use.custom, use.contractOptions);
+  const clean = reconcileLayout(layout, fields);
   const { data: saved } = await supabase
     .from("client_field_organization")
     .select("moves")
@@ -31,6 +41,7 @@ export async function saveFieldOrganization(
       client_account_id: account,
       layout: clean,
       moves: all,
+      choice_edits: cleanChoiceEdits(choiceEdits, fields),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "client_account_id" },
@@ -54,7 +65,7 @@ export async function finishOrganizeFields() {
   await supabase.from("client_field_organization").upsert(
     {
       client_account_id: accountId,
-      layout: reconcileLayout(saved?.layout, orgFields(use.inUse, use.newFields, use.custom)),
+      layout: reconcileLayout(saved?.layout, orgFields(use.inUse, use.newFields, use.custom, use.contractOptions)),
       done_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },

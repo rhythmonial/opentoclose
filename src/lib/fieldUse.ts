@@ -23,6 +23,8 @@ export type FieldUse = {
   custom: CustomField[];
   // How they'd like fields displayed (id -> name).
   names: Record<string, string>;
+  // Choice options on their contracts, by the field they're for.
+  contractOptions: Record<string, string[]>;
 };
 
 export async function loadFieldUse(supabase: Supabase, accountId: string): Promise<FieldUse> {
@@ -55,5 +57,24 @@ export async function loadFieldUse(supabase: Supabase, accountId: string): Promi
     saved?.field_names,
     new Map([...OTC_FIELDS, ...newFields, ...custom].map((f) => [f.id, f.name] as const)),
   );
-  return { inUse, newFields, custom, names };
+  // Options tied to a choice field (directly, or through a choice field on
+  // the contract that's assigned to one), and options added by hand to a
+  // choice field on the contract.
+  const questionOtc = new Map(
+    active
+      .filter((f) => f.choice_role === "question" && f.otc_field)
+      .map((f) => [f.id, f.otc_field!] as const),
+  );
+  const contractOptions: Record<string, string[]> = {};
+  const add = (id: string, title: string) => {
+    const list = (contractOptions[id] ??= []);
+    if (!list.some((t) => t.toLowerCase() === title.toLowerCase())) list.push(title);
+  };
+  for (const f of active) {
+    if (f.choice_role === "option" && f.question_id && f.option_title) {
+      add(questionOtc.get(f.question_id) ?? f.question_id, f.option_title);
+    }
+    if (f.choice_role === "question" && f.otc_field) for (const t of f.options ?? []) add(f.otc_field, t);
+  }
+  return { inUse, newFields, custom, names, contractOptions };
 }

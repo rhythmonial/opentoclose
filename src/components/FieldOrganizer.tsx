@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
+import { splitOptions } from "@/lib/otcFields";
 import {
+  choiceOptions,
   ORG_GROUPS,
   ORG_SECTIONS,
+  type ChoiceEdits,
   type Layout,
   type Move,
   type OrgField,
@@ -32,6 +35,7 @@ export function FieldOrganizer({
   fields,
   names,
   initialLayout,
+  initialChoiceEdits,
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
@@ -40,8 +44,11 @@ export function FieldOrganizer({
   fields: OrgField[];
   names: Record<string, string>;
   initialLayout: Layout;
+  initialChoiceEdits: ChoiceEdits;
 }) {
   const [layout, setLayout] = useState(initialLayout);
+  const [edits, setEdits] = useState(initialChoiceEdits);
+  const latestEdits = useRef(edits);
   const [group, setGroup] = useState(ORG_GROUPS[0]);
   const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
   const pending = useRef<Move[]>([]);
@@ -55,13 +62,30 @@ export function FieldOrganizer({
     setLayout(next);
     latest.current = next;
     pending.current.push({ ...move, at: new Date().toISOString() });
+    scheduleSave();
+  }
+
+  // Options to delete (toggled red) or add, per choice field.
+  function editChoices(fieldId: string, edit: ChoiceEdits[string]) {
+    const next = { ...latestEdits.current, [fieldId]: edit };
+    setEdits(next);
+    latestEdits.current = next;
+    scheduleSave();
+  }
+
+  function scheduleSave() {
     if (!canSave) return;
     setStatus("saving");
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(async () => {
       const moves = pending.current;
       pending.current = [];
-      const result = await saveFieldOrganization(accountId, latest.current, moves);
+      const result = await saveFieldOrganization(
+        accountId,
+        latest.current,
+        moves,
+        latestEdits.current,
+      );
       if (!result.ok) pending.current = [...moves, ...pending.current];
       setStatus(result.ok ? "saved" : "error");
     }, 600);
@@ -110,6 +134,35 @@ export function FieldOrganizer({
         id: sectionId,
         from: { group, index: from },
         to: { group: to, index: target.sections.length },
+      },
+    );
+  }
+
+  // Moves a field to the end of another section (in any group).
+  function moveField(fieldId: string, fromSection: string, toSection: string) {
+    const fromGroup = layout.find((g) => g.sections.some((s) => s.id === fromSection))!.group;
+    const toGroup = layout.find((g) => g.sections.some((s) => s.id === toSection))!.group;
+    const fromIndex = layout
+      .flatMap((g) => g.sections)
+      .find((s) => s.id === fromSection)!
+      .fields.indexOf(fieldId);
+    const target = layout.flatMap((g) => g.sections).find((s) => s.id === toSection)!;
+    change(
+      layout.map((g) => ({
+        ...g,
+        sections: g.sections.map((s) =>
+          s.id === fromSection
+            ? { ...s, fields: s.fields.filter((f) => f !== fieldId) }
+            : s.id === toSection
+              ? { ...s, fields: [...s.fields, fieldId] }
+              : s,
+        ),
+      })),
+      {
+        kind: "field",
+        id: fieldId,
+        from: { group: fromGroup, section: fromSection, index: fromIndex },
+        to: { group: toGroup, section: toSection, index: target.fields.length },
       },
     );
   }
@@ -214,8 +267,9 @@ export function FieldOrganizer({
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-faint">
         <span>
-          Drag the handle beside a section or a field to move it. Use &ldquo;Move to&rdquo; on a
-          section to put it in another field group.
+          Drag the handle beside a section or a field to move it. Use &ldquo;Move to&rdquo; to put
+          a section in another field group or a field in another section. On choice fields, click
+          an option to delete it (red) and type in any you&rsquo;d like to add.
         </span>
         <span>
           {!canSave && "Test mode: nothing is saved"}
@@ -249,10 +303,16 @@ export function FieldOrganizer({
                       {s.fields.length} field{s.fields.length === 1 ? "" : "s"}
                     </span>
                   </h3>
-                  <MoveToGroup
-                    current={group}
+                  <MoveMenu
+                    label={`Move ${sectionName(s.id)} to another field group`}
+                    heading="Move this section to"
+                    groups={[
+                      {
+                        group: "",
+                        items: ORG_GROUPS.filter((g) => g !== group).map((g) => ({ value: g, label: g })),
+                      },
+                    ]}
                     onMove={(to) => moveSection(s.id, to)}
-                    label={sectionName(s.id)}
                   />
                 </div>
                 {s.fields.length === 0 ? (
@@ -267,20 +327,40 @@ export function FieldOrganizer({
                       return {
                         id,
                         node: (
-                          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-bg px-3 py-1.5 text-sm">
-                            <span className="min-w-0 truncate">
-                              <span className="font-medium text-accent">{f?.name ?? id}</span>
-                              {f?.kind && (
-                                <span className="text-ink-soft"> ({KIND_LABELS[f.kind] ?? f.kind})</span>
-                              )}
-                              {names[id] && (
-                                <span className="text-ink-soft"> &middot; shown as &ldquo;{names[id]}&rdquo;</span>
-                              )}
-                            </span>
-                            {f?.isNew && (
-                              <span className="shrink-0 rounded bg-gold/20 px-1 py-px text-[10px] font-bold uppercase text-ink">
-                                New
+                          <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-bg px-3 py-1.5 text-sm">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="min-w-0 flex-1 truncate">
+                                <span className="font-medium text-accent">{f?.name ?? id}</span>
+                                {f?.kind && (
+                                  <span className="text-ink-soft"> ({KIND_LABELS[f.kind] ?? f.kind})</span>
+                                )}
+                                {names[id] && (
+                                  <span className="text-ink-soft"> &middot; shown as &ldquo;{names[id]}&rdquo;</span>
+                                )}
                               </span>
+                              {f?.isNew && (
+                                <span className="shrink-0 rounded bg-gold/20 px-1 py-px text-[10px] font-bold uppercase text-ink">
+                                  New
+                                </span>
+                              )}
+                              <MoveMenu
+                                label={`Move ${f?.name ?? "this field"} to another section`}
+                                heading="Move this field to"
+                                groups={layout.map((g) => ({
+                                  group: g.group,
+                                  items: g.sections
+                                    .filter((x) => x.id !== s.id)
+                                    .map((x) => ({ value: x.id, label: sectionName(x.id) })),
+                                }))}
+                                onMove={(to) => moveField(id, s.id, to)}
+                              />
+                            </div>
+                            {f?.kind === "choice" && (
+                              <ChoiceOptionsEditor
+                                field={f}
+                                edit={edits[id]}
+                                onChange={(edit) => editChoices(id, edit)}
+                              />
                             )}
                           </div>
                         ),
@@ -297,15 +377,17 @@ export function FieldOrganizer({
   );
 }
 
-// "Move to" on a section's heading: the other field groups.
-function MoveToGroup({
-  current,
+// "Move to": a menu of places (grouped under headings when given).
+function MoveMenu({
   label,
+  heading,
+  groups,
   onMove,
 }: {
-  current: string;
   label: string;
-  onMove: (group: string) => void;
+  heading: string;
+  groups: { group: string; items: { value: string; label: string }[] }[];
+  onMove: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement>(null);
@@ -330,7 +412,8 @@ function MoveToGroup({
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Move ${label} to another field group`}
+        aria-label={label}
+        title={label}
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-0.5 text-xs font-semibold text-accent hover:border-accent"
       >
@@ -342,25 +425,119 @@ function MoveToGroup({
       {open && (
         <span
           role="menu"
-          className="absolute right-0 top-full z-30 mt-1 flex w-52 flex-col rounded-lg border border-border bg-surface p-1 shadow-lg"
+          className="absolute right-0 top-full z-30 mt-1 flex max-h-72 w-60 flex-col overflow-y-auto rounded-lg border border-border bg-surface p-1 shadow-lg"
         >
-          <span className="px-2.5 py-1 text-[11px] font-semibold text-ink-faint">Move this section to</span>
-          {ORG_GROUPS.filter((g) => g !== current).map((g) => (
-            <button
-              key={g}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onMove(g);
-              }}
-              className="rounded-md px-2.5 py-1.5 text-left text-sm text-ink hover:bg-accent-soft/50"
-            >
-              {g}
-            </button>
-          ))}
+          <span className="px-2.5 py-1 text-[11px] font-semibold text-ink-faint">{heading}</span>
+          {groups
+            .filter((g) => g.items.length > 0)
+            .map((g) => (
+              <span key={g.group || "items"} className="flex flex-col">
+                {g.group && (
+                  <span className="px-2.5 pb-0.5 pt-1.5 text-xs font-bold text-ink">{g.group}</span>
+                )}
+                {g.items.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setOpen(false);
+                      onMove(item.value);
+                    }}
+                    className={`rounded-md px-2.5 py-1.5 text-left text-sm text-ink hover:bg-accent-soft/50 ${g.group ? "pl-4" : ""}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </span>
+            ))}
         </span>
       )}
     </span>
+  );
+}
+
+// A choice field's options: green to keep, red (clicked) to delete, and a
+// box to type more (several separated by commas).
+function ChoiceOptionsEditor({
+  field,
+  edit,
+  onChange,
+}: {
+  field: OrgField;
+  edit?: ChoiceEdits[string];
+  onChange: (edit: ChoiceEdits[string]) => void;
+}) {
+  const [typed, setTyped] = useState("");
+  const options = choiceOptions(field, edit);
+  const current = edit ?? { removed: [], added: [] };
+  const toggle = (title: string) => {
+    const on = current.removed.some((r) => r.toLowerCase() === title.toLowerCase());
+    onChange({
+      ...current,
+      removed: on
+        ? current.removed.filter((r) => r.toLowerCase() !== title.toLowerCase())
+        : [...current.removed, title],
+    });
+  };
+  const add = () => {
+    const titles = splitOptions(typed).filter(
+      (t) => !options.some((o) => o.title.toLowerCase() === t.toLowerCase()),
+    );
+    if (titles.length > 0) onChange({ ...current, added: [...current.added, ...titles] });
+    setTyped("");
+  };
+  return (
+    <div className="flex flex-col gap-1.5 pl-1">
+      {options.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {options.map((o) => (
+            <button
+              key={o.title}
+              type="button"
+              aria-pressed={o.removed}
+              onClick={() => toggle(o.title)}
+              title={o.removed ? "Will be deleted. Click to keep it." : "Click to delete this option."}
+              className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+                o.removed
+                  ? "border-danger/40 bg-danger/10 text-danger line-through"
+                  : "border-emerald-500/40 bg-emerald-500/10 text-emerald-800"
+              }`}
+            >
+              {o.title}
+              {o.isNew && !o.removed && <span className="ml-1 text-[10px] font-bold uppercase">new</span>}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <span className="text-xs text-ink-faint">No options yet.</span>
+      )}
+      <form
+        className="flex items-center gap-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          add();
+        }}
+      >
+        <input
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          maxLength={500}
+          placeholder="Add options, separated by commas"
+          aria-label={`Add options to ${field.name}`}
+          className="w-72 max-w-full rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+        />
+        <button
+          type="submit"
+          disabled={!typed.trim()}
+          className="rounded-md border border-accent px-2 py-1 text-xs font-semibold text-accent disabled:opacity-50"
+        >
+          Add
+        </button>
+      </form>
+      {options.some((o) => o.removed) && (
+        <span className="text-[11px] text-ink-faint">Red options will be deleted. Click one to keep it.</span>
+      )}
+    </div>
   );
 }
