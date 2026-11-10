@@ -13,7 +13,9 @@ import {
   NEW_OTC_PREFIX,
   newOtcFieldsFrom,
   mapCreated,
+  needsSection,
   unmapCreated,
+  withCreatedSection,
   withChoiceOf,
   workflowKeys,
   type WorkflowField,
@@ -59,6 +61,7 @@ export async function saveWorkflowFields(
   if (error) return { ok: false, error: error.message };
 
   await shareChoiceFields(supabase, doc.client_account_id, documentId, before, kept);
+  await shareCreatedSections(supabase, doc.client_account_id, documentId, kept);
 
   revalidatePath(PAGE);
   return { ok: true };
@@ -108,6 +111,43 @@ async function shareChoiceFields(
       return withChoiceOf(f, source);
     });
     if (!changed) continue;
+    await supabase
+      .from("contract_documents")
+      .update({
+        blanks: withWorkflowTypes(blanks, next),
+        workflow_fields: next,
+        workflow_field_ids: next.filter(isActive).map((f) => f.id),
+        workflow_fields_updated_at: new Date().toISOString(),
+      })
+      .eq("id", other.id);
+  }
+}
+
+// Fields the client created that now have a section here: the same section
+// for them on the account's other contracts, where they don't have one.
+async function shareCreatedSections(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  accountId: string,
+  documentId: string,
+  fields: WorkflowField[],
+) {
+  const placed = newOtcFieldsFrom(fields).filter((f) => f.sectionId);
+  if (placed.length === 0) return;
+  const { data: others } = await supabase
+    .from("contract_documents")
+    .select("id, blanks, workflow_fields")
+    .eq("client_account_id", accountId)
+    .neq("id", documentId);
+  for (const other of others ?? []) {
+    const blanks = other.blanks as ContractBlank[];
+    const current = cleanWorkflowFields(other.workflow_fields, workflowKeys(blanks));
+    let next = current;
+    for (const f of placed) {
+      if (current.some((x) => needsSection(x) && (x.question_id === f.id || x.otc_field === f.id))) {
+        next = withCreatedSection(next, f.id, f.name, f.sectionId);
+      }
+    }
+    if (next === current) continue;
     await supabase
       .from("contract_documents")
       .update({

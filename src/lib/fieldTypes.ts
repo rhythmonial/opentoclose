@@ -151,7 +151,8 @@ function withChoiceInfo(f: WorkflowField, info: BoxInfo): WorkflowField {
       if (info.choiceOf !== f.question_id) delete next.question_confirmed;
       next.question_id = info.choiceOf;
       delete next.question_text;
-      delete next.question_section;
+      // The section picked in Assign stays while it's the same choice field.
+      if (info.choiceOf !== f.question_id) delete next.question_section;
       // A choice field the client created: OTC gets a new one by that name.
       if (info.choiceOf.startsWith(NEW_OTC_PREFIX) && info.choiceName) {
         next.question_text = info.choiceName;

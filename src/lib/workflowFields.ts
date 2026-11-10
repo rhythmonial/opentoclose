@@ -94,11 +94,42 @@ export function fieldTag(field: WorkflowField): string {
   return FIELD_TYPES.find((t) => t.value === field.type)?.tag ?? "?";
 }
 
+// A field (or an option's choice field) the client created, still without
+// the section it goes in (choice fields added by name in Upload Your
+// Contracts start that way).
+export function needsSection(field: WorkflowField): boolean {
+  if (field.removed) return false;
+  if (field.type === "choice" && field.choice_role === "option") {
+    return Boolean(field.question_id?.startsWith(NEW_OTC_PREFIX) && !field.question_section);
+  }
+  return Boolean(
+    field.type !== "contact" && field.otc_field?.startsWith(NEW_OTC_PREFIX) && !field.otc_section,
+  );
+}
+
+// Fields the client created, given the section they go in (on every field
+// tied to them).
+export function withCreatedSection(
+  fields: WorkflowField[],
+  createdId: string,
+  name: string,
+  sectionId: string,
+): WorkflowField[] {
+  return fields.map((f) => {
+    if (f.type === "choice" && f.choice_role === "option" && f.question_id === createdId) {
+      return { ...f, question_text: name, question_section: sectionId };
+    }
+    if (f.otc_field === createdId) return { ...f, otc_field_name: name, otc_section: sectionId };
+    return f;
+  });
+}
+
 // Whether every question for this field has been answered. A removed field
 // has nothing left to answer.
 export function isComplete(field: WorkflowField): boolean {
   if (field.removed) return true;
   if (!field.type) return false;
+  if (needsSection(field)) return false;
   if (needsOtcField(field) && !field.otc_field) return false;
   if (field.type === "decimal") return Boolean(field.decimal_format);
   if (field.type === "choice") {

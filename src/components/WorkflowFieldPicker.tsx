@@ -25,8 +25,10 @@ import {
   withChoiceOf,
   NEW_OTC_PREFIX,
   needsOtcField,
+  needsSection,
   newOtcFieldsFrom,
   optionTitlesOf,
+  withCreatedSection,
   workflowKeys,
   type WorkflowField,
 } from "@/lib/workflowFields";
@@ -421,7 +423,7 @@ export function WorkflowFieldPicker({
                         ? "border-zinc-400 bg-zinc-400/40 hover:bg-zinc-400/55"
                         : done
                           ? "border-success bg-success/20 hover:bg-success/30"
-                          : linked
+                          : linked || (pick && needsSection(pick))
                             ? "border-gold bg-gold/25 hover:bg-gold/40"
                             : "border-danger bg-danger/15 hover:bg-danger/25"
                     } ${
@@ -441,7 +443,11 @@ export function WorkflowFieldPicker({
                     {picked && pick && showTag && (hoverField === null || hoverField === key) && (
                       <span
                         className={`pointer-events-none absolute -top-3.5 left-0 whitespace-nowrap rounded px-1 py-px text-[9px] font-bold leading-tight ${
-                          done ? "bg-success text-white" : linked ? "bg-gold text-ink" : "bg-danger text-white"
+                          done
+                            ? "bg-success text-white"
+                            : linked || needsSection(pick)
+                              ? "bg-gold text-ink"
+                              : "bg-danger text-white"
                         }`}
                       >
                         {/* The Open to Close field once it has one (an option's
@@ -467,6 +473,15 @@ export function WorkflowFieldPicker({
                   recentChoices={recentChoices}
                   otcFields={otcFields}
                   onChange={(f) => setField(keyOf(open), f)}
+                  onSetSection={(id, name, sectionId) =>
+                    update(
+                      new Map(
+                        withCreatedSection([...picks.values()], id, name, sectionId).map(
+                          (f) => [f.id, f] as const,
+                        ),
+                      ),
+                    )
+                  }
                   onClose={() => setOpenId(null)}
                 />
               )}
@@ -545,6 +560,7 @@ function FieldTypeMenu({
   recentChoices,
   otcFields,
   onChange,
+  onSetSection,
   onClose,
 }: {
   // The box that was clicked, and the key of the field it belongs to.
@@ -558,14 +574,19 @@ function FieldTypeMenu({
   // the client has added.
   otcFields: OtcField[];
   onChange: (field: WorkflowField | null) => void;
-  // Other options on the contract with no choice field yet.
+  // Gives a field the client created (its id) its name and section, on
+  // every field tied to it.
+  onSetSection: (createdId: string, name: string, sectionId: string) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<
-    "types" | "questions" | "new" | "otc" | "otc-new" | "option-title"
+    "types" | "questions" | "new" | "otc" | "otc-new" | "option-title" | "section"
   >(
-    value?.choice_role === "option" && !value.removed && !value.question_id
+    // A field the client created without a section asks for one first.
+    value && needsSection(value)
+      ? "section"
+      : value?.choice_role === "option" && !value.removed && !value.question_id
       ? "questions"
       : value?.choice_role === "option" && !value.option_title
         ? "option-title"
@@ -1006,6 +1027,17 @@ function FieldTypeMenu({
           onAddNew={(query) => {
             setNewName(query);
             setView("otc-new");
+          }}
+          onBack={() => setView("types")}
+        />
+      ) : view === "section" && value ? (
+        <NewOtcFieldForm
+          defaultName={(isOption ? value.question_text : value.otc_field_name) ?? ""}
+          kind={isOption ? "choice" : "field"}
+          onAdd={(name, sectionId) => {
+            const id = isOption ? value.question_id : value.otc_field;
+            if (id) onSetSection(id, name, sectionId);
+            onClose();
           }}
           onBack={() => setView("types")}
         />
