@@ -18,10 +18,10 @@ export type NumberOption = DateOption & { group: "contract" | "selected" | "othe
 const cellSelect =
   "w-full min-w-[7rem] rounded-md border border-border bg-bg px-1.5 py-1 text-xs text-ink outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-40";
 
-// Select Your Date Fields, as tables: the hard dates on the client's
-// contracts (nothing to work out), the dates their contract's days fields
-// set, the dates set by the days fields they chose in Finalize Your Fields
-// (OTC dates), and the dates they chose there (worked out if they say so).
+// Select Your Date Fields: the hard dates on the client's contracts
+// (nothing to work out), the dates days fields set (the contract's in the
+// order they appear on it, then the ones they chose in Finalize Your
+// Fields), and the dates they chose there (worked out if they say so).
 // Each worked-out date says what OTC's Date Calculation asks: so many days
 // (a set number, or a days field) of which time frame, after or before which
 // date (or the same day as it). Each shows as a one-line summary; clicking
@@ -101,14 +101,12 @@ export function DateFieldsConfigurator({
   const matches = (r: DateRow) => !q || r.name.toLowerCase().includes(q) || r.section.toLowerCase().includes(q);
   const contract = rows.filter((r) => r.group === "contract" && matches(r));
   const calculated = rows.filter((r) => r.group === "calculated" && matches(r));
-  const otc = rows.filter((r) => r.group === "otc" && matches(r));
   const picked = rows.filter((r) => r.group === "dates" && matches(r));
 
   // "From" choices, grouped like the page.
   const fromGroups: [string, DateOption[]][] = [
     ["Contract dates", rows.filter((r) => r.group === "contract")],
-    ["Calculated from your contract", rows.filter((r) => r.group === "calculated")],
-    ["OTC dates", rows.filter((r) => r.group === "otc")],
+    ["Calculated dates", rows.filter((r) => r.group === "calculated")],
     ["Your other dates", rows.filter((r) => r.group === "dates")],
   ];
   const numberGroups: [string, NumberOption[]][] = [
@@ -117,9 +115,9 @@ export function DateFieldsConfigurator({
     ["Other Open to Close fields", numbers.filter((n) => n.group === "other")],
   ];
 
-  // A worked-out date in a few words: "Variable calendar days after
-  // Acceptance Date", "3 business days before Closing Date", "Same day as
-  // Acceptance Date".
+  // A worked-out date in a few words: "[Inspection Period - Days] calendar
+  // days after Acceptance Date" (the days the agent fills in on each deal),
+  // "3 business days before Closing Date", "Same day as Acceptance Date".
   function summaryOf(c: DateCalc) {
     const relative = nameOf(c.relative_to) || "(choose a date)";
     if (isSameDay(c)) return `Same day as ${relative}`;
@@ -132,7 +130,8 @@ export function DateFieldsConfigurator({
           : c.time_frame === "calendar_days_skip_weekend"
             ? `${one ? "calendar day" : "calendar days"} (skipping a landing weekend day)`
             : "(choose a type)";
-    const count = c.days !== null ? String(c.days) : c.number_field ? "Variable" : "(choose days)";
+    const field = numbers.find((n) => n.id === c.number_field)?.name;
+    const count = c.days !== null ? String(c.days) : field ? `[${field}]` : "(choose days)";
     return `${count} ${kind} ${c.direction ?? "(before or after)"} ${relative}`;
   }
 
@@ -169,6 +168,11 @@ export function DateFieldsConfigurator({
             >
               <span className="min-w-0 flex-1 truncate text-sm">
                 <span className="font-semibold text-ink">{r.name}</span>
+                {r.group === "calculated" && r.onContract && (
+                  <span className="ml-1.5 rounded bg-gold/20 px-1 py-px align-middle text-[10px] font-bold uppercase text-ink">
+                    Contract
+                  </span>
+                )}
                 <span className="text-ink-soft"> &ndash; {summaryOf(c)}</span>
               </span>
               {!done && (
@@ -219,7 +223,7 @@ export function DateFieldsConfigurator({
             min={0}
             max={3650}
             inputMode="numeric"
-            placeholder="Varies"
+            placeholder="Per deal"
             value={c.days ?? ""}
             onChange={(e) => {
               const days = e.target.value === "" ? null : Math.max(0, Math.trunc(Number(e.target.value)));
@@ -230,10 +234,12 @@ export function DateFieldsConfigurator({
                 ...(c.time_frame === "same_day" ? { time_frame: "calendar_days" as const } : {}),
               });
             }}
-            title="0 means the same day. Leave it blank if it varies."
+            title="0 means the same day. Leave it blank when the number of days is filled in on each deal (in the number field)."
             className={`${cellSelect} !min-w-0 ${ring(daysMissing)}`}
           />
-          <span className="text-[11px] text-ink-faint">0 = same day &middot; blank = varies</span>
+          <span className="text-[11px] text-ink-faint">
+            0 = same day &middot; blank = filled in per deal (number field)
+          </span>
         </label>
         <label className="flex flex-col gap-1">
           {label("Number field", daysMissing)}
@@ -388,15 +394,9 @@ export function DateFieldsConfigurator({
       )}
 
       {calcTable(
-        "Calculated from your contract",
-        "Each days field on your contract sets a date. Say how it's counted; the days come from the contract.",
+        "Calculated dates",
+        "Each days field sets a date: yours from the contract in the order they appear on it, then the days fields you chose in Finalize Your Fields. The days come from that field on each deal.",
         calculated,
-        { optional: false },
-      )}
-      {calcTable(
-        "OTC dates",
-        "The dates set by the days fields you chose in Finalize Your Fields. Say how each is counted; the days come from that field.",
-        otc,
         { optional: false },
       )}
       {calcTable(
@@ -405,7 +405,7 @@ export function DateFieldsConfigurator({
         picked,
         { optional: true },
       )}
-      {contract.length + calculated.length + otc.length + picked.length === 0 && (
+      {contract.length + calculated.length + picked.length === 0 && (
         <p className="rounded-xl border border-border bg-surface p-5 text-sm text-ink-faint">
           {q ? "No dates match." : "No dates yet. Pick your date fields in Finalize Your Fields."}
         </p>

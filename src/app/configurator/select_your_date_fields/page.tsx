@@ -14,6 +14,9 @@ import {
 import { isActive, newOtcFieldsFrom, otcTargetOf, type WorkflowField } from "@/lib/workflowFields";
 import { calcComplete, cleanCalc, type DateCalc } from "@/lib/dateCalculations";
 import { buildDateRows, type DateOption } from "@/lib/dateRows";
+import { inUploadOrder } from "@/lib/docOrder";
+import type { ContractBlank } from "@/lib/contractBlanks";
+import { inContractOrder } from "@/components/WorkflowFieldsSummary";
 import { DateFieldsConfigurator, type NumberOption } from "@/components/DateFieldsConfigurator";
 import { finishDateFields } from "./actions";
 
@@ -59,7 +62,7 @@ export default async function SelectYourDateFieldsPage({
     ? await Promise.all([
         supabase
           .from("contract_documents")
-          .select("workflow_fields")
+          .select("blanks, workflow_fields, created_at, upload_order")
           .eq("client_account_id", accountId)
           .eq("is_scanned", false),
         supabase.from("date_calculations").select("*").eq("client_account_id", accountId),
@@ -89,7 +92,29 @@ export default async function SelectYourDateFieldsPage({
   const calcs = (saved ?? [])
     .map((c) => cleanCalc(c as Partial<DateCalc>))
     .filter((c): c is DateCalc => Boolean(c));
-  const built = buildDateRows({ dates: options("date"), numbers, onContract, selected, saved: calcs });
+  // Where each field first appears on the contracts (in their upload order,
+  // top to bottom).
+  const contractOrder = new Map<string, number>();
+  for (const d of inUploadOrder(docs ?? [])) {
+    const doc = {
+      id: "",
+      name: "",
+      blanks: (Array.isArray(d.blanks) ? d.blanks : []) as ContractBlank[],
+      fields: Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : [],
+    };
+    for (const { field } of inContractOrder(doc)) {
+      const target = otcTargetOf(field);
+      if (target && !contractOrder.has(target)) contractOrder.set(target, contractOrder.size);
+    }
+  }
+  const built = buildDateRows({
+    dates: options("date"),
+    numbers,
+    onContract,
+    selected,
+    saved: calcs,
+    contractOrder,
+  });
   const numberOptions: NumberOption[] = numbers.map((n) => ({
     ...n,
     group: onContract.has(n.id) ? "contract" : selected.has(n.id) ? "selected" : "other",

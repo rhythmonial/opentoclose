@@ -10,10 +10,11 @@ import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
 
 // Select Your Date Fields, a group at a time:
 // - "contract": hard dates written on the contract (nothing to work out),
-// - "calculated": the date each days field on the contract sets,
-// - "otc": the date each days field they chose in Finalize Your Fields sets,
+// - "calculated": the date each days field sets, the contract's in the
+//   order they appear on it, then the ones they chose in Finalize Your
+//   Fields,
 // - "dates": the dates they chose there (worked out if they say so).
-export type DateGroup = "contract" | "calculated" | "otc" | "dates";
+export type DateGroup = "contract" | "calculated" | "dates";
 
 export type DateOption = { id: string; name: string; section: string };
 
@@ -21,6 +22,8 @@ export type DateRow = DateOption & {
   group: DateGroup;
   // Worked out from this days field (always calculated).
   numberField?: string;
+  // Its days field (or, for a contract date, the date) is on the contract.
+  onContract?: boolean;
 };
 
 export function buildDateRows({
@@ -29,6 +32,7 @@ export function buildDateRows({
   onContract,
   selected,
   saved,
+  contractOrder = new Map(),
 }: {
   // Every date and number field there is (OTC's, and the client's own).
   dates: DateOption[];
@@ -37,15 +41,21 @@ export function buildDateRows({
   // Picked in Finalize Your Fields (their own fields too).
   selected: Set<string>;
   saved: DateCalc[];
+  // Where each field first appears on the contracts (lower is earlier).
+  contractOrder?: Map<string, number>;
 }): { rows: DateRow[]; dates: DateOption[]; auto: DateCalc[] } {
+  const byContract = <T extends { id: string }>(list: T[]) =>
+    [...list].sort(
+      (a, b) => (contractOrder.get(a.id) ?? Infinity) - (contractOrder.get(b.id) ?? Infinity),
+    );
   const rows: DateRow[] = [];
   const allDates = [...dates];
   const used = new Set<string>();
   const savedById = new Map(saved.map((c) => [c.otc_field, c] as const));
   const auto: DateCalc[] = [];
 
-  for (const d of dates.filter((d) => onContract.has(d.id))) {
-    rows.push({ ...d, group: "contract" });
+  for (const d of byContract(dates.filter((d) => onContract.has(d.id)))) {
+    rows.push({ ...d, group: "contract", onContract: true });
     used.add(d.id);
     // Hard dates aren't worked out.
     const s = savedById.get(d.id);
@@ -53,8 +63,9 @@ export function buildDateRows({
   }
 
   // The date each days field sets, worked out from it.
-  const daysRows = (group: "calculated" | "otc", pick: (n: DateOption) => boolean) => {
-    for (const n of numbers.filter((n) => pick(n) && isDaysField(n.name))) {
+  const daysRows = (fromContract: boolean, pick: (n: DateOption) => boolean) => {
+    const list = numbers.filter((n) => pick(n) && isDaysField(n.name));
+    for (const n of fromContract ? byContract(list) : list) {
       let date: DateOption | null = matchingDateField(n.name, allDates);
       if (date && used.has(date.id)) continue;
       if (!date) {
@@ -67,7 +78,7 @@ export function buildDateRows({
         };
         allDates.push(date);
       }
-      rows.push({ ...date, group, numberField: n.id });
+      rows.push({ ...date, group: "calculated", numberField: n.id, onContract: fromContract });
       used.add(date.id);
       const s = savedById.get(date.id);
       if (!s?.enabled || s.number_field !== n.id) {
@@ -84,8 +95,8 @@ export function buildDateRows({
       }
     }
   };
-  daysRows("calculated", (n) => onContract.has(n.id));
-  daysRows("otc", (n) => selected.has(n.id) && !onContract.has(n.id));
+  daysRows(true, (n) => onContract.has(n.id));
+  daysRows(false, (n) => selected.has(n.id) && !onContract.has(n.id));
 
   for (const d of dates.filter((d) => selected.has(d.id) && !used.has(d.id))) {
     rows.push({ ...d, group: "dates" });
