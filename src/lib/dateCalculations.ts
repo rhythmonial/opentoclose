@@ -51,8 +51,13 @@ export const FEDERAL_HOLIDAYS = [
   { value: "skip", label: "Skip Federal Holidays" },
 ] as const;
 
-// "Same Day As" has no days to count or direction to go.
-export const isSameDay = (c: Pick<DateCalc, "time_frame">) => c.time_frame === "same_day";
+// 0 days is the same day as the date it counts from (as is OTC's "Same Day
+// As", saved before days decided it): no time frame or direction.
+export const isSameDay = (c: Pick<DateCalc, "time_frame" | "days">) =>
+  c.days === 0 || c.time_frame === "same_day";
+
+// The time frames to choose from (0 days stands for "Same Day As").
+export const COUNTED_TIME_FRAMES = TIME_FRAMES.filter((t) => t.value !== "same_day");
 
 export const emptyCalc = (otcField: string): DateCalc => ({
   otc_field: otcField,
@@ -69,13 +74,16 @@ export const emptyCalc = (otcField: string): DateCalc => ({
   federal_holidays: null,
 });
 
-// Whether a checked date has everything it needs.
+// Whether a checked date has everything it needs: the date it counts from,
+// and unless it's the same day, a time frame, before or after, and its days
+// (a number, or left blank when they vary, with the number field they're
+// in).
 export function calcComplete(c: DateCalc) {
   if (!c.enabled) return true;
-  if (!c.time_frame || !c.relative_to) return false;
+  if (!c.relative_to) return false;
   if (isSameDay(c)) return true;
-  const days = c.days_on_contract ? Boolean(c.number_field) : c.days !== null;
-  return days && Boolean(c.direction);
+  if (!c.time_frame || !c.direction) return false;
+  return c.days !== null || Boolean(c.number_field);
 }
 
 // An OTC field id we'll store: a built-in one or one the client added.

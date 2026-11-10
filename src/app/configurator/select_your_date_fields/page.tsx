@@ -164,9 +164,9 @@ export default async function SelectYourDateFieldsPage({
         ) : (
           <p className="mt-1.5 text-sm text-ink-soft">
             Dates written on your contract are entered as they are. Every other date your team
-            tracks is worked out from another date: say how, so many calendar or business days
-            before or after which date. Dates set by a days field (like Inspection Period - Days)
-            count from that field.
+            tracks is worked out from another date: so many calendar or business days before or
+            after which date. Put 0 in Days for the same day as that date, or leave Days blank if
+            it varies and choose the number field that holds it (like Inspection Period - Days).
           </p>
         )}
 

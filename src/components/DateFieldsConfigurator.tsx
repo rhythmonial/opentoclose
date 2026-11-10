@@ -7,6 +7,7 @@ import {
   DIRECTIONS,
   emptyCalc,
   isSameDay,
+  COUNTED_TIME_FRAMES,
   TIME_FRAMES,
   type DateCalc,
 } from "@/lib/dateCalculations";
@@ -72,7 +73,12 @@ export function DateFieldsConfigurator({
   function describe(c: DateCalc) {
     const relative = nameOf(c.relative_to) || "__";
     if (isSameDay(c)) return `Same Day As ${relative}`;
-    const days = c.days_on_contract ? `[${numberName(c.number_field) || "days field"}]` : (c.days ?? "__");
+    const days =
+      c.days !== null
+        ? c.days
+        : c.number_field
+          ? `[${numberName(c.number_field)}]`
+          : "__";
     return [
       days,
       TIME_FRAMES.find((t) => t.value === c.time_frame)?.label ?? "__",
@@ -163,65 +169,66 @@ export function DateFieldsConfigurator({
         </td>
         {on ? (
           <>
+            {/* Days: a number (0 is the same day), or blank when they vary. */}
             <td className="px-1 py-1.5">
-              <div className="flex items-center gap-1">
-                <select
-                  disabled={sameDay}
-                  value={c.days_on_contract ? (c.number_field ?? "") : "__fixed"}
-                  onChange={(e) =>
-                    update(
-                      r.id,
-                      e.target.value === "__fixed"
-                        ? { days_on_contract: false, number_field: null }
-                        : { days_on_contract: true, number_field: e.target.value || null },
-                    )
-                  }
-                  aria-label={`Days for ${r.name}`}
-                  className={`${cellSelect} ${ring(!sameDay && c.days_on_contract && bad(c.number_field))}`}
-                >
-                  <option value="__fixed">A set number</option>
-                  {c.days_on_contract && !c.number_field && <option value="">Choose a days field</option>}
-                  {numberGroups.map(([label, items]) =>
-                    items.length === 0 ? null : (
-                      <optgroup key={label} label={label}>
-                        {items.map((n) => (
-                          <option key={n.id} value={n.id}>
-                            {n.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ),
-                  )}
-                </select>
-                {!c.days_on_contract && (
-                  <input
-                    disabled={sameDay}
-                    type="number"
-                    min={0}
-                    max={3650}
-                    inputMode="numeric"
-                    placeholder="#"
-                    value={c.days ?? ""}
-                    onChange={(e) =>
-                      update(r.id, {
-                        days: e.target.value === "" ? null : Math.max(0, Math.trunc(Number(e.target.value))),
-                      })
-                    }
-                    aria-label={`Number of days for ${r.name}`}
-                    className={`${cellSelect} !min-w-0 w-14 ${ring(!sameDay && bad(c.days))}`}
-                  />
-                )}
-              </div>
+              <input
+                type="number"
+                min={0}
+                max={3650}
+                inputMode="numeric"
+                placeholder="Varies"
+                value={c.days ?? ""}
+                onChange={(e) => {
+                  const days =
+                    e.target.value === "" ? null : Math.max(0, Math.trunc(Number(e.target.value)));
+                  update(r.id, {
+                    days,
+                    days_on_contract: days === null && Boolean(c.number_field),
+                    // 0 days is "Same Day As"; a count needs a real time frame.
+                    ...(c.time_frame === "same_day" ? { time_frame: "calendar_days" as const } : {}),
+                  });
+                }}
+                aria-label={`Number of days for ${r.name}`}
+                title="0 means the same day. Leave it blank if it varies."
+                className={`${cellSelect} !min-w-0 w-20 ${ring(on && c.days === null && !c.number_field)}`}
+              />
             </td>
             <td className="px-1 py-1.5">
               <select
-                value={c.time_frame ?? ""}
+                value={c.number_field ?? ""}
+                onChange={(e) =>
+                  update(r.id, {
+                    number_field: e.target.value || null,
+                    days_on_contract: c.days === null && Boolean(e.target.value),
+                  })
+                }
+                aria-label={`Number field for ${r.name}`}
+                className={`${cellSelect} !min-w-[9rem] ${ring(on && c.days === null && !c.number_field)}`}
+              >
+                <option value="">None</option>
+                {numberGroups.map(([label, items]) =>
+                  items.length === 0 ? null : (
+                    <optgroup key={label} label={label}>
+                      {items.map((n) => (
+                        <option key={n.id} value={n.id}>
+                          {n.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ),
+                )}
+              </select>
+            </td>
+            <td className="px-1 py-1.5">
+              <select
+                disabled={sameDay}
+                value={c.time_frame === "same_day" ? "" : (c.time_frame ?? "")}
                 onChange={(e) => update(r.id, { time_frame: (e.target.value || null) as DateCalc["time_frame"] })}
                 aria-label={`Type for ${r.name}`}
-                className={`${cellSelect} ${ring(bad(c.time_frame))}`}
+                className={`${cellSelect} ${ring(!sameDay && bad(c.time_frame))}`}
               >
-                <option value="">Choose</option>
-                {TIME_FRAMES.map((t) => (
+                <option value="">{sameDay ? "Same day" : "Choose"}</option>
+                {COUNTED_TIME_FRAMES.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
                   </option>
@@ -236,7 +243,7 @@ export function DateFieldsConfigurator({
                 aria-label={`When for ${r.name}`}
                 className={`${cellSelect} !min-w-[5rem] ${ring(!sameDay && bad(c.direction))}`}
               >
-                <option value="">Choose</option>
+                <option value="">{sameDay ? "Same day" : "Choose"}</option>
                 {DIRECTIONS.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
@@ -269,7 +276,7 @@ export function DateFieldsConfigurator({
             </td>
           </>
         ) : (
-          <td colSpan={4} className="px-2 py-1.5 text-xs">
+          <td colSpan={5} className="px-2 py-1.5 text-xs">
             {opts.optional
               ? "Entered by hand. Check it if it's worked out from another date."
               : ""}
@@ -294,6 +301,7 @@ export function DateFieldsConfigurator({
                 <th className="w-8 px-2 py-2" />
                 <th className="px-2 py-2 font-semibold">Date</th>
                 <th className="px-1 py-2 font-semibold">Days</th>
+                <th className="px-1 py-2 font-semibold">Number field</th>
                 <th className="px-1 py-2 font-semibold">Type</th>
                 <th className="px-1 py-2 font-semibold">When</th>
                 <th className="px-1 py-2 font-semibold">From date</th>
