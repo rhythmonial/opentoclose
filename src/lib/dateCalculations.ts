@@ -127,3 +127,29 @@ export function matchingNumberField<T extends { name: string }>(dateName: string
   const target = stem(dateName);
   return numbers.find((n) => stem(n.name) === target) ?? null;
 }
+
+// Most dates count from when the contract was accepted.
+export const ACCEPTANCE_DATE_ID = "critical-details/acceptance-date";
+
+const stemOf = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/\b(date|days)\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+// A number field that holds a count of days ("Inspection Period - Days"),
+// as opposed to one like "Year Built".
+export const isDaysField = (name: string) => /\bdays?\b/i.test(name);
+
+// The date a days field sets: "Inspection Period Date" for "Inspection
+// Period - Days".
+export function matchingDateField<T extends { name: string }>(numberName: string, dates: T[]) {
+  const target = stemOf(numberName);
+  return dates.find((d) => stemOf(d.name) === target) ?? null;
+}
+
+// What to call the date for a days field that doesn't have one ("Option
+// Period - Days" sets "Option Period - Date").
+export const dateNameFor = (numberName: string) =>
+  /\bdays\b/i.test(numberName) ? numberName.replace(/\bdays\b/i, "Date") : `${numberName} Date`;

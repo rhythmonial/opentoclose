@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
 import { calcComplete, cleanCalc, type DateCalc } from "@/lib/dateCalculations";
 import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
+import { cleanOtcSelection, OTC_FIELD_IDS } from "@/lib/otcFields";
 
 const STEP_KEY = "select_your_date_fields";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -24,6 +25,27 @@ export async function saveDateCalc(
     { onConflict: "client_account_id,otc_field" },
   );
   if (error) return { ok: false, error: error.message };
+
+  // An Open to Close date they work out here is one they use, so it's
+  // picked in Finalize Your Fields too (and isn't archived).
+  if (clean.enabled && OTC_FIELD_IDS.has(clean.otc_field)) {
+    const { data: selection } = await supabase
+      .from("client_otc_field_selections")
+      .select("fields")
+      .eq("client_account_id", account)
+      .maybeSingle();
+    const fields = cleanOtcSelection(selection?.fields ?? []);
+    if (!fields.includes(clean.otc_field)) {
+      await supabase.from("client_otc_field_selections").upsert(
+        {
+          client_account_id: account,
+          fields: cleanOtcSelection([...fields, clean.otc_field]),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "client_account_id" },
+      );
+    }
+  }
   revalidatePath(PAGE);
   return { ok: true };
 }
@@ -57,7 +79,7 @@ export async function finishDateFields() {
     .select("*")
     .eq("client_account_id", accountId);
   const checked = (data ?? []).filter((c) => c.enabled) as DateCalc[];
-  if (checked.length === 0 || !checked.every(calcComplete)) redirect(PAGE);
+  if (!checked.every(calcComplete)) redirect(PAGE);
 
   await approveStep(supabase, user.id, accountId, STEP_KEY);
   redirect("/portal");

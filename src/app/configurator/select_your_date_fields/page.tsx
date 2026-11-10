@@ -4,15 +4,17 @@ import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
-import { OTC_FIELDS, sectionById, type OtcField } from "@/lib/otcFields";
 import {
-  isActive,
-  NEW_OTC_PREFIX,
-  newOtcFieldsFrom,
-  type WorkflowField,
-} from "@/lib/workflowFields";
+  cleanCustomFields,
+  cleanOtcSelection,
+  OTC_FIELDS,
+  sectionById,
+  type OtcField,
+} from "@/lib/otcFields";
+import { isActive, newOtcFieldsFrom, otcTargetOf, type WorkflowField } from "@/lib/workflowFields";
 import { calcComplete, cleanCalc, type DateCalc } from "@/lib/dateCalculations";
-import { DateFieldsConfigurator, type FieldOption } from "@/components/DateFieldsConfigurator";
+import { buildDateRows, type DateOption } from "@/lib/dateRows";
+import { DateFieldsConfigurator, type NumberOption } from "@/components/DateFieldsConfigurator";
 import { finishDateFields } from "./actions";
 
 const STEP_KEY = "select_your_date_fields";
@@ -53,54 +55,52 @@ export default async function SelectYourDateFieldsPage({
       : null
     : (profile?.client_account_id ?? null);
 
-  const [{ data: docs }, { data: saved }] = accountId
+  const [{ data: docs }, { data: saved }, { data: selection }] = accountId
     ? await Promise.all([
         supabase
           .from("contract_documents")
           .select("workflow_fields")
-          .eq("client_account_id", accountId),
+          .eq("client_account_id", accountId)
+          .eq("is_scanned", false),
         supabase.from("date_calculations").select("*").eq("client_account_id", accountId),
+        supabase
+          .from("client_otc_field_selections")
+          .select("fields, custom_fields")
+          .eq("client_account_id", accountId)
+          .maybeSingle(),
       ])
-    : [{ data: [] }, { data: [] }];
+    : [{ data: [] }, { data: [] }, { data: null }];
 
-  // The client's assigned fields mark which OTC fields are on their
-  // contracts, and add the date and number fields they created.
+  // Which fields are on the client's contracts, and the dates and number
+  // fields they created (while assigning, or in Finalize Your Fields).
   const assigned = (docs ?? [])
     .flatMap((d) => (Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : []))
     .filter(isActive);
-  const onContract = new Set(assigned.map((f) => f.otc_field).filter(Boolean));
-  const all: OtcField[] = [...OTC_FIELDS, ...newOtcFieldsFrom(assigned)];
-  const options = (kind: "date" | "number"): FieldOption[] =>
+  const onContract = new Set(assigned.map(otcTargetOf).filter((id): id is string => Boolean(id)));
+  const custom = cleanCustomFields(selection?.custom_fields);
+  const selected = new Set([...cleanOtcSelection(selection?.fields ?? []), ...custom.map((f) => f.id)]);
+  const all: OtcField[] = [...OTC_FIELDS, ...newOtcFieldsFrom(assigned), ...custom];
+  const options = (kind: "date" | "number"): DateOption[] =>
     all
       .filter((f) => f.kind === kind)
-      .map((f) => ({
-        id: f.id,
-        name: f.name,
-        section: sectionById(f.sectionId)?.name ?? "Your new fields",
-        onContract: onContract.has(f.id),
-      }));
-
-  // Dates the client added here.
-  const known = new Set(all.map((f) => f.id));
-  const addedDates: FieldOption[] = (saved ?? [])
-    .filter((c) => c.otc_field.startsWith(NEW_OTC_PREFIX) && c.field_name && !known.has(c.otc_field))
-    .map((c) => ({
-      id: c.otc_field,
-      name: c.field_name!,
-      section: "Dates you added",
-      onContract: false,
-      added: true,
-    }));
+      .map((f) => ({ id: f.id, name: f.name, section: sectionById(f.sectionId)?.name ?? "Your new fields" }));
+  const numbers = options("number");
 
   const calcs = (saved ?? [])
     .map((c) => cleanCalc(c as Partial<DateCalc>))
     .filter((c): c is DateCalc => Boolean(c));
-  const checked = calcs.filter((c) => c.enabled);
-  const ready = checked.length > 0 && checked.every(calcComplete);
+  const built = buildDateRows({ dates: options("date"), numbers, onContract, selected, saved: calcs });
+  const numberOptions: NumberOption[] = numbers.map((n) => ({
+    ...n,
+    group: onContract.has(n.id) ? "contract" : selected.has(n.id) ? "selected" : "other",
+  }));
+  // With what will be saved on arrival.
+  const byId = new Map([...calcs, ...built.auto].map((c) => [c.otc_field, c] as const));
+  const ready = [...byId.values()].filter((c) => c.enabled).every(calcComplete);
 
   return (
     <main className="flex flex-1 justify-center bg-bg px-4 py-12">
-      <div className="w-full max-w-4xl">
+      <div className="w-full max-w-6xl">
         <Link
           href={
             isStaff && !sandboxTier
@@ -163,10 +163,10 @@ export default async function SelectYourDateFieldsPage({
           </div>
         ) : (
           <p className="mt-1.5 text-sm text-ink-soft">
-            Check each date your team tracks that&rsquo;s worked out from another date, then
-            say how: so many calendar or business days before or after which date. If the
-            number of days is a blank on the contract that the agent fills in, check that box
-            and choose the number field it goes in.
+            Dates written on your contract are entered as they are. Every other date your team
+            tracks is worked out from another date: say how, so many calendar or business days
+            before or after which date. Dates set by a days field (like Inspection Period - Days)
+            count from that field.
           </p>
         )}
 
@@ -178,9 +178,11 @@ export default async function SelectYourDateFieldsPage({
           ) : (
             <DateFieldsConfigurator
               accountId={isStaff ? accountId : null}
-              dates={[...options("date"), ...addedDates]}
-              numbers={options("number")}
+              rows={built.rows}
+              dates={built.dates}
+              numbers={numberOptions}
               initial={calcs}
+              auto={built.auto}
             />
           )}
         </div>
@@ -196,7 +198,8 @@ export default async function SelectYourDateFieldsPage({
             </button>
             {!ready && (
               <span className="text-xs text-ink-faint">
-                Check at least one date and fill in everything for each one you check.
+                Fill in everything for each date that&rsquo;s worked out (missing parts are outlined
+                in red).
               </span>
             )}
           </form>
