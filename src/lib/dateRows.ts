@@ -11,11 +11,9 @@ import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
 // Select Your Date Fields, a group at a time:
 // - "contract": hard dates written on the contract (nothing to work out),
 // - "calculated": the date each days field on the contract sets,
-// - "selected": dates and days fields they chose in Finalize Your Fields
-//   (a days field's date is worked out; a date can be),
-// - "other": the rest of Open to Close's dates; one they check (or a date
-//   they type in) shows in "Dates you added".
-export type DateGroup = "contract" | "calculated" | "selected" | "other";
+// - "otc": the date each days field they chose in Finalize Your Fields sets,
+// - "dates": the dates they chose there (worked out if they say so).
+export type DateGroup = "contract" | "calculated" | "otc" | "dates";
 
 export type DateOption = { id: string; name: string; section: string };
 
@@ -23,8 +21,6 @@ export type DateRow = DateOption & {
   group: DateGroup;
   // Worked out from this days field (always calculated).
   numberField?: string;
-  // A date the client typed in here.
-  added?: boolean;
 };
 
 export function buildDateRows({
@@ -57,7 +53,7 @@ export function buildDateRows({
   }
 
   // The date each days field sets, worked out from it.
-  const daysRows = (group: "calculated" | "selected", pick: (n: DateOption) => boolean) => {
+  const daysRows = (group: "calculated" | "otc", pick: (n: DateOption) => boolean) => {
     for (const n of numbers.filter((n) => pick(n) && isDaysField(n.name))) {
       let date: DateOption | null = matchingDateField(n.name, allDates);
       if (date && used.has(date.id)) continue;
@@ -89,24 +85,17 @@ export function buildDateRows({
     }
   };
   daysRows("calculated", (n) => onContract.has(n.id));
-  daysRows("selected", (n) => selected.has(n.id) && !onContract.has(n.id));
+  daysRows("otc", (n) => selected.has(n.id) && !onContract.has(n.id));
 
   for (const d of dates.filter((d) => selected.has(d.id) && !used.has(d.id))) {
-    rows.push({ ...d, group: "selected" });
+    rows.push({ ...d, group: "dates" });
     used.add(d.id);
   }
 
-  // Dates typed in here earlier.
-  const known = new Set(allDates.map((d) => d.id));
+  // Dates that aren't on the page any more (ones they didn't pick, or typed
+  // in here before) aren't worked out.
   for (const c of saved) {
-    if (c.otc_field.startsWith(NEW_OTC_PREFIX) && c.field_name && !known.has(c.otc_field)) {
-      const d = { id: c.otc_field, name: c.field_name, section: "Dates you added" };
-      allDates.push(d);
-      rows.push({ ...d, group: "other", added: true });
-      used.add(d.id);
-    }
+    if (c.enabled && !used.has(c.otc_field)) auto.push({ ...c, enabled: false });
   }
-
-  for (const d of dates.filter((d) => !used.has(d.id))) rows.push({ ...d, group: "other" });
   return { rows, dates: allDates, auto };
 }
