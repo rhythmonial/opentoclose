@@ -1450,6 +1450,13 @@ function ChoiceFieldPrompt({
               autoFocus={i === titles.length - 1 && titles.length > 1}
               value={t}
               onChange={(e) => setTitles((all) => all.map((x, j) => (j === i ? e.target.value : x)))}
+              onKeyDown={(e) => {
+                // Shift+Enter adds another option (Enter saves).
+                if (e.key === "Enter" && e.shiftKey) {
+                  e.preventDefault();
+                  setTitles((all) => [...all, ""]);
+                }
+              }}
               maxLength={120}
               placeholder="Option title, e.g. FHA"
               aria-label={`Option title ${i + 1}`}
@@ -1460,7 +1467,7 @@ function ChoiceFieldPrompt({
                 type="button"
                 onClick={() => setTitles((all) => [...all, ""])}
                 aria-label="Add another option for this box"
-                title="Add another option for this box"
+                title="Add another option for this box (Shift+Enter)"
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-accent text-sm font-semibold leading-none text-accent hover:bg-accent-soft/50"
               >
                 +
