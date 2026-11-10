@@ -296,12 +296,22 @@ export function WorkflowFieldPicker({
         <div className="flex flex-wrap gap-1.5">
           {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => {
             const picked = pickedOn(n);
-            const needsAnswer = picked.some((f) => !isComplete(f));
+            // While some still need an answer, how many; then how many
+            // fields the page has.
+            const left = picked.filter((f) => !isComplete(f)).length;
+            const needsAnswer = left > 0;
             return (
               <button
                 key={n}
                 type="button"
                 onClick={() => changePage(n)}
+                title={
+                  picked.length === 0
+                    ? undefined
+                    : needsAnswer
+                      ? `${left} of ${picked.length} field${picked.length === 1 ? "" : "s"} on this page still need${left === 1 ? "s" : ""} an answer`
+                      : `${picked.length} field${picked.length === 1 ? "" : "s"} on this page, all assigned`
+                }
                 className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${
                   n === page
                     ? "border-accent bg-accent text-white"
@@ -322,8 +332,7 @@ export function WorkflowFieldPicker({
                     }
                   >
                     {" "}
-                    &middot; {picked.length}
-                    {needsAnswer && "!"}
+                    &middot; {needsAnswer ? `${left} left` : picked.length}
                   </span>
                 )}
               </button>
