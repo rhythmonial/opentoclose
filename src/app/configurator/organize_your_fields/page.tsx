@@ -7,7 +7,7 @@ import { getSandboxTier } from "@/lib/devSandbox";
 import { stepClientHref } from "@/lib/stepHref";
 import { SYSTEM_REQUIRED_IDS } from "@/lib/otcFields";
 import { loadFieldUse, type FieldUse } from "@/lib/fieldUse";
-import { cleanChoiceEdits, orgFields, reconcileLayout } from "@/lib/fieldOrganization";
+import { cleanChoiceEdits, ORG_SECTIONS, orgFields, reconcileLayout } from "@/lib/fieldOrganization";
 import { FieldOrganizer } from "@/components/FieldOrganizer";
 import { finishOrganizeFields } from "./actions";
 
@@ -52,8 +52,8 @@ export default async function OrganizeYourFieldsPage({
   // Without a client (staff testing), the fields every account starts with.
   const use: FieldUse = accountId
     ? await loadFieldUse(supabase, accountId)
-    : { inUse: new Set(SYSTEM_REQUIRED_IDS), newFields: [], custom: [], names: {}, contractOptions: {}, placeholders: {} };
-  const fields = orgFields(use.inUse, use.newFields, use.custom, use.contractOptions);
+    : { inUse: new Set(SYSTEM_REQUIRED_IDS), newFields: [], custom: [], sections: ORG_SECTIONS, names: {}, contractOptions: {}, placeholders: {} };
+  const fields = orgFields(use.inUse, use.newFields, use.custom, use.contractOptions, use.sections);
   const [{ data: saved }, { data: account }] = accountId
     ? await Promise.all([
         supabase
@@ -64,7 +64,7 @@ export default async function OrganizeYourFieldsPage({
         supabase.from("client_accounts").select("setup_path").eq("id", accountId).maybeSingle(),
       ])
     : [{ data: null }, { data: null }];
-  const layout = reconcileLayout(saved?.layout, fields);
+  const layout = reconcileLayout(saved?.layout, fields, use.sections);
   const pdfHref = `/configurator/${STEP_KEY}/instructions${isStaff && accountId ? `?client=${accountId}` : ""}`;
 
   // The lesson after this one, for when they're done.
@@ -195,6 +195,7 @@ export default async function OrganizeYourFieldsPage({
             key={accountId ?? "test"}
             accountId={isStaff ? accountId : null}
             canSave={Boolean(accountId)}
+            sections={use.sections}
             fields={fields}
             names={use.names}
             initialLayout={layout}

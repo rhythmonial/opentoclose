@@ -1,8 +1,10 @@
 import type { createClient } from "@/lib/supabase/server";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { inUploadOrder } from "@/lib/docOrder";
+import { orgSectionsWith, type OrgSection } from "@/lib/fieldOrganization";
 import {
   cleanCustomFields,
+  cleanCustomSections,
   cleanFieldNames,
   cleanOtcSelection,
   CONTACT_ROLES_SECTION,
@@ -30,6 +32,8 @@ export type FieldUse = {
   inUse: Set<string>;
   newFields: OtcField[];
   custom: CustomField[];
+  // OTC's sections with the ones the client added.
+  sections: OrgSection[];
   // How they'd like fields displayed (id -> name).
   names: Record<string, string>;
   // Choice options on their contracts, by the field they're for.
@@ -43,7 +47,7 @@ export async function loadFieldUse(supabase: Supabase, accountId: string): Promi
   const [{ data: saved }, { data: docs }] = await Promise.all([
     supabase
       .from("client_otc_field_selections")
-      .select("fields, field_names, custom_fields")
+      .select("fields, field_names, custom_fields, custom_sections")
       .eq("client_account_id", accountId)
       .maybeSingle(),
     supabase
@@ -106,5 +110,6 @@ export async function loadFieldUse(supabase: Supabase, accountId: string): Promi
       if (text) placeholders[target] = text;
     }
   }
-  return { inUse, newFields, custom, names, contractOptions, placeholders };
+  const sections = orgSectionsWith(cleanCustomSections(saved?.custom_sections));
+  return { inUse, newFields, custom, sections, names, contractOptions, placeholders };
 }

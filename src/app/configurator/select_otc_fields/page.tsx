@@ -6,6 +6,7 @@ import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
 import {
   cleanCustomFields,
+  cleanCustomSections,
   cleanFieldNames,
   cleanGroupsDone,
   cleanOtcSelection,
@@ -61,7 +62,7 @@ export default async function SelectOtcFieldsPage({
     ? await Promise.all([
         supabase
           .from("client_otc_field_selections")
-          .select("fields, field_names, groups_done, custom_fields")
+          .select("fields, field_names, groups_done, custom_fields, custom_sections")
           .eq("client_account_id", accountId)
           .maybeSingle(),
         supabase
@@ -188,6 +189,7 @@ export default async function SelectOtcFieldsPage({
               accountId={isStaff ? accountId : null}
               initial={{ fields: selected, names, groupsDone, custom }}
               showSummary={isStaff}
+              customSections={cleanCustomSections(saved?.custom_sections)}
               assigned={assigned}
               newFields={newFields}
             />

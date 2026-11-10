@@ -3,7 +3,9 @@ import {
   OTC_CHOICE_OPTIONS,
   OTC_FIELDS,
   OTC_SECTIONS,
+  sectionsWith,
   type CustomField,
+  type CustomSection,
   type Kind,
   type OtcField,
 } from "@/lib/otcFields";
@@ -55,6 +57,13 @@ export const ORG_SECTIONS: OrgSection[] = OTC_SECTIONS.filter(
 
 export const ORG_GROUPS = [...new Set(ORG_SECTIONS.map((s) => s.group))];
 
+// OTC's sections with the ones the client added (each at the end of its
+// field group, where OTC puts a new section).
+export const orgSectionsWith = (custom: CustomSection[]): OrgSection[] =>
+  sectionsWith(custom)
+    .filter((s) => s.id !== CONTACT_ROLES_SECTION)
+    .map((s) => ({ id: s.id, name: s.name, group: s.group }));
+
 const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 const without = (list: string[], drop: string[]) =>
   list.filter((x) => !drop.some((d) => sameText(d, x)));
@@ -67,6 +76,7 @@ export function orgFields(
   newFields: OtcField[],
   custom: CustomField[],
   contractOptions: Record<string, string[]> = {},
+  sections: OrgSection[] = ORG_SECTIONS,
 ): OrgField[] {
   return [
     ...OTC_FIELDS.filter((f) => f.sectionId !== CONTACT_ROLES_SECTION && inUse.has(f.id)).map(
@@ -87,7 +97,7 @@ export function orgFields(
     ...newFields.map((f) => ({
       id: f.id,
       name: f.name,
-      sectionId: ORG_SECTIONS.some((s) => s.id === f.sectionId) ? f.sectionId : "",
+      sectionId: sections.some((s) => s.id === f.sectionId) ? f.sectionId : "",
       kind: f.kind,
       isNew: true,
       ...(f.kind === "choice" && contractOptions[f.id]?.length
@@ -97,7 +107,7 @@ export function orgFields(
     ...custom.map((f) => ({
       id: f.id,
       name: f.name,
-      sectionId: f.sectionId,
+      sectionId: sections.some((s) => s.id === f.sectionId) ? f.sectionId : "",
       kind: f.kind,
       isNew: true,
       ...(f.options ? { options: f.options } : {}),
@@ -107,10 +117,10 @@ export function orgFields(
 
 // How Open to Close lays them out to start (fields they added go at the end
 // of their section, where OTC puts a new field).
-export function defaultLayout(fields: OrgField[]): Layout {
+export function defaultLayout(fields: OrgField[], sections: OrgSection[] = ORG_SECTIONS): Layout {
   return ORG_GROUPS.map((group) => ({
     group,
-    sections: ORG_SECTIONS.filter((s) => s.group === group).map((s) => ({
+    sections: sections.filter((s) => s.group === group).map((s) => ({
       id: s.id,
       fields: fields.filter((f) => f.sectionId === s.id).map((f) => f.id),
     })),
@@ -120,10 +130,14 @@ export function defaultLayout(fields: OrgField[]): Layout {
 // A saved layout, brought up to date with the fields in use now: anything
 // unknown is dropped, and sections or fields that weren't in it go where
 // Open to Close has them (at the end).
-export function reconcileLayout(raw: unknown, fields: OrgField[]): Layout {
-  const base = defaultLayout(fields);
+export function reconcileLayout(
+  raw: unknown,
+  fields: OrgField[],
+  sections: OrgSection[] = ORG_SECTIONS,
+): Layout {
+  const base = defaultLayout(fields, sections);
   if (!Array.isArray(raw)) return base;
-  const sectionGroup = new Map(ORG_SECTIONS.map((s) => [s.id, s.group] as const));
+  const sectionGroup = new Map(sections.map((s) => [s.id, s.group] as const));
   const fieldSection = new Map(fields.map((f) => [f.id, f.sectionId] as const));
   const seenSections = new Set<string>();
   const seenFields = new Set<string>();
@@ -223,6 +237,9 @@ export function reorderSteps(start: string[], target: string[]): { id: string; a
 }
 
 export type Instructions = {
+  // Sections the client added, created at the end of the group they ended
+  // up in (before anything else moves).
+  newSections: { section: string; group: string }[];
   // Sections moved to another field group.
   sectionMoves: { section: string; from: string; to: string }[];
   // Open to Close's fields moved to another section (after the section
@@ -239,14 +256,30 @@ export type Instructions = {
 };
 
 // What to do in Open to Close to get from its layout to the client's:
-// fields they added are created in the section they ended up in (at the
-// end), then sections move to other groups (landing at the end), then
+// sections they added are created at the end of the group they ended up
+// in, fields they added are created in the section they ended up in (at
+// the end), then sections move to other groups (landing at the end), then
 // fields move to other sections (landing at the end), then the drags.
-export function instructionsFor(layout: Layout, fields: OrgField[]): Instructions {
-  const base = defaultLayout(fields.filter((f) => !f.isNew));
+export function instructionsFor(
+  layout: Layout,
+  fields: OrgField[],
+  sections: OrgSection[] = ORG_SECTIONS,
+): Instructions {
   const groupOf = (l: Layout, id: string) =>
     l.find((g) => g.sections.some((s) => s.id === id))?.group;
-  const sectionName = (id: string) => ORG_SECTIONS.find((s) => s.id === id)?.name ?? id;
+  const sectionName = (id: string) => sections.find((s) => s.id === id)?.name ?? id;
+  const isOtc = new Set(ORG_SECTIONS.map((s) => s.id));
+  const created = sections
+    .filter((s) => !isOtc.has(s.id))
+    .map((s) => ({ id: s.id, group: groupOf(layout, s.id) ?? s.group }));
+  // OTC's layout once the new sections are made.
+  const base = defaultLayout(fields.filter((f) => !f.isNew)).map((g) => ({
+    ...g,
+    sections: [
+      ...g.sections,
+      ...created.filter((c) => c.group === g.group).map((c) => ({ id: c.id, fields: [] })),
+    ],
+  }));
   const fieldName = (id: string) => fields.find((f) => f.id === id)?.name ?? id;
 
   const sectionMoves: Instructions["sectionMoves"] = [];
@@ -305,6 +338,7 @@ export function instructionsFor(layout: Layout, fields: OrgField[]): Instruction
   }
 
   return {
+    newSections: created.map((c) => ({ section: sectionName(c.id), group: c.group })),
     sectionMoves: sectionMoves.map((m) => ({ ...m, section: sectionName(m.section) })),
     fieldMoves: fieldMoves.map((m) => ({
       field: fieldName(m.field),

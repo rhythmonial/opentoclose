@@ -9,7 +9,9 @@ import { WorkflowFieldPicker } from "@/components/WorkflowFieldPicker";
 import { WorkflowFieldsSummary } from "@/components/WorkflowFieldsSummary";
 import { DocumentBoundary } from "@/components/DocumentBoundary";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
+import type { CustomSection } from "@/lib/otcFields";
 import {
+  addCustomSection,
   finishWorkflowFields,
   markDocAssigned,
   reorderAssignDocs,
@@ -40,6 +42,7 @@ export function AssignWorkflowWorkspace({
   editing,
   canFinish,
   initialDocId,
+  customSections: initialSections = [],
 }: {
   docs: WorkspaceDoc[];
   otcFields: OtcField[];
@@ -48,7 +51,17 @@ export function AssignWorkflowWorkspace({
   canFinish: boolean;
   // The contract to open first (from the page's address).
   initialDocId?: string | null;
+  // Sections the client added (for new fields).
+  customSections?: CustomSection[];
 }) {
+  const [sections, setSections] = useState(initialSections);
+  const addSection = async (name: string, group: string) => {
+    const res = await addCustomSection(editing.accountId, name, group);
+    const section = res.ok ? res.section : undefined;
+    if (!section) return null;
+    setSections((all) => (all.some((s) => s.id === section.id) ? all : [...all, section]));
+    return section;
+  };
   const [fieldsByDoc, setFieldsByDoc] = useState<Record<string, WorkflowField[]>>(() =>
     Object.fromEntries(docs.map((d) => [d.id, d.fields])),
   );
@@ -211,6 +224,8 @@ export function AssignWorkflowWorkspace({
             page={page}
             onPageChange={setPage}
             syncKey={syncKey}
+            customSections={sections}
+            onAddSection={addSection}
             onChange={(fields) => setFieldsByDoc((prev) => ({ ...prev, [doc.id]: fields }))}
             onSave={(picked) => saveWorkflowFields(doc.id, picked)}
             onLineNumbers={(lines) => saveContractLines(doc.id, lines)}
@@ -223,6 +238,7 @@ export function AssignWorkflowWorkspace({
           docs={[{ id: doc.id, name: doc.fileName, blanks: doc.blanks, fields: fieldsOf(doc.id) }]}
           editing={editingHere}
           onlyPage={{ docId: doc.id, page }}
+          customSections={sections}
         />
       </div>
 

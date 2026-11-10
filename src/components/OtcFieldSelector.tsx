@@ -5,7 +5,8 @@ import {
   CONTACT_ROLES_SECTION,
   isSystemRequired,
   OTC_FIELD_ALIASES,
-  OTC_SECTIONS,
+  sectionsWith,
+  type CustomSection,
   SELECTABLE_GROUPS,
   CUSTOM_FIELD_KINDS,
   slugOf,
@@ -52,6 +53,7 @@ export function OtcFieldSelector({
   assigned,
   newFields,
   showSummary,
+  customSections = [],
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
@@ -63,13 +65,15 @@ export function OtcFieldSelector({
   // The "Your fields" summary (staff only; clients use it later in the
   // course).
   showSummary: boolean;
+  // Sections the client added (shown at the end of their groups).
+  customSections?: CustomSection[];
 }) {
   // Every section of OTC's field groups (empty ones too, as OTC shows
   // them), with the client's new fields at the end of theirs.
   const [custom, setCustom] = useState<CustomField[]>(initial.custom);
   // The section a field is being added to, or the field being edited.
   const [dialog, setDialog] = useState<{ sectionId: string; field?: CustomField } | null>(null);
-  const SECTIONS = OTC_SECTIONS.filter((s) => s.id !== CONTACT_ROLES_SECTION).map((s) => ({
+  const SECTIONS = sectionsWith(customSections).filter((s) => s.id !== CONTACT_ROLES_SECTION).map((s) => ({
     ...s,
     fields: [
       ...s.fields.map((f): Field => ({ ...f, id: `${s.id}/${slugOf(f.name)}` })),
@@ -368,7 +372,7 @@ export function OtcFieldSelector({
 
       {dialog && (
         <CustomFieldDialog
-          sectionName={OTC_SECTIONS.find((x) => x.id === dialog.sectionId)?.name ?? ""}
+          sectionName={SECTIONS.find((x) => x.id === dialog.sectionId)?.name ?? ""}
           field={dialog.field}
           onClose={() => setDialog(null)}
           onSave={(value) => {

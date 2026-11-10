@@ -1,4 +1,4 @@
-import { OTC_FIELD_IDS, OTC_SECTION_IDS, type OtcField } from "@/lib/otcFields";
+import { isSectionId, OTC_FIELD_IDS, type OtcField } from "@/lib/otcFields";
 
 // A contract field the client picked for their transaction workflow, with
 // the kind of workflow field it becomes in Open to Close.
@@ -239,7 +239,7 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
         if (
           f.question_id.startsWith(NEW_OTC_PREFIX) &&
           typeof f.question_section === "string" &&
-          OTC_SECTION_IDS.has(f.question_section)
+          isSectionId(f.question_section)
         ) {
           clean.question_section = f.question_section;
         }
@@ -255,7 +255,7 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
       ) {
         clean.otc_field = f.otc_field.slice(0, 80);
         clean.otc_field_name = f.otc_field_name.trim().slice(0, 120);
-        if (typeof f.otc_section === "string" && OTC_SECTION_IDS.has(f.otc_section)) {
+        if (typeof f.otc_section === "string" && isSectionId(f.otc_section)) {
           clean.otc_section = f.otc_section;
         }
       }
@@ -278,7 +278,7 @@ export function cleanWorkflowFields(raw: unknown, keys: Map<string, string>): Wo
       clean.was_new = {
         id: was.id.slice(0, 80),
         name: was.name.trim().slice(0, 120),
-        ...(typeof was.section === "string" && OTC_SECTION_IDS.has(was.section)
+        ...(typeof was.section === "string" && isSectionId(was.section)
           ? { section: was.section }
           : {}),
       };

@@ -14,6 +14,7 @@ import {
   isContactRole,
   kindMatches,
   OTC_FIELDS,
+  type CustomSection,
   type OtcField,
 } from "@/lib/otcFields";
 import {
@@ -58,6 +59,8 @@ export function WorkflowFieldPicker({
   page: pageProp,
   onPageChange,
   syncKey,
+  customSections = [],
+  onAddSection,
 }: {
   source: ArrayBuffer | string;
   pageCount: number;
@@ -77,6 +80,9 @@ export function WorkflowFieldPicker({
   // When this changes, the fields start over from `initialFields` (after a
   // change made elsewhere on the page).
   syncKey?: number;
+  // Sections the client added, and how to add one, for new fields.
+  customSections?: CustomSection[];
+  onAddSection?: (name: string, group: string) => Promise<CustomSection | null>;
 }) {
   const { doc, error } = usePdfDocument(source);
   const [ownPage, setOwnPage] = useState(1);
@@ -473,6 +479,8 @@ export function WorkflowFieldPicker({
                   recentChoices={recentChoices}
                   otcFields={otcFields}
                   onChange={(f) => setField(keyOf(open), f)}
+                  customSections={customSections}
+                  onAddSection={onAddSection}
                   onSetSection={(id, name, sectionId) =>
                     update(
                       new Map(
@@ -562,6 +570,8 @@ function FieldTypeMenu({
   onChange,
   onSetSection,
   onClose,
+  customSections,
+  onAddSection,
 }: {
   // The box that was clicked, and the key of the field it belongs to.
   blank: Field;
@@ -578,6 +588,8 @@ function FieldTypeMenu({
   // every field tied to it.
   onSetSection: (createdId: string, name: string, sectionId: string) => void;
   onClose: () => void;
+  customSections?: CustomSection[];
+  onAddSection?: (name: string, group: string) => Promise<CustomSection | null>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<
@@ -977,6 +989,8 @@ function FieldTypeMenu({
         />
       ) : view === "new" ? (
         <NewOtcFieldForm
+          customSections={customSections}
+          onAddSection={onAddSection}
           defaultName={newName}
           kind="choice"
           onAdd={(name, sectionId) =>
@@ -1032,6 +1046,8 @@ function FieldTypeMenu({
         />
       ) : view === "section" && value ? (
         <NewOtcFieldForm
+          customSections={customSections}
+          onAddSection={onAddSection}
           defaultName={(isOption ? value.question_text : value.otc_field_name) ?? ""}
           kind={isOption ? "choice" : "field"}
           onAdd={(name, sectionId) => {
@@ -1043,6 +1059,8 @@ function FieldTypeMenu({
         />
       ) : (
         <NewOtcFieldForm
+          customSections={customSections}
+          onAddSection={onAddSection}
           defaultName={newName}
           kind={value?.type === "contact" ? "contact" : "field"}
           onAdd={(name, sectionId) =>

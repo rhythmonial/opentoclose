@@ -4,6 +4,7 @@ import {
   kindMatches,
   OTC_FIELDS,
   sectionById,
+  type CustomSection,
 } from "@/lib/otcFields";
 import {
   isActive,
@@ -90,6 +91,7 @@ export function WorkflowFieldsSummary({
   docs,
   editing,
   onlyPage,
+  customSections = [],
 }: {
   docs: SummaryDoc[];
   editing?: {
@@ -100,7 +102,10 @@ export function WorkflowFieldsSummary({
     onFieldsChanged?: (change: (fields: WorkflowField[]) => WorkflowField[]) => void;
   };
   onlyPage?: { docId: string; page: number };
+  // Sections the client added (for their new fields' section names).
+  customSections?: CustomSection[];
 }) {
+  const sectionOf = (id: string) => sectionById(id) ?? customSections.find((s) => s.id === id);
   const active = docs.flatMap((d) => d.fields).filter(isActive);
   const added = newOtcFieldsFrom(active);
   const otcName = (id?: string) =>
@@ -344,8 +349,7 @@ export function WorkflowFieldsSummary({
                       <span className="font-semibold text-ink">{f.name}</span>
                       <span className="text-xs text-ink-soft">
                         {KIND_LABELS[f.kind ?? ""] ?? "Field"}
-                        {sectionById(f.sectionId) &&
-                          ` · ${sectionById(f.sectionId)!.name}`}
+                        {sectionOf(f.sectionId) && ` · ${sectionOf(f.sectionId)!.name}`}
                       </span>
                     </span>
                     {f.kind === "choice" &&

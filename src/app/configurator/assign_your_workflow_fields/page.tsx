@@ -9,7 +9,7 @@ import { AssignWorkflowWorkspace } from "@/components/AssignWorkflowWorkspace";
 import { inAssignOrder } from "@/lib/docOrder";
 import { newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldsTester } from "@/components/WorkflowFieldsTester";
-import { cleanFieldNames, OTC_FIELDS } from "@/lib/otcFields";
+import { cleanCustomSections, cleanFieldNames, OTC_FIELDS } from "@/lib/otcFields";
 
 const STEP_KEY = "assign_your_workflow_fields";
 
@@ -87,7 +87,7 @@ export default async function AssignWorkflowFieldsPage({
   const { data: selection } = accountId
     ? await supabase
         .from("client_otc_field_selections")
-        .select("field_names")
+        .select("field_names, custom_sections")
         .eq("client_account_id", accountId)
         .maybeSingle()
     : { data: null };
@@ -193,6 +193,7 @@ export default async function AssignWorkflowFieldsPage({
               editing={{ accountId: staffClient?.id ?? null, names: fieldNames }}
               canFinish={!isStaff}
               initialDocId={openDoc ?? null}
+              customSections={cleanCustomSections(selection?.custom_sections)}
             />
           )}
         </div>

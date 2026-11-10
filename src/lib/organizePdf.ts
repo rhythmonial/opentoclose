@@ -3,6 +3,7 @@ import {
   fieldsToArchive,
   instructionsFor,
   ORG_SECTIONS,
+  type OrgSection,
   choiceChanges,
   keptOptions,
   sectionOf,
@@ -130,6 +131,7 @@ export async function organizeInstructionsPdf({
   names,
   choiceEdits,
   placeholders = {},
+  sections = ORG_SECTIONS,
 }: {
   accountName: string;
   layout: Layout;
@@ -139,6 +141,8 @@ export async function organizeInstructionsPdf({
   choiceEdits: ChoiceEdits;
   // Field id -> its placeholder text ("LINE 134, if blank = 3").
   placeholders?: Record<string, string>;
+  // OTC's sections with the ones the client added.
+  sections?: OrgSection[];
 }): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.setTitle(`Organize Your Fields - ${plain(accountName)}`);
@@ -148,7 +152,7 @@ export async function organizeInstructionsPdf({
     await doc.embedFont(StandardFonts.HelveticaBold),
   );
 
-  const steps = instructionsFor(layout, fields);
+  const steps = instructionsFor(layout, fields, sections);
   const archive = fieldsToArchive(inUse);
   const added = fields.filter((f) => f.isNew);
   const renamed = fields.filter((f) => names[f.id]);
@@ -181,14 +185,28 @@ export async function organizeInstructionsPdf({
     }
   }
 
+  if (steps.newSections.length > 0) {
+    part(`Add your new sections (${steps.newSections.length})`);
+    steps.newSections.forEach((s, i) =>
+      w.text(`In ${s.group}, add a section called "${s.section}" (it goes at the end of ${s.group}).`, {
+        indent: 14,
+        gap: 1,
+        prefix: `${n}.${i + 1}`,
+      }),
+    );
+  }
+
   part(`Add your new fields (${added.length})`);
   if (added.length === 0) nothing();
   added.forEach((f, i) => {
-    // Added before any section moves, so where OTC has the section.
-    const home = ORG_SECTIONS.find((s) => s.id === sectionOf(layout, f.id));
+    // Added before any section moves, so where OTC has the section (a new
+    // section was made in the group it ended up in).
+    const home = sections.find((s) => s.id === sectionOf(layout, f.id));
+    const made = home && !ORG_SECTIONS.some((s) => s.id === home.id);
+    const group = made ? layout.find((g) => g.sections.some((s) => s.id === home.id))?.group : null;
     w.text(
       home
-        ? `In ${home.group} > ${home.name}, add "${f.name}"${kind(f)}.`
+        ? `In ${group ?? home.group} > ${home.name}, add "${f.name}"${kind(f)}.`
         : `Add "${f.name}"${kind(f)} (no section was chosen for it in Organize Your Fields).`,
       { indent: 14, gap: 1, prefix: `${n}.${i + 1}` },
     );

@@ -11,6 +11,7 @@ import {
   type Layout,
   type Move,
   type OrgField,
+  type OrgSection,
 } from "@/lib/fieldOrganization";
 import { saveFieldOrganization } from "@/app/configurator/organize_your_fields/actions";
 
@@ -36,6 +37,7 @@ export function FieldOrganizer({
   names,
   initialLayout,
   initialChoiceEdits,
+  sections = ORG_SECTIONS,
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
@@ -45,6 +47,8 @@ export function FieldOrganizer({
   names: Record<string, string>;
   initialLayout: Layout;
   initialChoiceEdits: ChoiceEdits;
+  // OTC's sections with the ones the client added.
+  sections?: OrgSection[];
 }) {
   const [layout, setLayout] = useState(initialLayout);
   const [edits, setEdits] = useState(initialChoiceEdits);
@@ -56,7 +60,7 @@ export function FieldOrganizer({
   const latest = useRef(layout);
 
   const fieldById = new Map(fields.map((f) => [f.id, f] as const));
-  const sectionName = (id: string) => ORG_SECTIONS.find((s) => s.id === id)?.name ?? id;
+  const sectionName = (id: string) => sections.find((s) => s.id === id)?.name ?? id;
 
   function change(next: Layout, move: Omit<Move, "at">) {
     setLayout(next);

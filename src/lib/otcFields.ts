@@ -601,7 +601,7 @@ export function cleanCustomFields(raw: unknown): CustomField[] {
     if (
       typeof f.sectionId !== "string" ||
       f.sectionId === CONTACT_ROLES_SECTION ||
-      !OTC_SECTION_IDS.has(f.sectionId)
+      !isSectionId(f.sectionId)
     )
       continue;
     if (!kinds.has(f.kind as Kind)) continue;
@@ -714,3 +714,46 @@ export const OTC_CHOICE_OPTIONS: Record<string, string[]> = Object.fromEntries(
         : [],
   ),
 );
+
+// Sections a client adds when Open to Close doesn't have the one a new
+// field belongs in, each in one of OTC's field groups.
+export const NEW_SECTION_PREFIX = "new-section:";
+export type CustomSection = { id: string; name: string; group: string };
+
+// OTC's field groups (not contact roles), in order.
+export const FIELD_GROUPS = [
+  ...new Set(OTC_SECTIONS.filter((s) => s.id !== CONTACT_ROLES_SECTION).map((s) => s.group)),
+];
+
+// A section id we'll store: one of OTC's, or one the client added.
+export const isSectionId = (id: unknown): id is string =>
+  typeof id === "string" &&
+  (OTC_SECTION_IDS.has(id) || new RegExp(`^${NEW_SECTION_PREFIX}[0-9a-f-]{36}$`, "i").test(id));
+
+export function cleanCustomSections(raw: unknown): CustomSection[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CustomSection[] = [];
+  for (const item of raw.slice(0, 100)) {
+    const s = item as Partial<CustomSection> | null;
+    if (!s || !isSectionId(s.id) || !s.id.startsWith(NEW_SECTION_PREFIX) || out.some((o) => o.id === s.id)) continue;
+    const name = String(s.name ?? "").trim().slice(0, 80);
+    if (!name || typeof s.group !== "string" || !FIELD_GROUPS.includes(s.group)) continue;
+    out.push({ id: s.id, name, group: s.group });
+  }
+  return out;
+}
+
+// OTC's sections with the client's own, each added at the end of its group.
+export function sectionsWith(custom: CustomSection[]): OtcSection[] {
+  const out: OtcSection[] = [];
+  for (const s of OTC_SECTIONS) {
+    out.push(s);
+    const next = OTC_SECTIONS[OTC_SECTIONS.indexOf(s) + 1];
+    if (!next || next.group !== s.group) {
+      for (const c of custom.filter((c) => c.group === s.group)) {
+        out.push({ id: c.id, group: c.group, name: c.name, fields: [] });
+      }
+    }
+  }
+  return out;
+}

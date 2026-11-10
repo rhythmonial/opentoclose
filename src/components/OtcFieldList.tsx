@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CONTACT_ROLES_SECTION,
+  FIELD_GROUPS,
   isSystemRequired,
   OTC_SECTIONS,
   requiredRank,
   sectionById,
+  sectionsWith,
   SYSTEM_REQUIRED_LABEL,
+  type CustomSection,
   type OtcField,
 } from "@/lib/otcFields";
 
@@ -198,6 +201,8 @@ export function NewOtcFieldForm({
   kind,
   onAdd,
   onBack,
+  customSections = [],
+  onAddSection,
 }: {
   defaultName: string;
   // A contact role (which has no section to choose), a choice field, or
@@ -205,13 +210,19 @@ export function NewOtcFieldForm({
   kind: "contact" | "choice" | "field";
   onAdd: (name: string, sectionId: string) => void;
   onBack: () => void;
+  // Sections the client added, and how to add one (by name, in a group).
+  customSections?: CustomSection[];
+  onAddSection?: (name: string, group: string) => Promise<CustomSection | null>;
 }) {
   const [name, setName] = useState(defaultName);
   const [sectionId, setSectionId] = useState(
     kind === "contact" ? CONTACT_ROLES_SECTION : "",
   );
-  const sections = OTC_SECTIONS.filter((s) => s.id !== CONTACT_ROLES_SECTION);
-  const groups = [...new Set(sections.map((s) => s.group))];
+  const [added, setAdded] = useState<CustomSection[]>([]);
+  const sections = sectionsWith([
+    ...customSections,
+    ...added.filter((a) => !customSections.some((c) => c.id === a.id)),
+  ]).filter((s) => s.id !== CONTACT_ROLES_SECTION);
   const ready = name.trim() && sectionId;
 
   return (
@@ -246,29 +257,23 @@ export function NewOtcFieldForm({
         />
       </label>
       {kind !== "contact" && (
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-ink-soft">
-            Section it goes in
-          </span>
-          <select
-            value={sectionId}
-            onChange={(e) => setSectionId(e.target.value)}
-            className="rounded-md border border-border bg-bg px-2 py-1.5 text-sm text-ink outline-none focus:border-accent"
-          >
-            <option value="">Choose a section&hellip;</option>
-            {groups.map((g) => (
-              <optgroup key={g} label={g}>
-                {sections
-                  .filter((s) => s.group === g)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
+        <SectionPicker
+          sections={sections}
+          value={sectionId}
+          onChange={setSectionId}
+          onAddSection={
+            onAddSection
+              ? async (name, group) => {
+                  const section = await onAddSection(name, group);
+                  if (section) {
+                    setAdded((all) => [...all, section]);
+                    setSectionId(section.id);
+                  }
+                  return Boolean(section);
+                }
+              : undefined
+          }
+        />
       )}
       <div className="flex items-center justify-between">
         <button
@@ -287,5 +292,166 @@ export function NewOtcFieldForm({
         </button>
       </div>
     </form>
+  );
+}
+
+// The section a new field goes in: a search over the sections by group,
+// and when the one they want isn't there, adding it (with its group).
+function SectionPicker({
+  sections,
+  value,
+  onChange,
+  onAddSection,
+}: {
+  sections: { id: string; name: string; group: string }[];
+  value: string;
+  onChange: (id: string) => void;
+  onAddSection?: (name: string, group: string) => Promise<boolean>;
+}) {
+  const [query, setQuery] = useState("");
+  const [adding, setAdding] = useState<{ name: string; group: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const q = query.trim().toLowerCase();
+  const matches = sections.filter(
+    (s) => !q || s.name.toLowerCase().includes(q) || s.group.toLowerCase().includes(q),
+  );
+  const exact = sections.some((s) => s.name.toLowerCase() === q);
+  const groups = [...new Set(matches.map((s) => s.group))];
+  const picked = sections.find((s) => s.id === value);
+  // The picked section scrolled into view in the list (a section just
+  // added is at the end of its group).
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = list.current;
+    const at = box?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!box || !at) return;
+    const top = at.offsetTop;
+    if (top < box.scrollTop || top + at.offsetHeight > box.scrollTop + box.clientHeight) {
+      box.scrollTop = top - box.clientHeight / 2 + at.offsetHeight / 2;
+    }
+  }, [value, adding]);
+
+  async function add() {
+    if (!adding || !onAddSection || !adding.name.trim() || !adding.group) return;
+    setSaving(true);
+    const ok = await onAddSection(adding.name.trim(), adding.group);
+    setSaving(false);
+    if (ok) {
+      setAdding(null);
+      setQuery("");
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs font-medium text-ink-soft">
+        Section it goes in
+        {picked && (
+          <span className="ml-1 font-semibold text-ink">
+            &middot; {picked.name} <span className="font-normal text-ink-faint">({picked.group})</span>
+          </span>
+        )}
+      </span>
+      {adding ? (
+        <div className="flex flex-col gap-1.5 rounded-md border border-border bg-bg p-2">
+          <input
+            autoFocus
+            value={adding.name}
+            onChange={(e) => setAdding({ ...adding, name: e.target.value })}
+            maxLength={80}
+            aria-label="New section name"
+            className="rounded-md border border-border bg-surface px-2 py-1 text-sm text-ink outline-none focus:border-accent"
+          />
+          <select
+            value={adding.group}
+            onChange={(e) => setAdding({ ...adding, group: e.target.value })}
+            aria-label="Field group it belongs in"
+            className="rounded-md border border-border bg-surface px-2 py-1 text-sm text-ink outline-none focus:border-accent"
+          >
+            <option value="">Field group it belongs in&hellip;</option>
+            {FIELD_GROUPS.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setAdding(null)}
+              className="text-xs font-semibold text-ink-soft"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!adding.name.trim() || !adding.group || saving}
+              onClick={add}
+              className="rounded-md border border-accent px-2.5 py-1 text-xs font-semibold text-accent disabled:opacity-50"
+            >
+              {saving ? "Adding…" : "Add section"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              // Enter picks the only match, or goes on to add it.
+              if (matches.length === 1) {
+                onChange(matches[0].id);
+                setQuery("");
+              } else if (q && matches.length === 0 && onAddSection) {
+                setAdding({ name: query.trim(), group: "" });
+              }
+            }}
+            placeholder="Search sections"
+            aria-label="Search sections"
+            className="rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
+          />
+          <div ref={list} className="relative max-h-40 overflow-y-auto rounded-md border border-border">
+            {groups.map((g) => (
+              <div key={g}>
+                <p className="sticky top-0 bg-surface px-2 pb-0.5 pt-1.5 text-xs font-bold text-ink">{g}</p>
+                {matches
+                  .filter((s) => s.group === g)
+                  .map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        onChange(s.id);
+                        setQuery("");
+                      }}
+                      aria-pressed={s.id === value}
+                      className={`block w-full px-3 py-1 text-left text-sm ${
+                        s.id === value ? "bg-accent text-white" : "text-ink hover:bg-accent-soft/50"
+                      }`}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+              </div>
+            ))}
+            {matches.length === 0 && (
+              <p className="px-2 py-1.5 text-xs text-ink-faint">No sections match.</p>
+            )}
+          </div>
+          {onAddSection && q && !exact && (
+            <button
+              type="button"
+              onClick={() => setAdding({ name: query.trim(), group: "" })}
+              className="self-start text-xs font-semibold text-accent"
+            >
+              + Add section &ldquo;{query.trim()}&rdquo;
+            </button>
+          )}
+        </>
+      )}
+    </div>
   );
 }

@@ -20,7 +20,15 @@ import {
   workflowKeys,
   type WorkflowField,
 } from "@/lib/workflowFields";
-import { cleanCustomFields, cleanFieldNames, OTC_FIELDS } from "@/lib/otcFields";
+import {
+  cleanCustomFields,
+  cleanCustomSections,
+  cleanFieldNames,
+  FIELD_GROUPS,
+  NEW_SECTION_PREFIX,
+  OTC_FIELDS,
+  type CustomSection,
+} from "@/lib/otcFields";
 import { configuratorAccount } from "@/lib/configuratorAccount";
 import { progressOwnerId } from "@/lib/accountOwner";
 import { cleanOrder } from "@/lib/docOrder";
@@ -396,4 +404,39 @@ export async function markDocAssigned(
   if (error) return { ok: false };
   revalidatePath(PAGE);
   return { ok: true };
+}
+
+// Adds a section of the client's own to a field group (or finds the one
+// they already added by that name there).
+export async function addCustomSection(
+  accountId: string | null,
+  name: string,
+  group: string,
+): Promise<{ ok: boolean; section?: CustomSection; error?: string }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const clean = name.trim().slice(0, 80);
+  if (!clean || !FIELD_GROUPS.includes(group)) return { ok: false, error: "Name the section and pick its group." };
+  const { data: saved } = await supabase
+    .from("client_otc_field_selections")
+    .select("custom_sections")
+    .eq("client_account_id", account)
+    .maybeSingle();
+  const sections = cleanCustomSections(saved?.custom_sections);
+  const existing = sections.find((s) => s.group === group && s.name.toLowerCase() === clean.toLowerCase());
+  if (existing) return { ok: true, section: existing };
+  const section = { id: `${NEW_SECTION_PREFIX}${crypto.randomUUID()}`, name: clean, group };
+  const { error } = await supabase.from("client_otc_field_selections").upsert(
+    {
+      client_account_id: account,
+      custom_sections: [...sections, section],
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "client_account_id" },
+  );
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  revalidatePath("/configurator/select_otc_fields");
+  revalidatePath("/configurator/organize_your_fields");
+  return { ok: true, section };
 }

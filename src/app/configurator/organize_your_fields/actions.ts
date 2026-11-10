@@ -28,8 +28,8 @@ export async function saveFieldOrganization(
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   if (!account) return { ok: false, error: "Not signed in." };
   const use = await loadFieldUse(supabase, account);
-  const fields = orgFields(use.inUse, use.newFields, use.custom, use.contractOptions);
-  const clean = reconcileLayout(layout, fields);
+  const fields = orgFields(use.inUse, use.newFields, use.custom, use.contractOptions, use.sections);
+  const clean = reconcileLayout(layout, fields, use.sections);
   const { data: saved } = await supabase
     .from("client_field_organization")
     .select("moves")
@@ -65,7 +65,11 @@ export async function finishOrganizeFields() {
   await supabase.from("client_field_organization").upsert(
     {
       client_account_id: accountId,
-      layout: reconcileLayout(saved?.layout, orgFields(use.inUse, use.newFields, use.custom, use.contractOptions)),
+      layout: reconcileLayout(
+        saved?.layout,
+        orgFields(use.inUse, use.newFields, use.custom, use.contractOptions, use.sections),
+        use.sections,
+      ),
       done_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },

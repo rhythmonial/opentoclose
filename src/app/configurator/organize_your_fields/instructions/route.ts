@@ -23,11 +23,12 @@ export async function GET(request: Request) {
     loadFieldUse(supabase, accountId),
   ]);
   if (!account) return new Response("No client account.", { status: 404 });
-  const fields = orgFields(use.inUse, use.newFields, use.custom, use.contractOptions);
+  const fields = orgFields(use.inUse, use.newFields, use.custom, use.contractOptions, use.sections);
   const bytes = await organizeInstructionsPdf({
     accountName: account.name,
-    layout: reconcileLayout(saved?.layout, fields),
+    layout: reconcileLayout(saved?.layout, fields, use.sections),
     fields,
+    sections: use.sections,
     inUse: use.inUse,
     names: use.names,
     choiceEdits: cleanChoiceEdits(saved?.choice_edits, fields),
