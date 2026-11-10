@@ -79,7 +79,7 @@ const FIELD_SECTIONS: [
       ["City", "text"],
       ["State", "text"],
       ["Zip", "text"],
-      ["County", "choice"],
+      ["County", "text"],
       ["Country", "text"],
     ],
   ],
@@ -649,12 +649,68 @@ const YES_NO_FIELDS = new Set([
   "Will There Be A Septic Inspection",
 ]);
 
+// The options Open to Close's other choice fields come with, by name.
+const CHOICE_OPTIONS_BY_NAME: Record<string, string[]> = {
+  "Contract Status": [
+    "Listing - Pre-MLS",
+    "Listing - Active",
+    "Listing - Under Contract",
+    "Listing - Withdrawn-Cancelled",
+    "Under Contract",
+    "Closed",
+    "Contract Terminated",
+  ],
+  "Client Type": ["Buyer", "Seller", "Dual"],
+  "Property Type": [
+    "Single Family Residential",
+    "Condo",
+    "Townhouse",
+    "Multi-Family Dwelling",
+    "New Construction",
+    "Vacant Land",
+  ],
+  "Property Occupant Type": ["Owner Occupied", "Tenant Occupied", "Vacant"],
+  "Earnest Money Held By": ["Escrow Agent", "Title", "Attorney", "Buyer Broker", "Listing Broker"],
+  "Earnest Money Delivery Status": ["Delivered", "Not Delivered", "Waived"],
+  "Seller Disclosure Delivery Status": ["Not Delivered", "Delivered", "Waived"],
+  "Type of Inspections": ["General", "Pest-Termite", "Pool", "Radon", "Roof", "Lead Based Paint"],
+  "Buyers Response to Repairs": ["Accepts As Is", "Asks for Repairs", "Asks for Credit", "Cancels"],
+  "Results of Lead-Based Paint Assessment": [
+    "Requests Deficiencies Corrected",
+    "Accepts Lead-Based Paint As-is",
+  ],
+  "HOA Dues Payment Frequency": ["Monthly", "Semi-Yearly", "Annual"],
+  "Loan Type": ["Conventional", "VA", "FHA", "Rural - USDA", "Other"],
+  "Buyers Loan Approval Status": [
+    "Pending Approval - Conditions",
+    "Fully Approved - Clear to Close",
+  ],
+  "CD Delivery Status": [
+    "Conditions Pending - Not Sent",
+    "Sent to Buyer - Not Acknowledged",
+    "Sent to Buyer - Acknowledged and Signed",
+  ],
+  "Home Warranty is Paid By": ["Buyer", "Seller", "Buyers Agent", "Listing Agent"],
+  "Home Warranty Ordered By": ["Transaction Coordinator", "Buyer Agent", "Listing Agent"],
+  "What Photo Types would you like ordered": [
+    "Standard Photo Package",
+    "Videographer",
+    "Twilight",
+    "Virtual Tour",
+    "Drone",
+  ],
+  "Sign Installation Type": ["Yard", "Window", "Directionals"],
+  "Referral Type": ["Agent Referral", "HomeLight", "Zillow Flex"],
+  "Referral Flat Fee or Percentage": ["Flat Fee", "Percentage"],
+};
+
 // The options Open to Close's own choice fields come with, by field id.
-// Fields not listed here start with none in Organize Your Fields (the
-// client can still add theirs).
 export const OTC_CHOICE_OPTIONS: Record<string, string[]> = Object.fromEntries(
-  OTC_FIELDS.filter((f) => f.kind === "choice" && YES_NO_FIELDS.has(f.name)).map((f) => [
-    f.id,
-    ["Yes", "No"],
-  ]),
+  OTC_FIELDS.filter((f) => f.kind === "choice").flatMap((f) =>
+    YES_NO_FIELDS.has(f.name)
+      ? [[f.id, ["Yes", "No"]]]
+      : CHOICE_OPTIONS_BY_NAME[f.name]
+        ? [[f.id, CHOICE_OPTIONS_BY_NAME[f.name]]]
+        : [],
+  ),
 );
