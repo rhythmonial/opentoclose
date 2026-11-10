@@ -414,6 +414,30 @@ export type Database = {
         }
         Relationships: []
       }
+      client_field_organization: {
+        Row: {
+          client_account_id: string
+          done_at: string | null
+          layout: Json
+          moves: Json
+          updated_at: string
+        }
+        Insert: {
+          client_account_id: string
+          done_at?: string | null
+          layout?: Json
+          moves?: Json
+          updated_at?: string
+        }
+        Update: {
+          client_account_id?: string
+          done_at?: string | null
+          layout?: Json
+          moves?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_otc_field_selections: {
         Row: {
           custom_fields: Json

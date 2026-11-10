@@ -24,7 +24,11 @@ export function SortableGroup({
   handleClass = "mt-2",
 }: {
   items: { id: string; node: ReactNode }[];
-  onReorder: (orderedIds: string[]) => void | Promise<unknown>;
+  // With the item that moved and where from and to (0-based).
+  onReorder: (
+    orderedIds: string[],
+    moved: { id: string; from: number; to: number },
+  ) => void | Promise<unknown>;
   // Space between rows, and the drag handle's offset from a row's top.
   gapClass?: string;
   handleClass?: string;
@@ -52,7 +56,7 @@ export function SortableGroup({
     const newIndex = order.indexOf(String(over.id));
     const next = arrayMove(order, oldIndex, newIndex);
     setOrder(next);
-    onReorder(next);
+    onReorder(next, { id: String(active.id), from: oldIndex, to: newIndex });
   }
 
   const byId = new Map(items.map((i) => [i.id, i.node]));
