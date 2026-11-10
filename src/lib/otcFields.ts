@@ -615,7 +615,46 @@ export function cleanCustomFields(raw: unknown): CustomField[] {
   return out;
 }
 
+// Open to Close's choice fields that are yes/no questions.
+const YES_NO_FIELDS = new Set([
+  "Are there any seller paid closing costs",
+  "Is House Built Prior to 1978",
+  "Will Seller Disclosures Be Required",
+  "Will a Lead-Based Paint Disclosure Be Required",
+  "Will There Be An Inspection",
+  "Inspection Repair Receipts Delivered - Y/N",
+  "Is There An HOA",
+  "Is There a Loan",
+  "Will There Be An Appraisal",
+  "Appraisal Scheduled - Y/N",
+  "Appraisal Met Value - Y/N",
+  "Appraisal Conditions - Y/N",
+  "Appraisal Re-inspection Scheduled - Y/N",
+  "Home Warranty Offered",
+  "Deed Released to Record",
+  "Walkthrough Waived",
+  "Will We Be Doing a Coming Soon",
+  "Is there an Alarm",
+  "Are we scheduling photos",
+  "Will There be a Sign Installed",
+  "Are We Doing Staging",
+  "Are We Ordering a Listing Home Protection Plan",
+  "Listing Side Commission Flat Fee or Percentage",
+  "Buyer Side Commission Flat Fee or Percentage",
+  "Is there a Referral Fee",
+  "Referral W9 Received",
+  "Well Onsite",
+  "Will There Be A Well Inspection",
+  "Septic Onsite",
+  "Will There Be A Septic Inspection",
+]);
+
 // The options Open to Close's own choice fields come with, by field id.
 // Fields not listed here start with none in Organize Your Fields (the
 // client can still add theirs).
-export const OTC_CHOICE_OPTIONS: Record<string, string[]> = {};
+export const OTC_CHOICE_OPTIONS: Record<string, string[]> = Object.fromEntries(
+  OTC_FIELDS.filter((f) => f.kind === "choice" && YES_NO_FIELDS.has(f.name)).map((f) => [
+    f.id,
+    ["Yes", "No"],
+  ]),
+);
