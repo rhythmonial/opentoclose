@@ -346,16 +346,16 @@ export function WorkflowFieldPicker({
 
       <div className="flex flex-wrap items-center gap-4 text-xs text-ink-soft">
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-4 rounded-sm border-2 border-gold/70 bg-gold/10" />
-          Contract field
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-4 rounded-sm border-2 border-accent bg-accent/30" />
-          Workflow field
-        </span>
-        <span className="flex items-center gap-1.5">
           <span className="h-3 w-4 rounded-sm border-2 border-danger bg-danger/15" />
-          Needs an answer
+          Needs an Open to Close field
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-4 rounded-sm border-2 border-gold bg-gold/25" />
+          Linked, needs an Open to Close field
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-4 rounded-sm border-2 border-success bg-success/20" />
+          Assigned
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-4 rounded-sm border-2 border-zinc-400 bg-zinc-400/40" />
@@ -410,11 +410,11 @@ export function WorkflowFieldPicker({
                     className={`absolute rounded-sm border-2 transition-colors ${
                       removed
                         ? "border-zinc-400 bg-zinc-400/40 hover:bg-zinc-400/55"
-                        : !pick
-                          ? "border-gold/70 bg-gold/10 hover:bg-gold/30"
-                          : done
-                            ? "border-accent bg-accent/30"
-                            : "border-danger bg-danger/15"
+                        : done
+                          ? "border-success bg-success/20 hover:bg-success/30"
+                          : linked
+                            ? "border-gold bg-gold/25 hover:bg-gold/40"
+                            : "border-danger bg-danger/15 hover:bg-danger/25"
                     } ${
                       isOpen
                         ? "ring-2 ring-accent ring-offset-1"
@@ -431,12 +431,17 @@ export function WorkflowFieldPicker({
                   >
                     {picked && pick && showTag && (
                       <span
-                        className={`pointer-events-none absolute -top-3.5 left-0 whitespace-nowrap rounded px-1 py-px text-[9px] font-bold leading-tight text-white ${
-                          done ? "bg-accent" : "bg-danger"
+                        className={`pointer-events-none absolute -top-3.5 left-0 whitespace-nowrap rounded px-1 py-px text-[9px] font-bold leading-tight ${
+                          done ? "bg-success text-white" : linked ? "bg-gold text-ink" : "bg-danger text-white"
                         }`}
                       >
-                        {fieldTag(pick)}
-                        {!done && " ?"}
+                        {/* The Open to Close field once it has one (an option's
+                            choice field), else its type. */}
+                        {answers
+                          ? `Option: ${answers}`
+                          : pick.otc_field && otcName(pick.otc_field)
+                            ? otcName(pick.otc_field)
+                            : `${fieldTag(pick)}${done ? "" : " ?"}`}
                       </span>
                     )}
                   </button>
