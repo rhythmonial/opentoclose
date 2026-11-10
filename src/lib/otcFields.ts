@@ -639,8 +639,6 @@ const YES_NO_FIELDS = new Set([
   "Will There be a Sign Installed",
   "Are We Doing Staging",
   "Are We Ordering a Listing Home Protection Plan",
-  "Listing Side Commission Flat Fee or Percentage",
-  "Buyer Side Commission Flat Fee or Percentage",
   "Is there a Referral Fee",
   "Referral W9 Received",
   "Well Onsite",
@@ -701,6 +699,8 @@ const CHOICE_OPTIONS_BY_NAME: Record<string, string[]> = {
   ],
   "Sign Installation Type": ["Yard", "Window", "Directionals"],
   "Referral Type": ["Agent Referral", "HomeLight", "Zillow Flex"],
+  "Listing Side Commission Flat Fee or Percentage": ["Flat Fee", "Percentage"],
+  "Buyer Side Commission Flat Fee or Percentage": ["Flat Fee", "Percentage"],
   "Referral Flat Fee or Percentage": ["Flat Fee", "Percentage"],
 };
 
