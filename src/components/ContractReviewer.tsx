@@ -113,6 +113,9 @@ export function ContractReviewer({
   // Boxes shift+clicked to be linked together (indexes into blanks).
   const [linking, setLinking] = useState<number[]>([]);
   const [hoverGroup, setHoverGroup] = useState<string | null>(null);
+  // The box under the pointer: the other boxes' tags hide so they don't
+  // cover the contract around it.
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   // The type being hovered in the type menu, for its help.
   const [typeHelp, setTypeHelp] = useState<string | null>(null);
   // The choice field whose options are being picked (its box or link id):
@@ -769,8 +772,14 @@ export function ContractReviewer({
                         setLinking([]);
                         startDrag(e, "move", b.index);
                       }}
-                      onPointerEnter={() => setHoverGroup(b.group ?? null)}
-                      onPointerLeave={() => setHoverGroup(null)}
+                      onPointerEnter={() => {
+                        setHoverGroup(b.group ?? null);
+                        setHoverIndex(b.index);
+                      }}
+                      onPointerLeave={() => {
+                        setHoverGroup(null);
+                        setHoverIndex(null);
+                      }}
                       className={`absolute rounded-sm border-2 ${optionsFor ? "cursor-pointer" : "cursor-move"} ${
                         optionsFor && keyOf(b) === optionsFor
                           ? "z-10 border-accent bg-accent/30 ring-2 ring-accent ring-offset-1"
@@ -795,7 +804,10 @@ export function ContractReviewer({
                         height: `${b.height * 100}%`,
                       }}
                     >
-                      {((b.group && firstOfGroup.has(b.index)) || (!b.group && b.fieldType)) && (
+                      {((b.group && firstOfGroup.has(b.index)) || (!b.group && b.fieldType)) &&
+                        (hoverIndex === null ||
+                          hoverIndex === b.index ||
+                          Boolean(b.group && b.group === hoverGroup)) && (
                         <span
                           className={`pointer-events-none absolute -left-0.5 -top-3.5 flex items-center gap-0.5 whitespace-nowrap rounded px-1 py-px text-[9px] font-bold leading-tight text-white ${
                             b.group ? "bg-success" : "bg-accent"
