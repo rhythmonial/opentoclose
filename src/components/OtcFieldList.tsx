@@ -224,6 +224,9 @@ export function NewOtcFieldForm({
     ...added.filter((a) => !customSections.some((c) => c.id === a.id)),
   ]).filter((s) => s.id !== CONTACT_ROLES_SECTION);
   const ready = name.trim() && sectionId;
+  // With the name already there (a choice field named in Upload Your
+  // Contracts, or one typed in the search), they start on the section.
+  const startOnSection = kind !== "contact" && defaultName.trim() !== "";
 
   return (
     <form
@@ -242,7 +245,7 @@ export function NewOtcFieldForm({
               : "New OTC field name"}
         </span>
         <input
-          data-autofocus
+          {...(startOnSection ? {} : { "data-autofocus": "" })}
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={120}
@@ -261,6 +264,7 @@ export function NewOtcFieldForm({
           sections={sections}
           value={sectionId}
           onChange={setSectionId}
+          autoFocus={startOnSection}
           onAddSection={
             onAddSection
               ? async (name, group) => {
@@ -302,10 +306,13 @@ function SectionPicker({
   value,
   onChange,
   onAddSection,
+  autoFocus = false,
 }: {
   sections: { id: string; name: string; group: string }[];
   value: string;
   onChange: (id: string) => void;
+  // The search box is where the cursor starts.
+  autoFocus?: boolean;
   onAddSection?: (name: string, group: string) => Promise<boolean>;
 }) {
   const [query, setQuery] = useState("");
@@ -396,6 +403,7 @@ function SectionPicker({
       ) : (
         <>
           <input
+            {...(autoFocus ? { "data-autofocus": "" } : {})}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
