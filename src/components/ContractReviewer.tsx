@@ -108,6 +108,8 @@ export function ContractReviewer({
   // Page size in points (letter until the page loads), for sizing new boxes.
   const [pageSize, setPageSize] = useState({ width: 612, height: 792 });
   const [selected, setSelected] = useState<number | null>(null);
+  // How far the box's popup has been dragged (for the box it's open on).
+  const [shift, setShift] = useState<{ key: number; x: number; y: number } | null>(null);
   // Boxes shift+clicked to be linked together (indexes into blanks).
   const [linking, setLinking] = useState<number[]>([]);
   const [hoverGroup, setHoverGroup] = useState<string | null>(null);
@@ -863,12 +865,28 @@ export function ContractReviewer({
                   // The type menu is taller than the Link one.
                   const below = anchor.y + anchor.height < (linking.length > 0 ? 0.85 : 0.55);
                   const fromRight = anchor.x > 0.55;
+                  // Where it's been dragged to (for this box).
+                  const moved = shift && shift.key === anchorIndex ? shift : { x: 0, y: 0 };
+                  const startMove = (e: React.PointerEvent) => {
+                    e.preventDefault();
+                    const sx = e.clientX;
+                    const sy = e.clientY;
+                    const onMove = (ev: PointerEvent) =>
+                      setShift({ key: anchorIndex!, x: moved.x + ev.clientX - sx, y: moved.y + ev.clientY - sy });
+                    const onUp = () => {
+                      window.removeEventListener("pointermove", onMove);
+                      window.removeEventListener("pointerup", onUp);
+                    };
+                    window.addEventListener("pointermove", onMove);
+                    window.addEventListener("pointerup", onUp);
+                  };
                   return (
                     <div
                       role="dialog"
                       aria-label={linking.length > 0 ? "Link boxes" : "Field type"}
                       onPointerDown={(e) => e.stopPropagation()}
                       style={{
+                        transform: `translate(${moved.x}px, ${moved.y}px)`,
                         ...(below
                           ? { top: `calc(${(anchor.y + anchor.height) * 100}% + 8px)` }
                           : { bottom: `calc(${(1 - anchor.y) * 100}% + 8px)` }),
@@ -951,11 +969,19 @@ export function ContractReviewer({
                               setRecentChoice(id);
                             }}
                             onBack={() => setAskChoice(null)}
+                            onDragStart={startMove}
                           />
                         ) : (
                         <>
                           {/* The field's type (its linked boxes share it). */}
-                          <span className="flex items-baseline justify-between gap-3">
+                          <span
+                            onPointerDown={(e) => {
+                              if ((e.target as HTMLElement).closest("button")) return;
+                              startMove(e);
+                            }}
+                            title="Drag to move"
+                            className="-mx-3 -mt-2.5 flex cursor-move select-none items-baseline justify-between gap-3 rounded-t-lg px-3 pb-1 pt-2.5"
+                          >
                             <span className="text-xs font-semibold text-ink">Field type</span>
                             {anchor.fieldType && (
                               <button
@@ -1275,12 +1301,15 @@ function ChoiceFieldPrompt({
   defaultTitles,
   onCreate,
   onBack,
+  onDragStart,
 }: {
   choiceFields: { id: string; name: string; where?: string }[];
   preselect?: string;
   defaultTitles: string[];
   onCreate: (choice: { id: string } | { name: string }, titles: string[]) => void;
   onBack: () => void;
+  // Pressing the title row moves the popup.
+  onDragStart?: (e: React.PointerEvent) => void;
 }) {
   const capitalized = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
   // The choice field picked: one in the list, or a new one by name.
@@ -1305,17 +1334,34 @@ function ChoiceFieldPrompt({
     ? OTC_CHOICE_FIELDS.find((f) => f.name.toLowerCase() === added.toLowerCase())
     : undefined;
   const isPicked = (id: string) => Boolean(choice && "id" in choice && choice.id === id);
+  // On to the option once its choice field is chosen.
+  const titleBoxes = useRef<HTMLFormElement>(null);
+  const focusTitle = () =>
+    requestAnimationFrame(() => {
+      const inputs = titleBoxes.current?.querySelectorAll<HTMLInputElement>("input");
+      const input = inputs?.[inputs.length - 1];
+      input?.focus();
+      input?.select();
+    });
   const addNew = () => {
     const name = capitalized(adding.trim());
     if (!name) return;
     const existing = choiceFields.find((c) => c.name.toLowerCase() === name.toLowerCase());
     setChoice(existing ? { id: existing.id } : { name });
     setAdding("");
+    focusTitle();
   };
 
   return (
     <span className="flex w-[21rem] flex-col gap-2">
-      <span className="flex items-baseline justify-between gap-3">
+      <span
+        onPointerDown={(e) => {
+          if ((e.target as HTMLElement).closest("button")) return;
+          onDragStart?.(e);
+        }}
+        title={onDragStart ? "Drag to move" : undefined}
+        className={`-mx-3 -mt-2.5 flex items-baseline justify-between gap-3 rounded-t-lg px-3 pb-1 pt-2.5 ${onDragStart ? "cursor-move select-none" : ""}`}
+      >
         <span className="text-xs font-semibold text-ink">1. Which choice field is it for?</span>
         <button type="button" onClick={onBack} className="text-[11px] font-semibold text-ink-faint hover:text-ink">
           &lsaquo; Type
@@ -1328,7 +1374,10 @@ function ChoiceFieldPrompt({
               key={c.id}
               type="button"
               aria-pressed={isPicked(c.id)}
-              onClick={() => setChoice({ id: c.id })}
+              onClick={() => {
+                setChoice({ id: c.id });
+                focusTitle();
+              }}
               className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-left text-xs ${
                 isPicked(c.id)
                   ? "border-accent bg-accent text-white"
@@ -1353,7 +1402,8 @@ function ChoiceFieldPrompt({
       )}
       <span className="flex items-center gap-1.5">
         <input
-          autoFocus={!choice}
+          // Ready to type a new choice field (the last one stays picked).
+          autoFocus
           value={adding}
           onChange={(e) => setAdding(e.target.value)}
           onKeyDown={(e) => {
@@ -1384,6 +1434,7 @@ function ChoiceFieldPrompt({
       </span>
 
       <form
+        ref={titleBoxes}
         className="flex flex-col gap-1.5 border-t border-border pt-2"
         onSubmit={(e) => {
           e.preventDefault();
@@ -1396,7 +1447,7 @@ function ChoiceFieldPrompt({
         {titles.map((t, i) => (
           <span key={i} className="flex items-center gap-1.5">
             <input
-              autoFocus={i === titles.length - 1 && (titles.length > 1 || Boolean(choice))}
+              autoFocus={i === titles.length - 1 && titles.length > 1}
               value={t}
               onChange={(e) => setTitles((all) => all.map((x, j) => (j === i ? e.target.value : x)))}
               maxLength={120}
