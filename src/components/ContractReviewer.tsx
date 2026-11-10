@@ -190,11 +190,27 @@ export function ContractReviewer({
     commit(tidy, confirmed);
   }
 
+  // Removing a box grays it out (it's kept, to put back); removing a
+  // grayed-out box deletes it for good.
   function removeSelected() {
     if (selected === null) return;
-    changeBlanks(blanks.filter((_, i) => i !== selected));
+    const box = blanks[selected];
+    if (box?.removed) changeBlanks(blanks.filter((_, i) => i !== selected));
+    else changeBlanks(blanks.map((b, i) => (i === selected ? { ...b, removed: true } : b)));
     setSelected(null);
     setLinking([]);
+  }
+
+  function restoreSelected() {
+    if (selected === null) return;
+    changeBlanks(
+      blanks.map((b, i) => {
+        if (i !== selected) return b;
+        const next = { ...b };
+        delete next.removed;
+        return next;
+      }),
+    );
   }
 
   // Shift+click adds a box to (or takes it out of) the ones to link,
@@ -217,11 +233,15 @@ export function ContractReviewer({
       .filter(({ b, i }) => inLink(b, i))
       .sort((a, c) => a.b.page - c.b.page || a.b.y - c.b.y || a.b.x - c.b.x)
       .find(({ b }) => b.fieldType)?.b.fieldType;
+    // The first box clicked carries the link's tag.
+    const lead = linking[0];
     changeBlanks(
       blanks.map((b, i) => {
         if (!inLink(b, i)) return b;
-        const next = { ...b, group };
+        const next: ContractBlank = { ...b, group };
         if (fieldType) next.fieldType = fieldType;
+        if (i === lead) next.linkLead = true;
+        else delete next.linkLead;
         return next;
       }),
     );
@@ -626,15 +646,24 @@ export function ContractReviewer({
   const pageConfirmed = confirmed.includes(page);
   const selectedGroup = selected !== null ? blanks[selected]?.group : undefined;
   const groupSize = (g: string) => blanks.filter((b) => b.group === g).length;
-  // A link's tag (with its link icon) shows on its first box, in reading
-  // order.
+  // A link's tag (with its link icon) shows on the box clicked first when
+  // linking, or else its first box in reading order.
   const tagged = new Set<string>();
   const firstOfGroup = new Set<number>();
+  for (const b of onPage) {
+    if (b.group && b.linkLead && !b.removed && !tagged.has(b.group)) {
+      tagged.add(b.group);
+      firstOfGroup.add(b.index);
+    }
+  }
   for (const b of [...onPage].sort((a, c) => a.y - c.y || a.x - c.x)) {
-    if (!b.group || tagged.has(b.group)) continue;
+    if (!b.group || b.removed || tagged.has(b.group)) continue;
     tagged.add(b.group);
     firstOfGroup.add(b.index);
   }
+  // A link is typed when any of its boxes is.
+  const typedGroups = new Set(blanks.filter((b) => b.group && b.fieldType && !b.removed).map((b) => b.group!));
+  const isTyped = (b: ContractBlank) => Boolean(b.fieldType || (b.group && typedGroups.has(b.group)));
 
   return (
     <div ref={rootRef} className="flex scroll-mt-4 flex-col gap-3">
@@ -697,13 +726,33 @@ export function ContractReviewer({
         highlighted. Missing a checkbox? Click where it is. Missing a blank
         line? Click and drag along it. Drag a box to move it, drag its ends
         to make it longer or shorter, and select a box then press{" "}
-        <span className="font-semibold">&times;</span> or Delete to remove it.
-        If one answer runs across more than one line, hold{" "}
+        <span className="font-semibold">&times;</span> or Delete to remove it
+        (it grays out; click it to put it back). If one answer runs across
+        more than one line, hold{" "}
         <span className="font-semibold">Shift</span> and click each of its
         boxes, then click Link. Click a box to choose its{" "}
         <span className="font-semibold">field type</span> (date, dollar
         amount, contact and so on) for each field your team tracks.
       </p>
+
+      <div className="flex flex-wrap items-center gap-4 text-xs text-ink-soft">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-4 rounded-sm border-2 border-danger bg-danger/15" />
+          Needs a field type
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-4 rounded-sm border-2 border-gold bg-gold/25" />
+          Linked, needs a field type
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-4 rounded-sm border-2 border-success bg-success/20" />
+          Has a field type
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-4 rounded-sm border-2 border-zinc-400 bg-zinc-400/40" />
+          Removed
+        </span>
+      </div>
 
       {optionsFor && (
         <ChoiceOptionsPanel
@@ -791,11 +840,13 @@ export function ContractReviewer({
                           ? "z-10 border-accent bg-accent/15"
                           : isLinking
                             ? "z-10 border-dashed border-accent bg-accent/25"
-                            : b.group
-                              ? `border-success ${lit ? "bg-success/40" : "bg-success/20"}`
-                              : b.fieldType
-                                ? "border-accent/70 bg-accent/15 hover:bg-accent/25"
-                                : "border-gold bg-gold/25 hover:bg-gold/40"
+                            : b.removed
+                              ? "border-zinc-400 bg-zinc-400/40"
+                              : isTyped(b)
+                                ? `border-success ${lit ? "bg-success/40" : "bg-success/20 hover:bg-success/30"}`
+                                : b.group
+                                  ? `border-gold ${lit ? "bg-gold/50" : "bg-gold/25 hover:bg-gold/40"}`
+                                  : "border-danger bg-danger/15 hover:bg-danger/25"
                       }`}
                       style={{
                         left: `${b.x * 100}%`,
@@ -804,13 +855,14 @@ export function ContractReviewer({
                         height: `${b.height * 100}%`,
                       }}
                     >
-                      {((b.group && firstOfGroup.has(b.index)) || (!b.group && b.fieldType)) &&
+                      {!b.removed &&
+                        ((b.group && firstOfGroup.has(b.index)) || (!b.group && b.fieldType)) &&
                         (hoverIndex === null ||
                           hoverIndex === b.index ||
                           Boolean(b.group && b.group === hoverGroup)) && (
                         <span
-                          className={`pointer-events-none absolute -left-0.5 -top-3.5 flex items-center gap-0.5 whitespace-nowrap rounded px-1 py-px text-[9px] font-bold leading-tight text-white ${
-                            b.group ? "bg-success" : "bg-accent"
+                          className={`pointer-events-none absolute -left-0.5 -top-3.5 flex items-center gap-0.5 whitespace-nowrap rounded px-1 py-px text-[9px] font-bold leading-tight ${
+                            isTyped(b) ? "bg-success text-white" : "bg-gold text-ink"
                           }`}
                         >
                           {b.group && (
@@ -931,6 +983,29 @@ export function ContractReviewer({
                             </button>
                           </span>
                         </>
+                      ) : anchor.removed ? (
+                        // A removed box: put it back, or delete it for good.
+                        <span className="flex w-60 flex-col gap-2">
+                          <span className="text-xs text-ink-soft">
+                            This box is removed, so it isn&rsquo;t a field.
+                          </span>
+                          <span className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={removeSelected}
+                              className="whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold text-ink-faint hover:text-danger"
+                            >
+                              Delete for good
+                            </button>
+                            <button
+                              type="button"
+                              onClick={restoreSelected}
+                              className="whitespace-nowrap rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white"
+                            >
+                              Put it back
+                            </button>
+                          </span>
+                        </span>
                       ) : (
                         askRole === keyOf(anchor) ? (
                           <ContactRolePrompt
@@ -1123,9 +1198,10 @@ export function ContractReviewer({
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs text-ink-faint">
-          {onPage.length} box{onPage.length === 1 ? "" : "es"} on page {page}
+          {onPage.filter((b) => !b.removed).length} box
+          {onPage.filter((b) => !b.removed).length === 1 ? "" : "es"} on page {page}
           {" · "}
-          {onPage.filter((b) => b.fieldType).length} with a field type
+          {onPage.filter((b) => !b.removed && isTyped(b)).length} with a field type
         </span>
         <button
           type="button"

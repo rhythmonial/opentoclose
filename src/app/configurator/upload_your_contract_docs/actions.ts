@@ -216,6 +216,8 @@ export async function saveContractReview(input: {
       after: String(b.after ?? "").slice(0, 120),
       ...(b.fieldName ? { fieldName: String(b.fieldName).slice(0, 120) } : {}),
       ...(typeof b.group === "string" && uuid.test(b.group) ? { group: b.group } : {}),
+      ...(b.removed === true ? { removed: true } : {}),
+      ...(b.linkLead === true && typeof b.group === "string" ? { linkLead: true } : {}),
       ...(isBoxFieldType(b.fieldType) ? { fieldType: b.fieldType } : {}),
       ...(b.fieldType === "choice_field" && cleanTitles(b.choiceOptions).length > 0
         ? { choiceOptions: cleanTitles(b.choiceOptions) }

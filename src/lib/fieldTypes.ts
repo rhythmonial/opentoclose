@@ -117,7 +117,7 @@ type BoxInfo = {
 function infoByKey(blanks: ContractBlank[]) {
   const out = new Map<string, BoxInfo>();
   for (const b of blanks) {
-    if (!b.id || !b.fieldType) continue;
+    if (!b.id || !b.fieldType || b.removed) continue;
     const key = b.group ?? b.id;
     if (out.has(key)) continue;
     out.set(key, {
@@ -209,7 +209,7 @@ export function withWorkflowTypes(
 ): ContractBlank[] {
   const byKey = new Map<string, WorkflowField>();
   for (const f of fields) if (!f.removed && boxTypeOf(f)) byKey.set(f.id, f);
-  const keys = new Set(blanks.filter((b) => b.id).map((b) => b.group ?? b.id!));
+  const keys = new Set(blanks.filter((b) => b.id && !b.removed).map((b) => b.group ?? b.id!));
   return blanks.map((b) => {
     if (!b.id) return b;
     const f = byKey.get(b.group ?? b.id);

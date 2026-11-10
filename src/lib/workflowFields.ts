@@ -137,10 +137,13 @@ export const isActive = (field: WorkflowField) => !field.removed;
 
 // Maps each box id, and each link id, to the key its workflow field is
 // saved under: linked boxes share their link's key.
-export function workflowKeys(blanks: { id?: string; group?: string }[]): Map<string, string> {
+export function workflowKeys(
+  blanks: { id?: string; group?: string; removed?: boolean }[],
+): Map<string, string> {
   const keys = new Map<string, string>();
   for (const b of blanks) {
-    if (!b.id) continue;
+    // A box the client removed isn't a field.
+    if (!b.id || b.removed) continue;
     const key = b.group ?? b.id;
     keys.set(b.id, key);
     keys.set(key, key);

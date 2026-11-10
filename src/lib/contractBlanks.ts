@@ -45,6 +45,12 @@ export type ContractBlank = {
   // When one box (or linked boxes) stands for several options of its
   // choice field: all their titles (optionTitle is the first).
   optionTitles?: string[];
+  // Taken off the contract by the client (grayed out, kept so it can be
+  // put back): it isn't a field anywhere else.
+  removed?: boolean;
+  // The box clicked first when its boxes were linked, which carries the
+  // link's tag.
+  linkLead?: boolean;
   // A contact's role: an Open to Close contact role (its id), or one the
   // client added (a NEW_OTC_PREFIX id, with the name in contactRoleName).
   contactRole?: string;

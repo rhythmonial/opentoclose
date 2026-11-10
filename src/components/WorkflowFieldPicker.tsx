@@ -120,8 +120,9 @@ export function WorkflowFieldPicker({
       .catch(() => {});
   }, [doc, blanks, onLineNumbers]);
 
+  // Boxes removed in Upload Your Contracts aren't fields.
   const fields = blanks
-    .filter((b): b is Field => Boolean(b.id))
+    .filter((b): b is Field => Boolean(b.id) && !b.removed)
     .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
   const keyOf = (b: Field) => b.group ?? b.id;
   // The boxes behind each field, in reading order.

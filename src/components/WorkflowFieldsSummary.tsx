@@ -36,7 +36,7 @@ export function typeLabel(f: WorkflowField) {
 // with the contract's text for each.
 export function inContractOrder(doc: SummaryDoc) {
   const boxes = doc.blanks
-    .filter((b) => b.id)
+    .filter((b) => b.id && !b.removed)
     .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
   return doc.fields
     .filter(isActive)
