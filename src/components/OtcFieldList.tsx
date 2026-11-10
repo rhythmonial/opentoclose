@@ -318,6 +318,10 @@ function SectionPicker({
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState<{ name: string; group: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  // Once a section is picked, it shows in a field (like any other) with a
+  // button to search again.
+  const [searching, setSearching] = useState(!value);
+  const searchBox = useRef<HTMLInputElement>(null);
   const q = query.trim().toLowerCase();
   const matches = sections.filter(
     (s) => !q || s.name.toLowerCase().includes(q) || s.group.toLowerCase().includes(q),
@@ -336,7 +340,22 @@ function SectionPicker({
     if (top < box.scrollTop || top + at.offsetHeight > box.scrollTop + box.clientHeight) {
       box.scrollTop = top - box.clientHeight / 2 + at.offsetHeight / 2;
     }
-  }, [value, adding]);
+  }, [value, adding, searching]);
+
+  // A section picked: shown in its field, and Enter adds the field.
+  function pick(id: string) {
+    onChange(id);
+    setQuery("");
+    setSearching(false);
+    focusAdd();
+  }
+  const focusAdd = () =>
+    requestAnimationFrame(() =>
+      list.current
+        ?.closest("form")
+        ?.querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.focus(),
+    );
 
   async function add() {
     if (!adding || !onAddSection || !adding.name.trim() || !adding.group) return;
@@ -346,6 +365,8 @@ function SectionPicker({
     if (ok) {
       setAdding(null);
       setQuery("");
+      setSearching(false);
+      focusAdd();
     }
   }
 
@@ -353,11 +374,6 @@ function SectionPicker({
     <div className="flex flex-col gap-1">
       <span className="text-xs font-medium text-ink-soft">
         Section it goes in
-        {picked && (
-          <span className="ml-1 font-semibold text-ink">
-            &middot; {picked.name} <span className="font-normal text-ink-faint">({picked.group})</span>
-          </span>
-        )}
       </span>
       {adding ? (
         <div className="flex flex-col gap-1.5 rounded-md border border-border bg-bg p-2">
@@ -400,9 +416,26 @@ function SectionPicker({
             </button>
           </div>
         </div>
+      ) : picked && !searching ? (
+        <div ref={list} className="flex items-center gap-2 rounded-md border border-border bg-bg px-2.5 py-1.5">
+          <span className="min-w-0 flex-1 truncate text-sm text-ink">
+            {picked.name} <span className="text-ink-faint">&middot; {picked.group}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setSearching(true);
+              requestAnimationFrame(() => searchBox.current?.focus());
+            }}
+            className="shrink-0 text-xs font-semibold text-accent"
+          >
+            Change
+          </button>
+        </div>
       ) : (
         <>
           <input
+            ref={searchBox}
             {...(autoFocus ? { "data-autofocus": "" } : {})}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -411,8 +444,7 @@ function SectionPicker({
               e.preventDefault();
               // Enter picks the only match, or goes on to add it.
               if (matches.length === 1) {
-                onChange(matches[0].id);
-                setQuery("");
+                pick(matches[0].id);
               } else if (q && matches.length === 0 && onAddSection) {
                 setAdding({ name: query.trim(), group: "" });
               }
@@ -431,10 +463,7 @@ function SectionPicker({
                     <button
                       key={s.id}
                       type="button"
-                      onClick={() => {
-                        onChange(s.id);
-                        setQuery("");
-                      }}
+                      onClick={() => pick(s.id)}
                       aria-pressed={s.id === value}
                       className={`block w-full px-3 py-1 text-left text-sm ${
                         s.id === value ? "bg-accent text-white" : "text-ink hover:bg-accent-soft/50"
