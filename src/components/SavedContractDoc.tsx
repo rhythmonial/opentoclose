@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { ContractReviewer } from "@/components/ContractReviewer";
 import { DocumentBoundary } from "@/components/DocumentBoundary";
@@ -30,6 +31,17 @@ export function SavedContractDoc({
   actions?: React.ReactNode;
 }) {
   const reviewed = pageCount > 0 && confirmedPages.length === pageCount;
+  // Reviewing a reviewed document again starts from the page they pick,
+  // which goes back to unconfirmed.
+  const [again, setAgain] = useState<{ page: number; confirmed: number[] } | null>(null);
+  const [saving, setSaving] = useState(false);
+  async function reviewPage(n: number) {
+    const confirmed = confirmedPages.filter((p) => p !== n);
+    setSaving(true);
+    await saveContractReview({ id, blanks, confirmedPages: confirmed });
+    setSaving(false);
+    setAgain({ page: n, confirmed });
+  }
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
@@ -77,17 +89,40 @@ export function SavedContractDoc({
             {reviewed ? "Review again" : "Review pages"}
           </summary>
           <div className="mt-3">
-            <DocumentBoundary>
-              <ContractReviewer
-                source={url}
-                pageCount={pageCount}
-                initialBlanks={blanks}
-                initialConfirmed={confirmedPages}
-                onSave={(next, confirmed) =>
-                  saveContractReview({ id, blanks: next, confirmedPages: confirmed })
-                }
-              />
-            </DocumentBoundary>
+            {reviewed && !again ? (
+              <div className="rounded-lg border border-success/30 bg-success-soft/60 p-4">
+                <p className="text-sm font-semibold text-success">This document has been reviewed.</p>
+                <p className="mt-0.5 text-sm text-ink-soft">
+                  Pick a page to review again. It goes back to unconfirmed until you confirm it.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      disabled={saving}
+                      onClick={() => reviewPage(n)}
+                      className="rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-ink hover:border-accent hover:text-accent disabled:opacity-50"
+                    >
+                      Page {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <DocumentBoundary>
+                <ContractReviewer
+                  source={url}
+                  pageCount={pageCount}
+                  initialBlanks={blanks}
+                  initialConfirmed={again?.confirmed ?? confirmedPages}
+                  initialPage={again?.page ?? 1}
+                  onSave={(next, confirmed) =>
+                    saveContractReview({ id, blanks: next, confirmedPages: confirmed })
+                  }
+                />
+              </DocumentBoundary>
+            )}
           </div>
         </details>
       )}

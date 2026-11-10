@@ -83,6 +83,7 @@ export function ContractReviewer({
   pageCount,
   initialBlanks,
   initialConfirmed = [],
+  initialPage = 1,
   onSave,
 }: {
   // The file's bytes (just picked) or a signed URL (already uploaded).
@@ -90,11 +91,13 @@ export function ContractReviewer({
   pageCount: number;
   initialBlanks: ContractBlank[];
   initialConfirmed?: number[];
+  // The page to open on.
+  initialPage?: number;
   onSave?: (blanks: ContractBlank[], confirmed: number[]) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const [blanks, setBlanks] = useState(initialBlanks);
   const [confirmed, setConfirmed] = useState(initialConfirmed);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialPage);
   // Page size in points (letter until the page loads), for sizing new boxes.
   const [pageSize, setPageSize] = useState({ width: 612, height: 792 });
   const [selected, setSelected] = useState<number | null>(null);
