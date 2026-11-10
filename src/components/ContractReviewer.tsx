@@ -623,13 +623,13 @@ export function ContractReviewer({
   const pageConfirmed = confirmed.includes(page);
   const selectedGroup = selected !== null ? blanks[selected]?.group : undefined;
   const groupSize = (g: string) => blanks.filter((b) => b.group === g).length;
-  // Each link on this page is lettered A, B, C... in reading order, and
-  // the letter shows on its first box.
-  const groupLetters = new Map<string, string>();
+  // A link's tag (with its link icon) shows on its first box, in reading
+  // order.
+  const tagged = new Set<string>();
   const firstOfGroup = new Set<number>();
   for (const b of [...onPage].sort((a, c) => a.y - c.y || a.x - c.x)) {
-    if (!b.group || groupLetters.has(b.group)) continue;
-    groupLetters.set(b.group, String.fromCharCode(65 + (groupLetters.size % 26)));
+    if (!b.group || tagged.has(b.group)) continue;
+    tagged.add(b.group);
     firstOfGroup.add(b.index);
   }
 
@@ -806,8 +806,7 @@ export function ContractReviewer({
                               <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden>
                                 <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
                               </svg>
-                              {groupLetters.get(b.group)}
-                              {b.fieldType && " · "}
+                              {b.fieldType && " "}
                             </>
                           )}
                           {b.fieldType === "choice_option" && b.optionTitle
