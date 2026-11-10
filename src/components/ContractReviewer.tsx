@@ -580,18 +580,19 @@ export function ContractReviewer({
       void (saver.current?.settle() ?? Promise.resolve()).then(() => onAllConfirmed(latest, next));
       return;
     }
-    if (!isConfirmed) {
-      // Move on to the next page still waiting for review.
-      const nextPage = Array.from({ length: pageCount }, (_, i) => i + 1).find(
-        (n) => n > page && !next.includes(n),
-      );
-      if (nextPage) {
-        setPage(nextPage);
-        setSelected(null);
-        setLinking([]);
-        // Start the next page from its top, not where this one was confirmed.
-        rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+    // Back to the top of the page, where its tab now shows green.
+    if (!isConfirmed) rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // Confirms every page at once.
+  function confirmAll() {
+    const next = Array.from({ length: pageCount }, (_, i) => i + 1);
+    setConfirmed(next);
+    onConfirmedChange?.(next);
+    commit(blanks, next);
+    if (onAllConfirmed) {
+      const latest = blanks;
+      void (saver.current?.settle() ?? Promise.resolve()).then(() => onAllConfirmed(latest, next));
     }
   }
 
@@ -631,7 +632,9 @@ export function ContractReviewer({
               }}
               className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-semibold ${
                 n === page
-                  ? "border-accent bg-accent text-white"
+                  ? confirmed.includes(n)
+                    ? "border-success bg-success text-white"
+                    : "border-accent bg-accent text-white"
                   : confirmed.includes(n)
                     ? "border-success/40 bg-success-soft text-success"
                     : "border-border bg-surface text-ink-soft"
@@ -654,17 +657,19 @@ export function ContractReviewer({
             {saveState === "saved" && "Saved"}
             {saveState === "error" && <span className="text-danger">Couldn&rsquo;t save</span>}
           </span>
-          <button
-            type="button"
-            onClick={toggleConfirmed}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-              pageConfirmed
-                ? "border border-success/40 bg-success-soft text-success"
-                : "bg-accent text-white"
-            }`}
-          >
-            {pageConfirmed ? `Page ${page} confirmed ✓ (undo)` : `Confirm page ${page} looks right`}
-          </button>
+          {confirmed.length === pageCount ? (
+            <span className="rounded-lg border border-success/40 bg-success-soft px-4 py-2 text-sm font-semibold text-success">
+              All pages confirmed ✓
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={confirmAll}
+              className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-soft/50"
+            >
+              Confirm all pages
+            </button>
+          )}
         </span>
       </div>
 
@@ -1059,11 +1064,24 @@ export function ContractReviewer({
         )}
       </div>
 
-      <span className="text-xs text-ink-faint">
-        {onPage.length} box{onPage.length === 1 ? "" : "es"} on page {page}
-        {" · "}
-        {onPage.filter((b) => b.fieldType).length} with a field type
-      </span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs text-ink-faint">
+          {onPage.length} box{onPage.length === 1 ? "" : "es"} on page {page}
+          {" · "}
+          {onPage.filter((b) => b.fieldType).length} with a field type
+        </span>
+        <button
+          type="button"
+          onClick={toggleConfirmed}
+          className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+            pageConfirmed
+              ? "border border-success/40 bg-success-soft text-success"
+              : "bg-accent text-white"
+          }`}
+        >
+          {pageConfirmed ? `Page ${page} confirmed ✓ (undo)` : `Confirm page ${page} looks right`}
+        </button>
+      </div>
     </div>
   );
 }
