@@ -119,6 +119,13 @@ export function OtcFieldList({
           data-autofocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter with nothing matching goes on to add it as a new one.
+            if (e.key === "Enter" && q && list.length === 0) {
+              e.preventDefault();
+              onAddNew(query.trim());
+            }
+          }}
           placeholder={searchPlaceholder}
           aria-label={searchPlaceholder}
           className="w-full rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
