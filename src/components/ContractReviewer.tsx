@@ -1238,6 +1238,14 @@ function ChoiceFieldPrompt({
   );
   const [adding, setAdding] = useState("");
   const [title, setTitle] = useState(() => capitalized(defaultTitle));
+  // Opens scrolled to the choice field picked to start (usually the last
+  // one, at the bottom of a long list).
+  const list = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const box = list.current;
+    const picked = box?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (box && picked) box.scrollTop = picked.offsetTop - box.clientHeight + picked.offsetHeight + 4;
+  }, []);
   const added = choice && "name" in choice ? choice.name : null;
   // A new name that's one of Open to Close's choice fields becomes that one.
   const addedOtc = added
@@ -1261,7 +1269,7 @@ function ChoiceFieldPrompt({
         </button>
       </span>
       {(choiceFields.length > 0 || added) && (
-        <span className="flex max-h-36 flex-col gap-1 overflow-y-auto">
+        <span ref={list} className="relative flex max-h-36 flex-col gap-1 overflow-y-auto">
           {choiceFields.map((c) => (
             <button
               key={c.id}
