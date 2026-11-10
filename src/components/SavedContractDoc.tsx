@@ -43,6 +43,9 @@ export function SavedContractDoc({
   // the pages.
   const [again, setAgain] = useState<{ page: number; confirmed: number[] } | null>(null);
   const [saving, setSaving] = useState(false);
+  // Open or closed as they leave it (saving refreshes the page, which
+  // shouldn't collapse it).
+  const [open, setOpen] = useState(defaultOpen);
   async function reviewPage(n: number) {
     const confirmed = current.confirmed.filter((p) => p !== n);
     setSaving(true);
@@ -54,7 +57,7 @@ export function SavedContractDoc({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div data-contract-doc className="scroll-mt-4 rounded-xl border border-border bg-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-ink">{fileName}</p>
@@ -94,7 +97,11 @@ export function SavedContractDoc({
         </p>
       )}
       {url && !isScanned && (
-        <details open={defaultOpen} className="mt-3">
+        <details
+          open={open}
+          onToggle={(e) => setOpen(e.currentTarget.open)}
+          className="mt-3"
+        >
           <summary className="cursor-pointer text-sm font-semibold text-accent">
             {reviewed ? "Review again" : "Review pages"}
             {!reviewed && (

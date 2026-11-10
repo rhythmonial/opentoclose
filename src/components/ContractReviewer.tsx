@@ -580,8 +580,12 @@ export function ContractReviewer({
       void (saver.current?.settle() ?? Promise.resolve()).then(() => onAllConfirmed(latest, next));
       return;
     }
-    // Back to the top of the page, where its tab now shows green.
-    if (!isConfirmed) rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Back to the top of the document (its card, when it's in one), where
+    // this page's tab now shows green.
+    if (!isConfirmed) {
+      const top = rootRef.current?.closest<HTMLElement>("[data-contract-doc]") ?? rootRef.current;
+      top?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }
 
   // Confirms every page at once.
