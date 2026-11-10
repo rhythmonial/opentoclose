@@ -6,7 +6,7 @@ import { openPdf, drawPdfPage } from "@/lib/pdfjs";
 import { fieldLabel, tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 import { FIELD_TYPE_OPTIONS, type BoxFieldType } from "@/lib/fieldTypes";
 import { isContactRole, OTC_FIELDS } from "@/lib/otcFields";
-import { NEW_OTC_PREFIX, placeholderText } from "@/lib/workflowFields";
+import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
 import { createSaveQueue } from "@/lib/saveQueue";
 
 // Open to Close's choice fields, for naming a new choice field.
@@ -1154,9 +1154,6 @@ export function ContractReviewer({
                                 aria-label="What the contract says it is if left blank"
                                 className="w-20 rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent"
                               />
-                              <span className="text-ink-faint">
-                                {anchor.line ? `Placeholder: ${placeholderText(anchor.line, anchor.ifBlank)}` : "Shown in its placeholder text"}
-                              </span>
                             </label>
                           )}
                           {anchor.fieldType === "contact" && (
