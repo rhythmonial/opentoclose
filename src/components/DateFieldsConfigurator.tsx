@@ -8,7 +8,6 @@ import {
   emptyCalc,
   isSameDay,
   COUNTED_TIME_FRAMES,
-  TIME_FRAMES,
   type DateCalc,
 } from "@/lib/dateCalculations";
 import type { DateOption, DateRow } from "@/lib/dateRows";
@@ -25,8 +24,8 @@ const cellSelect =
 // (OTC dates), and the dates they chose there (worked out if they say so).
 // Each worked-out date says what OTC's Date Calculation asks: so many days
 // (a set number, or a days field) of which time frame, after or before which
-// date (or the same day as it). A summary of every worked-out date closes
-// the page.
+// date (or the same day as it). Each shows as a one-line summary; clicking
+// it opens its settings.
 export function DateFieldsConfigurator({
   accountId,
   rows: initialRows,
@@ -61,31 +60,13 @@ export function DateFieldsConfigurator({
     );
   }, [auto, accountId]);
   const timers = useRef(new Map<string, number>());
+  // The worked-out date whose settings are showing.
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const calcFor = (id: string) => calcs.get(id) ?? emptyCalc(id);
   const nameOf = (id: string | null) => dates.find((d) => d.id === id)?.name ?? "";
-  const numberName = (id: string | null) => numbers.find((n) => n.id === id)?.name ?? "";
   const worked = rows.filter((r) => r.group !== "contract" && calcFor(r.id).enabled);
   const incomplete = worked.filter((r) => !calcComplete(calcFor(r.id))).length;
-
-  // How a date is worked out, in words: "30 Calendar Day(s) After
-  // Acceptance Date".
-  function describe(c: DateCalc) {
-    const relative = nameOf(c.relative_to) || "__";
-    if (isSameDay(c)) return `Same Day As ${relative}`;
-    const days =
-      c.days !== null
-        ? c.days
-        : c.number_field
-          ? `[${numberName(c.number_field)}]`
-          : "__";
-    return [
-      days,
-      TIME_FRAMES.find((t) => t.value === c.time_frame)?.label ?? "__",
-      DIRECTIONS.find((t) => t.value === c.direction)?.label ?? "__",
-      relative,
-    ].join(" ");
-  }
 
   function update(id: string, change: Partial<DateCalc>) {
     const next = { ...calcFor(id), ...change };
@@ -136,153 +117,206 @@ export function DateFieldsConfigurator({
     ["Other Open to Close fields", numbers.filter((n) => n.group === "other")],
   ];
 
+  // A worked-out date in a few words: "Variable calendar days after
+  // Acceptance Date", "3 business days before Closing Date", "Same day as
+  // Acceptance Date".
+  function summaryOf(c: DateCalc) {
+    const relative = nameOf(c.relative_to) || "(choose a date)";
+    if (isSameDay(c)) return `Same day as ${relative}`;
+    const one = c.days === 1;
+    const kind =
+      c.time_frame === "business_days"
+        ? one ? "business day" : "business days"
+        : c.time_frame === "calendar_days"
+          ? one ? "calendar day" : "calendar days"
+          : c.time_frame === "calendar_days_skip_weekend"
+            ? `${one ? "calendar day" : "calendar days"} (skipping a landing weekend day)`
+            : "(choose a type)";
+    const count = c.days !== null ? String(c.days) : c.number_field ? "Variable" : "(choose days)";
+    return `${count} ${kind} ${c.direction ?? "(before or after)"} ${relative}`;
+  }
+
   function calcRow(r: DateRow, opts: { optional: boolean }) {
     const c = calcFor(r.id);
     const on = c.enabled;
-    const sameDay = isSameDay(c);
-    const bad = (v: unknown) => on && (v === null || v === "");
-    const ring = (b: boolean) => (b ? "border-danger" : "");
+    const open = on && openId === r.id;
+    const done = calcComplete(c);
     return (
-      <tr key={r.id} className={on ? "" : "text-ink-faint"}>
-        <td className="px-2 py-1.5 align-middle">
+      <li key={r.id} className={on ? "" : "text-ink-faint"}>
+        <div className="flex items-center gap-2 px-3 py-2">
           {opts.optional ? (
             <input
               type="checkbox"
               checked={on}
-              onChange={(e) => check(r.id, e.target.checked)}
+              onChange={(e) => {
+                check(r.id, e.target.checked);
+                setOpenId(e.target.checked ? r.id : null);
+              }}
               aria-label={`Work out ${r.name}`}
-              className="h-4 w-4"
+              className="h-4 w-4 shrink-0"
             />
           ) : (
-            <span aria-hidden className="text-accent">
+            <span aria-hidden className="w-4 shrink-0 text-center text-accent">
               &#10003;
             </span>
           )}
-        </td>
-        <td className="max-w-[14rem] px-2 py-1.5">
-          <span className="block truncate font-medium text-ink" title={r.name}>
-            {r.name}
-          </span>
-          <span className="block truncate text-[11px] text-ink-faint">
-            {r.section}
-          </span>
-        </td>
-        {on ? (
-          <>
-            {/* Days: a number (0 is the same day), or blank when they vary. */}
-            <td className="px-1 py-1.5">
-              <input
-                type="number"
-                min={0}
-                max={3650}
-                inputMode="numeric"
-                placeholder="Varies"
-                value={c.days ?? ""}
-                onChange={(e) => {
-                  const days =
-                    e.target.value === "" ? null : Math.max(0, Math.trunc(Number(e.target.value)));
-                  update(r.id, {
-                    days,
-                    days_on_contract: days === null && Boolean(c.number_field),
-                    // 0 days is "Same Day As"; a count needs a real time frame.
-                    ...(c.time_frame === "same_day" ? { time_frame: "calendar_days" as const } : {}),
-                  });
-                }}
-                aria-label={`Number of days for ${r.name}`}
-                title="0 means the same day. Leave it blank if it varies."
-                className={`${cellSelect} !min-w-0 w-20 ${ring(on && c.days === null && !c.number_field)}`}
-              />
-            </td>
-            <td className="px-1 py-1.5">
-              <select
-                value={c.number_field ?? ""}
-                onChange={(e) =>
-                  update(r.id, {
-                    number_field: e.target.value || null,
-                    days_on_contract: c.days === null && Boolean(e.target.value),
-                  })
-                }
-                aria-label={`Number field for ${r.name}`}
-                className={`${cellSelect} !min-w-[9rem] ${ring(on && c.days === null && !c.number_field)}`}
+          {on ? (
+            <button
+              type="button"
+              aria-expanded={open}
+              onClick={() => setOpenId(open ? null : r.id)}
+              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            >
+              <span className="min-w-0 flex-1 truncate text-sm">
+                <span className="font-semibold text-ink">{r.name}</span>
+                <span className="text-ink-soft"> &ndash; {summaryOf(c)}</span>
+              </span>
+              {!done && (
+                <span className="shrink-0 text-xs font-semibold text-danger">Needs finishing</span>
+              )}
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                aria-hidden
+                className={`shrink-0 text-ink-faint transition-transform ${open ? "rotate-180" : ""}`}
               >
-                <option value="">None</option>
-                {numberGroups.map(([label, items]) =>
-                  items.length === 0 ? null : (
-                    <optgroup key={label} label={label}>
-                      {items.map((n) => (
-                        <option key={n.id} value={n.id}>
-                          {n.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ),
-                )}
-              </select>
-            </td>
-            <td className="px-1 py-1.5">
-              <select
-                disabled={sameDay}
-                value={c.time_frame === "same_day" ? "" : (c.time_frame ?? "")}
-                onChange={(e) => update(r.id, { time_frame: (e.target.value || null) as DateCalc["time_frame"] })}
-                aria-label={`Type for ${r.name}`}
-                className={`${cellSelect} ${ring(!sameDay && bad(c.time_frame))}`}
-              >
-                <option value="">{sameDay ? "Same day" : "Choose"}</option>
-                {COUNTED_TIME_FRAMES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </td>
-            <td className="px-1 py-1.5">
-              <select
-                disabled={sameDay}
-                value={c.direction ?? ""}
-                onChange={(e) => update(r.id, { direction: (e.target.value || null) as DateCalc["direction"] })}
-                aria-label={`When for ${r.name}`}
-                className={`${cellSelect} !min-w-[5rem] ${ring(!sameDay && bad(c.direction))}`}
-              >
-                <option value="">{sameDay ? "Same day" : "Choose"}</option>
-                {DIRECTIONS.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </td>
-            <td className="px-1 py-1.5">
-              <select
-                value={c.relative_to ?? ""}
-                onChange={(e) => update(r.id, { relative_to: e.target.value || null })}
-                aria-label={`Date ${r.name} counts from`}
-                className={`${cellSelect} !min-w-[9rem] ${ring(bad(c.relative_to))}`}
-              >
-                <option value="">Choose a date</option>
-                {fromGroups.map(([label, items]) =>
-                  items.filter((o) => o.id !== r.id).length === 0 ? null : (
-                    <optgroup key={label} label={label}>
-                      {items
-                        .filter((o) => o.id !== r.id)
-                        .map((o) => (
-                          <option key={o.id} value={o.id}>
-                            {o.name}
-                          </option>
-                        ))}
-                    </optgroup>
-                  ),
-                )}
-              </select>
-            </td>
-          </>
-        ) : (
-          <td colSpan={5} className="px-2 py-1.5 text-xs">
-            {opts.optional
-              ? "Entered by hand. Check it if it's worked out from another date."
-              : ""}
-          </td>
-        )}
-      </tr>
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+          ) : (
+            <span className="min-w-0 flex-1 truncate text-sm">
+              <span className="font-medium">{r.name}</span>
+              <span className="text-xs"> &ndash; entered by hand. Check it if it&rsquo;s worked out from another date.</span>
+            </span>
+          )}
+        </div>
+        {open && calcSettings(r, c)}
+      </li>
+    );
+  }
+
+  // The settings of a worked-out date, under it once it's clicked (called,
+  // not rendered as a component, so its inputs keep focus).
+  function calcSettings(r: DateRow, c: DateCalc) {
+    const sameDay = isSameDay(c);
+    const bad = (v: unknown) => v === null || v === "";
+    const ring = (b: boolean) => (b ? "border-danger" : "");
+    const label = (text: string, missing: boolean) => (
+      <span className={`text-xs font-semibold ${missing ? "text-danger" : "text-ink-soft"}`}>{text}</span>
+    );
+    const daysMissing = c.days === null && !c.number_field;
+    return (
+      <div className="grid grid-cols-1 gap-3 border-t border-border bg-bg/60 px-3 py-3 sm:grid-cols-5 sm:pl-9">
+        {/* Days: a number (0 is the same day), or blank when they vary. */}
+        <label className="flex flex-col gap-1">
+          {label("Days", daysMissing)}
+          <input
+            type="number"
+            min={0}
+            max={3650}
+            inputMode="numeric"
+            placeholder="Varies"
+            value={c.days ?? ""}
+            onChange={(e) => {
+              const days = e.target.value === "" ? null : Math.max(0, Math.trunc(Number(e.target.value)));
+              update(r.id, {
+                days,
+                days_on_contract: days === null && Boolean(c.number_field),
+                // 0 days is "Same Day As"; a count needs a real time frame.
+                ...(c.time_frame === "same_day" ? { time_frame: "calendar_days" as const } : {}),
+              });
+            }}
+            title="0 means the same day. Leave it blank if it varies."
+            className={`${cellSelect} !min-w-0 ${ring(daysMissing)}`}
+          />
+          <span className="text-[11px] text-ink-faint">0 = same day &middot; blank = varies</span>
+        </label>
+        <label className="flex flex-col gap-1">
+          {label("Number field", daysMissing)}
+          <select
+            value={c.number_field ?? ""}
+            onChange={(e) =>
+              update(r.id, {
+                number_field: e.target.value || null,
+                days_on_contract: c.days === null && Boolean(e.target.value),
+              })
+            }
+            className={`${cellSelect} ${ring(daysMissing)}`}
+          >
+            <option value="">None</option>
+            {numberGroups.map(([group, items]) =>
+              items.length === 0 ? null : (
+                <optgroup key={group} label={group}>
+                  {items.map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ),
+            )}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          {label("Type", !sameDay && bad(c.time_frame))}
+          <select
+            disabled={sameDay}
+            value={c.time_frame === "same_day" ? "" : (c.time_frame ?? "")}
+            onChange={(e) => update(r.id, { time_frame: (e.target.value || null) as DateCalc["time_frame"] })}
+            className={`${cellSelect} ${ring(!sameDay && bad(c.time_frame))}`}
+          >
+            <option value="">{sameDay ? "Same day" : "Choose"}</option>
+            {COUNTED_TIME_FRAMES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          {label("When", !sameDay && bad(c.direction))}
+          <select
+            disabled={sameDay}
+            value={c.direction ?? ""}
+            onChange={(e) => update(r.id, { direction: (e.target.value || null) as DateCalc["direction"] })}
+            className={`${cellSelect} ${ring(!sameDay && bad(c.direction))}`}
+          >
+            <option value="">{sameDay ? "Same day" : "Choose"}</option>
+            {DIRECTIONS.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          {label("From date", bad(c.relative_to))}
+          <select
+            value={c.relative_to ?? ""}
+            onChange={(e) => update(r.id, { relative_to: e.target.value || null })}
+            className={`${cellSelect} ${ring(bad(c.relative_to))}`}
+          >
+            <option value="">Choose a date</option>
+            {fromGroups.map(([group, items]) =>
+              items.filter((o) => o.id !== r.id).length === 0 ? null : (
+                <optgroup key={group} label={group}>
+                  {items
+                    .filter((o) => o.id !== r.id)
+                    .map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                </optgroup>
+              ),
+            )}
+          </select>
+        </label>
+      </div>
     );
   }
 
@@ -293,26 +327,11 @@ export function DateFieldsConfigurator({
         <h2 className="text-sm font-bold text-ink">
           {title} <span className="font-normal text-ink-faint">({items.length})</span>
         </h2>
-        <p className="text-xs text-ink-soft">{help}</p>
-        <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-          <table className="w-full min-w-[44rem] text-left text-sm">
-            <thead className="bg-bg text-xs text-ink-soft">
-              <tr>
-                <th className="w-8 px-2 py-2" />
-                <th className="px-2 py-2 font-semibold">Date</th>
-                <th className="px-1 py-2 font-semibold">Days</th>
-                <th className="px-1 py-2 font-semibold">Number field</th>
-                <th className="px-1 py-2 font-semibold">Type</th>
-                <th className="px-1 py-2 font-semibold">When</th>
-                <th className="px-1 py-2 font-semibold">From date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {/* A days field's date is always worked out. */}
-              {items.map((r) => calcRow(r, { optional: opts.optional && !r.numberField }))}
-            </tbody>
-          </table>
-        </div>
+        <p className="text-xs text-ink-soft">{help} Click a date to change how it&rsquo;s worked out.</p>
+        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
+          {/* A days field's date is always worked out. */}
+          {items.map((r) => calcRow(r, { optional: opts.optional && !r.numberField }))}
+        </ul>
       </section>
     );
   }
@@ -392,42 +411,6 @@ export function DateFieldsConfigurator({
         </p>
       )}
 
-      <DateSummary
-        rows={worked.map((r) => ({ date: r, calc: calcFor(r.id) }))}
-        describe={describe}
-      />
     </div>
-  );
-}
-
-// Every worked-out date and how, at the bottom of the page.
-function DateSummary({
-  rows,
-  describe,
-}: {
-  rows: { date: DateRow; calc: DateCalc }[];
-  describe: (c: DateCalc) => string;
-}) {
-  return (
-    <section className="rounded-xl border border-border bg-surface p-5">
-      <h2 className="font-display text-lg font-bold text-ink">Your date summary</h2>
-      <p className="mt-1 text-sm text-ink-soft">Every date that&rsquo;s worked out, and how.</p>
-      {rows.length === 0 ? (
-        <p className="mt-4 text-sm text-ink-faint">No dates worked out yet.</p>
-      ) : (
-        <ul className="mt-4 divide-y divide-border rounded-lg border border-border">
-          {rows.map(({ date, calc }) => {
-            return (
-              <li key={date.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-2 text-sm">
-                <span className="min-w-0">
-                  <span className="font-semibold text-ink">{date.name}</span> = {describe(calc)}
-                </span>
-                {!calcComplete(calc) && <span className="text-xs font-semibold text-danger">Needs finishing</span>}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
   );
 }
