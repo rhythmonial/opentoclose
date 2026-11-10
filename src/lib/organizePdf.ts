@@ -3,6 +3,7 @@ import {
   fieldsToArchive,
   instructionsFor,
   ORG_SECTIONS,
+  sectionOf,
   type Layout,
   type OrgField,
 } from "@/lib/fieldOrganization";
@@ -142,7 +143,6 @@ export async function organizeInstructionsPdf({
   const archive = fieldsToArchive(inUse);
   const added = fields.filter((f) => f.isNew);
   const renamed = fields.filter((f) => names[f.id]);
-  const sectionName = (id: string) => ORG_SECTIONS.find((s) => s.id === id)?.name ?? id;
   const kind = (f: OrgField) => (f.kind ? ` (${KIND_LABELS[f.kind] ?? f.kind})` : "");
 
   w.text("Organize Your Fields", { size: 22, font: w.bold, color: ACCENT, gap: 2 });
@@ -176,9 +176,13 @@ export async function organizeInstructionsPdf({
   if (added.length === 0) nothing();
   added.forEach((f, i) => {
     // Added before any section moves, so where OTC has the section.
-    const home = ORG_SECTIONS.find((s) => s.id === f.sectionId);
-    const where = `${home?.group ?? ""} > ${sectionName(f.sectionId)}`;
-    w.text(`In ${where}, add "${f.name}"${kind(f)}.`, { indent: 14, gap: 1, prefix: `${n}.${i + 1}` });
+    const home = ORG_SECTIONS.find((s) => s.id === sectionOf(layout, f.id));
+    w.text(
+      home
+        ? `In ${home.group} > ${home.name}, add "${f.name}"${kind(f)}.`
+        : `Add "${f.name}"${kind(f)} (no section was chosen for it in Organize Your Fields).`,
+      { indent: 14, gap: 1, prefix: `${n}.${i + 1}` },
+    );
     if (f.options?.length) {
       w.text(`Options: ${f.options.join(", ")}`, { indent: 42, color: SOFT, size: 10, gap: 3 });
     }

@@ -116,8 +116,73 @@ export function FieldOrganizer({
 
   const countIn = (g: Layout[number]) => g.sections.reduce((n, s) => n + s.fields.length, 0);
 
+  // Fields they added without a section, until they pick one.
+  const placed = new Set(layout.flatMap((g) => g.sections.flatMap((s) => s.fields)));
+  const unplaced = fields.filter((f) => !f.sectionId && !placed.has(f.id));
+
+  function place(fieldId: string, sectionId: string) {
+    const g = layout.find((x) => x.sections.some((s) => s.id === sectionId))!;
+    const section = g.sections.find((s) => s.id === sectionId)!;
+    change(
+      layout.map((x) =>
+        x.group === g.group
+          ? {
+              ...x,
+              sections: x.sections.map((s) =>
+                s.id === sectionId ? { ...s, fields: [...s.fields, fieldId] } : s,
+              ),
+            }
+          : x,
+      ),
+      {
+        kind: "field",
+        id: fieldId,
+        from: { group: "", section: "", index: 0 },
+        to: { group: g.group, section: sectionId, index: section.fields.length },
+      },
+    );
+    setGroup(g.group);
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      {unplaced.length > 0 && (
+        <div className="rounded-xl border border-gold/50 bg-gold/10 p-4 text-sm">
+          <p className="font-semibold text-ink">Choose a section for your new fields</p>
+          <p className="mt-0.5 text-xs text-ink-soft">
+            You added these without a section. Pick where each one goes; you can then drag it into
+            place.
+          </p>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {unplaced.map((f) => (
+              <li key={f.id} className="flex flex-wrap items-center justify-between gap-2">
+                <span className="min-w-0">
+                  <span className="font-medium text-accent">{f.name}</span>
+                  {f.kind && <span className="text-ink-soft"> ({KIND_LABELS[f.kind] ?? f.kind})</span>}
+                </span>
+                <select
+                  value=""
+                  onChange={(e) => e.target.value && place(f.id, e.target.value)}
+                  aria-label={`Section for ${f.name}`}
+                  className="w-64 max-w-full rounded-md border border-border bg-surface px-2 py-1 text-sm text-ink"
+                >
+                  <option value="">Choose a section&hellip;</option>
+                  {layout.map((g) => (
+                    <optgroup key={g.group} label={g.group}>
+                      {g.sections.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {sectionName(s.id)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Field group tabs, on one row at any width. */}
       <div className="flex gap-1 sm:gap-2" role="tablist" aria-label="Field groups">
         {layout.map((g) => {

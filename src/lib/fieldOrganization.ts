@@ -14,6 +14,7 @@ import {
 export type OrgField = {
   id: string;
   name: string;
+  // "" for a field the client added without a section (they pick one here).
   sectionId: string;
   kind?: Kind;
   // Added by the client (to be created in OTC), with a choice field's
@@ -55,9 +56,13 @@ export function orgFields(
     ...OTC_FIELDS.filter((f) => f.sectionId !== CONTACT_ROLES_SECTION && inUse.has(f.id)).map(
       (f) => ({ id: f.id, name: f.name, sectionId: f.sectionId, kind: f.kind }),
     ),
-    ...newFields
-      .filter((f) => ORG_SECTIONS.some((s) => s.id === f.sectionId))
-      .map((f) => ({ id: f.id, name: f.name, sectionId: f.sectionId, kind: f.kind, isNew: true })),
+    ...newFields.map((f) => ({
+      id: f.id,
+      name: f.name,
+      sectionId: ORG_SECTIONS.some((s) => s.id === f.sectionId) ? f.sectionId : "",
+      kind: f.kind,
+      isNew: true,
+    })),
     ...custom.map((f) => ({
       id: f.id,
       name: f.name,
@@ -99,9 +104,13 @@ export function reconcileLayout(raw: unknown, fields: OrgField[]): Layout {
       const id = typeof s?.id === "string" ? s.id : "";
       if (!sectionGroup.has(id) || seenSections.has(id)) continue;
       seenSections.add(id);
+      // A field stays in its own section; one without a section goes in
+      // the section the client picked for it.
       const ids = (Array.isArray(s.fields) ? s.fields : []).filter(
         (f): f is string =>
-          typeof f === "string" && fieldSection.get(f) === id && !seenFields.has(f),
+          typeof f === "string" &&
+          (fieldSection.get(f) === id || fieldSection.get(f) === "") &&
+          !seenFields.has(f),
       );
       ids.forEach((f) => seenFields.add(f));
       target.sections.push({ id, fields: ids });
@@ -121,6 +130,13 @@ export function reconcileLayout(raw: unknown, fields: OrgField[]): Layout {
     }
   }
   return out;
+}
+
+// The section a field is in (for a field added without a section, the one
+// the client picked), or null.
+export function sectionOf(layout: Layout, fieldId: string): string | null {
+  for (const g of layout) for (const s of g.sections) if (s.fields.includes(fieldId)) return s.id;
+  return null;
 }
 
 export function cleanMoves(raw: unknown): Move[] {
@@ -228,7 +244,9 @@ export function instructionsFor(layout: Layout, fields: OrgField[]): Instruction
   const fieldOrder: Instructions["fieldOrder"] = [];
   for (const g of layout) {
     for (const s of g.sections) {
-      const start = base.flatMap((b) => b.sections).find((b) => b.id === s.id)?.fields ?? [];
+      // Fields added without a section go at the end of the one picked.
+      const own = base.flatMap((b) => b.sections).find((b) => b.id === s.id)?.fields ?? [];
+      const start = [...own, ...s.fields.filter((id) => !own.includes(id))];
       const steps = reorderSteps(start, s.fields).map((x) => ({
         field: fieldName(x.id),
         after: x.after ? fieldName(x.after) : null,
