@@ -35,8 +35,8 @@ export default async function UploadContractDocsPage({
     </div>
   ) : (
     <p className="mt-1.5 text-sm text-ink-soft">
-      Upload the blank versions of your contracts and addenda. We&rsquo;ll read each one for
-      its fill-in blanks to map them to fields in your setup.
+      Upload the blank versions of your contracts and addenda (PDFs only, up to 25 MB each).
+      We&rsquo;ll read each one for its fill-in blanks to map them to fields in your setup.
     </p>
   );
 

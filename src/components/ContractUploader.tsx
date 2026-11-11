@@ -195,20 +195,19 @@ export function ContractUploader({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            aria-describedby="upload-help"
-            className={`flex h-[50px] items-center gap-2 rounded-lg border-2 border-dashed px-3.5 text-sm font-semibold transition-colors ${
+            className={`flex items-center gap-2 rounded-lg border-2 border-dashed px-3.5 py-1.5 text-sm font-semibold transition-colors ${
               dragging
                 ? "border-accent bg-accent-soft text-accent"
                 : "border-accent/50 bg-surface text-accent hover:border-accent hover:bg-accent-soft/50"
             }`}
           >
             <svg
-              width="26"
-              height="26"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.8"
+              strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
               aria-hidden
@@ -216,16 +215,7 @@ export function ContractUploader({
               <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
               <path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3" />
             </svg>
-            {/* The note under the title. */}
-            <span className="flex flex-col items-stretch justify-center leading-tight">
-              {dragging ? "Drop to upload" : "Drag here or choose files"}
-              <span
-                id="upload-help"
-                className="whitespace-nowrap text-center text-[10px] font-medium leading-none text-ink-soft"
-              >
-                PDFs up to 25 MB each
-              </span>
-            </span>
+            {dragging ? "Drop to upload" : "Drag here or choose files"}
           </button>
           <input
             ref={inputRef}
