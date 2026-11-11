@@ -95,6 +95,9 @@ export async function FieldsPage({
     fields: Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : [],
   }));
   const assigned: Record<string, string[]> = {};
+  // Each place it's on the contracts, to reassign one when it's on more
+  // than one.
+  const spotsOf: Record<string, { docId: string; key: string; label: string; text: string }[]> = {};
 
   for (const doc of summaryDocs) {
     for (const { field, first } of inContractOrder(doc)) {
@@ -104,6 +107,12 @@ export async function FieldsPage({
         first.line ? `line ${first.line}` : `page ${first.page}`
       }: ${fieldLabel(first)}`;
       (assigned[target] ??= []).push(where);
+      (spotsOf[target] ??= []).push({
+        docId: doc.id,
+        key: field.id,
+        label: `${doc.name} ${first.line ? `#${first.line}` : `p.${first.page}`}`,
+        text: fieldLabel(first),
+      });
     }
   }
   const newFields = newOtcFieldsFrom(
@@ -285,6 +294,7 @@ export async function FieldsPage({
               customSections={cleanCustomSections(saved?.custom_sections)}
               assigned={assigned}
               firstSpot={firstSpot}
+              spotsOf={spotsOf}
               newFields={newFields}
               lines={lines}
               savedPlaceholders={cleanPlaceholders(saved?.placeholders)}

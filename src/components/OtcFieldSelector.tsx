@@ -25,7 +25,11 @@ import {
   saveOtcFieldSelection,
   type OtcFieldSelection,
 } from "@/app/configurator/select_otc_fields/actions";
-import { renameCreatedField, unmapCreatedField } from "@/app/configurator/assign_your_workflow_fields/actions";
+import {
+  reassignContractFields,
+  renameCreatedField,
+  unmapCreatedField,
+} from "@/app/configurator/assign_your_workflow_fields/actions";
 import { NewFieldMapper } from "@/components/WorkflowFieldNameCell";
 import { OTC_FIELDS } from "@/lib/otcFields";
 import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
@@ -65,6 +69,7 @@ export function OtcFieldSelector({
   initial,
   assigned,
   firstSpot = {},
+  spotsOf = {},
   newFields,
   showSummary,
   customSections = [],
@@ -88,6 +93,9 @@ export function OtcFieldSelector({
   assigned: Record<string, string[]>;
   // Where it first is: its contract's name and page ("Purchase Agreement #3").
   firstSpot?: Record<string, string>;
+  // Each place it's on the contracts (to reassign one when there's more
+  // than one).
+  spotsOf?: Record<string, Spot[]>;
   // Fields the client added while assigning (shown in their sections).
   newFields: OtcField[];
   // The "Your fields" summary (staff only; clients use it later in the
@@ -167,6 +175,7 @@ export function OtcFieldSelector({
     Object.fromEntries(Object.entries(choices).map(([id, c]) => [id, c.removed])),
   );
   const [choiceFor, setChoiceFor] = useState<Field | null>(null);
+  const [dupFor, setDupFor] = useState<{ field: Field; sectionId: string } | null>(null);
   const [doneChoices, setDoneChoices] = useState(() => new Set(choicesDone));
   const [frames, setFrames] = useState(timeFrames);
   // How a number's days are counted: on its row (once it's tied to a
@@ -454,6 +463,7 @@ export function OtcFieldSelector({
                       required={isSystemRequired(f.id)}
                       onContract={assigned[f.id]}
                       spot={firstSpot[f.id]}
+                      onSpots={(spotsOf[f.id]?.length ?? 0) > 1 ? () => setDupFor({ field: f, sectionId: s.id }) : undefined}
                       onCheck={(on) => setChecked([f.id], on)}
                       displayName={names[f.id] ?? ""}
                       accountId={accountId}
@@ -540,6 +550,30 @@ export function OtcFieldSelector({
         </div>
       ))}
 
+      {dupFor && (
+        <SpotsDialog
+          field={dupFor.field}
+          spots={spotsOf[dupFor.field.id] ?? []}
+          fields={[
+            ...OTC_FIELDS.filter((o) => o.sectionId !== CONTACT_ROLES_SECTION),
+            ...newFields,
+          ].map((o) => ({ id: o.id, name: o.name, kind: o.kind }))}
+          onDone={async (changes) => {
+            const sectionId = dupFor.sectionId;
+            setDupFor(null);
+            if (changes.length === 0) return;
+            setStatus("saving");
+            const res = await reassignContractFields(
+              accountId,
+              changes.map((c) => ({ ...c, sectionId })),
+            );
+            setStatus(res.ok ? "saved" : "error");
+            setError(res.ok ? null : (res.error ?? "Couldn't save."));
+            if (res.ok) router.refresh();
+          }}
+          onClose={() => setDupFor(null)}
+        />
+      )}
       {numberFor && (
         <NumberDateDialog
           name={numberFor.field.name}
@@ -675,6 +709,7 @@ function FieldRow({
   onPutBack,
   onRename,
   spot,
+  onSpots,
 }: {
   field: Field;
   checked: boolean;
@@ -710,6 +745,8 @@ function FieldRow({
   // Renames a field they added (with the pencil beside its name).
   onRename?: (name: string) => void;
   spot?: string;
+  // On the contracts in more than one place: opens them to reassign one.
+  onSpots?: () => void;
 }) {
   const [renaming, setRenaming] = useState(false);
   const aliases = OTC_FIELD_ALIASES[field.id];
@@ -815,12 +852,24 @@ function FieldRow({
             )}
           </>
         )}
-        {onContract && (
-          <span className="max-w-[14rem] shrink-0 truncate rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
-            {spot ?? "Contract"}
-            {onContract.length > 1 && ` +${onContract.length - 1}`}
-          </span>
-        )}
+        {onContract &&
+          (onSpots ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                onSpots();
+              }}
+              title={`On your contracts in ${onContract.length} places. Click to reassign one.`}
+              className="max-w-[14rem] shrink-0 truncate rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-semibold text-danger hover:bg-danger/20"
+            >
+              {spot ?? "Contract"}
+            </button>
+          ) : (
+            <span className="max-w-[14rem] shrink-0 truncate rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
+              {spot ?? "Contract"}
+            </span>
+          ))}
       </label>
       {/* Fields in use get a placeholder and can be renamed (or, for one
           they added, pointed at an Open to Close field instead). */}
@@ -1519,6 +1568,153 @@ function NumberDateDialog({
             {notDate ? "It is tied to a date field" : "Not tied to a date field"}
           </button>
           <button type="button" onClick={onClose} className="text-sm font-semibold text-ink-soft">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type Spot = { docId: string; key: string; label: string; text: string };
+
+// A field on the contracts in more than one place: each place, with the
+// field it fills, to point one of them at another field (searched, or a
+// new one by name). Done saves the changes.
+function SpotsDialog({
+  field,
+  spots,
+  fields,
+  onDone,
+  onClose,
+}: {
+  field: Field;
+  spots: Spot[];
+  fields: { id: string; name: string; kind?: Kind }[];
+  onDone: (changes: { docId: string; key: string; to?: string; newName?: string }[]) => void;
+  onClose: () => void;
+}) {
+  // Per place (by its key), the field picked for it.
+  const [picks, setPicks] = useState<Record<string, { to?: string; newName?: string; name: string }>>({});
+  const [open, setOpen] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const matches = fields
+    .filter((f) => !q || f.name.toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 60);
+  const exact = fields.some((f) => f.name.toLowerCase() === q);
+  const pick = (key: string, p: { to?: string; newName?: string; name: string }) => {
+    setPicks((all) => ({ ...all, [key]: p }));
+    setOpen(null);
+    setQuery("");
+  };
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="spots-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
+      <div className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl border border-border bg-surface p-5 shadow-xl">
+        <h2 id="spots-title" className="font-display text-lg font-bold text-ink">
+          {field.name}
+        </h2>
+        <p className="mt-1 text-sm text-ink-soft">
+          This field is on your contracts in {spots.length} places. Point any that are a different
+          field at the right one.
+        </p>
+        <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+          {spots.map((sp) => {
+            const chosen = picks[sp.key];
+            return (
+              <div key={`${sp.docId}:${sp.key}`} className="border-b border-border py-2.5 last:border-0">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-ink">{sp.label}</span>
+                    <span className="block truncate text-xs text-ink-faint">{sp.text}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(open === sp.key ? null : sp.key);
+                      setQuery("");
+                    }}
+                    className={`max-w-[14rem] truncate rounded-md border px-2.5 py-1 text-xs font-semibold ${
+                      chosen ? "border-accent bg-accent-soft text-accent" : "border-border text-ink-soft"
+                    }`}
+                  >
+                    {chosen ? chosen.name : field.name} &#9662;
+                  </button>
+                </div>
+                {open === sp.key && (
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    <input
+                      autoFocus
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        e.preventDefault();
+                        if (matches.length === 1) pick(sp.key, { to: matches[0].id, name: matches[0].name });
+                        else if (q && !exact) pick(sp.key, { newName: query.trim(), name: query.trim() });
+                      }}
+                      placeholder="Search fields"
+                      aria-label="Search fields"
+                      className="rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
+                    />
+                    <div className="max-h-40 overflow-y-auto rounded-md border border-border">
+                      {matches.map((f) => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => pick(sp.key, { to: f.id, name: f.name })}
+                          className="flex w-full justify-between gap-2 px-3 py-1 text-left text-sm text-ink hover:bg-accent-soft/50"
+                        >
+                          <span className="truncate">{f.name}</span>
+                          {f.kind && <span className="shrink-0 text-xs text-ink-faint">{KIND_LABELS[f.kind] ?? f.kind}</span>}
+                        </button>
+                      ))}
+                      {matches.length === 0 && <p className="px-3 py-1.5 text-xs text-ink-faint">No fields match.</p>}
+                    </div>
+                    {q && !exact && (
+                      <button
+                        type="button"
+                        onClick={() => pick(sp.key, { newName: query.trim(), name: query.trim() })}
+                        className="self-start text-xs font-semibold text-accent"
+                      >
+                        + Add field &ldquo;{query.trim()}&rdquo;
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-4 flex items-center justify-end gap-3">
+          <button type="button" onClick={onClose} className="text-sm font-semibold text-ink-soft">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onDone(
+                spots.flatMap((sp) => {
+                  const p = picks[sp.key];
+                  if (!p || p.to === field.id) return [];
+                  return [{ docId: sp.docId, key: sp.key, ...(p.to ? { to: p.to } : { newName: p.newName }) }];
+                }),
+              )
+            }
+            className="rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-white"
+          >
             Done
           </button>
         </div>

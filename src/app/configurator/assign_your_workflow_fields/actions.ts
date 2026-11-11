@@ -13,6 +13,7 @@ import {
   NEW_OTC_PREFIX,
   newOtcFieldsFrom,
   mapCreated,
+  assignContractField,
   needsSection,
   otcTargetOf,
   unmapCreated,
@@ -22,6 +23,8 @@ import {
   type WorkflowField,
 } from "@/lib/workflowFields";
 import {
+  isSectionId,
+  type OtcField,
   cleanCustomFields,
   cleanCustomSections,
   cleanFieldNames,
@@ -513,4 +516,53 @@ export async function renameCreatedField(
         : { ...f, otc_field_name: clean };
     }),
   );
+}
+
+// Reassigns contract fields (a box, or boxes linked as one, on a contract)
+// to other fields: an Open to Close field, or a new field by name (made in
+// `sectionId`, one per name). From Customize Your Fields, where a field
+// assigned in more than one place is sorted out.
+export async function reassignContractFields(
+  accountId: string | null,
+  changes: { docId: string; key: string; to?: string; newName?: string; sectionId?: string }[],
+): Promise<{ ok: boolean; error?: string }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const { docs, created } = await accountContracts(supabase, account);
+  const made = new Map<string, OtcField>();
+  const targetOf = (c: (typeof changes)[number], kind?: OtcField["kind"]): OtcField | null => {
+    if (c.to) return [...OTC_FIELDS, ...created].find((f) => f.id === c.to) ?? null;
+    const name = c.newName?.replace(/\s+/g, " ").trim().slice(0, 120);
+    if (!name) return null;
+    const key = name.toLowerCase();
+    if (!made.has(key)) {
+      const sectionId = c.sectionId && isSectionId(c.sectionId) ? c.sectionId : "";
+      made.set(key, { id: `${NEW_OTC_PREFIX}${crypto.randomUUID()}`, name, sectionId, kind, isNew: true });
+    }
+    return made.get(key)!;
+  };
+  for (const doc of docs) {
+    const mine = changes.filter((c) => c.docId === doc.id).slice(0, 200);
+    if (mine.length === 0) continue;
+    let next = doc.fields;
+    for (const c of mine) {
+      const current = next.find((f) => f.id === c.key);
+      if (!current) continue;
+      const to = targetOf(c, OTC_FIELDS.find((f) => f.id === otcTargetOf(current))?.kind);
+      if (to) next = assignContractField(next, c.key, to);
+    }
+    const { error } = await supabase
+      .from("contract_documents")
+      .update({
+        blanks: withWorkflowTypes(doc.blanks, next),
+        workflow_fields: next,
+        workflow_field_ids: next.filter(isActive).map((f) => f.id),
+        workflow_fields_updated_at: new Date().toISOString(),
+      })
+      .eq("id", doc.id);
+    if (error) return { ok: false, error: error.message };
+  }
+  revalidatePath(PAGE);
+  revalidatePath("/configurator/select_otc_fields");
+  return { ok: true };
 }
