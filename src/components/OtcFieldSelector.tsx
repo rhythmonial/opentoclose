@@ -30,6 +30,8 @@ import { NewFieldMapper } from "@/components/WorkflowFieldNameCell";
 import { OTC_FIELDS } from "@/lib/otcFields";
 import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
 import { placeholderOf, type contractLines } from "@/lib/placeholders";
+import { TIME_FRAMES } from "@/lib/dateCalculations";
+import { setDateTimeFrame } from "@/app/configurator/select_your_dates/actions";
 
 // OTC's field types, as its Field Editor names them.
 const KIND_LABELS: Record<string, string> = {
@@ -71,6 +73,8 @@ export function OtcFieldSelector({
   wasNew = {},
   choices = {},
   choicesDone = [],
+  mode = "fields",
+  timeFrames = {},
   initialGroup,
   dateOf = {},
   suggestedDates = {},
@@ -101,6 +105,11 @@ export function OtcFieldSelector({
   choices?: Record<string, { defaults: string[]; contract: string[]; added: string[]; removed: string[] }>;
   // Choice fields whose options they've gone over (Done in the popup).
   choicesDone?: string[];
+  // "dates": Select Your Dates (only date and number fields, with how each
+  // number's days are counted instead of renaming).
+  mode?: "fields" | "dates";
+  // How each date's days are counted.
+  timeFrames?: Record<string, string>;
   // The group to open on (from the page's address, kept as they switch so a
   // reload comes back to it).
   initialGroup?: string;
@@ -132,6 +141,10 @@ export function OtcFieldSelector({
         .map((f): Field => ({ id: f.id, name: f.name, kind: f.kind, isNew: true, custom: f })),
     ],
   }));
+  const dateMode = mode === "dates";
+  if (dateMode) {
+    for (const sec of SECTIONS) sec.fields = sec.fields.filter((f) => f.kind === "date" || f.kind === "number");
+  }
   const ALL_FIELDS = SECTIONS.flatMap((s) => s.fields);
   const customIds = new Set(custom.map((f) => f.id));
 
@@ -146,6 +159,27 @@ export function OtcFieldSelector({
   );
   const [choiceFor, setChoiceFor] = useState<Field | null>(null);
   const [doneChoices, setDoneChoices] = useState(() => new Set(choicesDone));
+  const [frames, setFrames] = useState(timeFrames);
+  // How a number's days are counted: on its row (once it's tied to a
+  // date), and shown the same on its date's row.
+  const frameOf = (f: Field) => {
+    if (!dateMode) return undefined;
+    if (f.kind === "number") {
+      const dateId = ties[f.id];
+      return { value: (dateId && frames[dateId]) || "calendar_days", date: dateId ?? null, editable: true };
+    }
+    if (f.kind === "date" && Object.values(ties).includes(f.id)) {
+      return { value: frames[f.id] || "calendar_days", date: f.id, editable: false };
+    }
+    return undefined;
+  };
+  async function changeFrame(dateId: string, value: string) {
+    setFrames((fr) => ({ ...fr, [dateId]: value }));
+    setStatus("saving");
+    const res = await setDateTimeFrame(accountId, dateId, value);
+    setStatus(res.ok ? "saved" : "error");
+    setError(res.ok ? null : (res.error ?? "Couldn't save."));
+  }
   const [ties, setTies] = useState(dateOf);
   const [notDate, setNotDate] = useState(() => new Set(notDates));
   const [numberFor, setNumberFor] = useState<{ field: Field; sectionId: string } | null>(null);
@@ -256,7 +290,7 @@ export function OtcFieldSelector({
   const filtering = Boolean(q) || onlyChecked;
   const shown = SECTIONS.filter((s) => (q ? true : s.group === group))
     .map((s) => ({ ...s, fields: s.fields.filter((f) => matches(f, s.name)) }))
-    .filter((s) => !filtering || s.fields.length > 0);
+    .filter((s) => (!filtering && !dateMode) || s.fields.length > 0);
   const shownGroups = [...new Set(shown.map((s) => s.group))];
   const count = ALL_FIELDS.filter((f) => isOn(f.id)).length;
   const groupCount = (g: string) => {
@@ -353,6 +387,7 @@ export function OtcFieldSelector({
                       {s.name}
                     </h3>
                     <span className="flex items-center gap-1.5 text-xs">
+                      {!dateMode && (
                       <button
                         type="button"
                         onClick={() => setDialog({ sectionId: s.id })}
@@ -362,6 +397,7 @@ export function OtcFieldSelector({
                       >
                         +
                       </button>
+                      )}
                     {ids.length > 0 && (
                       <>
                         <span aria-hidden className="text-border">
@@ -418,6 +454,9 @@ export function OtcFieldSelector({
                       wasNew={wasNew[f.id]}
                       onChoices={choices[f.id] ? () => setChoiceFor(f) : undefined}
                       choiceDone={doneChoices.has(f.id)}
+                      dateMode={dateMode}
+                      frame={frameOf(f)}
+                      onFrame={changeFrame}
                       onNumber={f.kind === "number" ? () => setNumberFor({ field: f, sectionId: s.id }) : undefined}
                       numberDone={Boolean(ties[f.id]) || notDate.has(f.id)}
                       onRename={
@@ -472,7 +511,7 @@ export function OtcFieldSelector({
               );
             })}
 
-          {!q && (
+          {!q && !dateMode && (
             <div className="mt-2 flex justify-end">
               {done.has(g) ? (
                 <span className="text-sm font-semibold text-emerald-700">
@@ -620,6 +659,9 @@ function FieldRow({
   onNumber,
   numberDone,
   choiceDone,
+  dateMode = false,
+  frame,
+  onFrame,
   onMappedTo,
   onPutBack,
   onRename,
@@ -648,6 +690,11 @@ function FieldRow({
   numberDone?: boolean;
   // Whether its choice options have been gone over (a choice field).
   choiceDone?: boolean;
+  // Select Your Dates: no renaming, and how a number's days are counted
+  // (set on the number's row once it has a date; its date shows the same).
+  dateMode?: boolean;
+  frame?: { value: string; date: string | null; editable: boolean };
+  onFrame?: (dateId: string, value: string) => void;
   // After a field they added is pointed at an OTC field, or put back.
   onMappedTo: (to: OtcField) => void;
   onPutBack: (was: { id: string; name: string }) => void;
@@ -770,7 +817,32 @@ function FieldRow({
           they added, pointed at an Open to Close field instead). */}
       {checked && (
         <span className="flex max-w-full flex-wrap items-center gap-2">
-          {created ? (
+          {dateMode ? (
+            frame ? (
+              <select
+                value={frame.value}
+                disabled={!frame.editable || !frame.date}
+                onChange={(e) => frame.date && onFrame?.(frame.date, e.target.value)}
+                title={
+                  !frame.editable
+                    ? "Set on its number field's row"
+                    : !frame.date
+                      ? "Pick its date first (click (Number))"
+                      : "How the days are counted"
+                }
+                aria-label={`How ${field.name}'s days are counted`}
+                className="w-[12rem] max-w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent disabled:opacity-60"
+              >
+                {TIME_FRAMES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="w-[12rem]" />
+            )
+          ) : created ? (
             <NewFieldMapper
               accountId={accountId}
               createdId={field.id}
