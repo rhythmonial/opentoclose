@@ -3,6 +3,7 @@ import Link from "next/link";
 import { StatesServicedField } from "@/components/StatesServicedField";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { submitFoundingApplication } from "./actions";
+import { ChoiceQuestion } from "./ChoiceQuestion";
 import { COMPANY_STRUCTURES, QUESTIONS } from "./questions";
 
 export const metadata: Metadata = {
@@ -109,29 +110,24 @@ export default async function FoundingApplicationPage({
               <h2 className="text-[15px] font-bold text-ink sm:col-span-2">A few questions</h2>
               {QUESTIONS.map((q) =>
                 q.options ? (
-                  <fieldset key={q.key} className="flex flex-col gap-2 sm:col-span-2">
-                    <legend className="mb-1 text-sm font-medium text-ink">{q.label}</legend>
-                    <div className="flex flex-wrap gap-2">
-                      {q.options.map((o) => (
-                        <label
-                          key={o}
-                          className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink has-[:checked]:border-accent has-[:checked]:bg-accent-soft"
-                        >
-                          <input type="radio" name={q.key} value={o} required={q.required} className="h-4 w-4" />
-                          {o}
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
+                  <ChoiceQuestion
+                    key={q.key}
+                    name={q.key}
+                    label={q.label}
+                    options={q.options}
+                    notes={q.notes}
+                    required={q.required}
+                  />
                 ) : (
                   <label key={q.key} className="flex flex-col gap-1.5 sm:col-span-2">
                     <span className="text-sm font-medium text-ink">
-                      {q.label} <span className="font-normal text-ink-faint">(optional)</span>
+                      {q.label}
+                      {!q.required && <span className="font-normal text-ink-faint"> (optional)</span>}
                     </span>
                     {q.long ? (
-                      <textarea name={q.key} rows={4} maxLength={2000} className={INPUT} />
+                      <textarea name={q.key} rows={4} maxLength={2000} required={q.required} className={INPUT} />
                     ) : (
-                      <input name={q.key} maxLength={200} className={INPUT} />
+                      <input name={q.key} maxLength={200} required={q.required} className={INPUT} />
                     )}
                   </label>
                 ),
