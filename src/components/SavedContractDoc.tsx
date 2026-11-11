@@ -53,7 +53,7 @@ export function SavedContractDoc({
           {!isScanned && (
             <span
               className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                left === 0 ? "bg-success-soft text-success" : "bg-warning-soft text-warning"
+                left === 0 ? "bg-success-soft text-success" : "bg-danger/10 text-danger"
               }`}
             >
               {left === 0 ? "Completed" : `${left} field${left === 1 ? " needs" : "s need"} a field type`}

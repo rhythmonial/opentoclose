@@ -576,7 +576,7 @@ export default async function ClientDetailPage({
                         Completed
                       </span>
                     ) : (
-                      <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
+                      <span className="rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-semibold text-danger">
                         {fieldsLeft(doc)} field{fieldsLeft(doc) === 1 ? " needs" : "s need"} a field type
                       </span>
                     )}

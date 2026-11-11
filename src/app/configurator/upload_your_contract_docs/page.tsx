@@ -148,7 +148,7 @@ export default async function UploadContractDocsPage({
                                 Completed
                               </span>
                             ) : (
-                              <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
+                              <span className="rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-semibold text-danger">
                                 {left} field{left === 1 ? " needs" : "s need"} a field type
                               </span>
                             )}
