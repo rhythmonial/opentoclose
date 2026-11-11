@@ -221,9 +221,9 @@ export function ContractUploader({
               {dragging ? "Drop to upload" : "Drag here or choose files"}
               <span
                 id="upload-help"
-                className="mt-0.5 whitespace-nowrap text-center text-[9.5px] font-medium tracking-[1.5px] text-ink-soft"
+                className="mt-0.5 whitespace-nowrap text-center text-[10px] font-medium tracking-[2.5px] text-ink-soft"
               >
-                PDF only, up to 25 MB each
+                PDFs up to 25 MB each
               </span>
             </span>
           </button>
