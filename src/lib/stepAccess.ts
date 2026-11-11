@@ -19,10 +19,12 @@ export async function requireStepAccess(stepKey: string) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, client_account_id, client_accounts(setup_path)")
+    .select("role, client_account_id, client_accounts(setup_path, unlock_all)")
     .eq("id", user.id)
     .single();
   if (profile?.role === "dev" || profile?.role === "dev_admin") return;
+  // Test accounts with every lesson unlocked.
+  if (profile?.client_accounts?.unlock_all) return;
   // End a free month that's run out before checking the plan.
   await freeMonthStatus(profile?.client_account_id);
 

@@ -40,6 +40,7 @@ export type Database = {
           name: string
           outcome: string | null
           setup_path: Database["public"]["Enums"]["setup_path"] | null
+          unlock_all: boolean
           state: string | null
           status: Database["public"]["Enums"]["client_account_status"]
         }
@@ -50,6 +51,7 @@ export type Database = {
           name: string
           outcome?: string | null
           setup_path?: Database["public"]["Enums"]["setup_path"] | null
+          unlock_all?: boolean
           state?: string | null
           status?: Database["public"]["Enums"]["client_account_status"]
         }
@@ -60,6 +62,7 @@ export type Database = {
           name?: string
           outcome?: string | null
           setup_path?: Database["public"]["Enums"]["setup_path"] | null
+          unlock_all?: boolean
           state?: string | null
           status?: Database["public"]["Enums"]["client_account_status"]
         }

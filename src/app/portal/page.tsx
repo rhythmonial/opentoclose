@@ -67,7 +67,7 @@ export default async function PortalPage({
     ? { data: null }
     : await supabase
         .from("profiles")
-        .select("*, client_accounts(name, setup_path, hours_purchased)")
+        .select("*, client_accounts(name, setup_path, hours_purchased, unlock_all)")
         .eq("id", user.id)
         .single();
 
@@ -159,7 +159,8 @@ export default async function PortalPage({
   // they've sent Initiate Your Setup, every pillar shows its sections and
   // lesson titles, but lessons past the first pillar only open on a paid
   // plan (DIY, Setup, or a free month). Staff previewing see everything.
-  const previewAll = isStaff && !isSandboxing;
+  // Test accounts can have every lesson unlocked too.
+  const previewAll = (isStaff && !isSandboxing) || Boolean(profile?.client_accounts?.unlock_all);
   const hasInitiation = isSandboxing || Boolean(initiation);
   const hasPaidPlan = engagementType === "diy" || engagementType === "custom";
   const freePhase = steps[0]?.phase ?? "General";

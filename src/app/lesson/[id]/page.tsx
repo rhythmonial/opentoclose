@@ -82,7 +82,7 @@ export default async function LessonPage({
       ? Promise.resolve({ data: null })
       : supabase
           .from("profiles")
-          .select("*, client_accounts(name, setup_path)")
+          .select("*, client_accounts(name, setup_path, unlock_all)")
           .eq("id", user.id)
           .single(),
     supabase.from("setup_steps").select("*").eq("id", id).maybeSingle(),
@@ -251,7 +251,8 @@ export default async function LessonPage({
     .limit(1)
     .maybeSingle();
   const isFreePhase = (step.phase ?? "General") === (firstStep?.phase ?? "General");
-  const canViewContent = (isStaff && !isSandboxing) || !isFreeTier || isFreePhase;
+  const canViewContent =
+    (isStaff && !isSandboxing) || !isFreeTier || isFreePhase || Boolean(profile?.client_accounts?.unlock_all);
   const videoSource = step.video_url ? getVideoSource(step.video_url) : null;
   const isApproved = status === "approved";
 
