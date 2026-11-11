@@ -203,42 +203,25 @@ export function OtcFieldSelector({
 
   return (
     <div ref={top} className="flex scroll-mt-4 flex-col gap-4">
-      {/* Field group tabs, like OTC's group menu, always on one row (they
-          share the width). A group marked done has a check. */}
-      <div className="flex gap-1 sm:gap-2" role="tablist" aria-label="Field groups">
+      {/* Field group tabs, like the page buttons in Upload Your Contracts. */}
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Field groups">
         {SELECTABLE_GROUPS.map((g) => {
           const active = !q && g === group;
-          const [on, total] = groupCount(g);
           return (
             <button
               key={g}
               type="button"
               role="tab"
               aria-selected={active}
-              title={`${g}: ${on} of ${total} checked${done.has(g) ? " · done" : ""}`}
               onClick={() => {
                 setGroup(g);
                 setQuery("");
               }}
-              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-x-1 rounded-lg border px-0.5 py-1.5 text-[9px] font-semibold min-[360px]:text-[10px] leading-tight transition-colors sm:flex-row sm:px-3 sm:py-2 sm:text-sm ${
-                active
-                  ? "border-emerald-500 bg-emerald-500 text-white"
-                  : "border-border bg-surface text-ink-soft hover:border-emerald-500"
+              className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${
+                active ? "border-accent bg-accent text-white" : "border-border bg-surface text-ink-soft"
               }`}
             >
-              {done.has(g) && (
-                <span aria-hidden className={`hidden shrink-0 sm:inline ${active ? "text-white" : "text-emerald-600"}`}>
-                  &#10003;
-                </span>
-              )}
-              {/* On a phone the name can take two lines; wider, one. */}
-              <span className="min-w-0 max-w-full break-words text-center sm:truncate">{g}</span>
-              <span
-                className={`shrink-0 text-[10px] font-normal sm:text-xs ${active ? "text-white/80" : "text-ink-faint"}`}
-              >
-                {done.has(g) && <span className="sm:hidden">&#10003; </span>}
-                {on}/{total}
-              </span>
+              {g}
             </button>
           );
         })}
@@ -485,12 +468,12 @@ function FieldRow({
         />
         <FieldName field={field} required={required} bold={checked} />
         {onContract ? (
-          <span className="shrink-0 rounded bg-accent-soft px-1.5 py-px text-[10px] font-bold uppercase text-accent">
+          <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
             Contract
           </span>
         ) : (
           checked && (
-            <span className="shrink-0 rounded bg-gold/25 px-1.5 py-px text-[10px] font-bold uppercase text-ink">
+            <span className="shrink-0 rounded-full bg-gold/25 px-2.5 py-0.5 text-xs font-semibold text-ink">
               Use
             </span>
           )
@@ -822,6 +805,7 @@ function PlaceholderCell({
 }) {
   const [adding, setAdding] = useState(false);
   const start = line ? `${line}- ` : "";
+  const box = useRef<HTMLInputElement>(null);
   if (!value && !adding) {
     return (
       <button
@@ -835,29 +819,58 @@ function PlaceholderCell({
       </button>
     );
   }
+  // Leaving a new one as just its line adds nothing.
+  const save = (text: string) => {
+    const next = text.replace(/\s+/g, " ").trim();
+    setAdding(false);
+    if (!value && next === start.trim()) return;
+    if (next !== value) onSave(next);
+  };
   return (
-    <input
-      defaultValue={value || start}
-      autoFocus={adding}
-      onFocus={(e) => {
-        const end = e.currentTarget.value.length;
-        e.currentTarget.setSelectionRange(end, end);
-      }}
-      onBlur={(e) => {
-        const next = e.target.value.replace(/\s+/g, " ").trim();
-        setAdding(false);
-        // Leaving a new one as just its line adds nothing.
-        if (!value && next === start.trim()) return;
-        if (next !== value) onSave(next);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-      }}
-      maxLength={200}
-      placeholder="Placeholder"
-      title="Placeholder (clear it to remove it)"
-      aria-label={`Placeholder for ${name}`}
-      className="w-[12rem] max-w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
-    />
+    <span className="relative inline-flex w-[12rem] max-w-full">
+      <input
+        ref={box}
+        defaultValue={value || start}
+        autoFocus={adding}
+        onFocus={(e) => {
+          const end = e.currentTarget.value.length;
+          e.currentTarget.setSelectionRange(end, end);
+        }}
+        onBlur={(e) => save(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        maxLength={200}
+        placeholder="Placeholder"
+        aria-label={`Placeholder for ${name}`}
+        className="w-full rounded-md border border-border bg-bg py-1 pl-2 pr-12 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+      />
+      <span className="absolute inset-y-0 right-1 flex items-center gap-0.5">
+        <button
+          type="button"
+          // Not taking focus from the box first (which would save it).
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => save(box.current?.value ?? "")}
+          title="Save placeholder"
+          aria-label={`Save the placeholder for ${name}`}
+          className="rounded px-1 text-sm leading-none text-success hover:bg-success-soft"
+        >
+          &#10003;
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setAdding(false);
+            if (value) onSave("");
+          }}
+          title="Delete placeholder"
+          aria-label={`Delete the placeholder for ${name}`}
+          className="rounded px-1 text-sm leading-none text-danger hover:bg-danger/10"
+        >
+          &times;
+        </button>
+      </span>
+    </span>
   );
 }
