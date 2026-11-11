@@ -142,8 +142,17 @@ export function OtcFieldSelector({
     ],
   }));
   const dateMode = mode === "dates";
+  // Select Your Dates lists the date and number fields checked in Customize
+  // Your Fields (or on the contracts, or required).
+  const initialPicked = new Set(initial.fields);
   if (dateMode) {
-    for (const sec of SECTIONS) sec.fields = sec.fields.filter((f) => f.kind === "date" || f.kind === "number");
+    for (const sec of SECTIONS) {
+      sec.fields = sec.fields.filter(
+        (f) =>
+          (f.kind === "date" || f.kind === "number") &&
+          (isSystemRequired(f.id) || Boolean(assigned[f.id]) || initialPicked.has(f.id) || Boolean(f.custom)),
+      );
+    }
   }
   const ALL_FIELDS = SECTIONS.flatMap((s) => s.fields);
   const customIds = new Set(custom.map((f) => f.id));
