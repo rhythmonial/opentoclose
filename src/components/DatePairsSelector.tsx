@@ -67,7 +67,8 @@ export function DatePairsSelector({
   // How days are counted unless changed on a date.
   defaultTimeFrame?: string | null;
 }) {
-  const [defaultFrame, setDefaultFrame] = useState(defaultTimeFrame ?? "calendar_days");
+  // "" until they pick one (each date then counts Calendar Day(s)).
+  const [defaultFrame, setDefaultFrame] = useState(defaultTimeFrame ?? "");
   const groups = [...new Set(sections.map((s) => s.group))];
   const [group, setGroupState] = useState(
     initialGroup && groups.includes(initialGroup) ? initialGroup : groups[0],
@@ -160,10 +161,9 @@ export function DatePairsSelector({
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           {title}
-          <label className="flex items-center gap-2 text-sm font-semibold text-ink-soft">
-            Default Type
-            <select
+          <select
               value={defaultFrame}
+              aria-label="Default Type"
               onChange={(e) => {
                 const v = e.target.value;
                 setDefaultFrame(v);
@@ -172,15 +172,20 @@ export function DatePairsSelector({
                 setFrames((f) => ({ ...f, ...Object.fromEntries(paired.map((id) => [id, v])) }));
                 void run(setDefaultTimeFrame(accountId, v, paired));
               }}
-              className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm font-normal text-ink outline-none focus:border-accent"
+              // As wide as what it shows (the placeholder, then their pick).
+              className={`rounded-md border border-border bg-surface px-2 py-1.5 text-sm outline-none [field-sizing:content] focus:border-accent ${
+                defaultFrame ? "text-ink" : "text-ink-faint"
+              }`}
             >
+              <option value="" disabled hidden>
+                Select your default Type
+              </option>
               {TIME_FRAMES.map((t) => (
-                <option key={t.value} value={t.value}>
+                <option key={t.value} value={t.value} className="text-ink">
                   {t.label}
                 </option>
               ))}
             </select>
-          </label>
         </div>
         {intro}
       </div>
@@ -310,7 +315,7 @@ export function DatePairsSelector({
                   <span>
                     {d && n ? (
                       <select
-                        value={frames[d.id] || defaultFrame}
+                        value={frames[d.id] || defaultFrame || "calendar_days"}
                         onChange={(e) => {
                           const v = e.target.value;
                           setFrames((f) => ({ ...f, [d.id]: v }));
