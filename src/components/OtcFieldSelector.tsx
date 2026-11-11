@@ -712,8 +712,9 @@ function FieldRow({
               tone={
             !checked
               ? undefined
-              : onChoices && !created
-                ? choiceDone
+              : onChoices
+                ? // A choice field they added has only their own options.
+                  created || choiceDone
                   ? "done"
                   : "needed"
                 : onNumber
