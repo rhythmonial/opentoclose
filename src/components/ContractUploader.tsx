@@ -216,12 +216,12 @@ export function ContractUploader({
               <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
               <path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3" />
             </svg>
-            {/* The note under the title, just as wide. */}
+            {/* The note under the title. */}
             <span className="flex flex-col items-stretch justify-center leading-tight">
               {dragging ? "Drop to upload" : "Drag here or choose files"}
               <span
                 id="upload-help"
-                className="mt-0.5 whitespace-nowrap text-center text-[10px] font-medium tracking-[2.5px] text-ink-soft"
+                className="mt-0.5 whitespace-nowrap text-center text-[10px] font-medium text-ink-soft"
               >
                 PDFs up to 25 MB each
               </span>
