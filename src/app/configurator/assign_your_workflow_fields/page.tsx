@@ -7,6 +7,7 @@ import { getSandboxTier } from "@/lib/devSandbox";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { AssignWorkflowWorkspace } from "@/components/AssignWorkflowWorkspace";
 import { inAssignOrder } from "@/lib/docOrder";
+import { fieldsLeft } from "@/app/configurator/upload_your_contract_docs/load";
 import { newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldsTester } from "@/components/WorkflowFieldsTester";
 import { cleanCustomSections, cleanFieldNames, OTC_FIELDS } from "@/lib/otcFields";
@@ -183,7 +184,7 @@ export default async function AssignWorkflowFieldsPage({
                         pageCount: doc.page_count ?? 0,
                         blanks: doc.blanks as ContractBlank[],
                         fields: fieldsOf(doc),
-                        reviewed: Boolean(doc.reviewed_at),
+                        reviewed: fieldsLeft(doc) === 0,
                         done: Boolean(doc.assign_done_at),
                       },
                     ]

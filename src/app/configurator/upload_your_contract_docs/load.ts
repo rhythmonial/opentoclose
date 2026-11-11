@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { inUploadOrder } from "@/lib/docOrder";
-import type { ContractBlank } from "@/lib/contractBlanks";
+import { fieldsNeedingType, type ContractBlank } from "@/lib/contractBlanks";
 import { withWorkflowTypes } from "@/lib/fieldTypes";
 import { cleanWorkflowFields, workflowKeys } from "@/lib/workflowFields";
 import { createClient } from "@/lib/supabase/server";
@@ -78,8 +78,6 @@ export async function loadUploadDocs(client: string | undefined) {
   };
 }
 
-export const isReviewed = (d: { is_scanned: boolean; reviewed_at: string | null }) =>
-  !d.is_scanned && Boolean(d.reviewed_at);
 
 // A document's boxes with the types picked for its workflow fields (from
 // before types were chosen while uploading).
@@ -87,3 +85,8 @@ export function typedBlanks(d: { blanks: unknown; workflow_fields: unknown }) {
   const blanks = (Array.isArray(d.blanks) ? d.blanks : []) as ContractBlank[];
   return withWorkflowTypes(blanks, cleanWorkflowFields(d.workflow_fields, workflowKeys(blanks)));
 }
+
+// How many fields in a document still need a field type (none: it's
+// completed). Scans have none to type.
+export const fieldsLeft = (d: { blanks: unknown; workflow_fields: unknown; is_scanned: boolean }) =>
+  d.is_scanned ? 0 : fieldsNeedingType(typedBlanks(d)).left;

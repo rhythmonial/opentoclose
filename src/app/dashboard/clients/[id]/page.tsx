@@ -22,6 +22,7 @@ import { logHours, logTimedHours, deleteClientAccount } from "./actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { InitiationSummary } from "@/components/InitiationSummary";
 import { inUploadOrder } from "@/lib/docOrder";
+import { fieldsLeft } from "@/app/configurator/upload_your_contract_docs/load";
 import { signSupportAttachments } from "@/lib/signSupportAttachments";
 import {
   AttachmentList,
@@ -537,7 +538,7 @@ export default async function ClientDetailPage({
           </span>
           <span className="text-xs text-ink-faint">
             {contractDocs && contractDocs.length > 0
-              ? `${contractDocs.filter((d) => d.reviewed_at).length} of ${contractDocs.length} reviewed`
+              ? `${contractDocs.filter((d) => fieldsLeft(d) === 0).length} of ${contractDocs.length} completed`
               : "None uploaded yet"}
           </span>
         </summary>
@@ -570,13 +571,13 @@ export default async function ClientDetailPage({
                       <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
                         Scanned copy
                       </span>
-                    ) : doc.reviewed_at ? (
+                    ) : fieldsLeft(doc) === 0 ? (
                       <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-semibold text-success">
-                        Reviewed
+                        Completed
                       </span>
                     ) : (
                       <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
-                        Not reviewed yet
+                        {fieldsLeft(doc)} field{fieldsLeft(doc) === 1 ? " needs" : "s need"} a field type
                       </span>
                     )}
                     {url && (

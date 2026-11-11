@@ -86,7 +86,6 @@ export function ContractReviewer({
   initialBlanks,
   initialPage = 1,
   onSave,
-  confirmed: docConfirmed = false,
   onFieldsLeft,
   nextDocHref,
 }: {
@@ -96,17 +95,13 @@ export function ContractReviewer({
   initialBlanks: ContractBlank[];
   // The page to open on.
   initialPage?: number;
-  onSave?: (blanks: ContractBlank[], confirmed: number[]) => Promise<{ ok: boolean; error?: string }>;
-  // Whether the document is confirmed (with the button beside it, once no
-  // field needs a type); saved with the boxes as every page confirmed.
-  confirmed?: boolean;
+  onSave?: (blanks: ContractBlank[]) => Promise<{ ok: boolean; error?: string }>;
   // Told how many fields in the document still need a field type.
   onFieldsLeft?: (left: number) => void;
   // The next document, for the button on the last page.
   nextDocHref?: string | null;
 }) {
   const [blanks, setBlanks] = useState(initialBlanks);
-  const confirmed = docConfirmed ? Array.from({ length: pageCount }, (_, i) => i + 1) : [];
   const [page, setPage] = useState(initialPage);
   // Page size in points (letter until the page loads), for sizing new boxes.
   const [pageSize, setPageSize] = useState({ width: 612, height: 792 });
@@ -173,27 +168,20 @@ export function ContractReviewer({
     onSaveRef.current = onSave;
   }, [onSave]);
   const saver = useRef<ReturnType<
-    typeof createSaveQueue<{ blanks: ContractBlank[]; confirmed: number[] }>
+    typeof createSaveQueue<ContractBlank[]>
   > | null>(null);
-  function commit(nextBlanks: ContractBlank[], nextConfirmed: number[]) {
+  function commit(nextBlanks: ContractBlank[]) {
     if (!onSave) return;
     saver.current ??= createSaveQueue(
       (v) =>
         onSaveRef.current
-          ? onSaveRef.current(v.blanks, v.confirmed)
+          ? onSaveRef.current(v)
           : Promise.resolve({ ok: true }),
       setSaveState,
     );
-    saver.current.push({ blanks: nextBlanks, confirmed: nextConfirmed });
+    saver.current.push(nextBlanks);
   }
 
-  // Confirming (or unconfirming) the document saves it with the boxes.
-  const confirmSeen = useRef(docConfirmed);
-  useEffect(() => {
-    if (confirmSeen.current === docConfirmed) return;
-    confirmSeen.current = docConfirmed;
-    commit(blanks, confirmed);
-  });
   // The fields still needing a type, for the confirm button outside.
   const docLeft = fieldsNeedingType(blanks).left;
   useEffect(() => {
@@ -203,7 +191,7 @@ export function ContractReviewer({
   function changeBlanks(next: ContractBlank[]) {
     const tidy = tidyGroups(next);
     setBlanks(tidy);
-    commit(tidy, confirmed);
+    commit(tidy);
   }
 
   // Removing a box grays it out (it's kept, to put back); removing a
@@ -629,7 +617,7 @@ export function ContractReviewer({
       setBlanks(next);
       setSelected(null);
     }
-    commit(next, confirmed);
+    commit(next);
   }
 
   // A choice field's options: its option boxes and the ones added by hand.

@@ -162,13 +162,11 @@ function validChoiceOf(b: ContractBlank) {
 const KINDS = new Set(["field", "underscore", "line", "checkbox", "box", "manual"]);
 const clamp = (n: unknown) => Math.min(1, Math.max(0, Number(n) || 0));
 
-// Saves a client's review of one document: the boxes after their edits and
-// which pages they've confirmed. Once every page is confirmed the document
-// counts as reviewed.
+// Saves a client's review of one document: the boxes after their edits.
+// Once every field has a type the document counts as reviewed (completed).
 export async function saveContractReview(input: {
   id: string;
   blanks: ContractBlank[];
-  confirmedPages: number[];
 }): Promise<SaveResult> {
   const supabase = await createClient();
 
@@ -254,13 +252,8 @@ export async function saveContractReview(input: {
         ? { line: b.line }
         : {}),
     })));
-  // Confirmed only once every field has a type.
-  const confirmed =
-    fieldsNeedingType(blanks).left > 0
-      ? []
-      : [...new Set(input.confirmedPages.map(Math.trunc))]
-          .filter((n) => n >= 1 && n <= pages)
-          .sort((a, b) => a - b);
+  // Completed (reviewed) once every field has a type.
+  const complete = fieldsNeedingType(blanks).left === 0;
 
   // The types chosen here become the workflow fields' types (see
   // fieldTypes), ready for Assign Your Fields.
@@ -282,8 +275,8 @@ export async function saveContractReview(input: {
       workflow_fields: fields,
       workflow_field_ids: fields.filter(isActive).map((f) => f.id),
       workflow_fields_updated_at: new Date().toISOString(),
-      confirmed_pages: confirmed,
-      reviewed_at: pages > 0 && confirmed.length === pages ? new Date().toISOString() : null,
+      confirmed_pages: complete ? Array.from({ length: pages }, (_, i) => i + 1) : [],
+      reviewed_at: complete ? new Date().toISOString() : null,
     })
     .eq("id", input.id);
   if (error) return { ok: false, error: error.message };

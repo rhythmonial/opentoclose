@@ -38,7 +38,6 @@ export default async function UploadedContractPage({
           <SavedContractDoc
             key={doc.id}
             id={doc.id}
-            confirmedPages={doc.confirmed_pages}
             fileName={doc.file_name}
             url={urlOf(doc)}
             pageCount={doc.page_count ?? 0}

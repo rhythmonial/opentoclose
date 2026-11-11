@@ -5,8 +5,7 @@ import { ContractUploader } from "@/components/ContractUploader";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { DocTitle } from "@/components/DocTitle";
 import { deleteContractDocument, finishContractDocs, reorderUploadDocs } from "./actions";
-import { isReviewed, loadUploadDocs, typedBlanks } from "./load";
-import { fieldsNeedingType } from "@/lib/contractBlanks";
+import { fieldsLeft, loadUploadDocs } from "./load";
 
 export default async function UploadContractDocsPage({
   searchParams,
@@ -18,7 +17,7 @@ export default async function UploadContractDocsPage({
     await loadUploadDocs(client);
 
   // Scans can't be reviewed; everything else needs every page confirmed.
-  const toReview = docs.filter((d) => !d.is_scanned && !d.reviewed_at);
+  const toReview = docs.filter((d) => fieldsLeft(d) > 0);
 
   const title = (
     <h1 className="font-display text-2xl font-bold text-ink">
@@ -111,7 +110,7 @@ export default async function UploadContractDocsPage({
                 handleClass="mt-4"
                 onReorder={reorderUploadDocs.bind(null, staffClient?.id ?? null)}
                 items={docs.map((doc, i) => {
-                  const left = fieldsNeedingType(typedBlanks(doc)).left;
+                  const left = fieldsLeft(doc);
                   const pages = doc.page_count ?? 0;
                   return {
                     id: doc.id,
@@ -144,15 +143,13 @@ export default async function UploadContractDocsPage({
                               <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
                                 Scanned copy
                               </span>
-                            ) : isReviewed(doc) ? (
+                            ) : left === 0 ? (
                               <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-semibold text-success">
-                                Reviewed
+                                Completed
                               </span>
                             ) : (
                               <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
-                                {left > 0
-                                  ? `${left} field${left === 1 ? " needs" : "s need"} a field type`
-                                  : "Not confirmed yet"}
+                                {left} field{left === 1 ? " needs" : "s need"} a field type
                               </span>
                             )}
                           </span>
@@ -179,8 +176,8 @@ export default async function UploadContractDocsPage({
                 </button>
                 {toReview.length > 0 && (
                   <span className="text-xs text-ink-faint">
-                    Confirm{" "}
-                    {toReview.length === 1 ? "your document" : `all ${toReview.length} documents`}{" "}
+                    Give every field a type in{" "}
+                    {toReview.length === 1 ? "1 more document" : `${toReview.length} more documents`}{" "}
                     to finish.
                   </span>
                 )}

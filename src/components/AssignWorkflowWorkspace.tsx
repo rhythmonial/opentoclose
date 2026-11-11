@@ -208,7 +208,7 @@ export function AssignWorkflowWorkspace({
       </div>
       {!doc.reviewed && (
         <p className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">
-          This document&rsquo;s review isn&rsquo;t finished yet, so some fields may be missing.
+          Some of this document&rsquo;s fields don&rsquo;t have a field type yet, so they may be missing here.
           Finish it in Upload Your Contracts to add them.
         </p>
       )}

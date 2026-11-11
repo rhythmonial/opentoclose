@@ -8,7 +8,7 @@ import { DocTitle } from "@/components/DocTitle";
 import { saveContractReview } from "@/app/configurator/upload_your_contract_docs/actions";
 
 // One uploaded contract on its own page, with its review. Clicking its name
-// renames it. Once every field has a type, Confirm marks it reviewed (a
+// renames it. It's completed once every field has a type.
 // field that loses its type, or a new box, takes that back).
 export function SavedContractDoc({
   id,
@@ -16,7 +16,6 @@ export function SavedContractDoc({
   url,
   pageCount,
   blanks,
-  confirmedPages,
   isScanned,
   uploadedOn,
   nextDocHref,
@@ -27,20 +26,13 @@ export function SavedContractDoc({
   url: string | null;
   pageCount: number;
   blanks: ContractBlank[];
-  confirmedPages: number[];
   isScanned: boolean;
   uploadedOn: string;
   // The next document in their list.
   nextDocHref?: string | null;
   actions?: React.ReactNode;
 }) {
-  const [confirmed, setConfirmed] = useState(pageCount > 0 && confirmedPages.length === pageCount);
   const [left, setLeft] = useState(() => fieldsNeedingType(blanks).left);
-  // A field needing a type again takes the confirmation back.
-  const fieldsLeft = (n: number) => {
-    setLeft(n);
-    if (n > 0) setConfirmed(false);
-  };
   const canReview = Boolean(url) && !isScanned;
 
   return (
@@ -61,43 +53,14 @@ export function SavedContractDoc({
           {!isScanned && (
             <span
               className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                confirmed ? "bg-success-soft text-success" : "bg-warning-soft text-warning"
+                left === 0 ? "bg-success-soft text-success" : "bg-warning-soft text-warning"
               }`}
             >
-              {confirmed
-                ? "Reviewed"
-                : left > 0
-                  ? `${left} field${left === 1 ? " needs" : "s need"} a field type`
-                  : "Ready to confirm"}
+              {left === 0 ? "Completed" : `${left} field${left === 1 ? " needs" : "s need"} a field type`}
             </span>
           )}
         </div>
         <div className="flex items-center gap-3">
-          {canReview &&
-            (confirmed ? (
-              <button
-                type="button"
-                onClick={() => setConfirmed(false)}
-                title="Confirmed. Click to undo."
-                className="rounded-lg border border-success/40 bg-success-soft px-3 py-1.5 text-sm font-semibold text-success"
-              >
-                Confirmed ✓
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={left > 0}
-                onClick={() => setConfirmed(true)}
-                title={
-                  left > 0
-                    ? `Give every field a type first (${left} left, outlined in red or yellow).`
-                    : "Confirm this document is ready."
-                }
-                className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Confirm
-              </button>
-            ))}
           {url && (
             <a
               href={url}
@@ -129,10 +92,9 @@ export function SavedContractDoc({
               source={url}
               pageCount={pageCount}
               initialBlanks={blanks}
-              confirmed={confirmed}
-              onFieldsLeft={fieldsLeft}
+              onFieldsLeft={setLeft}
               nextDocHref={nextDocHref}
-              onSave={(next, pages) => saveContractReview({ id, blanks: next, confirmedPages: pages })}
+              onSave={(next) => saveContractReview({ id, blanks: next })}
             />
           </DocumentBoundary>
         </div>
