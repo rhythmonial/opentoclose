@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      founding_applications: {
+        Row: {
+          id: string
+          created_at: string
+          company_structure: string
+          business_name: string
+          first_name: string
+          last_name: string
+          email: string
+          phone: string | null
+          states_serviced: string | null
+          priority_state: string | null
+          tms: string | null
+          email_provider: string | null
+          esign_platform: string | null
+          esign_other: string | null
+          answers: Json
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          company_structure: string
+          business_name: string
+          first_name: string
+          last_name: string
+          email: string
+          phone?: string | null
+          states_serviced?: string | null
+          priority_state?: string | null
+          tms?: string | null
+          email_provider?: string | null
+          esign_platform?: string | null
+          esign_other?: string | null
+          answers?: Json
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          company_structure?: string
+          business_name?: string
+          first_name?: string
+          last_name?: string
+          email?: string
+          phone?: string | null
+          states_serviced?: string | null
+          priority_state?: string | null
+          tms?: string | null
+          email_provider?: string | null
+          esign_platform?: string | null
+          esign_other?: string | null
+          answers?: Json
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           key: string

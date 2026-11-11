@@ -6,8 +6,7 @@ import { MarketingFooter } from "@/components/MarketingFooter";
 // The homepage for now: the founding members offer. (The earlier homepage
 // is kept at /classic-home.)
 
-const APPLY_HREF =
-  "mailto:rhythmonial@gmail.com?subject=Founding%20member%20application";
+const APPLY_HREF = "/founding";
 
 const PIECES = [
   { title: "Fields", body: "Only the fields your contracts and workflow actually use, named and organized your way." },

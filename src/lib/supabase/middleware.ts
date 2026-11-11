@@ -9,6 +9,7 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/pricing",
   "/about",
+  "/founding",
   "/invite",
   "/api/stripe/webhook",
 ];

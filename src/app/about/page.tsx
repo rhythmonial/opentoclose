@@ -18,7 +18,8 @@ export default function AboutPage() {
             About
           </div>
           <h1 className="mt-4 font-display text-3xl font-bold leading-tight sm:text-5xl">
-            Open to Close setups, done right the first time
+            <span className="block whitespace-nowrap">Open to Close setups</span>
+            <span className="block">done right the first time</span>
           </h1>
           <p className="mx-auto mt-5 max-w-3xl text-base text-white/85 sm:text-lg">
             Most Open to Close setups go wrong before the first transaction is ever entered.
@@ -79,7 +80,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-5xl grid-cols-1 items-center gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:px-12">
+      <section className="mx-auto w-full max-w-3xl px-4 py-14 text-center sm:px-6">
         <div>
           <div className="font-caption text-xs font-semibold uppercase tracking-wide text-ink-faint">
             What I do today
@@ -93,23 +94,20 @@ export default function AboutPage() {
             account from them: fields, dates, documents, contacts, emails, tasks, intake forms and
             how it all comes together to run your files.
           </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
             <Link
               href="/#offer"
               className="rounded-lg bg-navy px-5 py-2.5 text-center text-sm font-semibold text-white"
             >
               See the founding group offer
             </Link>
-            <a
-              href="mailto:rhythmonial@gmail.com?subject=Founding%20member%20application"
+            <Link
+              href="/founding"
               className="rounded-lg border border-navy px-5 py-2.5 text-center text-sm font-semibold text-navy"
             >
               Apply for a founding spot
-            </a>
+            </Link>
           </div>
-        </div>
-        <div className="relative aspect-[6/7] w-full max-w-sm justify-self-center overflow-hidden rounded-2xl">
-          <Image src="/brand/laptop.png" alt="Working on a laptop" fill sizes="384px" className="object-cover" />
         </div>
       </section>
 
