@@ -576,7 +576,7 @@ export default async function ClientDetailPage({
                       </span>
                     ) : (
                       <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
-                        {doc.confirmed_pages.length} of {doc.page_count ?? 0} pages confirmed
+                        Not reviewed yet
                       </span>
                     )}
                     {url && (

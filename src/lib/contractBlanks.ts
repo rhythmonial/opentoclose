@@ -737,3 +737,18 @@ export async function withLineNumbers(
   }
   return blanks.map((b) => ({ ...b, line: lineAt(b.y + b.height, marksByPage.get(b.page) ?? []) }));
 }
+
+// How many fields (linked boxes count once; removed ones don't count)
+// still need a field type, on one page or the whole document.
+export function fieldsNeedingType(blanks: ContractBlank[], page?: number) {
+  const typedGroups = new Set(blanks.filter((b) => b.group && b.fieldType && !b.removed).map((b) => b.group!));
+  const all = new Set<string>();
+  const left = new Set<string>();
+  blanks.forEach((b, i) => {
+    if (b.removed || (page !== undefined && b.page !== page)) return;
+    const key = b.group ?? `box-${i}`;
+    all.add(key);
+    if (!b.fieldType && !(b.group && typedGroups.has(b.group))) left.add(key);
+  });
+  return { total: all.size, left: left.size };
+}

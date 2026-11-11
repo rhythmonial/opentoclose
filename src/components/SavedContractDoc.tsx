@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import type { ContractBlank } from "@/lib/contractBlanks";
+import { fieldsNeedingType, type ContractBlank } from "@/lib/contractBlanks";
 import { ContractReviewer } from "@/components/ContractReviewer";
 import { DocumentBoundary } from "@/components/DocumentBoundary";
 import { DocTitle } from "@/components/DocTitle";
 import { saveContractReview } from "@/app/configurator/upload_your_contract_docs/actions";
 
-// One uploaded contract on its own page, with its page-by-page review.
-// Clicking its name renames it.
+// One uploaded contract on its own page, with its review. Clicking its name
+// renames it. Once every field has a type, Confirm marks it reviewed (a
+// field that loses its type, or a new box, takes that back).
 export function SavedContractDoc({
   id,
   fileName,
@@ -19,7 +19,6 @@ export function SavedContractDoc({
   confirmedPages,
   isScanned,
   uploadedOn,
-  nextHref,
   actions,
 }: {
   id: string;
@@ -30,31 +29,16 @@ export function SavedContractDoc({
   confirmedPages: number[];
   isScanned: boolean;
   uploadedOn: string;
-  // The next document still to review.
-  nextHref?: string | null;
   actions?: React.ReactNode;
 }) {
-  // A document reviewed before it was opened starts on its pages to pick
-  // from; otherwise the review stays open (confirming the last page doesn't
-  // close it).
-  const [reviewedAtOpen] = useState(pageCount > 0 && confirmedPages.length === pageCount);
-  // Reviewing a reviewed document again starts from the page they pick,
-  // which goes back to unconfirmed.
-  const [again, setAgain] = useState<{ page: number; confirmed: number[] } | null>(null);
-  // Pages confirmed as they're confirmed in the reviewer.
-  const [live, setLive] = useState<number[] | null>(null);
-  const confirmedCount = (live ?? again?.confirmed ?? confirmedPages).length;
-  const reviewed = pageCount > 0 && confirmedCount === pageCount;
-  const [saving, setSaving] = useState(false);
-
-  async function reviewPage(n: number) {
-    const confirmed = confirmedPages.filter((p) => p !== n);
-    setSaving(true);
-    await saveContractReview({ id, blanks, confirmedPages: confirmed });
-    setSaving(false);
-    setLive(null);
-    setAgain({ page: n, confirmed });
-  }
+  const [confirmed, setConfirmed] = useState(pageCount > 0 && confirmedPages.length === pageCount);
+  const [left, setLeft] = useState(() => fieldsNeedingType(blanks).left);
+  // A field needing a type again takes the confirmation back.
+  const fieldsLeft = (n: number) => {
+    setLeft(n);
+    if (n > 0) setConfirmed(false);
+  };
+  const canReview = Boolean(url) && !isScanned;
 
   return (
     <div data-contract-doc className="scroll-mt-4 rounded-xl border border-border bg-surface p-4">
@@ -74,14 +58,43 @@ export function SavedContractDoc({
           {!isScanned && (
             <span
               className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                reviewed ? "bg-success-soft text-success" : "bg-warning-soft text-warning"
+                confirmed ? "bg-success-soft text-success" : "bg-warning-soft text-warning"
               }`}
             >
-              {reviewed ? "Reviewed" : `${confirmedCount} of ${pageCount} pages confirmed`}
+              {confirmed
+                ? "Reviewed"
+                : left > 0
+                  ? `${left} field${left === 1 ? " needs" : "s need"} a field type`
+                  : "Ready to confirm"}
             </span>
           )}
         </div>
         <div className="flex items-center gap-3">
+          {canReview &&
+            (confirmed ? (
+              <button
+                type="button"
+                onClick={() => setConfirmed(false)}
+                title="Confirmed. Click to undo."
+                className="rounded-lg border border-success/40 bg-success-soft px-3 py-1.5 text-sm font-semibold text-success"
+              >
+                Confirmed ✓
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={left > 0}
+                onClick={() => setConfirmed(true)}
+                title={
+                  left > 0
+                    ? `Give every field a type first (${left} left, outlined in red or yellow).`
+                    : "Confirm this document is ready."
+                }
+                className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Confirm
+              </button>
+            ))}
           {url && (
             <a
               href={url}
@@ -106,50 +119,18 @@ export function SavedContractDoc({
           and upload the original digital PDF if you have it.
         </p>
       )}
-      {url && !isScanned && (
+      {canReview && url && (
         <div className="mt-4">
-          {reviewedAtOpen && !again ? (
-            <div className="rounded-lg border border-success/30 bg-success-soft/60 p-4">
-              <p className="text-sm font-semibold text-success">This document has been reviewed.</p>
-              <p className="mt-0.5 text-sm text-ink-soft">
-                Pick a page to review again. It goes back to unconfirmed until you confirm it.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    disabled={saving}
-                    onClick={() => reviewPage(n)}
-                    className="rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-ink hover:border-accent hover:text-accent disabled:opacity-50"
-                  >
-                    Page {n}
-                  </button>
-                ))}
-              </div>
-              {nextHref && (
-                <Link
-                  href={nextHref}
-                  className="mt-4 inline-block rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
-                >
-                  Next document &rsaquo;
-                </Link>
-              )}
-            </div>
-          ) : (
-            <DocumentBoundary>
-              <ContractReviewer
-                key={again ? `again-${again.page}` : "review"}
-                source={url}
-                pageCount={pageCount}
-                initialBlanks={blanks}
-                initialConfirmed={again?.confirmed ?? confirmedPages}
-                initialPage={again?.page ?? 1}
-                onSave={(next, confirmed) => saveContractReview({ id, blanks: next, confirmedPages: confirmed })}
-                onConfirmedChange={setLive}
-              />
-            </DocumentBoundary>
-          )}
+          <DocumentBoundary>
+            <ContractReviewer
+              source={url}
+              pageCount={pageCount}
+              initialBlanks={blanks}
+              confirmed={confirmed}
+              onFieldsLeft={fieldsLeft}
+              onSave={(next, pages) => saveContractReview({ id, blanks: next, confirmedPages: pages })}
+            />
+          </DocumentBoundary>
         </div>
       )}
     </div>

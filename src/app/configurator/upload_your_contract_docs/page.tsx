@@ -5,7 +5,8 @@ import { ContractUploader } from "@/components/ContractUploader";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { DocTitle } from "@/components/DocTitle";
 import { deleteContractDocument, finishContractDocs, reorderUploadDocs } from "./actions";
-import { isReviewed, loadUploadDocs } from "./load";
+import { isReviewed, loadUploadDocs, typedBlanks } from "./load";
+import { fieldsNeedingType } from "@/lib/contractBlanks";
 
 export default async function UploadContractDocsPage({
   searchParams,
@@ -110,7 +111,7 @@ export default async function UploadContractDocsPage({
                 handleClass="mt-4"
                 onReorder={reorderUploadDocs.bind(null, staffClient?.id ?? null)}
                 items={docs.map((doc, i) => {
-                  const confirmed = doc.confirmed_pages.length;
+                  const left = fieldsNeedingType(typedBlanks(doc)).left;
                   const pages = doc.page_count ?? 0;
                   return {
                     id: doc.id,
@@ -149,7 +150,9 @@ export default async function UploadContractDocsPage({
                               </span>
                             ) : (
                               <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
-                                {confirmed} of {pages} pages confirmed
+                                {left > 0
+                                  ? `${left} field${left === 1 ? " needs" : "s need"} a field type`
+                                  : "Not confirmed yet"}
                               </span>
                             )}
                           </span>
@@ -176,7 +179,7 @@ export default async function UploadContractDocsPage({
                 </button>
                 {toReview.length > 0 && (
                   <span className="text-xs text-ink-faint">
-                    Confirm every page of{" "}
+                    Confirm{" "}
                     {toReview.length === 1 ? "your document" : `all ${toReview.length} documents`}{" "}
                     to finish.
                   </span>

@@ -4,7 +4,7 @@ import { PageCount, pageCountTitle } from "@/components/PageCount";
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { openPdf, drawPdfPage } from "@/lib/pdfjs";
-import { fieldLabel, tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
+import { fieldLabel, fieldsNeedingType, tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 import { FIELD_TYPE_OPTIONS, type BoxFieldType } from "@/lib/fieldTypes";
 import { isContactRole, OTC_FIELDS } from "@/lib/otcFields";
 import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
@@ -77,34 +77,32 @@ const clamp = (n: number, min = 0, max = 1) => Math.min(max, Math.max(min, n));
 // highlighted, and they can add boxes (click or drag on the page), move and
 // stretch them, remove wrong ones, link boxes that are one answer
 // (shift+click them, then Link), choose each field's type (in the menu that
-// opens at a selected box), and confirm each page. Changes go to
+// opens at a selected box). Changes go to
 // `onSave` shortly after each edit; without it, edits stay on this screen.
 export function ContractReviewer({
   source,
   pageCount,
   initialBlanks,
-  initialConfirmed = [],
   initialPage = 1,
   onSave,
-  onAllConfirmed,
-  onConfirmedChange,
+  confirmed: docConfirmed = false,
+  onFieldsLeft,
 }: {
   // The file's bytes (just picked) or a signed URL (already uploaded).
   source: ArrayBuffer | string;
   pageCount: number;
   initialBlanks: ContractBlank[];
-  initialConfirmed?: number[];
   // The page to open on.
   initialPage?: number;
   onSave?: (blanks: ContractBlank[], confirmed: number[]) => Promise<{ ok: boolean; error?: string }>;
-  // Called once the last unconfirmed page is confirmed and saved (instead of
-  // staying on the page).
-  onAllConfirmed?: (blanks: ContractBlank[], confirmed: number[]) => void;
-  // Told the confirmed pages as they change (the count then shows outside).
-  onConfirmedChange?: (confirmed: number[]) => void;
+  // Whether the document is confirmed (with the button beside it, once no
+  // field needs a type); saved with the boxes as every page confirmed.
+  confirmed?: boolean;
+  // Told how many fields in the document still need a field type.
+  onFieldsLeft?: (left: number) => void;
 }) {
   const [blanks, setBlanks] = useState(initialBlanks);
-  const [confirmed, setConfirmed] = useState(initialConfirmed);
+  const confirmed = docConfirmed ? Array.from({ length: pageCount }, (_, i) => i + 1) : [];
   const [page, setPage] = useState(initialPage);
   // Page size in points (letter until the page loads), for sizing new boxes.
   const [pageSize, setPageSize] = useState({ width: 612, height: 792 });
@@ -184,6 +182,19 @@ export function ContractReviewer({
     );
     saver.current.push({ blanks: nextBlanks, confirmed: nextConfirmed });
   }
+
+  // Confirming (or unconfirming) the document saves it with the boxes.
+  const confirmSeen = useRef(docConfirmed);
+  useEffect(() => {
+    if (confirmSeen.current === docConfirmed) return;
+    confirmSeen.current = docConfirmed;
+    commit(blanks, confirmed);
+  });
+  // The fields still needing a type, for the confirm button outside.
+  const docLeft = fieldsNeedingType(blanks).left;
+  useEffect(() => {
+    onFieldsLeft?.(docLeft);
+  }, [docLeft, onFieldsLeft]);
 
   function changeBlanks(next: ContractBlank[]) {
     const tidy = tidyGroups(next);
@@ -617,27 +628,6 @@ export function ContractReviewer({
     commit(next, confirmed);
   }
 
-  function toggleConfirmed() {
-    const isConfirmed = confirmed.includes(page);
-    const next = isConfirmed
-      ? confirmed.filter((n) => n !== page)
-      : [...confirmed, page].sort((a, b) => a - b);
-    setConfirmed(next);
-    onConfirmedChange?.(next);
-    commit(blanks, next);
-    if (!isConfirmed && onAllConfirmed && next.length === pageCount) {
-      const latest = blanks;
-      void (saver.current?.settle() ?? Promise.resolve()).then(() => onAllConfirmed(latest, next));
-      return;
-    }
-    // Back to the top (of the document's own page, or of the reviewer),
-    // where this page's button now shows green.
-    if (!isConfirmed) {
-      if (rootRef.current?.closest("[data-contract-doc]")) window.scrollTo({ top: 0, behavior: "smooth" });
-      else rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }
-
   // A choice field's options: its option boxes and the ones added by hand.
   const optionCount = (key: string) =>
     new Set(blanks.filter((b) => b.fieldType === "choice_option" && b.choiceOf === key).map(keyOf))
@@ -646,7 +636,6 @@ export function ContractReviewer({
   const onPage = blanks
     .map((b, index) => ({ ...b, index }))
     .filter((b) => b.page === page);
-  const pageConfirmed = confirmed.includes(page);
   const selectedGroup = selected !== null ? blanks[selected]?.group : undefined;
   const groupSize = (g: string) => blanks.filter((b) => b.group === g).length;
   // A link's tag (with its link icon) shows on the box clicked first when
@@ -669,17 +658,7 @@ export function ContractReviewer({
   const isTyped = (b: ContractBlank) => Boolean(b.fieldType || (b.group && typedGroups.has(b.group)));
   // Per page, its fields (linked boxes count once) and how many still need
   // a field type.
-  const fieldsOnPage = (n: number) => {
-    const all = new Set<string>();
-    const left = new Set<string>();
-    blanks.forEach((b, i) => {
-      if (b.page !== n || b.removed) return;
-      const key = b.group ?? `box-${i}`;
-      all.add(key);
-      if (!isTyped(b)) left.add(key);
-    });
-    return { total: all.size, left: left.size };
-  };
+  const fieldsOnPage = (n: number) => fieldsNeedingType(blanks, n);
 
   return (
     <div ref={rootRef} className="flex scroll-mt-4 flex-col gap-3">
@@ -696,20 +675,9 @@ export function ContractReviewer({
                 setLinking([]);
               }}
               className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-semibold ${
-                n === page
-                  ? confirmed.includes(n)
-                    ? "border-success bg-success text-white"
-                    : "border-accent bg-accent text-white"
-                  : confirmed.includes(n)
-                    ? "border-success/40 bg-success-soft text-success"
-                    : "border-border bg-surface text-ink-soft"
+                n === page ? "border-accent bg-accent text-white" : "border-border bg-surface text-ink-soft"
               }`}
             >
-              {confirmed.includes(n) && (
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-              )}
               Page {n}
               <PageCount {...fieldsOnPage(n)} current={n === page} />
             </button>
@@ -717,17 +685,10 @@ export function ContractReviewer({
         </div>
         <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
           <span className="text-xs text-ink-faint">
-            {!onConfirmedChange && `${confirmed.length} of ${pageCount} pages confirmed`}
-            {!onConfirmedChange && saveState && " · "}
             {saveState === "saving" && "Saving…"}
             {saveState === "saved" && "Saved"}
             {saveState === "error" && <span className="text-danger">Couldn&rsquo;t save</span>}
           </span>
-          {confirmed.length === pageCount && (
-            <span className="rounded-lg border border-success/40 bg-success-soft px-4 py-2 text-sm font-semibold text-success">
-              All pages confirmed ✓
-            </span>
-          )}
         </span>
       </div>
 
@@ -1234,17 +1195,6 @@ export function ContractReviewer({
           {" · "}
           {onPage.filter((b) => !b.removed && isTyped(b)).length} with a field type
         </span>
-        <button
-          type="button"
-          onClick={toggleConfirmed}
-          className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-            pageConfirmed
-              ? "border border-success/40 bg-success-soft text-success"
-              : "bg-accent text-white"
-          }`}
-        >
-          {pageConfirmed ? `Page ${page} confirmed ✓ (undo)` : `Confirm page ${page} looks right`}
-        </button>
       </div>
     </div>
   );

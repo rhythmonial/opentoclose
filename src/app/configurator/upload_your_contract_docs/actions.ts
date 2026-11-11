@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
+import { fieldsNeedingType, tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
 import { isBoxFieldType, withBoxTypes } from "@/lib/fieldTypes";
 import { isContactRole, OTC_FIELDS } from "@/lib/otcFields";
 import {
@@ -254,9 +254,13 @@ export async function saveContractReview(input: {
         ? { line: b.line }
         : {}),
     })));
-  const confirmed = [...new Set(input.confirmedPages.map(Math.trunc))]
-    .filter((n) => n >= 1 && n <= pages)
-    .sort((a, b) => a - b);
+  // Confirmed only once every field has a type.
+  const confirmed =
+    fieldsNeedingType(blanks).left > 0
+      ? []
+      : [...new Set(input.confirmedPages.map(Math.trunc))]
+          .filter((n) => n >= 1 && n <= pages)
+          .sort((a, b) => a - b);
 
   // The types chosen here become the workflow fields' types (see
   // fieldTypes), ready for Assign Your Fields.
