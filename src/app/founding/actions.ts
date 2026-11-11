@@ -45,6 +45,25 @@ export async function submitFoundingApplication(form: FormData) {
   const { error } = await supabase.from("founding_applications").insert(row);
   if (error) redirect("/founding?error=Something+went+wrong.+Please+try+again.");
 
+  // They're a lead too, with their setup initiation answers.
+  await supabase.from("leads").insert({
+    name: `${first} ${last}`,
+    email,
+    phone: row.phone,
+    status: "new",
+    source: "founding",
+    heard_about: answers.referral ?? null,
+    details: {
+      company_structure: structure,
+      business_name: business,
+      states_serviced: row.states_serviced,
+      priority_state: row.priority_state,
+      tms: row.tms,
+      email_provider: row.email_provider,
+      esign_platform: row.esign_other || row.esign_platform,
+    },
+  });
+
   const lines = [
     `${first} ${last} (${email}${row.phone ? `, ${row.phone}` : ""})`,
     `${business} · ${structure}`,

@@ -919,6 +919,7 @@ export type Database = {
           converted_client_account_id: string | null
           archived_at: string | null
           created_at: string
+          details: Json | null
           email: string
           heard_about: string | null
           heard_about_detail: string | null
@@ -934,6 +935,7 @@ export type Database = {
           converted_client_account_id?: string | null
           archived_at?: string | null
           created_at?: string
+          details?: Json | null
           email: string
           heard_about?: string | null
           heard_about_detail?: string | null
@@ -949,6 +951,7 @@ export type Database = {
           converted_client_account_id?: string | null
           archived_at?: string | null
           created_at?: string
+          details?: Json | null
           email?: string
           heard_about?: string | null
           heard_about_detail?: string | null

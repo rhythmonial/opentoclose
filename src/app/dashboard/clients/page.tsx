@@ -333,10 +333,31 @@ export default async function ClientsPage() {
           <div>
             {lead.source === "request_info"
               ? "Request Info"
-              : lead.source === "signup"
-                ? "Free signup"
-                : "Manual"}
+              : lead.source === "founding"
+                ? "Founding application"
+                : lead.source === "signup"
+                  ? "Free signup"
+                  : "Manual"}
           </div>
+          {/* A founding application's setup initiation answers. */}
+          {lead.details && typeof lead.details === "object" && !Array.isArray(lead.details) && (
+            <div className="mt-1 flex flex-col text-xs text-ink-faint">
+              {(() => {
+                const d = lead.details as Record<string, string | null>;
+                return [
+                  [d.business_name, d.company_structure].filter(Boolean).join(" · "),
+                  d.states_serviced
+                    ? `States: ${d.states_serviced}${d.priority_state ? ` (priority: ${d.priority_state})` : ""}`
+                    : "",
+                  [d.tms && `TMS: ${d.tms}`, d.email_provider && `Email: ${d.email_provider}`, d.esign_platform && `E-sign: ${d.esign_platform}`]
+                    .filter(Boolean)
+                    .join(" · "),
+                ]
+                  .filter(Boolean)
+                  .map((line) => <span key={line}>{line}</span>);
+              })()}
+            </div>
+          )}
           {lead.heard_about && (
             <div className="text-xs text-ink-faint">
               {lead.heard_about}
