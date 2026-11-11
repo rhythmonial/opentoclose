@@ -2,12 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
-import { splitOptions } from "@/lib/otcFields";
 import {
-  choiceOptions,
   ORG_GROUPS,
   ORG_SECTIONS,
-  type ChoiceEdits,
   type Layout,
   type Move,
   type OrgField,
@@ -36,7 +33,7 @@ export function FieldOrganizer({
   fields,
   names,
   initialLayout,
-  initialChoiceEdits,
+  spots = {},
   sections = ORG_SECTIONS,
 }: {
   // The client account (staff only; clients use their own).
@@ -46,13 +43,12 @@ export function FieldOrganizer({
   fields: OrgField[];
   names: Record<string, string>;
   initialLayout: Layout;
-  initialChoiceEdits: ChoiceEdits;
+  // Where each field first is on the contracts ("Purchase Agreement #134").
+  spots?: Record<string, string>;
   // OTC's sections with the ones the client added.
   sections?: OrgSection[];
 }) {
   const [layout, setLayout] = useState(initialLayout);
-  const [edits, setEdits] = useState(initialChoiceEdits);
-  const latestEdits = useRef(edits);
   const [group, setGroup] = useState(ORG_GROUPS[0]);
   const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
   const pending = useRef<Move[]>([]);
@@ -69,14 +65,6 @@ export function FieldOrganizer({
     scheduleSave();
   }
 
-  // Options to delete (toggled red) or add, per choice field.
-  function editChoices(fieldId: string, edit: ChoiceEdits[string]) {
-    const next = { ...latestEdits.current, [fieldId]: edit };
-    setEdits(next);
-    latestEdits.current = next;
-    scheduleSave();
-  }
-
   function scheduleSave() {
     if (!canSave) return;
     setStatus("saving");
@@ -88,7 +76,6 @@ export function FieldOrganizer({
         accountId,
         latest.current,
         moves,
-        latestEdits.current,
       );
       if (!result.ok) pending.current = [...moves, ...pending.current];
       setStatus(result.ok ? "saved" : "error");
@@ -347,6 +334,11 @@ export function FieldOrganizer({
                                   New
                                 </span>
                               )}
+                              {spots[id] && (
+                                <span className="max-w-[14rem] shrink-0 truncate rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
+                                  {spots[id]}
+                                </span>
+                              )}
                               <MoveMenu
                                 label={`Move ${f?.name ?? "this field"} to another section`}
                                 heading="Move this field to"
@@ -359,13 +351,6 @@ export function FieldOrganizer({
                                 onMove={(to) => moveField(id, s.id, to)}
                               />
                             </div>
-                            {f?.kind === "choice" && (
-                              <ChoiceOptionsEditor
-                                field={f}
-                                edit={edits[id]}
-                                onChange={(edit) => editChoices(id, edit)}
-                              />
-                            )}
                           </div>
                         ),
                       };
@@ -461,87 +446,3 @@ function MoveMenu({
   );
 }
 
-// A choice field's options: green to keep, red (clicked) to delete, and a
-// box to type more (several separated by commas).
-function ChoiceOptionsEditor({
-  field,
-  edit,
-  onChange,
-}: {
-  field: OrgField;
-  edit?: ChoiceEdits[string];
-  onChange: (edit: ChoiceEdits[string]) => void;
-}) {
-  const [typed, setTyped] = useState("");
-  const options = choiceOptions(field, edit);
-  const current = edit ?? { removed: [], added: [] };
-  const toggle = (title: string) => {
-    const on = current.removed.some((r) => r.toLowerCase() === title.toLowerCase());
-    onChange({
-      ...current,
-      removed: on
-        ? current.removed.filter((r) => r.toLowerCase() !== title.toLowerCase())
-        : [...current.removed, title],
-    });
-  };
-  const add = () => {
-    const titles = splitOptions(typed).filter(
-      (t) => !options.some((o) => o.title.toLowerCase() === t.toLowerCase()),
-    );
-    if (titles.length > 0) onChange({ ...current, added: [...current.added, ...titles] });
-    setTyped("");
-  };
-  return (
-    <div className="flex flex-col gap-1.5 pl-1">
-      {options.length > 0 ? (
-        <div className="flex flex-wrap gap-1">
-          {options.map((o) => (
-            <button
-              key={o.title}
-              type="button"
-              aria-pressed={o.removed}
-              onClick={() => toggle(o.title)}
-              title={o.removed ? "Will be deleted. Click to keep it." : "Click to delete this option."}
-              className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-                o.removed
-                  ? "border-danger/40 bg-danger/10 text-danger line-through"
-                  : "border-emerald-500/40 bg-emerald-500/10 text-emerald-800"
-              }`}
-            >
-              {o.title}
-              {o.isNew && !o.removed && <span className="ml-1 text-[10px] font-bold uppercase">new</span>}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <span className="text-xs text-ink-faint">No options yet.</span>
-      )}
-      <form
-        className="flex items-center gap-1.5"
-        onSubmit={(e) => {
-          e.preventDefault();
-          add();
-        }}
-      >
-        <input
-          value={typed}
-          onChange={(e) => setTyped(e.target.value)}
-          maxLength={500}
-          placeholder="Add options, separated by commas"
-          aria-label={`Add options to ${field.name}`}
-          className="w-72 max-w-full rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
-        />
-        <button
-          type="submit"
-          disabled={!typed.trim()}
-          className="rounded-md border border-accent px-2 py-1 text-xs font-semibold text-accent disabled:opacity-50"
-        >
-          Add
-        </button>
-      </form>
-      {options.some((o) => o.removed) && (
-        <span className="text-[11px] text-ink-faint">Red options will be deleted. Click one to keep it.</span>
-      )}
-    </div>
-  );
-}

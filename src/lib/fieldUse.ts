@@ -1,5 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
-import { allPlaceholders, cleanPlaceholders, contractLines } from "@/lib/placeholders";
+import { allPlaceholders, cleanPlaceholders, contractLines, spotLabel } from "@/lib/placeholders";
 import { orgSectionsWith, type OrgSection } from "@/lib/fieldOrganization";
 import {
   cleanCustomFields,
@@ -38,6 +38,8 @@ export type FieldUse = {
   contractOptions: Record<string, string[]>;
   // Each field's placeholder ("134- if blank = 3").
   placeholders: Record<string, string>;
+  // Where each first is on the contracts ("Purchase Agreement #134").
+  spots: Record<string, string>;
 };
 
 export async function loadFieldUse(supabase: Supabase, accountId: string): Promise<FieldUse> {
@@ -49,7 +51,7 @@ export async function loadFieldUse(supabase: Supabase, accountId: string): Promi
       .maybeSingle(),
     supabase
       .from("contract_documents")
-      .select("blanks, workflow_fields, created_at, upload_order")
+      .select("blanks, workflow_fields, created_at, upload_order, file_name")
       .eq("client_account_id", accountId)
       .eq("is_scanned", false),
   ]);
@@ -91,7 +93,11 @@ export async function loadFieldUse(supabase: Supabase, accountId: string): Promi
   }
   // Placeholders: the ones they set in Customize Your Fields, and numbers'
   // if-blank values from their contracts.
-  const placeholders = allPlaceholders(contractLines(docs ?? []), cleanPlaceholders(saved?.placeholders));
+  const lines = contractLines(docs ?? []);
+  const placeholders = allPlaceholders(lines, cleanPlaceholders(saved?.placeholders));
+  const spots = Object.fromEntries(
+    Object.entries(lines).flatMap(([id, at]) => (spotLabel(at) ? [[id, spotLabel(at)!]] : [])),
+  );
   const sections = orgSectionsWith(cleanCustomSections(saved?.custom_sections));
-  return { inUse, newFields, custom, sections, names, contractOptions, placeholders };
+  return { inUse, newFields, custom, sections, names, contractOptions, placeholders, spots };
 }

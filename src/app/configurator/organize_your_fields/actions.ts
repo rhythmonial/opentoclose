@@ -5,11 +5,9 @@ import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
 import { loadFieldUse } from "@/lib/fieldUse";
 import {
-  cleanChoiceEdits,
   cleanMoves,
   orgFields,
   reconcileLayout,
-  type ChoiceEdits,
   type Layout,
   type Move,
 } from "@/lib/fieldOrganization";
@@ -23,7 +21,6 @@ export async function saveFieldOrganization(
   accountId: string | null,
   layout: Layout,
   moves: Move[],
-  choiceEdits: ChoiceEdits,
 ): Promise<{ ok: boolean; error?: string }> {
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   if (!account) return { ok: false, error: "Not signed in." };
@@ -41,7 +38,6 @@ export async function saveFieldOrganization(
       client_account_id: account,
       layout: clean,
       moves: all,
-      choice_edits: cleanChoiceEdits(choiceEdits, fields),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "client_account_id" },
@@ -78,4 +74,18 @@ export async function finishOrganizeFields() {
   await approveStep(supabase, user.id, accountId, STEP_KEY);
   revalidatePath(PAGE);
   redirect(`${PAGE}?done=1`);
+}
+
+// "Refresh all groups": the fields back in Open to Close's layout, with no
+// moves recorded.
+export async function resetFieldOrganization(accountId: string | null): Promise<{ ok: boolean; error?: string }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const { error } = await supabase.from("client_field_organization").upsert(
+    { client_account_id: account, layout: [], moves: [], updated_at: new Date().toISOString() },
+    { onConflict: "client_account_id" },
+  );
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  return { ok: true };
 }

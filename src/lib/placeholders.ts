@@ -6,13 +6,21 @@ import type { ContractBlank } from "@/lib/contractBlanks";
 import { inUploadOrder } from "@/lib/docOrder";
 import { isActive, otcTargetOf, placeholderText, type WorkflowField } from "@/lib/workflowFields";
 
-type Doc = { blanks: unknown; workflow_fields: unknown; created_at: string; upload_order: number | null };
+type Doc = {
+  blanks: unknown;
+  workflow_fields: unknown;
+  created_at: string;
+  upload_order: number | null;
+  file_name?: string;
+};
+
+export type FieldSpot = { line: number | null; ifBlank?: string; page?: number; doc?: string };
 
 // Per field the client uses, its first box on their contracts (in their
 // upload order, top to bottom): its line, and for a number, what it is
 // when left blank.
-export function contractLines(docs: Doc[]): Record<string, { line: number | null; ifBlank?: string }> {
-  const out: Record<string, { line: number | null; ifBlank?: string }> = {};
+export function contractLines(docs: Doc[]): Record<string, FieldSpot> {
+  const out: Record<string, FieldSpot> = {};
   for (const d of inUploadOrder(docs)) {
     const blanks = (Array.isArray(d.blanks) ? d.blanks : []) as ContractBlank[];
     const fields = (Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : []).filter(isActive);
@@ -22,7 +30,11 @@ export function contractLines(docs: Doc[]): Record<string, { line: number | null
       const f = byKey.get(b.group ?? b.id!);
       const target = f ? otcTargetOf(f) : undefined;
       if (!f || !target) continue;
-      const at = (out[target] ??= { line: b.line ?? null });
+      const at = (out[target] ??= {
+        line: b.line ?? null,
+        page: b.page,
+        ...(d.file_name ? { doc: d.file_name.replace(/\.pdf$/i, "") } : {}),
+      });
       if (at.line === null && b.line) at.line = b.line;
       if (!at.ifBlank && f.type === "number" && f.if_blank) at.ifBlank = f.if_blank;
     }
@@ -61,3 +73,8 @@ export function allPlaceholders(lines: ReturnType<typeof contractLines>, saved: 
   }
   return out;
 }
+
+// Where a field first is on the contracts, for its badge: the contract's
+// name and line ("Purchase Agreement #134"), or its page without a line.
+export const spotLabel = (at?: FieldSpot) =>
+  at?.doc ? `${at.doc} ${at.line ? `#${at.line}` : `p.${at.page}`}` : undefined;

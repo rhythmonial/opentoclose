@@ -21,7 +21,7 @@ import { isActive, newOtcFieldsFrom, otcTargetOf, type WorkflowField } from "@/l
 import { inContractOrder } from "@/components/WorkflowFieldsSummary";
 import { OtcFieldSelector } from "@/components/OtcFieldSelector";
 import { ResetFinalizeButton } from "@/components/ResetFinalizeButton";
-import { cleanPlaceholders, contractLines } from "@/lib/placeholders";
+import { cleanPlaceholders, contractLines, spotLabel } from "@/lib/placeholders";
 import { loadFieldUse } from "@/lib/fieldUse";
 import { finishSelectOtcFields } from "./actions";
 
@@ -90,8 +90,7 @@ export default async function SelectOtcFieldsPage({
     fields: Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : [],
   }));
   const assigned: Record<string, string[]> = {};
-  // Where each first is: its contract's name and page ("Purchase Agreement #3").
-  const firstSpot: Record<string, string> = {};
+
   for (const doc of summaryDocs) {
     for (const { field, first } of inContractOrder(doc)) {
       const target = otcTargetOf(field);
@@ -100,7 +99,6 @@ export default async function SelectOtcFieldsPage({
         first.line ? `line ${first.line}` : `page ${first.page}`
       }: ${fieldLabel(first)}`;
       (assigned[target] ??= []).push(where);
-      firstSpot[target] ??= `${doc.name} #${first.page}`;
     }
   }
   const newFields = newOtcFieldsFrom(
@@ -116,6 +114,10 @@ export default async function SelectOtcFieldsPage({
   // fields that were fields they added and then pointed at them (↺ puts
   // the added field back).
   const lines = contractLines(docs ?? []);
+  // Where each first is: its contract's name and line ("Purchase Agreement #134").
+  const firstSpot = Object.fromEntries(
+    Object.entries(lines).flatMap(([id, at]) => (spotLabel(at) ? [[id, spotLabel(at)!]] : [])),
+  );
   const wasNew: Record<string, { id: string; name: string }> = {};
   for (const f of summaryDocs.flatMap((d) => d.fields).filter(isActive)) {
     const target = otcTargetOf(f);

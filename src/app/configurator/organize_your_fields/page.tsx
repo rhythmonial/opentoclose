@@ -7,7 +7,8 @@ import { getSandboxTier } from "@/lib/devSandbox";
 import { stepClientHref } from "@/lib/stepHref";
 import { SYSTEM_REQUIRED_IDS } from "@/lib/otcFields";
 import { loadFieldUse, type FieldUse } from "@/lib/fieldUse";
-import { cleanChoiceEdits, ORG_SECTIONS, orgFields, reconcileLayout } from "@/lib/fieldOrganization";
+import { ORG_SECTIONS, orgFields, reconcileLayout } from "@/lib/fieldOrganization";
+import { ResetOrganizeButton } from "@/components/ResetOrganizeButton";
 import { FieldOrganizer } from "@/components/FieldOrganizer";
 import { finishOrganizeFields } from "./actions";
 
@@ -52,7 +53,7 @@ export default async function OrganizeYourFieldsPage({
   // Without a client (staff testing), the fields every account starts with.
   const use: FieldUse = accountId
     ? await loadFieldUse(supabase, accountId)
-    : { inUse: new Set(SYSTEM_REQUIRED_IDS), newFields: [], custom: [], sections: ORG_SECTIONS, names: {}, contractOptions: {}, placeholders: {} };
+    : { inUse: new Set(SYSTEM_REQUIRED_IDS), newFields: [], custom: [], sections: ORG_SECTIONS, names: {}, contractOptions: {}, placeholders: {}, spots: {} };
   const fields = orgFields(use.inUse, use.newFields, use.custom, use.contractOptions, use.sections);
   const [{ data: saved }, { data: account }] = accountId
     ? await Promise.all([
@@ -142,9 +143,12 @@ export default async function OrganizeYourFieldsPage({
           </div>
         )}
 
-        <h1 className="mt-3 font-display text-2xl font-bold text-ink">
-          {step?.title ?? "Organize Your Fields"}
-        </h1>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-display text-2xl font-bold text-ink">
+            {step?.title ?? "Organize Your Fields"}
+          </h1>
+          {accountId && <ResetOrganizeButton accountId={isStaff ? accountId : null} />}
+        </div>
         {step?.description ? (
           <div
             className="mt-1.5 text-sm leading-relaxed text-ink-soft
@@ -199,7 +203,7 @@ export default async function OrganizeYourFieldsPage({
             fields={fields}
             names={use.names}
             initialLayout={layout}
-            initialChoiceEdits={cleanChoiceEdits(saved?.choice_edits, fields)}
+            spots={use.spots}
           />
         </div>
 
