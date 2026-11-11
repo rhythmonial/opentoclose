@@ -113,12 +113,15 @@ export function NewFieldMapper({
   createdName,
   choices,
   onMapped,
+  onPicked,
 }: {
   accountId: string | null;
   createdId: string;
   createdName: string;
   choices: OtcField[];
   onMapped?: FieldsChange;
+  // Told the OTC field it was pointed at (instead of reloading the page).
+  onPicked?: (to: OtcField) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -164,7 +167,8 @@ export function NewFieldMapper({
         return;
       }
       if (onMapped) onMapped((fields) => mapCreated(fields, createdId, to));
-      else window.location.reload();
+      if (onPicked) onPicked(to);
+      if (!onMapped && !onPicked) window.location.reload();
     });
   };
 

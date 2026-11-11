@@ -147,3 +147,95 @@ export async function saveChoiceAdded(
   revalidatePath(PAGE);
   return { ok: true };
 }
+
+const fieldIdOk = (id: string) =>
+  OTC_FIELDS.some((f) => f.id === id) || /^new-otc:[0-9a-f-]{36}$/i.test(id);
+
+// Ties a number field to the date it's the days for (a date calculation
+// whose days are a blank on the contract), from Finalize Your Fields. A
+// date they add here gets its name. The number is untied from any other
+// date, and no longer marked as not a date's days.
+export async function tieNumberToDate(
+  accountId: string | null,
+  numberId: string,
+  dateId: string,
+  dateName?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!fieldIdOk(numberId) || !fieldIdOk(dateId)) return { ok: false, error: "Unknown field." };
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  await supabase
+    .from("date_calculations")
+    .update({ number_field: null, days_on_contract: false, updated_at: new Date().toISOString() })
+    .eq("client_account_id", account)
+    .eq("number_field", numberId)
+    .neq("otc_field", dateId);
+  const { data: existing } = await supabase
+    .from("date_calculations")
+    .select("*")
+    .eq("client_account_id", account)
+    .eq("otc_field", dateId)
+    .maybeSingle();
+  const name = dateName?.trim().slice(0, 120);
+  const { error } = await supabase.from("date_calculations").upsert(
+    {
+      ...(existing ?? {}),
+      client_account_id: account,
+      otc_field: dateId,
+      enabled: true,
+      days: null,
+      days_on_contract: true,
+      number_field: numberId,
+      ...(dateId.startsWith(NEW_OTC_PREFIX) && name ? { field_name: name } : {}),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "client_account_id,otc_field" },
+  );
+  if (error) return { ok: false, error: error.message };
+  await markNotDate(supabase, account, numberId, false);
+  revalidatePath("/configurator/select_your_date_fields");
+  return { ok: true };
+}
+
+// Marks a number field as not the days for any date (or takes that back).
+export async function setNumberNotDate(
+  accountId: string | null,
+  numberId: string,
+  on: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!fieldIdOk(numberId)) return { ok: false, error: "Unknown field." };
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  if (on) {
+    await supabase
+      .from("date_calculations")
+      .update({ number_field: null, days_on_contract: false, updated_at: new Date().toISOString() })
+      .eq("client_account_id", account)
+      .eq("number_field", numberId);
+  }
+  const error = await markNotDate(supabase, account, numberId, on);
+  if (error) return { ok: false, error };
+  revalidatePath("/configurator/select_your_date_fields");
+  return { ok: true };
+}
+
+async function markNotDate(supabase: Supabase, account: string, numberId: string, on: boolean) {
+  const { data } = await supabase
+    .from("client_otc_field_selections")
+    .select("numbers_not_dates")
+    .eq("client_account_id", account)
+    .maybeSingle();
+  const list = (Array.isArray(data?.numbers_not_dates) ? data.numbers_not_dates : []).filter(
+    (x): x is string => typeof x === "string" && x !== numberId,
+  );
+  if (!on && list.length === (Array.isArray(data?.numbers_not_dates) ? data.numbers_not_dates.length : 0)) return null;
+  const { error } = await supabase.from("client_otc_field_selections").upsert(
+    {
+      client_account_id: account,
+      numbers_not_dates: on ? [...list, numberId].slice(-500) : list,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "client_account_id" },
+  );
+  return error?.message ?? null;
+}

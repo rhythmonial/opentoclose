@@ -445,6 +445,7 @@ export type Database = {
         Row: {
           custom_sections: Json
           placeholders: Json
+          numbers_not_dates: Json
           custom_fields: Json
           client_account_id: string
           fields: string[]
@@ -455,6 +456,7 @@ export type Database = {
         Insert: {
           custom_sections?: Json
           placeholders?: Json
+          numbers_not_dates?: Json
           custom_fields?: Json
           client_account_id: string
           fields?: string[]
@@ -465,6 +467,7 @@ export type Database = {
         Update: {
           custom_sections?: Json
           placeholders?: Json
+          numbers_not_dates?: Json
           custom_fields?: Json
           client_account_id?: string
           fields?: string[]

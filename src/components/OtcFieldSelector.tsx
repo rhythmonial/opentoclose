@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   CONTACT_ROLES_SECTION,
   isSystemRequired,
@@ -18,6 +19,8 @@ import {
 import {
   saveChoiceAdded,
   saveFieldPlaceholder,
+  setNumberNotDate,
+  tieNumberToDate,
   saveOtcFieldSelection,
   type OtcFieldSelection,
 } from "@/app/configurator/select_otc_fields/actions";
@@ -65,6 +68,9 @@ export function OtcFieldSelector({
   savedPlaceholders = {},
   wasNew = {},
   choices = {},
+  dateOf = {},
+  addedDates = [],
+  notDates = [],
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
@@ -86,7 +92,13 @@ export function OtcFieldSelector({
   // Each choice field's options: OTC's, the ones on their contracts, and
   // the ones they've added (shown when its "(Choice)" is clicked).
   choices?: Record<string, { defaults: string[]; contract: string[]; added: string[] }>;
+  // Number fields: the date each is the days for, and ones that aren't any
+  // date's days; and dates added in Select Your Date Fields.
+  dateOf?: Record<string, string>;
+  addedDates?: { id: string; name: string }[];
+  notDates?: string[];
 }) {
+  const router = useRouter();
   // Every section of OTC's field groups (empty ones too, as OTC shows
   // them), with the client's new fields at the end of theirs.
   const [custom, setCustom] = useState<CustomField[]>(initial.custom);
@@ -114,6 +126,10 @@ export function OtcFieldSelector({
     Object.fromEntries(Object.entries(choices).map(([id, c]) => [id, c.added])),
   );
   const [choiceFor, setChoiceFor] = useState<Field | null>(null);
+  const [ties, setTies] = useState(dateOf);
+  const [notDate, setNotDate] = useState(() => new Set(notDates));
+  const [numberFor, setNumberFor] = useState<{ field: Field; sectionId: string } | null>(null);
+  const [dateNames, setDateNames] = useState(() => new Map(addedDates.map((d) => [d.id, d.name] as const)));
   async function saveAdded(id: string, next: string[]) {
     setAdded((a) => ({ ...a, [id]: next }));
     setStatus("saving");
@@ -369,6 +385,25 @@ export function OtcFieldSelector({
                       onPlaceholder={(text) => savePlaceholder(f.id, text)}
                       wasNew={wasNew[f.id]}
                       onChoices={choices[f.id] ? () => setChoiceFor(f) : undefined}
+                      onNumber={f.kind === "number" ? () => setNumberFor({ field: f, sectionId: s.id }) : undefined}
+                      numberDone={Boolean(ties[f.id]) || notDate.has(f.id)}
+                      onMappedTo={(to) => {
+                        // Its name goes in the rename box (saved already),
+                        // and the page catches up without reloading.
+                        if (f.name.trim().toLowerCase() !== to.name.toLowerCase()) {
+                          setNames((n) => ({ ...n, [to.id]: f.name }));
+                        }
+                        router.refresh();
+                      }}
+                      onPutBack={(was) => {
+                        setNames((n) => {
+                          if (n[f.id]?.trim().toLowerCase() !== was.name.trim().toLowerCase()) return n;
+                          const next = { ...n };
+                          delete next[f.id];
+                          return next;
+                        });
+                        router.refresh();
+                      }}
                       onDisplayName={(value) => {
                         const next = { ...names };
                         if (value && value.toLowerCase() !== f.name.toLowerCase()) next[f.id] = value;
@@ -402,6 +437,66 @@ export function OtcFieldSelector({
         </div>
       ))}
 
+      {numberFor && (
+        <NumberDateDialog
+          name={numberFor.field.name}
+          sectionName={SECTIONS.find((x) => x.id === numberFor.sectionId)?.name ?? ""}
+          dates={[
+            ...OTC_FIELDS.filter((o) => o.kind === "date").map((o) => ({ id: o.id, name: o.name })),
+            ...newFields.filter((o) => o.kind === "date").map((o) => ({ id: o.id, name: o.name })),
+            ...custom.filter((o) => o.kind === "date").map((o) => ({ id: o.id, name: o.name })),
+            ...[...dateNames].map(([id, name]) => ({ id, name })),
+          ].filter((d, i, all) => all.findIndex((x) => x.id === d.id) === i)}
+          tiedTo={ties[numberFor.field.id] ?? null}
+          notDate={notDate.has(numberFor.field.id)}
+          onTie={async (date) => {
+            const numberId = numberFor.field.id;
+            setNumberFor(null);
+            // A date they add here is one of their fields, in the number's
+            // section.
+            if (date.isNew) {
+              save({
+                custom: [...custom, { id: date.id, name: date.name, sectionId: numberFor.sectionId, kind: "date" }],
+              });
+              setDateNames((m) => new Map(m).set(date.id, date.name));
+            } else if (!isOn(date.id) && OTC_FIELDS.some((o) => o.id === date.id)) {
+              setChecked([date.id], true);
+            }
+            setTies((t) => ({ ...t, [numberId]: date.id }));
+            setNotDate((n) => {
+              const next = new Set(n);
+              next.delete(numberId);
+              return next;
+            });
+            setStatus("saving");
+            const res = await tieNumberToDate(accountId, numberId, date.id, date.isNew ? date.name : undefined);
+            setStatus(res.ok ? "saved" : "error");
+            setError(res.ok ? null : (res.error ?? "Couldn't save."));
+          }}
+          onNotDate={async (on) => {
+            const numberId = numberFor.field.id;
+            setNumberFor(null);
+            setNotDate((n) => {
+              const next = new Set(n);
+              if (on) next.add(numberId);
+              else next.delete(numberId);
+              return next;
+            });
+            if (on) {
+              setTies((t) => {
+                const next = { ...t };
+                delete next[numberId];
+                return next;
+              });
+            }
+            setStatus("saving");
+            const res = await setNumberNotDate(accountId, numberId, on);
+            setStatus(res.ok ? "saved" : "error");
+            setError(res.ok ? null : (res.error ?? "Couldn't save."));
+          }}
+          onClose={() => setNumberFor(null)}
+        />
+      )}
       {choiceFor && choices[choiceFor.id] && (
         <ChoiceOptionsDialog
           name={choiceFor.name}
@@ -458,6 +553,10 @@ function FieldRow({
   onPlaceholder,
   wasNew,
   onChoices,
+  onNumber,
+  numberDone,
+  onMappedTo,
+  onPutBack,
 }: {
   field: Field;
   checked: boolean;
@@ -476,6 +575,13 @@ function FieldRow({
   wasNew?: { id: string; name: string };
   // Opens its choice options (a choice field).
   onChoices?: () => void;
+  // Opens the date it's the days for (a number field), and whether that's
+  // settled (tied to a date, or marked as not a date's days).
+  onNumber?: () => void;
+  numberDone?: boolean;
+  // After a field they added is pointed at an OTC field, or put back.
+  onMappedTo: (to: OtcField) => void;
+  onPutBack: (was: { id: string; name: string }) => void;
 }) {
   const aliases = OTC_FIELD_ALIASES[field.id];
   const created = field.id.startsWith(NEW_OTC_PREFIX);
@@ -501,7 +607,13 @@ function FieldRow({
           onChange={(e) => onCheck(e.target.checked)}
           className="h-4 w-4 shrink-0"
         />
-        <FieldName field={field} required={required} bold={checked} onType={onChoices} />
+        <FieldName
+          field={field}
+          required={required}
+          bold={checked}
+          onType={checked ? (onChoices ?? onNumber) : undefined}
+          tone={checked && onNumber ? (numberDone ? "done" : "needed") : undefined}
+        />
         {onContract ? (
           <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
             Contract
@@ -524,6 +636,7 @@ function FieldRow({
               createdId={field.id}
               createdName={field.name}
               choices={OTC_FIELDS.filter((o) => o.kind === field.kind)}
+              onPicked={onMappedTo}
             />
           ) : (
             <span className="relative inline-flex">
@@ -549,7 +662,7 @@ function FieldRow({
                   aria-label={`Put back ${wasNew.name}`}
                   onClick={async () => {
                     const res = await unmapCreatedField(accountId, wasNew.id);
-                    if (res.ok) window.location.reload();
+                    if (res.ok) onPutBack(wasNew);
                   }}
                   className="absolute inset-y-0 right-1 my-auto h-5 rounded px-1 text-sm text-ink-soft hover:text-accent"
                 >
@@ -577,12 +690,15 @@ function FieldName({
   required,
   bold,
   onType,
+  tone,
 }: {
   field: Field;
   required: boolean;
   bold?: boolean;
-  // Clicking the type (a choice field's options).
+  // Clicking the type (a choice field's options, a number's date).
   onType?: () => void;
+  // A number field: red until it's tied to a date (or isn't one), then green.
+  tone?: "needed" | "done";
 }) {
   const type = KIND_LABELS[field.kind ?? ""];
   return (
@@ -602,8 +718,20 @@ function FieldName({
                 e.preventDefault();
                 onType();
               }}
-              title="See and add its choice options"
-              className="text-ink-soft underline decoration-dotted underline-offset-2 hover:text-accent"
+              title={
+                tone === "needed"
+                  ? "Pick the date this is the number of days for"
+                  : tone === "done"
+                    ? "Change the date this is the number of days for"
+                    : "See and add its choice options"
+              }
+              className={
+                tone === "needed"
+                  ? "rounded bg-danger/10 px-1 font-semibold text-danger hover:bg-danger/20"
+                  : tone === "done"
+                    ? "rounded bg-success-soft px-1 text-success hover:bg-success/20"
+                    : "text-ink-soft underline decoration-dotted underline-offset-2 hover:text-accent"
+              }
             >
               ({type})
             </button>
@@ -1048,6 +1176,112 @@ function ChoiceOptionsDialog({
           </button>
         </form>
         <div className="mt-4 flex justify-end">
+          <button type="button" onClick={onClose} className="text-sm font-semibold text-ink-soft">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// A number field's date: the one it's the number of days for. They search
+// their dates (or add one, in the number's section), or say it isn't the
+// days for any date.
+function NumberDateDialog({
+  name,
+  sectionName,
+  dates,
+  tiedTo,
+  notDate,
+  onTie,
+  onNotDate,
+  onClose,
+}: {
+  name: string;
+  sectionName: string;
+  dates: { id: string; name: string }[];
+  tiedTo: string | null;
+  notDate: boolean;
+  onTie: (date: { id: string; name: string; isNew?: boolean }) => void;
+  onNotDate: (on: boolean) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const matches = dates
+    .filter((d) => !q || d.name.toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const exact = dates.some((d) => d.name.toLowerCase() === q);
+  const tied = dates.find((d) => d.id === tiedTo);
+  const addNew = () =>
+    onTie({ id: `new-otc:${crypto.randomUUID()}`, name: query.trim().slice(0, 120), isNew: true });
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="number-date-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
+      <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-xl border border-border bg-surface p-5 shadow-xl">
+        <h2 id="number-date-title" className="font-display text-lg font-bold text-ink">
+          {name}
+        </h2>
+        <p className="mt-1 text-sm text-ink-soft">
+          {tied
+            ? <>The number of days for <span className="font-semibold text-ink">{tied.name}</span>. Pick another date to change it.</>
+            : notDate
+              ? "Marked as not the days for a date."
+              : "Which date is this the number of days for?"}
+        </p>
+        <input
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            if (matches.length === 1) onTie(matches[0]);
+            else if (q && !exact) addNew();
+          }}
+          placeholder="Search date fields"
+          aria-label="Search date fields"
+          className="mt-3 rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
+        />
+        <div className="mt-2 min-h-0 flex-1 overflow-y-auto rounded-md border border-border">
+          {matches.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => onTie(d)}
+              className={`block w-full px-3 py-1.5 text-left text-sm ${
+                d.id === tiedTo ? "bg-accent text-white" : "text-ink hover:bg-accent-soft/50"
+              }`}
+            >
+              {d.name}
+            </button>
+          ))}
+          {matches.length === 0 && <p className="px-3 py-2 text-xs text-ink-faint">No date fields match.</p>}
+        </div>
+        {q && !exact && (
+          <button type="button" onClick={addNew} className="mt-2 self-start text-sm font-semibold text-accent">
+            + Add date field &ldquo;{query.trim()}&rdquo;{sectionName && ` in ${sectionName}`}
+          </button>
+        )}
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => onNotDate(!notDate)}
+            className="rounded-lg border border-border px-3 py-1.5 text-sm font-semibold text-ink-soft hover:border-accent hover:text-accent"
+          >
+            {notDate ? "It is tied to a date field" : "Not tied to a date field"}
+          </button>
           <button type="button" onClick={onClose} className="text-sm font-semibold text-ink-soft">
             Done
           </button>

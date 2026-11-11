@@ -65,7 +65,7 @@ export default async function SelectOtcFieldsPage({
     ? await Promise.all([
         supabase
           .from("client_otc_field_selections")
-          .select("fields, field_names, groups_done, custom_fields, custom_sections, placeholders")
+          .select("fields, field_names, groups_done, custom_fields, custom_sections, placeholders, numbers_not_dates")
           .eq("client_account_id", accountId)
           .maybeSingle(),
         supabase
@@ -119,7 +119,7 @@ export default async function SelectOtcFieldsPage({
 
   // Each choice field's options: Open to Close's, the ones on their
   // contracts, and the ones they've added.
-  const [use, { data: org }] = accountId
+  const [use, { data: org }, { data: calcs }] = accountId
     ? await Promise.all([
         loadFieldUse(supabase, accountId),
         supabase
@@ -127,8 +127,22 @@ export default async function SelectOtcFieldsPage({
           .select("choice_edits")
           .eq("client_account_id", accountId)
           .maybeSingle(),
+        supabase
+          .from("date_calculations")
+          .select("otc_field, number_field, enabled, field_name")
+          .eq("client_account_id", accountId),
       ])
-    : [null, { data: null }];
+    : [null, { data: null }, { data: [] }];
+  // Number fields: the date each is the days for, and ones that aren't
+  // any date's; and dates they added in Select Your Date Fields.
+  const dateOf: Record<string, string> = {};
+  for (const c of calcs ?? []) if (c.enabled && c.number_field) dateOf[c.number_field] = c.otc_field;
+  const addedDates = (calcs ?? [])
+    .filter((c) => c.otc_field.startsWith("new-otc:") && c.field_name)
+    .map((c) => ({ id: c.otc_field, name: c.field_name! }));
+  const notDates = (Array.isArray(saved?.numbers_not_dates) ? saved.numbers_not_dates : []).filter(
+    (x): x is string => typeof x === "string",
+  );
   const edits = (org?.choice_edits ?? {}) as Record<string, { added?: string[] }>;
   const choices: Record<string, { defaults: string[]; contract: string[]; added: string[] }> = {};
   for (const f of [...OTC_FIELDS, ...newFields]) {
@@ -234,6 +248,9 @@ export default async function SelectOtcFieldsPage({
               savedPlaceholders={cleanPlaceholders(saved?.placeholders)}
               wasNew={wasNew}
               choices={choices}
+              dateOf={dateOf}
+              addedDates={addedDates}
+              notDates={notDates}
             />
           ) : (
             <p className="rounded-xl border border-border bg-surface p-6 text-sm text-ink-soft">
