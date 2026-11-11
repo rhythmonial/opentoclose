@@ -250,3 +250,28 @@ async function markNotDate(
   );
   return error?.message ?? null;
 }
+
+// "Refresh all fields": Finalize Your Fields back to how it started (no
+// extra fields checked, renames, placeholders, fields added here, groups
+// done, or number fields' dates picked here).
+export async function resetFinalizeFields(accountId: string | null): Promise<{ ok: boolean; error?: string }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const { error } = await supabase.from("client_otc_field_selections").upsert(
+    {
+      client_account_id: account,
+      fields: [],
+      field_names: {},
+      groups_done: [],
+      custom_fields: [],
+      placeholders: {},
+      numbers_not_dates: [],
+      number_ties: {},
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "client_account_id" },
+  );
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  return { ok: true };
+}

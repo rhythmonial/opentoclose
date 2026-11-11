@@ -20,6 +20,7 @@ import { fieldLabel, type ContractBlank } from "@/lib/contractBlanks";
 import { isActive, newOtcFieldsFrom, otcTargetOf, type WorkflowField } from "@/lib/workflowFields";
 import { inContractOrder } from "@/components/WorkflowFieldsSummary";
 import { OtcFieldSelector } from "@/components/OtcFieldSelector";
+import { ResetFinalizeButton } from "@/components/ResetFinalizeButton";
 import { cleanPlaceholders, contractLines } from "@/lib/placeholders";
 import { loadFieldUse } from "@/lib/fieldUse";
 import { finishSelectOtcFields } from "./actions";
@@ -225,9 +226,12 @@ export default async function SelectOtcFieldsPage({
           </div>
         )}
 
-        <h1 className="mt-3 font-display text-2xl font-bold text-ink">
-          {step?.title ?? "Finalize Your Fields"}
-        </h1>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-display text-2xl font-bold text-ink">
+            {step?.title ?? "Finalize Your Fields"}
+          </h1>
+          {accountId && <ResetFinalizeButton accountId={isStaff ? accountId : null} />}
+        </div>
         {step?.description ? (
           <div
             className="mt-1.5 text-sm leading-relaxed text-ink-soft
