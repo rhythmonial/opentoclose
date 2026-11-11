@@ -17,7 +17,8 @@ export async function setDateTimeFrame(
   timeFrame: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const okId = OTC_FIELDS.some((f) => f.id === dateId) || /^new-otc:[0-9a-f-]{36}$/i.test(dateId);
-  if (!okId || !TIME_FRAMES.some((t) => t.value === timeFrame)) return { ok: false, error: "Unknown choice." };
+  // "" leaves it without a type.
+  if (!okId || (timeFrame && !TIME_FRAMES.some((t) => t.value === timeFrame))) return { ok: false, error: "Unknown choice." };
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   if (!account) return { ok: false, error: "Not signed in." };
   const { data: existing } = await supabase
@@ -31,7 +32,7 @@ export async function setDateTimeFrame(
       ...(existing ?? { enabled: true }),
       client_account_id: account,
       otc_field: dateId,
-      time_frame: timeFrame,
+      time_frame: timeFrame || null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "client_account_id,otc_field" },
@@ -120,7 +121,7 @@ export async function addOwnField(
 
 // Default type: how days are counted, set on every date given (the ones
 // with a number field) and kept for dates paired later. Taking it off ("")
-// puts those dates back to Calendar Day(s).
+// leaves those dates without a type.
 export async function setDefaultTimeFrame(
   accountId: string | null,
   timeFrame: string,
@@ -139,7 +140,7 @@ export async function setDefaultTimeFrame(
   if (ids.length > 0) {
     const { error: calcError } = await supabase
       .from("date_calculations")
-      .update({ time_frame: timeFrame || "calendar_days", updated_at: new Date().toISOString() })
+      .update({ time_frame: timeFrame || null, updated_at: new Date().toISOString() })
       .eq("client_account_id", account)
       .in("otc_field", ids);
     if (calcError) return { ok: false, error: calcError.message };
@@ -151,7 +152,7 @@ export async function setDefaultTimeFrame(
 
 // "Refresh your dates": Select Your Dates back to how it started (no dates
 // paired with number fields here, none checked, no default type), with the
-// dates' types back to Calendar Day(s). Placeholders and fields they added
+// dates' types taken off. Placeholders and fields they added
 // stay.
 export async function resetSelectYourDates(accountId: string | null): Promise<{ ok: boolean; error?: string }> {
   const { supabase, accountId: account } = await configuratorAccount(accountId);
@@ -165,7 +166,7 @@ export async function resetSelectYourDates(accountId: string | null): Promise<{ 
   if (dates.length > 0) {
     await supabase
       .from("date_calculations")
-      .update({ time_frame: "calendar_days", updated_at: new Date().toISOString() })
+      .update({ time_frame: null, updated_at: new Date().toISOString() })
       .eq("client_account_id", account)
       .in("otc_field", dates);
   }

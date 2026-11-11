@@ -174,7 +174,7 @@ export function DatePairsSelector({
             onClick={async () => {
               if (
                 !window.confirm(
-                  "Refresh your dates? This takes off every date you paired with a number field here, the dates you checked and your default type, and puts every type back to Calendar Day(s). Placeholders stay.",
+                  "Refresh your dates? This takes off every date you paired with a number field here, the dates you checked and your default type, and clears every type. Placeholders stay.",
                 )
               )
                 return;
@@ -200,10 +200,10 @@ export function DatePairsSelector({
               onChange={(e) => {
                 const v = e.target.value;
                 setDefaultFrame(v);
-                // Every paired date takes it (back to Calendar Day(s) when
-                // the default is taken off).
+                // Every paired date takes it (no type when the default is
+                // taken off).
                 const paired = Object.values(ties);
-                setFrames((f) => ({ ...f, ...Object.fromEntries(paired.map((id) => [id, v || "calendar_days"])) }));
+                setFrames((f) => ({ ...f, ...Object.fromEntries(paired.map((id) => [id, v])) }));
                 void run(setDefaultTimeFrame(accountId, v, paired));
               }}
               // As wide as what it shows (the placeholder, then their pick).
@@ -347,7 +347,7 @@ export function DatePairsSelector({
                   <span>
                     {d && n ? (
                       <select
-                        value={frames[d.id] || defaultFrame || "calendar_days"}
+                        value={frames[d.id] ?? defaultFrame}
                         onChange={(e) => {
                           const v = e.target.value;
                           setFrames((f) => ({ ...f, [d.id]: v }));
@@ -356,6 +356,7 @@ export function DatePairsSelector({
                         aria-label={`How ${d.name}'s days are counted`}
                         className="w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none focus:border-accent"
                       >
+                        <option value="">Select your type</option>
                         {TIME_FRAMES.map((t) => (
                           <option key={t.value} value={t.value}>
                             {t.label}
