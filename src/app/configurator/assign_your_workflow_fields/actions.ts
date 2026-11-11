@@ -496,3 +496,21 @@ export async function addCustomSection(
   revalidatePath("/configurator/organize_your_fields");
   return { ok: true, section };
 }
+
+// Renames a field the client added (on every contract it's on).
+export async function renameCreatedField(
+  accountId: string | null,
+  createdId: string,
+  name: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const clean = name.replace(/\s+/g, " ").trim().slice(0, 120);
+  if (!createdId.startsWith(NEW_OTC_PREFIX) || !clean) return { ok: false, error: "Give it a name." };
+  return changeAccountFields(accountId, (fields) =>
+    fields.map((f) => {
+      if (otcTargetOf(f) !== createdId) return f;
+      return f.type === "choice" && f.choice_role === "option"
+        ? { ...f, question_text: clean }
+        : { ...f, otc_field_name: clean };
+    }),
+  );
+}

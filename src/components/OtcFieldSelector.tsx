@@ -24,7 +24,7 @@ import {
   saveOtcFieldSelection,
   type OtcFieldSelection,
 } from "@/app/configurator/select_otc_fields/actions";
-import { unmapCreatedField } from "@/app/configurator/assign_your_workflow_fields/actions";
+import { renameCreatedField, unmapCreatedField } from "@/app/configurator/assign_your_workflow_fields/actions";
 import { NewFieldMapper } from "@/components/WorkflowFieldNameCell";
 import { OTC_FIELDS } from "@/lib/otcFields";
 import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
@@ -102,6 +102,8 @@ export function OtcFieldSelector({
   // Every section of OTC's field groups (empty ones too, as OTC shows
   // them), with the client's new fields at the end of theirs.
   const [custom, setCustom] = useState<CustomField[]>(initial.custom);
+  // Fields they added while assigning, renamed here.
+  const [renamed, setRenamed] = useState<Record<string, string>>({});
   // The section a field is being added to, or the field being edited.
   const [dialog, setDialog] = useState<{ sectionId: string; field?: CustomField } | null>(null);
   const SECTIONS = sectionsWith(customSections).filter((s) => s.id !== CONTACT_ROLES_SECTION).map((s) => ({
@@ -110,7 +112,7 @@ export function OtcFieldSelector({
       ...s.fields.map((f): Field => ({ ...f, id: `${s.id}/${slugOf(f.name)}` })),
       ...newFields
         .filter((f) => f.sectionId === s.id)
-        .map((f): Field => ({ id: f.id, name: f.name, kind: f.kind, isNew: true })),
+        .map((f): Field => ({ id: f.id, name: renamed[f.id] ?? f.name, kind: f.kind, isNew: true })),
       ...custom
         .filter((f) => f.sectionId === s.id)
         .map((f): Field => ({ id: f.id, name: f.name, kind: f.kind, isNew: true, custom: f })),
@@ -387,6 +389,18 @@ export function OtcFieldSelector({
                       onChoices={choices[f.id] ? () => setChoiceFor(f) : undefined}
                       onNumber={f.kind === "number" ? () => setNumberFor({ field: f, sectionId: s.id }) : undefined}
                       numberDone={Boolean(ties[f.id]) || notDate.has(f.id)}
+                      onRename={
+                        f.id.startsWith(NEW_OTC_PREFIX)
+                          ? async (name) => {
+                              setRenamed((r) => ({ ...r, [f.id]: name }));
+                              setStatus("saving");
+                              const res = await renameCreatedField(accountId, f.id, name);
+                              setStatus(res.ok ? "saved" : "error");
+                              setError(res.ok ? null : (res.error ?? "Couldn't save."));
+                              if (res.ok) router.refresh();
+                            }
+                          : undefined
+                      }
                       onMappedTo={(to) => {
                         // Its name goes in the rename box (saved already),
                         // and the page catches up without reloading.
@@ -557,6 +571,7 @@ function FieldRow({
   numberDone,
   onMappedTo,
   onPutBack,
+  onRename,
 }: {
   field: Field;
   checked: boolean;
@@ -582,7 +597,10 @@ function FieldRow({
   // After a field they added is pointed at an OTC field, or put back.
   onMappedTo: (to: OtcField) => void;
   onPutBack: (was: { id: string; name: string }) => void;
+  // Renames a field they added (with the pencil beside its name).
+  onRename?: (name: string) => void;
 }) {
+  const [renaming, setRenaming] = useState(false);
   const aliases = OTC_FIELD_ALIASES[field.id];
   const created = field.id.startsWith(NEW_OTC_PREFIX);
   const locked = required || Boolean(onContract);
@@ -607,13 +625,56 @@ function FieldRow({
           onChange={(e) => onCheck(e.target.checked)}
           className="h-4 w-4 shrink-0"
         />
-        <FieldName
-          field={field}
-          required={required}
-          bold={checked}
-          onType={checked ? (onChoices ?? onNumber) : undefined}
-          tone={checked && onNumber ? (numberDone ? "done" : "needed") : undefined}
-        />
+        {renaming && onRename ? (
+          <input
+            autoFocus
+            defaultValue={field.name}
+            maxLength={120}
+            aria-label={`Rename ${field.name}`}
+            onFocus={(e) => e.currentTarget.select()}
+            onClick={(e) => e.preventDefault()}
+            onBlur={(e) => {
+              setRenaming(false);
+              const next = e.target.value.replace(/\s+/g, " ").trim();
+              if (next && next !== field.name) onRename(next);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") {
+                e.currentTarget.value = field.name;
+                e.currentTarget.blur();
+              }
+            }}
+            className="min-w-0 flex-1 rounded-md border border-accent bg-surface px-2 py-0.5 text-sm text-ink outline-none"
+          />
+        ) : (
+          <>
+            <FieldName
+              field={field}
+              required={required}
+              bold={checked}
+              onType={checked ? (onChoices ?? onNumber) : undefined}
+              tone={checked && onNumber ? (numberDone ? "done" : "needed") : undefined}
+            />
+            {onRename && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setRenaming(true);
+                }}
+                title="Rename"
+                aria-label={`Rename ${field.name}`}
+                className="shrink-0 rounded p-0.5 text-ink-faint hover:bg-accent-soft/60 hover:text-accent"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </button>
+            )}
+          </>
+        )}
         {onContract ? (
           <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
             Contract

@@ -757,3 +757,9 @@ export function sectionsWith(custom: CustomSection[]): OtcSection[] {
   }
   return out;
 }
+
+// Open to Close number fields that aren't the days for a date (they start
+// out settled in Finalize Your Fields).
+export const NOT_DAYS_FIELDS = new Set(
+  OTC_FIELDS.filter((f) => f.kind === "number" && f.name === "Year Built").map((f) => f.id),
+);

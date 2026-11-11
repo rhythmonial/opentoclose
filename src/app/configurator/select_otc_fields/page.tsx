@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
 import {
+  NOT_DAYS_FIELDS,
   OTC_CHOICE_OPTIONS,
   cleanCustomFields,
   cleanCustomSections,
@@ -140,9 +141,15 @@ export default async function SelectOtcFieldsPage({
   const addedDates = (calcs ?? [])
     .filter((c) => c.otc_field.startsWith("new-otc:") && c.field_name)
     .map((c) => ({ id: c.otc_field, name: c.field_name! }));
-  const notDates = (Array.isArray(saved?.numbers_not_dates) ? saved.numbers_not_dates : []).filter(
-    (x): x is string => typeof x === "string",
-  );
+  const notDates = [
+    ...new Set([
+      ...(Array.isArray(saved?.numbers_not_dates) ? saved.numbers_not_dates : []).filter(
+        (x): x is string => typeof x === "string",
+      ),
+      // Year Built isn't a date's days.
+      ...NOT_DAYS_FIELDS,
+    ]),
+  ];
   const edits = (org?.choice_edits ?? {}) as Record<string, { added?: string[] }>;
   const choices: Record<string, { defaults: string[]; contract: string[]; added: string[] }> = {};
   for (const f of [...OTC_FIELDS, ...newFields]) {
