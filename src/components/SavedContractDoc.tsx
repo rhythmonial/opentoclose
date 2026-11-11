@@ -19,6 +19,7 @@ export function SavedContractDoc({
   confirmedPages,
   isScanned,
   uploadedOn,
+  nextDocHref,
   actions,
 }: {
   id: string;
@@ -29,6 +30,8 @@ export function SavedContractDoc({
   confirmedPages: number[];
   isScanned: boolean;
   uploadedOn: string;
+  // The next document in their list.
+  nextDocHref?: string | null;
   actions?: React.ReactNode;
 }) {
   const [confirmed, setConfirmed] = useState(pageCount > 0 && confirmedPages.length === pageCount);
@@ -128,6 +131,7 @@ export function SavedContractDoc({
               initialBlanks={blanks}
               confirmed={confirmed}
               onFieldsLeft={fieldsLeft}
+              nextDocHref={nextDocHref}
               onSave={(next, pages) => saveContractReview({ id, blanks: next, confirmedPages: pages })}
             />
           </DocumentBoundary>

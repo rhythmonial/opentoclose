@@ -15,7 +15,7 @@ export default async function UploadedContractPage({
   searchParams: Promise<{ client?: string }>;
 }) {
   const [{ doc: slug }, { client }] = await Promise.all([params, searchParams]);
-  const { staffClient, docs, urlOf, listHref } = await loadUploadDocs(client);
+  const { staffClient, docs, urlOf, listHref, docHref } = await loadUploadDocs(client);
   const n = Number(/^doc(\d+)$/.exec(slug)?.[1] ?? 0);
   const doc = docs[n - 1];
   if (!doc) notFound();
@@ -43,6 +43,7 @@ export default async function UploadedContractPage({
             url={urlOf(doc)}
             pageCount={doc.page_count ?? 0}
             blanks={typedBlanks(doc)}
+            nextDocHref={n < docs.length ? docHref(n) : null}
             isScanned={doc.is_scanned}
             uploadedOn={new Date(doc.created_at).toLocaleDateString("en-US", {
               month: "short",

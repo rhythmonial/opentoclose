@@ -2,6 +2,7 @@
 import { PageCount, pageCountTitle } from "@/components/PageCount";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { openPdf, drawPdfPage } from "@/lib/pdfjs";
 import { fieldLabel, fieldsNeedingType, tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
@@ -87,6 +88,7 @@ export function ContractReviewer({
   onSave,
   confirmed: docConfirmed = false,
   onFieldsLeft,
+  nextDocHref,
 }: {
   // The file's bytes (just picked) or a signed URL (already uploaded).
   source: ArrayBuffer | string;
@@ -100,6 +102,8 @@ export function ContractReviewer({
   confirmed?: boolean;
   // Told how many fields in the document still need a field type.
   onFieldsLeft?: (left: number) => void;
+  // The next document, for the button on the last page.
+  nextDocHref?: string | null;
 }) {
   const [blanks, setBlanks] = useState(initialBlanks);
   const confirmed = docConfirmed ? Array.from({ length: pageCount }, (_, i) => i + 1) : [];
@@ -1195,6 +1199,28 @@ export function ContractReviewer({
           {" · "}
           {onPage.filter((b) => !b.removed && isTyped(b)).length} with a field type
         </span>
+        {page < pageCount ? (
+          <button
+            type="button"
+            onClick={() => {
+              setPage(page + 1);
+              setSelected(null);
+              setLinking([]);
+              // Back to the top (of the document's own page, or of the reviewer).
+              if (rootRef.current?.closest("[data-contract-doc]")) window.scrollTo({ top: 0, behavior: "smooth" });
+              else rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
+          >
+            Next page &rsaquo;
+          </button>
+        ) : (
+          nextDocHref && (
+            <Link href={nextDocHref} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
+              Next document &rsaquo;
+            </Link>
+          )
+        )}
       </div>
     </div>
   );
