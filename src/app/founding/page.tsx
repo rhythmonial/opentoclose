@@ -76,7 +76,7 @@ export default async function FoundingApplicationPage({
               </label>
               <StatesServicedField />
               <label className="flex flex-col gap-1.5 sm:col-span-2">
-                <span className="text-sm font-medium text-ink">Transaction Management Software</span>
+                <span className="text-sm font-medium text-ink">Your Current Transaction Management Software</span>
                 <input
                   name="tms"
                   required
