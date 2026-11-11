@@ -219,7 +219,7 @@ export function DatePairsSelector({
                           className="h-4 w-4 shrink-0"
                         />
                         <span className={`min-w-0 truncate text-sm text-accent ${checked ? "font-semibold" : ""}`}>
-                          {d.name} <span className="font-normal text-ink-soft">(Date)</span>
+                          {d.name}
                         </span>
                         {badge(d.id)}
                         {n && (
@@ -250,7 +250,7 @@ export function DatePairsSelector({
                     {n ? (
                       <>
                         <span className="min-w-0 truncate text-sm text-accent">
-                          {n.name} <span className="text-ink-soft">(Number)</span>
+                          {n.name}
                         </span>
                         {badge(n.id)}
                       </>
