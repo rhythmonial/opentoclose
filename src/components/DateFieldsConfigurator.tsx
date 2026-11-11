@@ -406,19 +406,19 @@ export function DateFieldsConfigurator({
 
       {calcTable(
         "Calculated dates",
-        "Each days field sets a date: yours from the contract in the order they appear on it, then the days fields you chose in Finalize Your Fields. The days come from that field on each deal.",
+        "Each days field sets a date: yours from the contract in the order they appear on it, then the days fields you chose in Customize Your Fields. The days come from that field on each deal.",
         calculated,
         { optional: false },
       )}
       {calcTable(
         "Your other dates",
-        "The dates you chose in Finalize Your Fields. Check one if it's worked out from another date; otherwise it's entered by hand.",
+        "The dates you chose in Customize Your Fields. Check one if it's worked out from another date; otherwise it's entered by hand.",
         picked,
         { optional: true },
       )}
       {contract.length + calculated.length + picked.length === 0 && (
         <p className="rounded-xl border border-border bg-surface p-5 text-sm text-ink-faint">
-          {q ? "No dates match." : "No dates yet. Pick your date fields in Finalize Your Fields."}
+          {q ? "No dates match." : "No dates yet. Pick your date fields in Customize Your Fields."}
         </p>
       )}
 

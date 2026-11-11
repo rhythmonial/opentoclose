@@ -1,4 +1,4 @@
-// Placeholders for the client's fields (set in Finalize Your Fields): a
+// Placeholders for the client's fields (set in Customize Your Fields): a
 // number field whose contract says what it is when left blank starts with
 // one ("134- if blank = 3"); any other field can be given one, starting
 // with its contract line ("134- ").

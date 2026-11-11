@@ -27,7 +27,7 @@ export async function saveDateCalc(
   if (error) return { ok: false, error: error.message };
 
   // An Open to Close date they work out here is one they use, so it's
-  // picked in Finalize Your Fields too (and isn't archived).
+  // picked in Customize Your Fields too (and isn't archived).
   if (clean.enabled && OTC_FIELD_IDS.has(clean.otc_field)) {
     const { data: selection } = await supabase
       .from("client_otc_field_selections")

@@ -50,7 +50,7 @@ type Field = {
   custom?: CustomField;
 };
 
-// Finalize Your Fields, laid out like OTC's Field Editor: a tab per field
+// Customize Your Fields, laid out like OTC's Field Editor: a tab per field
 // group (checked off when the client has finished it), its sections, and
 // their fields, each as "* Name (Type)" (* when OTC requires it). Fields
 // assigned in Assign Your Fields are checked; the client checks

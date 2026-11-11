@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { resetFinalizeFields } from "@/app/configurator/select_otc_fields/actions";
 
-// Puts Finalize Your Fields back to how it started, once they confirm.
+// Puts Customize Your Fields back to how it started, once they confirm.
 export function ResetFinalizeButton({ accountId }: { accountId: string | null }) {
   const [busy, setBusy] = useState(false);
   return (

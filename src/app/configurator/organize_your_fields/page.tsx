@@ -157,7 +157,7 @@ export default async function OrganizeYourFieldsPage({
           </div>
         ) : (
           <p className="mt-1.5 text-sm text-ink-soft">
-            Here are the fields you chose in Finalize Your Fields, in Open to Close&rsquo;s field
+            Here are the fields you chose in Customize Your Fields, in Open to Close&rsquo;s field
             groups. Put them in the order your team would like to see them: drag sections up or
             down within a group or move one to another group, and drag fields within a section or
             move one to another section. For choice fields, mark the options you don&rsquo;t want

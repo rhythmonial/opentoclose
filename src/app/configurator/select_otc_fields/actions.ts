@@ -152,7 +152,7 @@ const fieldIdOk = (id: string) =>
   OTC_FIELDS.some((f) => f.id === id) || /^new-otc:[0-9a-f-]{36}$/i.test(id);
 
 // Ties a number field to the date it's the days for (a date calculation
-// whose days are a blank on the contract), from Finalize Your Fields. A
+// whose days are a blank on the contract), from Customize Your Fields. A
 // date they add here gets its name. The number is untied from any other
 // date, and no longer marked as not a date's days.
 export async function tieNumberToDate(
@@ -251,7 +251,7 @@ async function markNotDate(
   return error?.message ?? null;
 }
 
-// "Refresh all fields": Finalize Your Fields back to how it started (no
+// "Refresh all fields": Customize Your Fields back to how it started (no
 // extra fields checked, renames, placeholders, fields added here, groups
 // done, or number fields' dates picked here).
 export async function resetFinalizeFields(accountId: string | null): Promise<{ ok: boolean; error?: string }> {

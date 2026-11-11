@@ -94,7 +94,7 @@ export default async function AssignWorkflowFieldsPage({
   // Fields the client created, on any contract (removed fields included, so
   // a created choice field stays available after its option is removed).
   const addedOtcFields = newOtcFieldsFrom((docs ?? []).flatMap(fieldsOf));
-  // What they'd like fields called (shared with Finalize Your Fields).
+  // What they'd like fields called (shared with Customize Your Fields).
   const { data: selection } = accountId
     ? await supabase
         .from("client_otc_field_selections")

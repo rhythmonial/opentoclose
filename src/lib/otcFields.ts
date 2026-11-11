@@ -557,7 +557,7 @@ export function cleanFieldNames(raw: unknown, known: Map<string, string>): Recor
   return out;
 }
 
-// A field a client adds themselves in Finalize Your Fields (one Open to
+// A field a client adds themselves in Customize Your Fields (one Open to
 // Close doesn't have and isn't on their contracts), in one of OTC's
 // sections, with its choices when it's a choice field.
 export type CustomField = {
@@ -759,7 +759,7 @@ export function sectionsWith(custom: CustomSection[]): OtcSection[] {
 }
 
 // Open to Close number fields that aren't the days for a date (they start
-// out settled in Finalize Your Fields).
+// out settled in Customize Your Fields).
 export const NOT_DAYS_FIELDS = new Set(
   OTC_FIELDS.filter((f) => f.kind === "number" && f.name === "Year Built").map((f) => f.id),
 );

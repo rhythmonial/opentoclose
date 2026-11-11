@@ -38,7 +38,7 @@ export function buildDateRows({
   dates: DateOption[];
   numbers: DateOption[];
   onContract: Set<string>;
-  // Picked in Finalize Your Fields (their own fields too).
+  // Picked in Customize Your Fields (their own fields too).
   selected: Set<string>;
   saved: DateCalc[];
   // Where each field first appears on the contracts (lower is earlier).

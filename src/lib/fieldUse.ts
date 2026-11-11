@@ -24,9 +24,9 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 export type FieldUse = {
   // Every field the client uses: Open to Close's fields they checked in
-  // Finalize Your Fields or assigned on their contracts (system required
+  // Customize Your Fields or assigned on their contracts (system required
   // ones always), the new fields they added while assigning, and the ones
-  // they added in Finalize Your Fields.
+  // they added in Customize Your Fields.
   inUse: Set<string>;
   newFields: OtcField[];
   custom: CustomField[];
@@ -89,7 +89,7 @@ export async function loadFieldUse(supabase: Supabase, accountId: string): Promi
     }
     if (f.choice_role === "question" && f.otc_field) for (const t of f.options ?? []) add(f.otc_field, t);
   }
-  // Placeholders: the ones they set in Finalize Your Fields, and numbers'
+  // Placeholders: the ones they set in Customize Your Fields, and numbers'
   // if-blank values from their contracts.
   const placeholders = allPlaceholders(contractLines(docs ?? []), cleanPlaceholders(saved?.placeholders));
   const sections = orgSectionsWith(cleanCustomSections(saved?.custom_sections));

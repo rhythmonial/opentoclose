@@ -228,7 +228,7 @@ export default async function SelectOtcFieldsPage({
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-bold text-ink">
-            {step?.title ?? "Finalize Your Fields"}
+            {step?.title ?? "Customize Your Fields"}
           </h1>
           {accountId && <ResetFinalizeButton accountId={isStaff ? accountId : null} />}
         </div>

@@ -81,7 +81,7 @@ export default async function SelectYourDateFieldsPage({
     : [{ data: [] }, { data: [] }, { data: null }];
 
   // Which fields are on the client's contracts, and the dates and number
-  // fields they created (while assigning, or in Finalize Your Fields).
+  // fields they created (while assigning, or in Customize Your Fields).
   const assigned = (docs ?? [])
     .flatMap((d) => (Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : []))
     .filter(isActive);

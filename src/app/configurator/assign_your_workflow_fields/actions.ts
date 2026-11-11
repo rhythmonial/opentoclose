@@ -284,7 +284,7 @@ async function accountContracts(
 }
 
 // Saves what the client calls an OTC field (blank goes back to its OTC
-// name). Shared with Finalize Your Fields.
+// name). Shared with Customize Your Fields.
 export async function saveFieldName(
   accountId: string | null,
   otcId: string,
@@ -298,7 +298,7 @@ export async function saveFieldName(
     .select("field_names, custom_fields")
     .eq("client_account_id", account)
     .maybeSingle();
-  // Fields added in Finalize Your Fields keep their display names too.
+  // Fields added in Customize Your Fields keep their display names too.
   const known = new Map(
     [...OTC_FIELDS, ...created, ...cleanCustomFields(saved?.custom_fields)].map(
       (f) => [f.id, f.name] as const,
