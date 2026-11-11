@@ -452,6 +452,7 @@ export type Database = {
           number_ties: Json
           choices_done: Json
           calc_dates: Json
+          default_time_frame: string | null
           custom_fields: Json
           client_account_id: string
           fields: string[]
@@ -466,6 +467,7 @@ export type Database = {
           number_ties?: Json
           choices_done?: Json
           calc_dates?: Json
+          default_time_frame?: string | null
           custom_fields?: Json
           client_account_id: string
           fields?: string[]
@@ -480,6 +482,7 @@ export type Database = {
           number_ties?: Json
           choices_done?: Json
           calc_dates?: Json
+          default_time_frame?: string | null
           custom_fields?: Json
           client_account_id?: string
           fields?: string[]

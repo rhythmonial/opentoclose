@@ -5,7 +5,7 @@ import { setUrlParam } from "@/lib/urlState";
 import { NumberDateDialog, PlaceholderCell } from "@/components/OtcFieldSelector";
 import { TIME_FRAMES } from "@/lib/dateCalculations";
 import { saveFieldPlaceholder, setNumberNotDate, tieNumberToDate } from "@/app/configurator/select_otc_fields/actions";
-import { addOwnField, setCalcDate, setDateTimeFrame } from "@/app/configurator/select_your_dates/actions";
+import { addOwnField, setCalcDate, setDateTimeFrame, setDefaultTimeFrame } from "@/app/configurator/select_your_dates/actions";
 
 export type PairField = { id: string; name: string; sectionId: string };
 
@@ -32,6 +32,9 @@ export function DatePairsSelector({
   lines,
   names = {},
   initialGroup,
+  title,
+  intro,
+  defaultTimeFrame,
 }: {
   accountId: string | null;
   // Field groups' sections, in order.
@@ -58,7 +61,13 @@ export function DatePairsSelector({
   names?: Record<string, string>;
   // The group to open on (kept in the address so a reload comes back).
   initialGroup?: string;
+  // The lesson's title (Default Type goes to its right) and description.
+  title?: React.ReactNode;
+  intro?: React.ReactNode;
+  // How days are counted unless changed on a date.
+  defaultTimeFrame?: string | null;
 }) {
+  const [defaultFrame, setDefaultFrame] = useState(defaultTimeFrame ?? "calendar_days");
   const groups = [...new Set(sections.map((s) => s.group))];
   const [group, setGroupState] = useState(
     initialGroup && groups.includes(initialGroup) ? initialGroup : groups[0],
@@ -148,6 +157,33 @@ export function DatePairsSelector({
 
   return (
     <div className="flex flex-col gap-4">
+      <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {title}
+          <label className="flex items-center gap-2 text-sm font-semibold text-ink-soft">
+            Default Type
+            <select
+              value={defaultFrame}
+              onChange={(e) => {
+                const v = e.target.value;
+                setDefaultFrame(v);
+                // Every paired date takes it.
+                const paired = Object.values(ties);
+                setFrames((f) => ({ ...f, ...Object.fromEntries(paired.map((id) => [id, v])) }));
+                void run(setDefaultTimeFrame(accountId, v, paired));
+              }}
+              className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm font-normal text-ink outline-none focus:border-accent"
+            >
+              {TIME_FRAMES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {intro}
+      </div>
       <div className="flex gap-1 sm:gap-2" role="tablist" aria-label="Field groups">
         {groups.map((g) => (
           <button
@@ -274,7 +310,7 @@ export function DatePairsSelector({
                   <span>
                     {d && n ? (
                       <select
-                        value={frames[d.id] || "calendar_days"}
+                        value={frames[d.id] || defaultFrame}
                         onChange={(e) => {
                           const v = e.target.value;
                           setFrames((f) => ({ ...f, [d.id]: v }));

@@ -181,6 +181,14 @@ export async function tieNumberToDate(
     .eq("otc_field", dateId)
     .maybeSingle();
   const name = dateName?.trim().slice(0, 120);
+  // A date paired for the first time counts its days the Default Type way.
+  const { data: selection } = existing
+    ? { data: null }
+    : await supabase
+        .from("client_otc_field_selections")
+        .select("default_time_frame")
+        .eq("client_account_id", account)
+        .maybeSingle();
   const { error } = await supabase.from("date_calculations").upsert(
     {
       ...(existing ?? {}),
@@ -190,6 +198,7 @@ export async function tieNumberToDate(
       days: null,
       days_on_contract: true,
       number_field: numberId,
+      ...(selection?.default_time_frame ? { time_frame: selection.default_time_frame } : {}),
       ...(dateId.startsWith(NEW_OTC_PREFIX) && name ? { field_name: name } : {}),
       updated_at: new Date().toISOString(),
     },

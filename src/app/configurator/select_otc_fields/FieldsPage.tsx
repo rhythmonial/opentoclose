@@ -76,7 +76,7 @@ export async function FieldsPage({
     ? await Promise.all([
         supabase
           .from("client_otc_field_selections")
-          .select("fields, field_names, groups_done, custom_fields, custom_sections, placeholders, numbers_not_dates, number_ties, choices_done, calc_dates")
+          .select("fields, field_names, groups_done, custom_fields, custom_sections, placeholders, numbers_not_dates, number_ties, choices_done, calc_dates, default_time_frame")
           .eq("client_account_id", accountId)
           .maybeSingle(),
         supabase
@@ -272,6 +272,9 @@ export async function FieldsPage({
           </div>
         )}
 
+        {/* Select Your Dates puts its Default Type beside the title. */}
+        {dates && accountId ? null : (
+          <>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-bold text-ink">
             {step?.title ?? (dates ? "Select Your Dates" : "Customize Your Fields")}
@@ -307,10 +310,31 @@ export async function FieldsPage({
           </p>
         )}
 
+          </>
+        )}
         <div className="mt-6">
           {accountId && dates ? (
             <DatePairsSelector
               key={accountId}
+              title={
+                <h1 className="font-display text-2xl font-bold text-ink">{step?.title ?? "Select Your Dates"}</h1>
+              }
+              intro={
+                step?.description ? (
+                  <div className="mt-1.5 text-sm leading-relaxed text-ink-soft [&_p]:mt-2 first:[&>*]:mt-0">
+                    <ReactMarkdown>{step.description}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="mt-1.5 text-sm text-ink-soft">
+                    Here are the dates and number fields you use, each date beside the number field that
+                    holds its days. Check a date to have it calculated, then pick its number field. A
+                    number field without a date needs its date picked (or marked as not a date&rsquo;s
+                    days). Choose how each date&rsquo;s days are counted, or set them all with Default
+                    Type.
+                  </p>
+                )
+              }
+              defaultTimeFrame={saved?.default_time_frame ?? null}
               accountId={isStaff ? accountId : null}
               sections={pairSections}
               dates={pairFields.filter((f) => f.kind === "date" && inUse(f.id))}

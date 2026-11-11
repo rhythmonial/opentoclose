@@ -117,3 +117,32 @@ export async function addOwnField(
   revalidatePath(PAGE);
   return { ok: true };
 }
+
+// Default Type: how days are counted, set on every date given (the ones
+// with a number field) and kept for dates paired later.
+export async function setDefaultTimeFrame(
+  accountId: string | null,
+  timeFrame: string,
+  dateIds: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (!TIME_FRAMES.some((t) => t.value === timeFrame)) return { ok: false, error: "Unknown choice." };
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const { error } = await supabase.from("client_otc_field_selections").upsert(
+    { client_account_id: account, default_time_frame: timeFrame, updated_at: new Date().toISOString() },
+    { onConflict: "client_account_id" },
+  );
+  if (error) return { ok: false, error: error.message };
+  const ids = dateIds.filter(idOk).slice(0, 500);
+  if (ids.length > 0) {
+    const { error: calcError } = await supabase
+      .from("date_calculations")
+      .update({ time_frame: timeFrame, updated_at: new Date().toISOString() })
+      .eq("client_account_id", account)
+      .in("otc_field", ids);
+    if (calcError) return { ok: false, error: calcError.message };
+  }
+  revalidatePath(PAGE);
+  revalidatePath("/configurator/select_your_date_fields");
+  return { ok: true };
+}
