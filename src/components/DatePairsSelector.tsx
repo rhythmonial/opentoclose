@@ -112,10 +112,18 @@ export function DatePairsSelector({
     await run(tieNumberToDate(accountId, numberId, date.id, date.isNew ? date.name : undefined));
   }
 
+  // On the contracts: a document icon, its contract and line on hover.
   const badge = (id: string) =>
     spots[id] ? (
-      <span className="max-w-[11rem] shrink-0 truncate rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">
-        {spots[id]}
+      <span
+        title={spots[id]}
+        aria-label={`On your contract: ${spots[id]}`}
+        className="shrink-0 text-accent"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+          <path d="M14 3v5h5M9 13h6M9 17h4" />
+        </svg>
       </span>
     ) : null;
   const redPick = (label: string, onClick: () => void) => (
