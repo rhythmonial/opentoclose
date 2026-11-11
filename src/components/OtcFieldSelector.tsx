@@ -17,6 +17,7 @@ import {
   type OtcField,
 } from "@/lib/otcFields";
 import {
+  markChoiceDone,
   saveChoiceAdded,
   saveFieldPlaceholder,
   setNumberNotDate,
@@ -69,6 +70,7 @@ export function OtcFieldSelector({
   savedPlaceholders = {},
   wasNew = {},
   choices = {},
+  choicesDone = [],
   initialGroup,
   dateOf = {},
   suggestedDates = {},
@@ -97,6 +99,8 @@ export function OtcFieldSelector({
   // Each choice field's options: OTC's, the ones on their contracts, and
   // the ones they've added (shown when its "(Choice)" is clicked).
   choices?: Record<string, { defaults: string[]; contract: string[]; added: string[]; removed: string[] }>;
+  // Choice fields whose options they've gone over (Done in the popup).
+  choicesDone?: string[];
   // The group to open on (from the page's address, kept as they switch so a
   // reload comes back to it).
   initialGroup?: string;
@@ -141,6 +145,7 @@ export function OtcFieldSelector({
     Object.fromEntries(Object.entries(choices).map(([id, c]) => [id, c.removed])),
   );
   const [choiceFor, setChoiceFor] = useState<Field | null>(null);
+  const [doneChoices, setDoneChoices] = useState(() => new Set(choicesDone));
   const [ties, setTies] = useState(dateOf);
   const [notDate, setNotDate] = useState(() => new Set(notDates));
   const [numberFor, setNumberFor] = useState<{ field: Field; sectionId: string } | null>(null);
@@ -412,6 +417,7 @@ export function OtcFieldSelector({
                       onPlaceholder={(text) => savePlaceholder(f.id, text)}
                       wasNew={wasNew[f.id]}
                       onChoices={choices[f.id] ? () => setChoiceFor(f) : undefined}
+                      choiceDone={doneChoices.has(f.id)}
                       onNumber={f.kind === "number" ? () => setNumberFor({ field: f, sectionId: s.id }) : undefined}
                       numberDone={Boolean(ties[f.id]) || notDate.has(f.id)}
                       onRename={
@@ -547,6 +553,12 @@ export function OtcFieldSelector({
           onAdded={(next) => saveAdded(choiceFor.id, next)}
           onRemoved={(next) => saveAdded(choiceFor.id, added[choiceFor.id] ?? [], next)}
           onClose={() => setChoiceFor(null)}
+          onDone={() => {
+            const id = choiceFor.id;
+            setChoiceFor(null);
+            setDoneChoices((d) => new Set(d).add(id));
+            void markChoiceDone(accountId, id);
+          }}
         />
       )}
       {dialog && (
@@ -597,6 +609,7 @@ function FieldRow({
   onChoices,
   onNumber,
   numberDone,
+  choiceDone,
   onMappedTo,
   onPutBack,
   onRename,
@@ -623,6 +636,8 @@ function FieldRow({
   // settled (tied to a date, or marked as not a date's days).
   onNumber?: () => void;
   numberDone?: boolean;
+  // Whether its choice options have been gone over (a choice field).
+  choiceDone?: boolean;
   // After a field they added is pointed at an OTC field, or put back.
   onMappedTo: (to: OtcField) => void;
   onPutBack: (was: { id: string; name: string }) => void;
@@ -684,7 +699,19 @@ function FieldRow({
               required={required}
               bold={checked}
               onType={checked ? (onChoices ?? onNumber) : undefined}
-              tone={checked && onNumber ? (numberDone ? "done" : "needed") : undefined}
+              tone={
+            !checked
+              ? undefined
+              : onChoices
+                ? choiceDone
+                  ? "done"
+                  : "needed"
+                : onNumber
+                  ? numberDone
+                    ? "done"
+                    : "needed"
+                  : undefined
+          }
             />
             {/* A field they added and pointed at this one: ↺ puts it back. */}
             {wasNew && (
@@ -807,11 +834,11 @@ function FieldName({
                 onType();
               }}
               title={
-                tone === "needed"
-                  ? "Pick the date this is the number of days for"
-                  : tone === "done"
-                    ? "Change the date this is the number of days for"
-                    : "See and add its choice options"
+                field.kind === "choice"
+                  ? "See and update its choice options"
+                  : tone === "needed"
+                    ? "Pick the date this is the number of days for"
+                    : "Change the date this is the number of days for"
               }
               className={
                 tone === "needed"
@@ -1167,6 +1194,7 @@ function ChoiceOptionsDialog({
   onAdded,
   onRemoved,
   onClose,
+  onDone,
 }: {
   name: string;
   defaults: string[];
@@ -1176,6 +1204,8 @@ function ChoiceOptionsDialog({
   onAdded: (next: string[]) => void;
   onRemoved: (next: string[]) => void;
   onClose: () => void;
+  // Done: its options are gone over (it turns green).
+  onDone: () => void;
 }) {
   const [text, setText] = useState("");
   const all = [...defaults, ...contract, ...added];
@@ -1274,7 +1304,11 @@ function ChoiceOptionsDialog({
           </button>
         </form>
         <div className="mt-4 flex justify-end">
-          <button type="button" onClick={onClose} className="text-sm font-semibold text-ink-soft">
+          <button
+            type="button"
+            onClick={onDone}
+            className="rounded-lg bg-accent px-4 py-1.5 text-sm font-semibold text-white"
+          >
             Done
           </button>
         </div>

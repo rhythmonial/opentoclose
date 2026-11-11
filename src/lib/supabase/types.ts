@@ -447,6 +447,7 @@ export type Database = {
           placeholders: Json
           numbers_not_dates: Json
           number_ties: Json
+          choices_done: Json
           custom_fields: Json
           client_account_id: string
           fields: string[]
@@ -459,6 +460,7 @@ export type Database = {
           placeholders?: Json
           numbers_not_dates?: Json
           number_ties?: Json
+          choices_done?: Json
           custom_fields?: Json
           client_account_id: string
           fields?: string[]
@@ -471,6 +473,7 @@ export type Database = {
           placeholders?: Json
           numbers_not_dates?: Json
           number_ties?: Json
+          choices_done?: Json
           custom_fields?: Json
           client_account_id?: string
           fields?: string[]

@@ -67,7 +67,7 @@ export default async function SelectOtcFieldsPage({
     ? await Promise.all([
         supabase
           .from("client_otc_field_selections")
-          .select("fields, field_names, groups_done, custom_fields, custom_sections, placeholders, numbers_not_dates, number_ties")
+          .select("fields, field_names, groups_done, custom_fields, custom_sections, placeholders, numbers_not_dates, number_ties, choices_done")
           .eq("client_account_id", accountId)
           .maybeSingle(),
         supabase
@@ -275,6 +275,9 @@ export default async function SelectOtcFieldsPage({
               savedPlaceholders={cleanPlaceholders(saved?.placeholders)}
               wasNew={wasNew}
               choices={choices}
+              choicesDone={(Array.isArray(saved?.choices_done) ? saved.choices_done : []).filter(
+                (x): x is string => typeof x === "string",
+              )}
               dateOf={dateOf}
               suggestedDates={suggestedDates}
               addedDates={addedDates}

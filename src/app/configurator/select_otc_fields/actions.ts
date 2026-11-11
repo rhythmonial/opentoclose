@@ -271,11 +271,33 @@ export async function resetFinalizeFields(accountId: string | null): Promise<{ o
       placeholders: {},
       numbers_not_dates: [],
       number_ties: {},
+      choices_done: [],
       updated_at: new Date().toISOString(),
     },
     { onConflict: "client_account_id" },
   );
   if (error) return { ok: false, error: error.message };
   revalidatePath(PAGE);
+  return { ok: true };
+}
+
+// Marks a choice field's options as gone over (Done in its popup).
+export async function markChoiceDone(accountId: string | null, fieldId: string): Promise<{ ok: boolean; error?: string }> {
+  if (!fieldId || fieldId.length > 120) return { ok: false, error: "Unknown field." };
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const { data } = await supabase
+    .from("client_otc_field_selections")
+    .select("choices_done")
+    .eq("client_account_id", account)
+    .maybeSingle();
+  const list = (Array.isArray(data?.choices_done) ? data.choices_done : []).filter(
+    (x): x is string => typeof x === "string" && x !== fieldId,
+  );
+  const { error } = await supabase.from("client_otc_field_selections").upsert(
+    { client_account_id: account, choices_done: [...list, fieldId].slice(-1000), updated_at: new Date().toISOString() },
+    { onConflict: "client_account_id" },
+  );
+  if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
