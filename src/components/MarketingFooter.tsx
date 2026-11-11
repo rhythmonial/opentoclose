@@ -11,21 +11,21 @@ export function MarketingFooter() {
           </span>
           <div>
             <div className="font-display text-base font-bold text-white">
-              TC Optimize
+              OTC Setup with Josie
             </div>
-            <div className="mt-0.5 text-sm">Save Time, Make Cents</div>
+            <div className="mt-0.5 text-sm">Formerly TC Optimize</div>
+            <div className="mt-0.5 text-sm">Rhythmonial LLC</div>
           </div>
         </div>
 
         <div className="flex flex-col gap-1.5 text-sm">
           <span className="font-semibold text-white">Contact</span>
-          <a href="mailto:setup@tcoptimize.com" className="hover:text-white">
-            setup@tcoptimize.com
+          <a href="mailto:rhythmonial@gmail.com" className="hover:text-white">
+            rhythmonial@gmail.com
           </a>
-          <a href="tel:+14042369519" className="hover:text-white">
-            404-236-9519
+          <a href="tel:+18139066019" className="hover:text-white">
+            813-906-6019
           </a>
-          <span>Suwanee, GA 30024</span>
         </div>
 
         <div className="flex flex-col gap-1.5 text-sm">
@@ -45,8 +45,7 @@ export function MarketingFooter() {
         </div>
       </div>
       <div className="border-t border-white/10 px-4 py-4 text-center text-xs text-white/60">
-        &copy; {new Date().getFullYear()} TC Optimize, LLC. All rights
-        reserved.
+        &copy; {new Date().getFullYear()} Rhythmonial LLC. All rights reserved.
       </div>
     </footer>
   );

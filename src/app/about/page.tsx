@@ -89,10 +89,11 @@ export default function AboutPage() {
                 With a passion for transactions and a relentless drive for
                 efficiency, I have dedicated my career to helping real estate
                 agents and transaction coordinators navigate the complexities of
-                their roles. After spending 8 years in the industry, exploring
-                different roles from agent to ISA to operations manager, I
+                their roles. I&rsquo;ve been in real estate since 2015, exploring
+                different roles from agent to ISA to operations manager, and
                 discovered my love for transaction coordination and the madness
-                that happens behind the scenes.
+                that happens behind the scenes. In 2020 I turned my focus to the
+                tech side.
               </p>
               <p>
                 My journey with TC Optimize actually began when planning the
