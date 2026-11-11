@@ -630,23 +630,11 @@ export function ContractReviewer({
       void (saver.current?.settle() ?? Promise.resolve()).then(() => onAllConfirmed(latest, next));
       return;
     }
-    // Back to the top of the document (its card, when it's in one), where
-    // this page's tab now shows green.
+    // Back to the top (of the document's own page, or of the reviewer),
+    // where this page's button now shows green.
     if (!isConfirmed) {
-      const top = rootRef.current?.closest<HTMLElement>("[data-contract-doc]") ?? rootRef.current;
-      top?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }
-
-  // Confirms every page at once.
-  function confirmAll() {
-    const next = Array.from({ length: pageCount }, (_, i) => i + 1);
-    setConfirmed(next);
-    onConfirmedChange?.(next);
-    commit(blanks, next);
-    if (onAllConfirmed) {
-      const latest = blanks;
-      void (saver.current?.settle() ?? Promise.resolve()).then(() => onAllConfirmed(latest, next));
+      if (rootRef.current?.closest("[data-contract-doc]")) window.scrollTo({ top: 0, behavior: "smooth" });
+      else rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
 
@@ -735,18 +723,10 @@ export function ContractReviewer({
             {saveState === "saved" && "Saved"}
             {saveState === "error" && <span className="text-danger">Couldn&rsquo;t save</span>}
           </span>
-          {confirmed.length === pageCount ? (
+          {confirmed.length === pageCount && (
             <span className="rounded-lg border border-success/40 bg-success-soft px-4 py-2 text-sm font-semibold text-success">
               All pages confirmed ✓
             </span>
-          ) : (
-            <button
-              type="button"
-              onClick={confirmAll}
-              className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-soft/50"
-            >
-              Confirm all pages
-            </button>
           )}
         </span>
       </div>

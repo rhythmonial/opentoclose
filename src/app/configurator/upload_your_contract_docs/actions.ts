@@ -307,3 +307,21 @@ export async function reorderUploadDocs(
   revalidatePath(PAGE, "layout");
   return { ok: true };
 }
+
+// Renames an uploaded document.
+export async function renameContractDocument(
+  id: string,
+  name: string,
+): Promise<{ ok: boolean; name?: string; error?: string }> {
+  const clean = name.replace(/\s+/g, " ").trim().slice(0, 200);
+  if (!clean) return { ok: false, error: "Give it a name." };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("contract_documents")
+    .update({ file_name: clean })
+    .eq("id", id)
+    .select("id");
+  if (error || !data?.length) return { ok: false, error: error?.message ?? "Document not found." };
+  revalidatePath(PAGE, "layout");
+  return { ok: true, name: clean };
+}

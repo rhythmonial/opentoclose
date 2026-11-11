@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
 import { ContractUploader } from "@/components/ContractUploader";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
+import { DocTitle } from "@/components/DocTitle";
 import { deleteContractDocument, finishContractDocs, reorderUploadDocs } from "./actions";
 import { isReviewed, loadUploadDocs } from "./load";
 
@@ -100,7 +101,7 @@ export default async function UploadContractDocsPage({
               {staffClient ? "Their" : "Your"} uploaded documents ({docs.length})
             </h2>
             <p className="mt-0.5 text-xs text-ink-faint">
-              Click a document to review its pages. Drag the handle beside a document to put
+              Click a document to review its pages, or the pencil to rename it. Drag the handle beside a document to put
               them in the order you like.
             </p>
             <div className="mt-3">
@@ -115,14 +116,19 @@ export default async function UploadContractDocsPage({
                     id: doc.id,
                     node: (
                       <div className="flex items-stretch gap-2">
-                        <Link
-                          href={docHref(i)}
-                          className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface p-4 hover:border-accent"
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-semibold text-ink">
-                              {doc.file_name}
-                            </span>
+                        {/* The whole card opens the document; the pencil renames it. */}
+                        <div className="relative flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface p-4 hover:border-accent">
+                          <Link
+                            href={docHref(i)}
+                            aria-label={`Open ${doc.file_name}`}
+                            className="absolute inset-0 rounded-xl"
+                          />
+                          <span className="pointer-events-none relative min-w-0">
+                            <DocTitle
+                              id={doc.id}
+                              name={doc.file_name}
+                              className="text-sm font-semibold text-ink"
+                            />
                             <span className="block text-xs text-ink-faint">
                               {pages} page{pages === 1 ? "" : "s"} &middot; Uploaded{" "}
                               {new Date(doc.created_at).toLocaleDateString("en-US", {
@@ -132,7 +138,7 @@ export default async function UploadContractDocsPage({
                               })}
                             </span>
                           </span>
-                          <span className="flex items-center gap-3">
+                          <span className="pointer-events-none relative">
                             {doc.is_scanned ? (
                               <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
                                 Scanned copy
@@ -146,12 +152,8 @@ export default async function UploadContractDocsPage({
                                 {confirmed} of {pages} pages confirmed
                               </span>
                             )}
-                            <span className="text-xs font-semibold text-accent">
-                              {doc.is_scanned ? "View" : isReviewed(doc) ? "Review again" : "Review pages"}{" "}
-                              &rsaquo;
-                            </span>
                           </span>
-                        </Link>
+                        </div>
                         <form action={deleteContractDocument} className="flex items-center">
                           <input type="hidden" name="id" value={doc.id} />
                           <ConfirmDeleteButton title={`Delete ${doc.file_name}`} size="sm" />

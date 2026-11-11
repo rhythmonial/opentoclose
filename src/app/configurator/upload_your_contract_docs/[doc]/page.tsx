@@ -58,7 +58,6 @@ export default async function UploadedContractPage({
               day: "numeric",
               year: "numeric",
             })}
-            backHref={listHref}
             nextHref={next ? docHref(docs.indexOf(next)) : null}
             actions={
               <form action={deleteContractDocument}>
