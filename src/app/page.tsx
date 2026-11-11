@@ -170,7 +170,10 @@ export default async function RootPage() {
 
       <section className="bg-navy text-white">
         <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6">
-          <h2 className="font-display text-2xl font-bold sm:text-3xl">About to launch Open to Close?</h2>
+          <h2 className="font-display text-2xl font-bold sm:text-3xl">
+            <span className="block">About to launch</span>
+            <span className="block">Open to Close?</span>
+          </h2>
           <p className="mx-auto mt-2 max-w-xl text-white/80">
             Spots close once each group is full. Apply for a founding spot, or pass this along to
             someone who&rsquo;s about to launch.

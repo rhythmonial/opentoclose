@@ -13,8 +13,7 @@ export function MarketingFooter() {
             <div className="font-display text-base font-bold text-white">
               OTC Setup with Josie
             </div>
-            <div className="mt-0.5 text-sm">Rhythmonial LLC</div>
-            <div className="mt-0.5 text-sm">(Formerly TC Optimize)</div>
+            <div className="mt-0.5 text-sm">Rhythmonial LLC (Formerly TC Optimize)</div>
           </div>
         </div>
 
