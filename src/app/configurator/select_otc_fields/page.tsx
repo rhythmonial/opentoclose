@@ -29,7 +29,7 @@ const STEP_KEY = "select_otc_fields";
 export default async function SelectOtcFieldsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string }>;
+  searchParams: Promise<{ client?: string; group?: string }>;
 }) {
   await requireStepAccess(STEP_KEY);
   const supabase = await createClient();
@@ -50,7 +50,7 @@ export default async function SelectOtcFieldsPage({
 
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
   const sandboxTier = isStaff ? await getSandboxTier() : null;
-  const { client } = await searchParams;
+  const { client, group: openGroup } = await searchParams;
 
   // Staff pick a client to see or help with theirs.
   const { data: clients } = isStaff
@@ -253,6 +253,7 @@ export default async function SelectOtcFieldsPage({
               key={accountId}
               accountId={isStaff ? accountId : null}
               initial={{ fields: selected, names, groupsDone, custom }}
+              initialGroup={openGroup}
               showSummary={isStaff}
               customSections={cleanCustomSections(saved?.custom_sections)}
               assigned={assigned}

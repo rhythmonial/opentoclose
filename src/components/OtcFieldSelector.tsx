@@ -68,6 +68,7 @@ export function OtcFieldSelector({
   savedPlaceholders = {},
   wasNew = {},
   choices = {},
+  initialGroup,
   dateOf = {},
   suggestedDates = {},
   addedDates = [],
@@ -93,6 +94,9 @@ export function OtcFieldSelector({
   // Each choice field's options: OTC's, the ones on their contracts, and
   // the ones they've added (shown when its "(Choice)" is clicked).
   choices?: Record<string, { defaults: string[]; contract: string[]; added: string[] }>;
+  // The group to open on (from the page's address, kept as they switch so a
+  // reload comes back to it).
+  initialGroup?: string;
   // Number fields: the date each is the days for, and ones that aren't any
   // date's days; and dates added in Select Your Date Fields.
   dateOf?: Record<string, string>;
@@ -150,9 +154,19 @@ export function OtcFieldSelector({
     setError(res.ok ? null : (res.error ?? "Couldn't save."));
   }
   const [done, setDone] = useState<Set<string>>(() => new Set(initial.groupsDone));
-  const [group, setGroup] = useState(
-    () => SELECTABLE_GROUPS.find((g) => !initial.groupsDone.includes(g)) ?? SELECTABLE_GROUPS[0],
+  const [group, setGroupState] = useState(() =>
+    initialGroup && SELECTABLE_GROUPS.includes(initialGroup)
+      ? initialGroup
+      : (SELECTABLE_GROUPS.find((g) => !initial.groupsDone.includes(g)) ?? SELECTABLE_GROUPS[0]),
   );
+  const setGroup = (g: string) => {
+    setGroupState(g);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("group", g);
+      window.history.replaceState(window.history.state, "", url);
+    } catch {}
+  };
   const [query, setQuery] = useState("");
   const [onlyChecked, setOnlyChecked] = useState(false);
   const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
