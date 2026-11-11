@@ -5,7 +5,13 @@ import { setUrlParam } from "@/lib/urlState";
 import { NumberDateDialog, PlaceholderCell } from "@/components/OtcFieldSelector";
 import { TIME_FRAMES } from "@/lib/dateCalculations";
 import { saveFieldPlaceholder, setNumberNotDate, tieNumberToDate } from "@/app/configurator/select_otc_fields/actions";
-import { addOwnField, setCalcDate, setDateTimeFrame, setDefaultTimeFrame } from "@/app/configurator/select_your_dates/actions";
+import {
+  addOwnField,
+  resetSelectYourDates,
+  setCalcDate,
+  setDateTimeFrame,
+  setDefaultTimeFrame,
+} from "@/app/configurator/select_your_dates/actions";
 
 export type PairField = { id: string; name: string; sectionId: string };
 
@@ -69,6 +75,7 @@ export function DatePairsSelector({
 }) {
   // "" until they pick one (each date then counts Calendar Day(s)).
   const [defaultFrame, setDefaultFrame] = useState(defaultTimeFrame ?? "");
+  const [resetting, setResetting] = useState(false);
   const groups = [...new Set(sections.map((s) => s.group))];
   const [group, setGroupState] = useState(
     initialGroup && groups.includes(initialGroup) ? initialGroup : groups[0],
@@ -161,6 +168,32 @@ export function DatePairsSelector({
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           {title}
+          <button
+            type="button"
+            disabled={resetting}
+            onClick={async () => {
+              if (
+                !window.confirm(
+                  "Refresh your dates? This takes off every date you paired with a number field here, the dates you checked and your default type, and puts every type back to Calendar Day(s). Placeholders stay.",
+                )
+              )
+                return;
+              setResetting(true);
+              const res = await resetSelectYourDates(accountId);
+              if (!res.ok) {
+                setResetting(false);
+                window.alert(res.error ?? "Couldn't refresh your dates.");
+                return;
+              }
+              window.location.reload();
+            }}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-ink-soft hover:border-accent hover:text-accent disabled:opacity-50"
+          >
+            <span aria-hidden className="text-base leading-none">&#8634;</span>
+            {resetting ? "Refreshing…" : "Refresh your dates"}
+          </button>
+        </div>
+        <div className="mt-2">
           <select
               value={defaultFrame}
               aria-label="Default type"

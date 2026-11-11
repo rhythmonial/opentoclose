@@ -148,3 +148,39 @@ export async function setDefaultTimeFrame(
   revalidatePath("/configurator/select_your_date_fields");
   return { ok: true };
 }
+
+// "Refresh your dates": Select Your Dates back to how it started (no dates
+// paired with number fields here, none checked, no default type), with the
+// dates' types back to Calendar Day(s). Placeholders and fields they added
+// stay.
+export async function resetSelectYourDates(accountId: string | null): Promise<{ ok: boolean; error?: string }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const { data } = await supabase
+    .from("client_otc_field_selections")
+    .select("number_ties")
+    .eq("client_account_id", account)
+    .maybeSingle();
+  const dates = Object.values((data?.number_ties ?? {}) as Record<string, string>).filter(idOk);
+  if (dates.length > 0) {
+    await supabase
+      .from("date_calculations")
+      .update({ time_frame: "calendar_days", updated_at: new Date().toISOString() })
+      .eq("client_account_id", account)
+      .in("otc_field", dates);
+  }
+  const { error } = await supabase.from("client_otc_field_selections").upsert(
+    {
+      client_account_id: account,
+      number_ties: {},
+      numbers_not_dates: [],
+      calc_dates: [],
+      default_time_frame: null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "client_account_id" },
+  );
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  return { ok: true };
+}
