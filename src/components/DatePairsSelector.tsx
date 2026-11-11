@@ -29,6 +29,7 @@ export function DatePairsSelector({
   spots,
   placeholders: initialPlaceholders,
   lines,
+  names = {},
 }: {
   accountId: string | null;
   // Field groups' sections, in order.
@@ -51,6 +52,8 @@ export function DatePairsSelector({
   // Each field's placeholder, and its first line on the contracts.
   placeholders: Record<string, string>;
   lines: Record<string, number | null>;
+  // What they've renamed fields to (shown in place of OTC's names).
+  names?: Record<string, string>;
 }) {
   const groups = [...new Set(sections.map((s) => s.group))];
   const [group, setGroup] = useState(groups[0]);
@@ -65,8 +68,9 @@ export function DatePairsSelector({
   const [pickDateFor, setPickDateFor] = useState<PairField | null>(null);
   const [pickNumberFor, setPickNumberFor] = useState<PairField | null>(null);
 
-  const allD = [...allDates, ...extraDates];
-  const allN = [...allNumbers, ...extraNumbers];
+  const named = (f: PairField) => ({ ...f, name: names[f.id] || f.name });
+  const allD = [...allDates, ...extraDates].map(named);
+  const allN = [...allNumbers, ...extraNumbers].map(named);
   const byId = new Map([...allD, ...allN].map((f) => [f.id, f] as const));
   const run = async (p: Promise<{ ok: boolean }>) => {
     setStatus("saving");
@@ -76,7 +80,7 @@ export function DatePairsSelector({
 
   // The rows: every number field they use (with its date, if it has one),
   // then dates they use that no number field is the days for.
-  const numberRows = [...numbers, ...extraNumbers.filter((n) => !numbers.some((x) => x.id === n.id))];
+  const numberRows = [...numbers, ...extraNumbers.filter((n) => !numbers.some((x) => x.id === n.id))].map(named);
   const tiedDates = new Set(Object.values(ties));
   type Row = { key: string; date: PairField | null; number: PairField | null; sectionId: string };
   const rows: Row[] = [
@@ -85,6 +89,7 @@ export function DatePairsSelector({
       return { key: `n:${n.id}`, date: d, number: n, sectionId: n.sectionId };
     }),
     ...[...dates, ...extraDates.filter((d) => !dates.some((x) => x.id === d.id))]
+      .map(named)
       .filter((d) => !tiedDates.has(d.id))
       .map((d) => ({ key: `d:${d.id}`, date: d, number: null, sectionId: d.sectionId })),
   ];
@@ -153,10 +158,19 @@ export function DatePairsSelector({
           No dates or number fields in {group}.
         </p>
       )}
+      <div className="flex items-center gap-2 rounded-lg bg-border/60 px-4 py-2.5">
+        <h2 className="text-sm font-bold text-ink">{group}</h2>
+      </div>
       {sectionsHere.map((s) => (
-        <section key={s.id} className="flex flex-col gap-1.5">
-          <h3 className="rounded-lg bg-border/30 px-4 py-2 text-sm font-semibold text-ink">{s.name}</h3>
-          <div className="ml-3 hidden grid-cols-[1fr_1fr_12rem_12rem] gap-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint sm:ml-6 md:grid">
+        <section key={s.id} className="flex flex-col gap-1.5 rounded-xl border border-border bg-surface p-2.5">
+          <h3 className="rounded-lg bg-border/30 px-3 py-1.5 text-sm font-semibold text-ink">
+            {s.name}
+            <span className="ml-2 text-xs font-normal text-ink-faint">
+              {rows.filter((r) => r.sectionId === s.id).length} row
+              {rows.filter((r) => r.sectionId === s.id).length === 1 ? "" : "s"}
+            </span>
+          </h3>
+          <div className="hidden grid-cols-[1fr_1fr_12rem_12rem] gap-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-ink-faint md:grid">
             <span>Date</span>
             <span>Number field (days)</span>
             <span>Type</span>
@@ -171,7 +185,7 @@ export function DatePairsSelector({
               return (
                 <div
                   key={r.key}
-                  className={`ml-3 grid items-center gap-x-3 gap-y-1.5 rounded-lg border bg-surface px-3 py-2 sm:ml-6 md:grid-cols-[1fr_1fr_12rem_12rem] ${
+                  className={`grid items-center gap-x-3 gap-y-1 rounded-lg border bg-bg px-3 py-1.5 text-sm md:grid-cols-[1fr_1fr_12rem_12rem] ${
                     checked ? "border-accent/40" : "border-border"
                   }`}
                 >

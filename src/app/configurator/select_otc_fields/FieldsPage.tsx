@@ -336,6 +336,7 @@ export async function FieldsPage({
                   .map((f) => [f.id, placeholderOf(f.id, lines, cleanPlaceholders(saved?.placeholders))]),
               )}
               lines={Object.fromEntries(Object.entries(lines).map(([id, at]) => [id, at.line]))}
+              names={names}
             />
           ) : accountId ? (
             <OtcFieldSelector
