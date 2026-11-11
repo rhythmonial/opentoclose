@@ -31,10 +31,10 @@ export default async function FoundingApplicationPage({
             Founding Group Application
           </div>
           <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">Apply for a spot</h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-white/80 sm:text-base">
+          <p className="mt-3 text-sm font-semibold text-white">*For brand-new Open to Close accounts only*</p>
+          <p className="mx-auto mt-2 max-w-2xl text-sm text-white/80 sm:text-base">
             We&rsquo;ll review every application and reach out to the people chosen for each group.
           </p>
-          <p className="mt-2 text-sm font-semibold text-white">*For brand-new Open to Close accounts only*</p>
         </div>
       </section>
 
