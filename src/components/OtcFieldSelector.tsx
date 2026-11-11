@@ -1238,7 +1238,7 @@ function CustomFieldDialog({
   );
 }
 
-// A field's placeholder: its text to edit (clearing it removes it), or a +
+// A field's placeholder: its text to edit (erasing it removes it), or a +
 // to add one, which starts with the field's contract line ("134- ").
 export function PlaceholderCell({
   value,
@@ -1291,34 +1291,8 @@ export function PlaceholderCell({
         maxLength={200}
         placeholder="Placeholder"
         aria-label={`Placeholder for ${name}`}
-        className="w-full rounded-md border border-border bg-bg py-1 pl-2 pr-12 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+        className="w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
       />
-      <span className="absolute inset-y-0 right-1 flex items-center gap-0.5">
-        <button
-          type="button"
-          // Not taking focus from the box first (which would save it).
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => save(box.current?.value ?? "")}
-          title="Save placeholder"
-          aria-label={`Save the placeholder for ${name}`}
-          className="rounded px-1 text-sm leading-none text-success hover:bg-success-soft"
-        >
-          &#10003;
-        </button>
-        <button
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            setAdding(false);
-            if (value) onSave("");
-          }}
-          title="Delete placeholder"
-          aria-label={`Delete the placeholder for ${name}`}
-          className="rounded px-1 text-sm leading-none text-danger hover:bg-danger/10"
-        >
-          &times;
-        </button>
-      </span>
     </span>
   );
 }
