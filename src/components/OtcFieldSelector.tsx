@@ -1240,7 +1240,7 @@ function CustomFieldDialog({
 
 // A field's placeholder: its text to edit (clearing it removes it), or a +
 // to add one, which starts with the field's contract line ("134- ").
-function PlaceholderCell({
+export function PlaceholderCell({
   value,
   line,
   name,
@@ -1461,7 +1461,7 @@ function ChoiceOptionsDialog({
 // A number field's date: the one it's the number of days for. They search
 // their dates (or add one, in the number's section), or say it isn't the
 // days for any date.
-function NumberDateDialog({
+export function NumberDateDialog({
   name,
   sectionName,
   dates,

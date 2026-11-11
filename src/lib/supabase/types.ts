@@ -451,6 +451,7 @@ export type Database = {
           numbers_not_dates: Json
           number_ties: Json
           choices_done: Json
+          calc_dates: Json
           custom_fields: Json
           client_account_id: string
           fields: string[]
@@ -464,6 +465,7 @@ export type Database = {
           numbers_not_dates?: Json
           number_ties?: Json
           choices_done?: Json
+          calc_dates?: Json
           custom_fields?: Json
           client_account_id: string
           fields?: string[]
@@ -477,6 +479,7 @@ export type Database = {
           numbers_not_dates?: Json
           number_ties?: Json
           choices_done?: Json
+          calc_dates?: Json
           custom_fields?: Json
           client_account_id?: string
           fields?: string[]

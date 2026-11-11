@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
 import {
+  CONTACT_ROLES_SECTION,
+  isSystemRequired,
+  sectionsWith,
   NOT_DAYS_FIELDS,
   OTC_CHOICE_OPTIONS,
   cleanCustomFields,
@@ -21,7 +24,8 @@ import { isActive, newOtcFieldsFrom, otcTargetOf, type WorkflowField } from "@/l
 import { inContractOrder } from "@/components/WorkflowFieldsSummary";
 import { OtcFieldSelector } from "@/components/OtcFieldSelector";
 import { ResetFinalizeButton } from "@/components/ResetFinalizeButton";
-import { cleanPlaceholders, contractLines, spotLabel } from "@/lib/placeholders";
+import { cleanPlaceholders, contractLines, placeholderOf, spotLabel } from "@/lib/placeholders";
+import { DatePairsSelector } from "@/components/DatePairsSelector";
 import { loadFieldUse } from "@/lib/fieldUse";
 import { finishSelectOtcFields } from "./actions";
 import { finishSelectYourDates } from "@/app/configurator/select_your_dates/actions";
@@ -72,7 +76,7 @@ export async function FieldsPage({
     ? await Promise.all([
         supabase
           .from("client_otc_field_selections")
-          .select("fields, field_names, groups_done, custom_fields, custom_sections, placeholders, numbers_not_dates, number_ties, choices_done")
+          .select("fields, field_names, groups_done, custom_fields, custom_sections, placeholders, numbers_not_dates, number_ties, choices_done, calc_dates")
           .eq("client_account_id", accountId)
           .maybeSingle(),
         supabase
@@ -195,6 +199,26 @@ export async function FieldsPage({
     choices[f.id] = { defaults, contract, added, removed };
   }
 
+  // Select Your Dates: the date and number fields, in their sections, and
+  // which they use (checked in Customize Your Fields).
+  const pairSections = sectionsWith(cleanCustomSections(saved?.custom_sections))
+    .filter((s) => s.id !== CONTACT_ROLES_SECTION)
+    .map((s) => ({ id: s.id, name: s.name, group: s.group }));
+  const pairFields = [
+    ...OTC_FIELDS.filter((f) => f.sectionId !== CONTACT_ROLES_SECTION),
+    ...newFields,
+    ...custom,
+  ]
+    .filter((f) => f.kind === "date" || f.kind === "number")
+    .map((f) => ({ id: f.id, name: f.name, sectionId: f.sectionId, kind: f.kind }));
+  const selectedSet = new Set(selected);
+  const inUse = (id: string) =>
+    isSystemRequired(id) ||
+    Boolean(assigned[id]) ||
+    selectedSet.has(id) ||
+    custom.some((f) => f.id === id) ||
+    newFields.some((f) => f.id === id);
+
   const groupsDone = cleanGroupsDone(saved?.groups_done);
   const allDone = groupsDone.length === SELECTABLE_GROUPS.length;
 
@@ -266,10 +290,10 @@ export async function FieldsPage({
           </div>
         ) : dates ? (
           <p className="mt-1.5 text-sm text-ink-soft">
-            Here are Open to Close&rsquo;s date and number fields, by section. Check the dates
-            you use. For each number field that&rsquo;s the days for a date, click
-            &ldquo;(Number)&rdquo; to pick its date, then choose how the days are counted; the
-            date shows the same.
+            Here are the dates and number fields you use, each date beside the number field
+            that holds its days. Check a date to have it calculated, then pick its number field.
+            A number field without a date needs its date picked (or marked as not a date&rsquo;s
+            days). Choose how each date&rsquo;s days are counted.
           </p>
         ) : (
           <p className="mt-1.5 text-sm text-ink-soft">
@@ -284,7 +308,36 @@ export async function FieldsPage({
         )}
 
         <div className="mt-6">
-          {accountId ? (
+          {accountId && dates ? (
+            <DatePairsSelector
+              key={accountId}
+              accountId={isStaff ? accountId : null}
+              sections={pairSections}
+              dates={pairFields.filter((f) => f.kind === "date" && inUse(f.id))}
+              numbers={pairFields.filter((f) => f.kind === "number" && inUse(f.id))}
+              allDates={[
+                ...pairFields.filter((f) => f.kind === "date"),
+                ...addedDates
+                  .filter((d) => !pairFields.some((f) => f.id === d.id))
+                  .map((d) => ({ ...d, sectionId: "" })),
+              ]}
+              allNumbers={pairFields.filter((f) => f.kind === "number")}
+              initialTies={dateOf}
+              suggestedDates={suggestedDates}
+              initialNotDates={notDates}
+              initialCalcDates={(Array.isArray(saved?.calc_dates) ? saved.calc_dates : []).filter(
+                (x): x is string => typeof x === "string",
+              )}
+              timeFrames={timeFrames}
+              spots={firstSpot}
+              placeholders={Object.fromEntries(
+                pairFields
+                  .filter((f) => f.kind === "number")
+                  .map((f) => [f.id, placeholderOf(f.id, lines, cleanPlaceholders(saved?.placeholders))]),
+              )}
+              lines={Object.fromEntries(Object.entries(lines).map(([id, at]) => [id, at.line]))}
+            />
+          ) : accountId ? (
             <OtcFieldSelector
               key={accountId}
               accountId={isStaff ? accountId : null}
