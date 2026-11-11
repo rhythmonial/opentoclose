@@ -158,9 +158,9 @@ export default async function RootPage() {
               Hi, I&rsquo;m Josie!
             </h2>
             <p className="mt-3 text-ink-soft">
-              I&rsquo;ve been in real estate since 2015, as an agent, ISA and operations manager,
-              and found my passion in transaction coordination. In 2020 I turned my focus to the
-              tech side. Since then I&rsquo;ve set up nearly 300 Open to Close accounts and
+              I&rsquo;ve been in real estate since 2015 as an Agent, ISA, Listing Manager, Listing
+              Referral Agent and Operations Manager, and found my passion in Transaction
+              Management. In 2020 I turned my focus to the tech side. Since then I&rsquo;ve set up nearly 300 Open to Close accounts and
               helped more than 2,000 real estate professionals through my courses and 1-on-1
               sessions. This course is everything I&rsquo;ve learned, built into one guided
               setup.
