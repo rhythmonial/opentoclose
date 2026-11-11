@@ -709,16 +709,10 @@ function FieldRow({
             )}
           </>
         )}
-        {onContract ? (
+        {onContract && (
           <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
             Contract
           </span>
-        ) : (
-          checked && (
-            <span className="shrink-0 rounded-full bg-gold/25 px-2.5 py-0.5 text-xs font-semibold text-ink">
-              Use
-            </span>
-          )
         )}
       </label>
       {/* Fields in use get a placeholder and can be renamed (or, for one
