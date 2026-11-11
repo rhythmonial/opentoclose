@@ -203,10 +203,12 @@ export function OtcFieldSelector({
 
   return (
     <div ref={top} className="flex scroll-mt-4 flex-col gap-4">
-      {/* Field group tabs, like the page buttons in Upload Your Contracts. */}
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Field groups">
+      {/* Field group tabs, styled like the page buttons in Upload Your
+          Contracts with how many fields are checked, sharing the width. */}
+      <div className="flex gap-1 sm:gap-2" role="tablist" aria-label="Field groups">
         {SELECTABLE_GROUPS.map((g) => {
           const active = !q && g === group;
+          const [on] = groupCount(g);
           return (
             <button
               key={g}
@@ -217,11 +219,14 @@ export function OtcFieldSelector({
                 setGroup(g);
                 setQuery("");
               }}
-              className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${
+              className={`flex min-w-0 flex-1 items-center justify-center rounded-md border px-1 py-2 text-center text-[11px] font-semibold leading-tight sm:px-3 sm:text-sm ${
                 active ? "border-accent bg-accent text-white" : "border-border bg-surface text-ink-soft"
               }`}
             >
-              {g}
+              <span className="min-w-0 break-words sm:truncate">
+                {g}
+                <span className={active ? "text-white/80" : "text-ink-faint"}> &middot; {on}</span>
+              </span>
             </button>
           );
         })}
