@@ -237,7 +237,7 @@ export function FieldOrganizer({
         </div>
       )}
 
-      {/* Field group tabs, on one row at any width. */}
+      {/* Field group tabs, like Customize Your Fields'. */}
       <div className="flex gap-1 sm:gap-2" role="tablist" aria-label="Field groups">
         {layout.map((g) => {
           const active = g.group === group;
@@ -249,17 +249,13 @@ export function FieldOrganizer({
               aria-selected={active}
               title={`${g.group}: ${g.sections.length} sections, ${countIn(g)} fields`}
               onClick={() => setGroup(g.group)}
-              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-x-1 rounded-lg border px-0.5 py-1.5 text-[9px] font-semibold leading-tight transition-colors min-[360px]:text-[10px] sm:flex-row sm:px-3 sm:py-2 sm:text-sm ${
-                active
-                  ? "border-emerald-500 bg-emerald-500 text-white"
-                  : "border-border bg-surface text-ink-soft hover:border-emerald-500"
+              className={`flex min-w-0 flex-1 items-center justify-center rounded-md border px-1 py-2 text-center text-[11px] font-semibold leading-tight sm:px-3 sm:text-sm ${
+                active ? "border-accent bg-accent text-white" : "border-border bg-surface text-ink-soft"
               }`}
             >
-              <span className="min-w-0 max-w-full break-words text-center sm:truncate">{g.group}</span>
-              <span
-                className={`shrink-0 text-[10px] font-normal sm:text-xs ${active ? "text-white/80" : "text-ink-faint"}`}
-              >
-                {countIn(g)}
+              <span className="min-w-0 break-words sm:truncate">
+                {g.group}
+                <span className={active ? "text-white/80" : "text-ink-faint"}> &middot; {countIn(g)}</span>
               </span>
             </button>
           );

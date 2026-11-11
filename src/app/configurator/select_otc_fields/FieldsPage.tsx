@@ -30,7 +30,7 @@ import { loadFieldUse } from "@/lib/fieldUse";
 import { finishSelectOtcFields } from "./actions";
 import { finishSelectYourDates } from "@/app/configurator/select_your_dates/actions";
 
-// Customize Your Fields, and (mode "dates") Select Your Dates: the same
+// Customize Your Fields, and (mode "dates") Select Your Date Fields: the same
 // page, the second listing only date and number fields.
 export async function FieldsPage({
   searchParams,
@@ -168,7 +168,7 @@ export async function FieldsPage({
   for (const [n, d] of Object.entries((saved?.number_ties ?? {}) as Record<string, unknown>)) {
     if (typeof d === "string") dateOf[n] = d;
   }
-  // How each date's days are counted (Select Your Dates).
+  // How each date's days are counted (Select Your Date Fields).
   const timeFrames: Record<string, string> = {};
   for (const c of calcs ?? []) if (c.time_frame) timeFrames[c.otc_field] = c.time_frame;
   const addedDates = (calcs ?? [])
@@ -199,7 +199,7 @@ export async function FieldsPage({
     choices[f.id] = { defaults, contract, added, removed };
   }
 
-  // Select Your Dates: the date and number fields, in their sections, and
+  // Select Your Date Fields: the date and number fields, in their sections, and
   // which they use (checked in Customize Your Fields).
   const pairSections = sectionsWith(cleanCustomSections(saved?.custom_sections))
     .filter((s) => s.id !== CONTACT_ROLES_SECTION)
@@ -272,12 +272,12 @@ export async function FieldsPage({
           </div>
         )}
 
-        {/* Select Your Dates puts its Default Type beside the title. */}
+        {/* Select Your Date Fields puts its Default Type beside the title. */}
         {dates && accountId ? null : (
           <>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-bold text-ink">
-            {step?.title ?? (dates ? "Select Your Dates" : "Customize Your Fields")}
+            {step?.title ?? (dates ? "Select Your Date Fields" : "Customize Your Fields")}
           </h1>
           {accountId && !dates && <ResetFinalizeButton accountId={isStaff ? accountId : null} />}
         </div>
@@ -317,7 +317,7 @@ export async function FieldsPage({
             <DatePairsSelector
               key={accountId}
               title={
-                <h1 className="font-display text-2xl font-bold text-ink">{step?.title ?? "Select Your Dates"}</h1>
+                <h1 className="font-display text-2xl font-bold text-ink">{step?.title ?? "Select Your Date Fields"}</h1>
               }
               intro={
                 step?.description ? (

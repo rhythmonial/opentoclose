@@ -15,7 +15,7 @@ import {
 
 export type PairField = { id: string; name: string; sectionId: string };
 
-// Select Your Dates: each calculated date beside the number field that
+// Select Your Date Fields: each calculated date beside the number field that
 // holds its days, by field group and section (as in Customize Your Fields).
 // Checking a date makes it calculated: it needs a number field, picked in
 // red until it has one. A number field without a date is listed too, with

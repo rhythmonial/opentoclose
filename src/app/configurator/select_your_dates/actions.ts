@@ -150,7 +150,7 @@ export async function setDefaultTimeFrame(
   return { ok: true };
 }
 
-// "Refresh your dates": Select Your Dates back to how it started (no dates
+// "Refresh your dates": Select Your Date Fields back to how it started (no dates
 // paired with number fields here, none checked, no default type), with the
 // dates' types taken off. Placeholders and fields they added
 // stay.

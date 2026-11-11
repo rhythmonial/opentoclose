@@ -113,7 +113,7 @@ export function OtcFieldSelector({
   choices?: Record<string, { defaults: string[]; contract: string[]; added: string[]; removed: string[] }>;
   // Choice fields whose options they've gone over (Done in the popup).
   choicesDone?: string[];
-  // "dates": Select Your Dates (only date and number fields, with how each
+  // "dates": Select Your Date Fields (only date and number fields, with how each
   // number's days are counted instead of renaming).
   mode?: "fields" | "dates";
   // How each date's days are counted.
@@ -150,7 +150,7 @@ export function OtcFieldSelector({
     ],
   }));
   const dateMode = mode === "dates";
-  // Select Your Dates lists the date and number fields checked in Customize
+  // Select Your Date Fields lists the date and number fields checked in Customize
   // Your Fields (or on the contracts, or required).
   const initialPicked = new Set(initial.fields);
   if (dateMode) {
@@ -734,7 +734,7 @@ function FieldRow({
   numberDone?: boolean;
   // Whether its choice options have been gone over (a choice field).
   choiceDone?: boolean;
-  // Select Your Dates: no renaming, and how a number's days are counted
+  // Select Your Date Fields: no renaming, and how a number's days are counted
   // (set on the number's row once it has a date; its date shows the same).
   dateMode?: boolean;
   frame?: { value: string; date: string | null; editable: boolean };
