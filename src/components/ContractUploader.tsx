@@ -190,7 +190,7 @@ export function ContractUploader({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           {title}
           <button
             type="button"
