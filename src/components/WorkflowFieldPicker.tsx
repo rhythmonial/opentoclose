@@ -293,6 +293,20 @@ export function WorkflowFieldPicker({
 
   return (
     <div className="flex flex-col gap-3">
+      <span className="text-xs text-ink-faint">
+          {active.length} field{active.length === 1 ? "" : "s"} picked
+          {incomplete > 0 && (
+            <span className="font-semibold text-danger">
+              {" "}
+              &middot; {incomplete} need{incomplete === 1 ? "s" : ""} an answer
+            </span>
+          )}
+          {saveState === "saving" && " · Saving…"}
+          {saveState === "saved" && " · Saved"}
+          {saveState === "error" && (
+            <span className="text-danger"> · Couldn&rsquo;t save</span>
+          )}
+      </span>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5">
           {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => {
@@ -318,20 +332,6 @@ export function WorkflowFieldPicker({
             );
           })}
         </div>
-        <span className="text-xs text-ink-faint">
-          {active.length} workflow field{active.length === 1 ? "" : "s"} picked
-          {incomplete > 0 && (
-            <span className="font-semibold text-danger">
-              {" "}
-              &middot; {incomplete} need{incomplete === 1 ? "s" : ""} an answer
-            </span>
-          )}
-          {saveState === "saving" && " · Saving…"}
-          {saveState === "saved" && " · Saved"}
-          {saveState === "error" && (
-            <span className="text-danger"> · Couldn&rsquo;t save</span>
-          )}
-        </span>
       </div>
 
       <p className="text-sm text-ink-soft">

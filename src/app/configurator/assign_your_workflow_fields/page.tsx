@@ -10,7 +10,11 @@ import { inAssignOrder } from "@/lib/docOrder";
 import { fieldsLeft } from "@/app/configurator/upload_your_contract_docs/load";
 import { newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldsTester } from "@/components/WorkflowFieldsTester";
-import { cleanCustomSections, cleanFieldNames, OTC_FIELDS } from "@/lib/otcFields";
+import {
+  cleanCustomSections,
+  cleanFieldNames,
+  OTC_FIELDS,
+} from "@/lib/otcFields";
 
 const STEP_KEY = "assign_your_workflow_fields";
 
@@ -49,9 +53,15 @@ export default async function AssignWorkflowFieldsPage({
   const { client, doc: openDoc } = await searchParams;
   const { data: staffClient } =
     isStaff && client && /^[0-9a-f-]{36}$/i.test(client)
-      ? await supabase.from("client_accounts").select("id, name").eq("id", client).maybeSingle()
+      ? await supabase
+          .from("client_accounts")
+          .select("id, name")
+          .eq("id", client)
+          .maybeSingle()
       : { data: null };
-  const accountId = isStaff ? (staffClient?.id ?? null) : (profile?.client_account_id ?? null);
+  const accountId = isStaff
+    ? (staffClient?.id ?? null)
+    : (profile?.client_account_id ?? null);
   // Staff with no client picked get the test mode.
   const testMode = isStaff && !staffClient;
 
@@ -69,18 +79,18 @@ export default async function AssignWorkflowFieldsPage({
 
   const { data: signed } =
     docs && docs.length > 0
-      ? await supabase.storage
-          .from("contract-docs")
-          .createSignedUrls(
-            docs.map((d) => d.storage_path),
-            60 * 60,
-          )
+      ? await supabase.storage.from("contract-docs").createSignedUrls(
+          docs.map((d) => d.storage_path),
+          60 * 60,
+        )
       : { data: [] };
   const urlByPath = new Map(
     (signed ?? []).map((s) => [s.path, s.signedUrl] as const),
   );
   const fieldsOf = (d: { workflow_fields: unknown }) =>
-    Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : [];
+    Array.isArray(d.workflow_fields)
+      ? (d.workflow_fields as WorkflowField[])
+      : [];
   // Fields the client created, on any contract (removed fields included, so
   // a created choice field stays available after its option is removed).
   const addedOtcFields = newOtcFieldsFrom((docs ?? []).flatMap(fieldsOf));
@@ -94,30 +104,61 @@ export default async function AssignWorkflowFieldsPage({
     : { data: null };
   const fieldNames = cleanFieldNames(
     selection?.field_names,
-    new Map([...OTC_FIELDS, ...addedOtcFields].map((f) => [f.id, f.name] as const)),
+    new Map(
+      [...OTC_FIELDS, ...addedOtcFields].map((f) => [f.id, f.name] as const),
+    ),
+  );
+
+  const intro = (
+    <>
+      <Link
+        href={
+          staffClient
+            ? `/dashboard/clients/${staffClient.id}`
+            : isStaff && !sandboxTier
+              ? "/dashboard/tasks"
+              : "/portal"
+        }
+        className="text-sm font-medium text-accent"
+      >
+        &larr;{" "}
+        {staffClient
+          ? `Back to ${staffClient.name}`
+          : isStaff && !sandboxTier
+            ? "Back to editor"
+            : "Back to your setup"}
+      </Link>
+
+      <h1 className="mt-3 font-display text-2xl font-bold text-ink">
+        {step?.title ?? "Assign Your Fields"}
+      </h1>
+      {step?.description ? (
+        <div
+          className="mt-1.5 text-sm leading-relaxed text-ink-soft
+              [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
+              [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
+              [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
+              [&_li]:mt-1 first:[&>*]:mt-0"
+        >
+          <ReactMarkdown>{step.description}</ReactMarkdown>
+        </div>
+      ) : (
+        <p className="mt-1.5 text-sm text-ink-soft">
+          Go through each of your contracts and click every field your team
+          needs to track while a transaction is in progress, like the closing
+          date, purchase price, or inspection period. These become the workflow
+          fields in your Open to Close setup.
+        </p>
+      )}
+    </>
   );
 
   return (
     <main className="flex flex-1 justify-center bg-bg px-4 py-12">
       <div className="w-full max-w-4xl">
-        <Link
-          href={
-            staffClient
-              ? `/dashboard/clients/${staffClient.id}`
-              : isStaff && !sandboxTier
-                ? "/dashboard/tasks"
-                : "/portal"
-          }
-          className="text-sm font-medium text-accent"
-        >
-          &larr;{" "}
-          {staffClient
-            ? `Back to ${staffClient.name}`
-            : isStaff && !sandboxTier
-              ? "Back to editor"
-              : "Back to your setup"}
-        </Link>
-
+        {/* The title and description show on the documents list; a
+            contract opens on its own. */}
+        {(testMode || !docs || docs.length === 0) && intro}
         {testMode && (
           <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
             Test mode &mdash; clients see the contracts they uploaded here. Try
@@ -126,33 +167,10 @@ export default async function AssignWorkflowFieldsPage({
         )}
         {staffClient && (
           <div className="mt-4 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm font-semibold text-accent">
-            Viewing {staffClient.name}&rsquo;s workflow fields &mdash; changes you make are
-            saved to their account.
+            Viewing {staffClient.name}&rsquo;s workflow fields &mdash; changes
+            you make are saved to their account.
           </div>
         )}
-
-        <h1 className="mt-3 font-display text-2xl font-bold text-ink">
-          {step?.title ?? "Assign Your Fields"}
-        </h1>
-        {step?.description ? (
-          <div
-            className="mt-1.5 text-sm leading-relaxed text-ink-soft
-              [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
-              [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
-              [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
-              [&_li]:mt-1 first:[&>*]:mt-0"
-          >
-            <ReactMarkdown>{step.description}</ReactMarkdown>
-          </div>
-        ) : (
-          <p className="mt-1.5 text-sm text-ink-soft">
-            Go through each of your contracts and click every field your team
-            needs to track while a transaction is in progress, like the
-            closing date, purchase price, or inspection period. These become
-            the workflow fields in your Open to Close setup.
-          </p>
-        )}
-
         <div className="mt-6">
           {testMode ? (
             <WorkflowFieldsTester />
@@ -191,10 +209,14 @@ export default async function AssignWorkflowFieldsPage({
                   : [];
               })}
               otcFields={addedOtcFields}
-              editing={{ accountId: staffClient?.id ?? null, names: fieldNames }}
+              editing={{
+                accountId: staffClient?.id ?? null,
+                names: fieldNames,
+              }}
               canFinish={!isStaff}
               initialDocId={openDoc ?? null}
               customSections={cleanCustomSections(selection?.custom_sections)}
+              intro={intro}
             />
           )}
         </div>

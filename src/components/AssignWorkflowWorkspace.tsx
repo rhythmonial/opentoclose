@@ -6,7 +6,6 @@ import type { ContractBlank } from "@/lib/contractBlanks";
 import type { OtcField } from "@/lib/otcFields";
 import { isActive, isComplete, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldPicker } from "@/components/WorkflowFieldPicker";
-import { WorkflowFieldsSummary } from "@/components/WorkflowFieldsSummary";
 import { DocumentBoundary } from "@/components/DocumentBoundary";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
 import type { CustomSection } from "@/lib/otcFields";
@@ -43,6 +42,7 @@ export function AssignWorkflowWorkspace({
   canFinish,
   initialDocId,
   customSections: initialSections = [],
+  intro,
 }: {
   docs: WorkspaceDoc[];
   otcFields: OtcField[];
@@ -53,6 +53,8 @@ export function AssignWorkflowWorkspace({
   initialDocId?: string | null;
   // Sections the client added (for new fields).
   customSections?: CustomSection[];
+  // The lesson's title and description (on the documents list only).
+  intro?: React.ReactNode;
 }) {
   const [sections, setSections] = useState(initialSections);
   const addSection = async (name: string, group: string) => {
@@ -71,18 +73,6 @@ export function AssignWorkflowWorkspace({
     initialDocId && docs.some((d) => d.id === initialDocId) ? initialDocId : null,
   );
   const [finishing, setFinishing] = useState(false);
-  // Bumped when a change made from the fields table (on every contract)
-  // needs to show on the open contract.
-  const [syncKey, setSyncKey] = useState(0);
-  const editingHere = {
-    ...editing,
-    onFieldsChanged: (change: (fields: WorkflowField[]) => WorkflowField[]) => {
-      setFieldsByDoc((prev) =>
-        Object.fromEntries(Object.entries(prev).map(([id, fields]) => [id, change(fields)])),
-      );
-      setSyncKey((k) => k + 1);
-    },
-  };
 
   const fieldsOf = (id: string) => fieldsByDoc[id] ?? [];
   const needsIn = (id: string) => fieldsOf(id).filter(isActive).filter((f) => !isComplete(f)).length;
@@ -108,7 +98,8 @@ export function AssignWorkflowWorkspace({
     const notDone = docs.filter((d) => !doneIds.has(d.id)).length;
     return (
       <div className="flex flex-col gap-3">
-        <div>
+        {intro}
+        <div className={intro ? "mt-6" : ""}>
           <h2 className="text-[15px] font-bold text-ink">Your documents ({docs.length})</h2>
           <p className="mt-0.5 text-xs text-ink-faint">
             Click a document to assign its fields, one at a time. Drag the handle beside a
@@ -152,9 +143,6 @@ export function AssignWorkflowWorkspace({
                         Not done yet
                       </span>
                     )}
-                    <span className="text-xs font-semibold text-accent">
-                      {done ? "Review again" : "Assign fields"} &rsaquo;
-                    </span>
                   </span>
                 </button>
               ),
@@ -197,14 +185,8 @@ export function AssignWorkflowWorkspace({
           onClick={() => open(null)}
           className="text-sm font-semibold text-accent"
         >
-          &lsaquo; All documents
+          &lsaquo; Back to documents
         </button>
-        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="min-w-0 truncate text-[15px] font-bold text-ink">{doc.fileName}</h2>
-          <span className="text-xs text-ink-faint">
-            Page {page} of {pagesIn(doc)}
-          </span>
-        </div>
       </div>
       {!doc.reviewed && (
         <p className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">
@@ -213,6 +195,7 @@ export function AssignWorkflowWorkspace({
         </p>
       )}
       <div className="rounded-xl border border-border bg-surface p-4">
+        <h1 className="mb-0.5 truncate font-display text-xl font-bold text-ink">{doc.fileName}</h1>
         <DocumentBoundary>
           <WorkflowFieldPicker
             key={doc.id}
@@ -223,7 +206,6 @@ export function AssignWorkflowWorkspace({
             extraOtcFields={otcFields}
             page={page}
             onPageChange={setPage}
-            syncKey={syncKey}
             customSections={sections}
             onAddSection={addSection}
             onChange={(fields) => setFieldsByDoc((prev) => ({ ...prev, [doc.id]: fields }))}
@@ -233,14 +215,6 @@ export function AssignWorkflowWorkspace({
         </DocumentBoundary>
       </div>
 
-      <div className="mt-6">
-        <WorkflowFieldsSummary
-          docs={[{ id: doc.id, name: doc.fileName, blanks: doc.blanks, fields: fieldsOf(doc.id) }]}
-          editing={editingHere}
-          onlyPage={{ docId: doc.id, page }}
-          customSections={sections}
-        />
-      </div>
 
       <div className="mt-4 flex flex-col items-center gap-2">
         <button
