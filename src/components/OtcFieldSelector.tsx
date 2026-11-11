@@ -69,6 +69,7 @@ export function OtcFieldSelector({
   wasNew = {},
   choices = {},
   dateOf = {},
+  suggestedDates = {},
   addedDates = [],
   notDates = [],
 }: {
@@ -95,6 +96,8 @@ export function OtcFieldSelector({
   // Number fields: the date each is the days for, and ones that aren't any
   // date's days; and dates added in Select Your Date Fields.
   dateOf?: Record<string, string>;
+  // The date Select Your Date Fields paired each with on its own.
+  suggestedDates?: Record<string, string>;
   addedDates?: { id: string; name: string }[];
   notDates?: string[];
 }) {
@@ -462,6 +465,7 @@ export function OtcFieldSelector({
             ...[...dateNames].map(([id, name]) => ({ id, name })),
           ].filter((d, i, all) => all.findIndex((x) => x.id === d.id) === i)}
           tiedTo={ties[numberFor.field.id] ?? null}
+          suggested={suggestedDates[numberFor.field.id] ?? null}
           notDate={notDate.has(numberFor.field.id)}
           onTie={async (date) => {
             const numberId = numberFor.field.id;
@@ -1256,6 +1260,7 @@ function NumberDateDialog({
   sectionName,
   dates,
   tiedTo,
+  suggested,
   notDate,
   onTie,
   onNotDate,
@@ -1265,6 +1270,7 @@ function NumberDateDialog({
   sectionName: string;
   dates: { id: string; name: string }[];
   tiedTo: string | null;
+  suggested: string | null;
   notDate: boolean;
   onTie: (date: { id: string; name: string; isNew?: boolean }) => void;
   onNotDate: (on: boolean) => void;
@@ -1277,6 +1283,7 @@ function NumberDateDialog({
     .sort((a, b) => a.name.localeCompare(b.name));
   const exact = dates.some((d) => d.name.toLowerCase() === q);
   const tied = dates.find((d) => d.id === tiedTo);
+  const hint = !tied ? dates.find((d) => d.id === suggested) : undefined;
   const addNew = () =>
     onTie({ id: `new-otc:${crypto.randomUUID()}`, name: query.trim().slice(0, 120), isNew: true });
   return (
@@ -1303,6 +1310,15 @@ function NumberDateDialog({
               ? "Marked as not the days for a date."
               : "Which date is this the number of days for?"}
         </p>
+        {hint && (
+          <button
+            type="button"
+            onClick={() => onTie(hint)}
+            className="mt-2 self-start rounded-lg border border-accent px-3 py-1.5 text-sm font-semibold text-accent hover:bg-accent-soft/50"
+          >
+            Suggested: {hint.name}
+          </button>
+        )}
         <input
           autoFocus
           value={query}

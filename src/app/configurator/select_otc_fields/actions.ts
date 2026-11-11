@@ -192,7 +192,7 @@ export async function tieNumberToDate(
     { onConflict: "client_account_id,otc_field" },
   );
   if (error) return { ok: false, error: error.message };
-  await markNotDate(supabase, account, numberId, false);
+  await markNotDate(supabase, account, numberId, false, dateId);
   revalidatePath("/configurator/select_your_date_fields");
   return { ok: true };
 }
@@ -219,20 +219,31 @@ export async function setNumberNotDate(
   return { ok: true };
 }
 
-async function markNotDate(supabase: Supabase, account: string, numberId: string, on: boolean) {
+// Records in the selection whether a number field isn't a date's days, and
+// the date it was tied to here (null: none).
+async function markNotDate(
+  supabase: Supabase,
+  account: string,
+  numberId: string,
+  on: boolean,
+  tiedTo: string | null = null,
+) {
   const { data } = await supabase
     .from("client_otc_field_selections")
-    .select("numbers_not_dates")
+    .select("numbers_not_dates, number_ties")
     .eq("client_account_id", account)
     .maybeSingle();
   const list = (Array.isArray(data?.numbers_not_dates) ? data.numbers_not_dates : []).filter(
     (x): x is string => typeof x === "string" && x !== numberId,
   );
-  if (!on && list.length === (Array.isArray(data?.numbers_not_dates) ? data.numbers_not_dates.length : 0)) return null;
+  const ties = { ...((data?.number_ties ?? {}) as Record<string, string>) };
+  if (tiedTo) ties[numberId] = tiedTo;
+  else delete ties[numberId];
   const { error } = await supabase.from("client_otc_field_selections").upsert(
     {
       client_account_id: account,
       numbers_not_dates: on ? [...list, numberId].slice(-500) : list,
+      number_ties: ties,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "client_account_id" },

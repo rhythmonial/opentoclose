@@ -66,7 +66,7 @@ export default async function SelectOtcFieldsPage({
     ? await Promise.all([
         supabase
           .from("client_otc_field_selections")
-          .select("fields, field_names, groups_done, custom_fields, custom_sections, placeholders, numbers_not_dates")
+          .select("fields, field_names, groups_done, custom_fields, custom_sections, placeholders, numbers_not_dates, number_ties")
           .eq("client_account_id", accountId)
           .maybeSingle(),
         supabase
@@ -136,8 +136,14 @@ export default async function SelectOtcFieldsPage({
     : [null, { data: null }, { data: [] }];
   // Number fields: the date each is the days for, and ones that aren't
   // any date's; and dates they added in Select Your Date Fields.
+  // Ties picked here count; ones Select Your Date Fields made on its own
+  // (a "... Days" field and its "... Date") are suggestions.
+  const suggestedDates: Record<string, string> = {};
+  for (const c of calcs ?? []) if (c.enabled && c.number_field) suggestedDates[c.number_field] = c.otc_field;
   const dateOf: Record<string, string> = {};
-  for (const c of calcs ?? []) if (c.enabled && c.number_field) dateOf[c.number_field] = c.otc_field;
+  for (const [n, d] of Object.entries((saved?.number_ties ?? {}) as Record<string, unknown>)) {
+    if (typeof d === "string") dateOf[n] = d;
+  }
   const addedDates = (calcs ?? [])
     .filter((c) => c.otc_field.startsWith("new-otc:") && c.field_name)
     .map((c) => ({ id: c.otc_field, name: c.field_name! }));
@@ -256,6 +262,7 @@ export default async function SelectOtcFieldsPage({
               wasNew={wasNew}
               choices={choices}
               dateOf={dateOf}
+              suggestedDates={suggestedDates}
               addedDates={addedDates}
               notDates={notDates}
             />
