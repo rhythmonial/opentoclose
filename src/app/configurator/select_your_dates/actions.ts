@@ -118,8 +118,9 @@ export async function addOwnField(
   return { ok: true };
 }
 
-// Default Type: how days are counted, set on every date given (the ones
-// with a number field) and kept for dates paired later.
+// Default type: how days are counted, set on every date given (the ones
+// with a number field) and kept for dates paired later. Taking it off ("")
+// puts those dates back to Calendar Day(s).
 export async function setDefaultTimeFrame(
   accountId: string | null,
   timeFrame: string,
@@ -134,11 +135,11 @@ export async function setDefaultTimeFrame(
     { onConflict: "client_account_id" },
   );
   if (error) return { ok: false, error: error.message };
-  const ids = timeFrame ? dateIds.filter(idOk).slice(0, 500) : [];
+  const ids = dateIds.filter(idOk).slice(0, 500);
   if (ids.length > 0) {
     const { error: calcError } = await supabase
       .from("date_calculations")
-      .update({ time_frame: timeFrame, updated_at: new Date().toISOString() })
+      .update({ time_frame: timeFrame || "calendar_days", updated_at: new Date().toISOString() })
       .eq("client_account_id", account)
       .in("otc_field", ids);
     if (calcError) return { ok: false, error: calcError.message };

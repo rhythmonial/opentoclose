@@ -167,14 +167,10 @@ export function DatePairsSelector({
               onChange={(e) => {
                 const v = e.target.value;
                 setDefaultFrame(v);
-                // Back to no default: the dates keep their types.
-                if (!v) {
-                  void run(setDefaultTimeFrame(accountId, "", []));
-                  return;
-                }
-                // Every paired date takes it.
+                // Every paired date takes it (back to Calendar Day(s) when
+                // the default is taken off).
                 const paired = Object.values(ties);
-                setFrames((f) => ({ ...f, ...Object.fromEntries(paired.map((id) => [id, v])) }));
+                setFrames((f) => ({ ...f, ...Object.fromEntries(paired.map((id) => [id, v || "calendar_days"])) }));
                 void run(setDefaultTimeFrame(accountId, v, paired));
               }}
               // As wide as what it shows (the placeholder, then their pick).
