@@ -337,6 +337,7 @@ export async function FieldsPage({
               )}
               lines={Object.fromEntries(Object.entries(lines).map(([id, at]) => [id, at.line]))}
               names={names}
+              initialGroup={openGroup}
             />
           ) : accountId ? (
             <OtcFieldSelector

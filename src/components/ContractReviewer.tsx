@@ -3,6 +3,7 @@ import { PageCount, pageCountTitle } from "@/components/PageCount";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { setUrlParam } from "@/lib/urlState";
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { openPdf, drawPdfPage } from "@/lib/pdfjs";
 import { fieldLabel, fieldsNeedingType, tidyGroups, type ContractBlank } from "@/lib/contractBlanks";
@@ -88,6 +89,7 @@ export function ContractReviewer({
   onSave,
   onFieldsLeft,
   nextDocHref,
+  syncPage = false,
 }: {
   // The file's bytes (just picked) or a signed URL (already uploaded).
   source: ArrayBuffer | string;
@@ -100,9 +102,15 @@ export function ContractReviewer({
   onFieldsLeft?: (left: number) => void;
   // The next document, for the button on the last page.
   nextDocHref?: string | null;
+  // Keeps the page in the address (?page=), so a reload comes back to it.
+  syncPage?: boolean;
 }) {
   const [blanks, setBlanks] = useState(initialBlanks);
-  const [page, setPage] = useState(initialPage);
+  const [page, setPageState] = useState(Math.min(Math.max(1, initialPage), Math.max(1, pageCount)));
+  const setPage = (n: number) => {
+    setPageState(n);
+    if (syncPage) setUrlParam("page", n);
+  };
   // Page size in points (letter until the page loads), for sizing new boxes.
   const [pageSize, setPageSize] = useState({ width: 612, height: 792 });
   const [selected, setSelected] = useState<number | null>(null);

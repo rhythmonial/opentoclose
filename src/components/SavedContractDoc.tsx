@@ -19,6 +19,7 @@ export function SavedContractDoc({
   isScanned,
   uploadedOn,
   nextDocHref,
+  initialPage = 1,
   actions,
 }: {
   id: string;
@@ -30,6 +31,8 @@ export function SavedContractDoc({
   uploadedOn: string;
   // The next document in their list.
   nextDocHref?: string | null;
+  // The page to open on (from the address).
+  initialPage?: number;
   actions?: React.ReactNode;
 }) {
   const [left, setLeft] = useState(() => fieldsNeedingType(blanks).left);
@@ -94,6 +97,8 @@ export function SavedContractDoc({
               initialBlanks={blanks}
               onFieldsLeft={setLeft}
               nextDocHref={nextDocHref}
+              initialPage={initialPage}
+              syncPage
               onSave={(next) => saveContractReview({ id, blanks: next })}
             />
           </DocumentBoundary>

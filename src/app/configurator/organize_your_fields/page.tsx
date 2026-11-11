@@ -17,7 +17,7 @@ const STEP_KEY = "organize_your_fields";
 export default async function OrganizeYourFieldsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string; done?: string }>;
+  searchParams: Promise<{ client?: string; done?: string; group?: string }>;
 }) {
   await requireStepAccess(STEP_KEY);
   const supabase = await createClient();
@@ -38,7 +38,7 @@ export default async function OrganizeYourFieldsPage({
 
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
   const sandboxTier = isStaff ? await getSandboxTier() : null;
-  const { client, done } = await searchParams;
+  const { client, done, group: openGroup } = await searchParams;
 
   // Staff pick a client to see or help with theirs.
   const { data: clients } = isStaff
@@ -204,6 +204,7 @@ export default async function OrganizeYourFieldsPage({
             names={use.names}
             initialLayout={layout}
             spots={use.spots}
+            initialGroup={openGroup}
           />
         </div>
 

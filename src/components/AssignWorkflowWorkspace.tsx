@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { setUrlParam } from "@/lib/urlState";
 import { useFormStatus } from "react-dom";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import type { OtcField } from "@/lib/otcFields";
@@ -41,6 +42,7 @@ export function AssignWorkflowWorkspace({
   editing,
   canFinish,
   initialDocId,
+  initialPage,
   customSections: initialSections = [],
   intro,
 }: {
@@ -51,6 +53,8 @@ export function AssignWorkflowWorkspace({
   canFinish: boolean;
   // The contract to open first (from the page's address).
   initialDocId?: string | null;
+  // The page of it to open on (from the address).
+  initialPage?: number;
   // Sections the client added (for new fields).
   customSections?: CustomSection[];
   // The lesson's title and description (on the documents list only).
@@ -68,7 +72,9 @@ export function AssignWorkflowWorkspace({
     Object.fromEntries(docs.map((d) => [d.id, d.fields])),
   );
   const [doneIds, setDoneIds] = useState(() => new Set(docs.filter((d) => d.done).map((d) => d.id)));
-  const [pages, setPages] = useState<Record<string, number>>({});
+  const [pages, setPages] = useState<Record<string, number>>(() =>
+    initialDocId && initialPage ? { [initialDocId]: initialPage } : {},
+  );
   const [openId, setOpenId] = useState<string | null>(
     initialDocId && docs.some((d) => d.id === initialDocId) ? initialDocId : null,
   );
@@ -85,6 +91,7 @@ export function AssignWorkflowWorkspace({
       const url = new URL(window.location.href);
       if (id) url.searchParams.set("doc", id);
       else url.searchParams.delete("doc");
+      url.searchParams.delete("page");
       window.history.replaceState(window.history.state, "", url);
     } catch {}
     requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
@@ -169,7 +176,10 @@ export function AssignWorkflowWorkspace({
   }
 
   const page = Math.min(pages[doc.id] ?? 1, pagesIn(doc));
-  const setPage = (n: number) => setPages((prev) => ({ ...prev, [doc.id]: n }));
+  const setPage = (n: number) => {
+    setPages((prev) => ({ ...prev, [doc.id]: n }));
+    setUrlParam("page", n);
+  };
   const onPage = (f: WorkflowField) =>
     doc.blanks.some((b) => (b.id === f.id || b.group === f.id) && b.page === page);
   const pageNeeds = fieldsOf(doc.id)

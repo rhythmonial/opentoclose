@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { setUrlParam } from "@/lib/urlState";
 import { NumberDateDialog, PlaceholderCell } from "@/components/OtcFieldSelector";
 import { TIME_FRAMES } from "@/lib/dateCalculations";
 import { saveFieldPlaceholder, setNumberNotDate, tieNumberToDate } from "@/app/configurator/select_otc_fields/actions";
@@ -30,6 +31,7 @@ export function DatePairsSelector({
   placeholders: initialPlaceholders,
   lines,
   names = {},
+  initialGroup,
 }: {
   accountId: string | null;
   // Field groups' sections, in order.
@@ -54,9 +56,17 @@ export function DatePairsSelector({
   lines: Record<string, number | null>;
   // What they've renamed fields to (shown in place of OTC's names).
   names?: Record<string, string>;
+  // The group to open on (kept in the address so a reload comes back).
+  initialGroup?: string;
 }) {
   const groups = [...new Set(sections.map((s) => s.group))];
-  const [group, setGroup] = useState(groups[0]);
+  const [group, setGroupState] = useState(
+    initialGroup && groups.includes(initialGroup) ? initialGroup : groups[0],
+  );
+  const setGroup = (g: string) => {
+    setGroupState(g);
+    setUrlParam("group", g);
+  };
   const [ties, setTies] = useState(initialTies);
   const [notDate, setNotDate] = useState(() => new Set(initialNotDates));
   const [calc, setCalc] = useState(() => new Set(initialCalcDates));

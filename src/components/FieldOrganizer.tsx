@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { setUrlParam } from "@/lib/urlState";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
 import {
   ORG_GROUPS,
@@ -35,6 +36,7 @@ export function FieldOrganizer({
   initialLayout,
   spots = {},
   sections = ORG_SECTIONS,
+  initialGroup,
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
@@ -47,9 +49,17 @@ export function FieldOrganizer({
   spots?: Record<string, string>;
   // OTC's sections with the ones the client added.
   sections?: OrgSection[];
+  // The group to open on (kept in the address so a reload comes back).
+  initialGroup?: string;
 }) {
   const [layout, setLayout] = useState(initialLayout);
-  const [group, setGroup] = useState(ORG_GROUPS[0]);
+  const [group, setGroupState] = useState(
+    initialGroup && ORG_GROUPS.includes(initialGroup) ? initialGroup : ORG_GROUPS[0],
+  );
+  const setGroup = (g: string) => {
+    setGroupState(g);
+    setUrlParam("group", g);
+  };
   const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
   const pending = useRef<Move[]>([]);
   const timer = useRef<number | null>(null);
