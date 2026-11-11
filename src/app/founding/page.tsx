@@ -27,13 +27,13 @@ export default async function FoundingApplicationPage({
       <section className="bg-navy text-white">
         <div className="mx-auto max-w-3xl px-5 py-12 text-center sm:px-6">
           <div className="font-caption text-xs font-semibold uppercase tracking-wide text-gold">
-            Founding group &middot; 3 spots in each group
+            Founding Group Application
           </div>
-          <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">Apply for a founding spot</h1>
+          <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">Apply for a spot</h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-white/80 sm:text-base">
-            For brand-new Open to Close accounts only. I&rsquo;ll review every application and
-            reach out to the people chosen for each group.
+            We&rsquo;ll review every application and reach out to the people chosen for each group.
           </p>
+          <p className="mt-2 text-sm font-semibold text-white">*For brand-new Open to Close accounts only*</p>
         </div>
       </section>
 
@@ -42,7 +42,7 @@ export default async function FoundingApplicationPage({
           <div className="rounded-xl border border-success/30 bg-success-soft p-6 text-center">
             <h2 className="font-display text-xl font-bold text-success">Thanks for applying!</h2>
             <p className="mt-2 text-sm text-ink-soft">
-              Your application is in. I&rsquo;ll review it and reach out by email.
+              Your application is in. We&rsquo;ll review it and reach out by email.
             </p>
             <Link href="/" className="mt-4 inline-block text-sm font-semibold text-accent">
               &larr; Back to the founding group
