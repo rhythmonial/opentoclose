@@ -8,7 +8,7 @@ import {
 } from "@/lib/dateCalculations";
 import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
 
-// Select Your Date Fields, a group at a time:
+// Calculate Your Dates, a group at a time:
 // - "contract": hard dates written on the contract (nothing to work out),
 // - "calculated": the date each days field sets, the contract's in the
 //   order they appear on it, then the ones they chose in Finalize Your

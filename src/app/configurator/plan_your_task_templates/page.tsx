@@ -74,7 +74,7 @@ export default async function PlanYourTaskTemplatesPage({
           .select("file_name, workflow_fields")
           .eq("client_account_id", accountId)
           .order("created_at"),
-        // For dates the client added in Select Your Date Fields.
+        // For dates the client added in Calculate Your Dates.
         supabase
           .from("date_calculations")
           .select("otc_field, field_name")
@@ -128,7 +128,7 @@ export default async function PlanYourTaskTemplatesPage({
   ];
 
   // Date Field choices: every date, not just the ones auto-calculated in
-  // Select Your Date Fields. OTC's dates by section, in OTC's order, then
+  // Calculate Your Dates. OTC's dates by section, in OTC's order, then
   // date fields the client added (assigning their contracts, or in date
   // prep).
   const assigned = (docs ?? [])

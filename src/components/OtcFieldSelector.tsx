@@ -105,9 +105,9 @@ export function OtcFieldSelector({
   // reload comes back to it).
   initialGroup?: string;
   // Number fields: the date each is the days for, and ones that aren't any
-  // date's days; and dates added in Select Your Date Fields.
+  // date's days; and dates added in Calculate Your Dates.
   dateOf?: Record<string, string>;
-  // The date Select Your Date Fields paired each with on its own.
+  // The date Calculate Your Dates paired each with on its own.
   suggestedDates?: Record<string, string>;
   addedDates?: { id: string; name: string }[];
   notDates?: string[];

@@ -398,7 +398,7 @@ export function TaskPlanner({
             href="/configurator/select_your_date_fields"
             className="font-semibold underline"
           >
-            Select Your Date Fields
+            Calculate Your Dates
           </Link>
           .
         </p>

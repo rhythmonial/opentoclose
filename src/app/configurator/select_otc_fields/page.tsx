@@ -141,8 +141,8 @@ export default async function SelectOtcFieldsPage({
       ])
     : [null, { data: null }, { data: [] }];
   // Number fields: the date each is the days for, and ones that aren't
-  // any date's; and dates they added in Select Your Date Fields.
-  // Ties picked here count; ones Select Your Date Fields made on its own
+  // any date's; and dates they added in Calculate Your Dates.
+  // Ties picked here count; ones Calculate Your Dates made on its own
   // (a "... Days" field and its "... Date") are suggestions.
   const suggestedDates: Record<string, string> = {};
   for (const c of calcs ?? []) if (c.enabled && c.number_field) suggestedDates[c.number_field] = c.otc_field;

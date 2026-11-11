@@ -186,7 +186,7 @@ export default async function SelectYourDateFieldsPage({
         )}
 
         <h1 className="mt-3 font-display text-2xl font-bold text-ink">
-          {step?.title ?? "Select Your Date Fields"}
+          {step?.title ?? "Calculate Your Dates"}
         </h1>
         {step?.description ? (
           <div

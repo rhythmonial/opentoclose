@@ -18,7 +18,7 @@ export type NumberOption = DateOption & { group: "contract" | "selected" | "othe
 const cellSelect =
   "w-full min-w-[7rem] rounded-md border border-border bg-bg px-1.5 py-1 text-xs text-ink outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-40";
 
-// Select Your Date Fields: the hard dates on the client's contracts
+// Calculate Your Dates: the hard dates on the client's contracts
 // (nothing to work out), the dates days fields set (the contract's in the
 // order they appear on it, then the ones they chose in Finalize Your
 // Fields), and the dates they chose there (worked out if they say so).
