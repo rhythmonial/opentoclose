@@ -656,6 +656,22 @@ function FieldRow({
               onType={checked ? (onChoices ?? onNumber) : undefined}
               tone={checked && onNumber ? (numberDone ? "done" : "needed") : undefined}
             />
+            {/* A field they added and pointed at this one: ↺ puts it back. */}
+            {wasNew && (
+              <button
+                type="button"
+                title={`Put back "${wasNew.name}" as your new field`}
+                aria-label={`Put back ${wasNew.name}`}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  const res = await unmapCreatedField(accountId, wasNew.id);
+                  if (res.ok) onPutBack(wasNew);
+                }}
+                className="shrink-0 rounded px-1 text-sm leading-none text-ink-soft hover:bg-accent-soft/60 hover:text-accent"
+              >
+                &#8634;
+              </button>
+            )}
             {onRename && (
               <button
                 type="button"
@@ -714,22 +730,8 @@ function FieldRow({
                 placeholder="Rename"
                 title={aliases ? `Could be: ${aliases.join(", ")}` : "What you'd like this field called"}
                 aria-label={`Rename ${field.name}`}
-                className={`w-[12rem] max-w-full rounded-md border border-border bg-bg py-1 pl-2 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent ${wasNew ? "pr-7" : "pr-2"}`}
+                className={`w-[12rem] max-w-full rounded-md border border-border bg-bg py-1 pl-2 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent pr-2`}
               />
-              {wasNew && (
-                <button
-                  type="button"
-                  title={`Put back "${wasNew.name}" (the field you added)`}
-                  aria-label={`Put back ${wasNew.name}`}
-                  onClick={async () => {
-                    const res = await unmapCreatedField(accountId, wasNew.id);
-                    if (res.ok) onPutBack(wasNew);
-                  }}
-                  className="absolute inset-y-0 right-1 my-auto h-5 rounded px-1 text-sm text-ink-soft hover:text-accent"
-                >
-                  &#8634;
-                </button>
-              )}
             </span>
           )}
           <PlaceholderCell
