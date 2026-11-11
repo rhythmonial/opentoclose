@@ -1,6 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
-import type { ContractBlank } from "@/lib/contractBlanks";
-import { inUploadOrder } from "@/lib/docOrder";
+import { allPlaceholders, cleanPlaceholders, contractLines } from "@/lib/placeholders";
 import { orgSectionsWith, type OrgSection } from "@/lib/fieldOrganization";
 import {
   cleanCustomFields,
@@ -18,7 +17,6 @@ import {
   newOtcFieldsFrom,
   optionTitlesOf,
   otcTargetOf,
-  placeholderText,
   type WorkflowField,
 } from "@/lib/workflowFields";
 
@@ -38,8 +36,7 @@ export type FieldUse = {
   names: Record<string, string>;
   // Choice options on their contracts, by the field they're for.
   contractOptions: Record<string, string[]>;
-  // Each field's placeholder text, from where it first appears on their
-  // contracts ("LINE 134, if blank = 3").
+  // Each field's placeholder ("134- if blank = 3").
   placeholders: Record<string, string>;
 };
 
@@ -47,7 +44,7 @@ export async function loadFieldUse(supabase: Supabase, accountId: string): Promi
   const [{ data: saved }, { data: docs }] = await Promise.all([
     supabase
       .from("client_otc_field_selections")
-      .select("fields, field_names, custom_fields, custom_sections")
+      .select("fields, field_names, custom_fields, custom_sections, placeholders")
       .eq("client_account_id", accountId)
       .maybeSingle(),
     supabase
@@ -92,24 +89,9 @@ export async function loadFieldUse(supabase: Supabase, accountId: string): Promi
     }
     if (f.choice_role === "question" && f.otc_field) for (const t of f.options ?? []) add(f.otc_field, t);
   }
-  // Placeholder text from each field's first box, contract by contract in
-  // their upload order, top to bottom.
-  const placeholders: Record<string, string> = {};
-  for (const d of inUploadOrder(docs ?? [])) {
-    const blanks = (Array.isArray(d.blanks) ? d.blanks : []) as ContractBlank[];
-    const fields = (Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : []).filter(isActive);
-    const boxes = blanks
-      .filter((b) => b.id && !b.removed)
-      .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
-    const byKey = new Map(fields.map((f) => [f.id, f] as const));
-    for (const b of boxes) {
-      const f = byKey.get(b.group ?? b.id!);
-      const target = f ? otcTargetOf(f) : undefined;
-      if (!f || !target || target in placeholders) continue;
-      const text = placeholderText(b.line, f.if_blank);
-      if (text) placeholders[target] = text;
-    }
-  }
+  // Placeholders: the ones they set in Finalize Your Fields, and numbers'
+  // if-blank values from their contracts.
+  const placeholders = allPlaceholders(contractLines(docs ?? []), cleanPlaceholders(saved?.placeholders));
   const sections = orgSectionsWith(cleanCustomSections(saved?.custom_sections));
   return { inUse, newFields, custom, sections, names, contractOptions, placeholders };
 }

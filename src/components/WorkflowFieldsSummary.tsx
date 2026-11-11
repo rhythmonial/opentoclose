@@ -245,7 +245,7 @@ export function WorkflowFieldsSummary({
                       <th className="w-12 px-3 py-2 font-semibold">Line</th>
                       <th className="px-3 py-2 font-semibold">Field</th>
                       <th className="w-20 px-3 py-2 font-semibold">Type</th>
-                      <th className="px-3 py-2 font-semibold">Placeholder text</th>
+                      <th className="px-3 py-2 font-semibold">Placeholder</th>
                       {editing && (
                         <th className="w-[11.5rem] px-3 py-2 font-semibold">Rename or assign</th>
                       )}

@@ -329,7 +329,7 @@ export function DateFieldsConfigurator({
         {c.number_field && blankNotes[c.number_field] && (
           <p className={`text-xs sm:col-span-5 ${c.days !== null ? "font-semibold text-danger" : "text-ink-soft"}`}>
             Leave Days blank: {numbers.find((n) => n.id === c.number_field)?.name ?? "its days field"} will
-            have the placeholder text &ldquo;{blankNotes[c.number_field]}&rdquo; to note what the
+            have the placeholder &ldquo;{blankNotes[c.number_field]}&rdquo; to note what the
             contract says when it&rsquo;s left blank.
           </p>
         )}

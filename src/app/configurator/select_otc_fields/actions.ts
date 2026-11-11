@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
+import { cleanPlaceholders } from "@/lib/placeholders";
 import {
   cleanCustomFields,
   cleanFieldNames,
@@ -85,4 +86,29 @@ export async function finishSelectOtcFields() {
   if (cleanGroupsDone(data?.groups_done).length < SELECTABLE_GROUPS.length) redirect(PAGE);
   await approveStep(supabase, user.id, accountId, STEP_KEY);
   redirect("/portal");
+}
+
+// Saves a field's placeholder ("" removes it, even a number's from its
+// contract).
+export async function saveFieldPlaceholder(
+  accountId: string | null,
+  fieldId: string,
+  text: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  if (!fieldId || fieldId.length > 120) return { ok: false, error: "Unknown field." };
+  const { data: saved } = await supabase
+    .from("client_otc_field_selections")
+    .select("placeholders")
+    .eq("client_account_id", account)
+    .maybeSingle();
+  const placeholders = { ...cleanPlaceholders(saved?.placeholders), [fieldId]: text.replace(/\s+/g, " ").trim().slice(0, 200) };
+  const { error } = await supabase.from("client_otc_field_selections").upsert(
+    { client_account_id: account, placeholders, updated_at: new Date().toISOString() },
+    { onConflict: "client_account_id" },
+  );
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  return { ok: true };
 }

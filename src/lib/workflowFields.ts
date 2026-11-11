@@ -433,9 +433,9 @@ export function cleanTitles(raw: unknown): string[] {
 export const optionTitlesOf = (f: Pick<WorkflowField, "option_title" | "option_titles">) =>
   f.option_titles?.length ? f.option_titles : f.option_title ? [f.option_title] : [];
 
-// A field's placeholder text: where it is on the contract, and for a number
-// what it is if left blank ("LINE 134, if blank = 3").
+// A field's placeholder: its contract line, and for a number what it is if
+// left blank ("134- if blank = 3").
 export function placeholderText(line: number | null | undefined, ifBlank?: string) {
-  const parts = [line ? `LINE ${line}` : null, ifBlank ? `if blank = ${ifBlank}` : null].filter(Boolean);
-  return parts.join(", ");
+  if (!ifBlank) return line ? `${line}- ` : "";
+  return `${line ? `${line}- ` : ""}if blank = ${ifBlank}`;
 }

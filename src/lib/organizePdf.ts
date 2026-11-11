@@ -286,7 +286,7 @@ export async function organizeInstructionsPdf({
     ),
   );
   if (withPlaceholder.length > 0) {
-    part(`Add placeholder text (${withPlaceholder.length})`);
+    part(`Add placeholders (${withPlaceholder.length})`);
     withPlaceholder.forEach((p, i) => {
       const name = fields.find((f) => f.id === p.id)?.name ?? p.id;
       w.text(`"${name}": ${placeholders[p.id]}`, { indent: 14, gap: 2, prefix: `${n}.${i + 1}` });

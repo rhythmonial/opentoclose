@@ -18,6 +18,7 @@ import { fieldLabel, type ContractBlank } from "@/lib/contractBlanks";
 import { isActive, newOtcFieldsFrom, otcTargetOf, type WorkflowField } from "@/lib/workflowFields";
 import { inContractOrder } from "@/components/WorkflowFieldsSummary";
 import { OtcFieldSelector } from "@/components/OtcFieldSelector";
+import { cleanPlaceholders, contractLines } from "@/lib/placeholders";
 import { finishSelectOtcFields } from "./actions";
 
 const STEP_KEY = "select_otc_fields";
@@ -62,12 +63,12 @@ export default async function SelectOtcFieldsPage({
     ? await Promise.all([
         supabase
           .from("client_otc_field_selections")
-          .select("fields, field_names, groups_done, custom_fields, custom_sections")
+          .select("fields, field_names, groups_done, custom_fields, custom_sections, placeholders")
           .eq("client_account_id", accountId)
           .maybeSingle(),
         supabase
           .from("contract_documents")
-          .select("id, file_name, blanks, workflow_fields")
+          .select("id, file_name, blanks, workflow_fields, created_at, upload_order")
           .eq("client_account_id", accountId)
           .eq("is_scanned", false)
           .order("created_at"),
@@ -103,6 +104,16 @@ export default async function SelectOtcFieldsPage({
     saved?.field_names,
     new Map([...OTC_FIELDS, ...newFields, ...custom].map((f) => [f.id, f.name] as const)),
   );
+
+  // Each field's line on the contracts (for its placeholder), and OTC
+  // fields that were fields they added and then pointed at them (↺ puts
+  // the added field back).
+  const lines = contractLines(docs ?? []);
+  const wasNew: Record<string, { id: string; name: string }> = {};
+  for (const f of summaryDocs.flatMap((d) => d.fields).filter(isActive)) {
+    const target = otcTargetOf(f);
+    if (target && f.was_new) wasNew[target] = { id: f.was_new.id, name: f.was_new.name };
+  }
 
   const groupsDone = cleanGroupsDone(saved?.groups_done);
   const allDone = groupsDone.length === SELECTABLE_GROUPS.length;
@@ -192,6 +203,9 @@ export default async function SelectOtcFieldsPage({
               customSections={cleanCustomSections(saved?.custom_sections)}
               assigned={assigned}
               newFields={newFields}
+              lines={lines}
+              savedPlaceholders={cleanPlaceholders(saved?.placeholders)}
+              wasNew={wasNew}
             />
           ) : (
             <p className="rounded-xl border border-border bg-surface p-6 text-sm text-ink-soft">

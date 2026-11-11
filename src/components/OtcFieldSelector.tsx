@@ -16,9 +16,15 @@ import {
   type OtcField,
 } from "@/lib/otcFields";
 import {
+  saveFieldPlaceholder,
   saveOtcFieldSelection,
   type OtcFieldSelection,
 } from "@/app/configurator/select_otc_fields/actions";
+import { unmapCreatedField } from "@/app/configurator/assign_your_workflow_fields/actions";
+import { NewFieldMapper } from "@/components/WorkflowFieldNameCell";
+import { OTC_FIELDS } from "@/lib/otcFields";
+import { NEW_OTC_PREFIX } from "@/lib/workflowFields";
+import { placeholderOf, type contractLines } from "@/lib/placeholders";
 
 // OTC's field types, as its Field Editor names them.
 const KIND_LABELS: Record<string, string> = {
@@ -54,6 +60,9 @@ export function OtcFieldSelector({
   newFields,
   showSummary,
   customSections = [],
+  lines = {},
+  savedPlaceholders = {},
+  wasNew = {},
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
@@ -67,6 +76,11 @@ export function OtcFieldSelector({
   showSummary: boolean;
   // Sections the client added (shown at the end of their groups).
   customSections?: CustomSection[];
+  // Each field's line on the contracts, and the placeholders they've set.
+  lines?: ReturnType<typeof contractLines>;
+  savedPlaceholders?: Record<string, string>;
+  // OTC fields that were fields they added (↺ puts the added one back).
+  wasNew?: Record<string, { id: string; name: string }>;
 }) {
   // Every section of OTC's field groups (empty ones too, as OTC shows
   // them), with the client's new fields at the end of theirs.
@@ -90,6 +104,14 @@ export function OtcFieldSelector({
 
   const [picked, setPicked] = useState<Set<string>>(() => new Set(initial.fields));
   const [names, setNames] = useState<Record<string, string>>(initial.names);
+  const [placeholders, setPlaceholders] = useState(savedPlaceholders);
+  async function savePlaceholder(id: string, text: string) {
+    setPlaceholders((p) => ({ ...p, [id]: text }));
+    setStatus("saving");
+    const res = await saveFieldPlaceholder(accountId, id, text);
+    setStatus(res.ok ? "saved" : "error");
+    setError(res.ok ? null : (res.error ?? "Couldn't save."));
+  }
   const [done, setDone] = useState<Set<string>>(() => new Set(initial.groupsDone));
   const [group, setGroup] = useState(
     () => SELECTABLE_GROUPS.find((g) => !initial.groupsDone.includes(g)) ?? SELECTABLE_GROUPS[0],
@@ -337,6 +359,11 @@ export function OtcFieldSelector({
                       onContract={assigned[f.id]}
                       onCheck={(on) => setChecked([f.id], on)}
                       displayName={names[f.id] ?? ""}
+                      accountId={accountId}
+                      placeholder={placeholderOf(f.id, lines, placeholders)}
+                      line={lines[f.id]?.line ?? null}
+                      onPlaceholder={(text) => savePlaceholder(f.id, text)}
+                      wasNew={wasNew[f.id]}
                       onDisplayName={(value) => {
                         const next = { ...names };
                         if (value && value.toLowerCase() !== f.name.toLowerCase()) next[f.id] = value;
@@ -410,6 +437,11 @@ function FieldRow({
   onCheck,
   displayName,
   onDisplayName,
+  accountId,
+  placeholder,
+  line,
+  onPlaceholder,
+  wasNew,
 }: {
   field: Field;
   checked: boolean;
@@ -420,8 +452,15 @@ function FieldRow({
   // How the client would like it displayed, if not OTC's name.
   displayName: string;
   onDisplayName: (value: string) => void;
+  accountId: string | null;
+  // Its placeholder ("" for none), and its line on the contracts.
+  placeholder: string;
+  line: number | null;
+  onPlaceholder: (text: string) => void;
+  wasNew?: { id: string; name: string };
 }) {
   const aliases = OTC_FIELD_ALIASES[field.id];
+  const created = field.id.startsWith(NEW_OTC_PREFIX);
   const locked = required || Boolean(onContract);
   return (
     <div
@@ -457,27 +496,58 @@ function FieldRow({
           )
         )}
       </label>
-      {/* Only fields in use can be renamed. */}
+      {/* Fields in use get a placeholder and can be renamed (or, for one
+          they added, pointed at an Open to Close field instead). */}
       {checked && (
-      <span className="flex min-w-0 max-w-full items-center">
-        <input
-          key={displayName}
-          defaultValue={displayName}
-          onBlur={(e) => {
-            if (e.target.value.trim() !== displayName) onDisplayName(e.target.value.trim());
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-          }}
-          maxLength={120}
-          placeholder={
-            aliases ? `${aliases.slice(0, 3).join(", ")}…` : "Display as (optional)"
-          }
-          title={aliases ? `Could be: ${aliases.join(", ")}` : "How you'd like this field displayed"}
-          aria-label={`How you'd like ${field.name} displayed`}
-          className="w-[19.5rem] max-w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
-        />
-      </span>
+        <span className="flex max-w-full flex-wrap items-center gap-2">
+          <PlaceholderCell
+            key={placeholder}
+            value={placeholder}
+            line={line}
+            name={field.name}
+            onSave={onPlaceholder}
+          />
+          {created ? (
+            <NewFieldMapper
+              accountId={accountId}
+              createdId={field.id}
+              createdName={field.name}
+              choices={OTC_FIELDS.filter((o) => o.kind === field.kind)}
+            />
+          ) : (
+            <span className="relative inline-flex">
+              <input
+                key={displayName}
+                defaultValue={displayName}
+                onBlur={(e) => {
+                  if (e.target.value.trim() !== displayName) onDisplayName(e.target.value.trim());
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                }}
+                maxLength={120}
+                placeholder="Rename"
+                title={aliases ? `Could be: ${aliases.join(", ")}` : "What you'd like this field called"}
+                aria-label={`Rename ${field.name}`}
+                className={`w-[12rem] max-w-full rounded-md border border-border bg-bg py-1 pl-2 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent ${wasNew ? "pr-7" : "pr-2"}`}
+              />
+              {wasNew && (
+                <button
+                  type="button"
+                  title={`Put back "${wasNew.name}" (the field you added)`}
+                  aria-label={`Put back ${wasNew.name}`}
+                  onClick={async () => {
+                    const res = await unmapCreatedField(accountId, wasNew.id);
+                    if (res.ok) window.location.reload();
+                  }}
+                  className="absolute inset-y-0 right-1 my-auto h-5 rounded px-1 text-sm text-ink-soft hover:text-accent"
+                >
+                  &#8634;
+                </button>
+              )}
+            </span>
+          )}
+        </span>
       )}
     </div>
   );
@@ -734,5 +804,60 @@ function CustomFieldDialog({
         </div>
       </form>
     </div>
+  );
+}
+
+// A field's placeholder: its text to edit (clearing it removes it), or a +
+// to add one, which starts with the field's contract line ("134- ").
+function PlaceholderCell({
+  value,
+  line,
+  name,
+  onSave,
+}: {
+  value: string;
+  line: number | null;
+  name: string;
+  onSave: (text: string) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const start = line ? `${line}- ` : "";
+  if (!value && !adding) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAdding(true)}
+        title="Add a placeholder"
+        aria-label={`Add a placeholder for ${name}`}
+        className="flex w-[12rem] items-center gap-1 rounded-md border border-dashed border-border px-2 py-1 text-xs font-medium text-ink-faint hover:border-accent hover:text-accent"
+      >
+        <span className="text-sm leading-none">+</span> Placeholder
+      </button>
+    );
+  }
+  return (
+    <input
+      defaultValue={value || start}
+      autoFocus={adding}
+      onFocus={(e) => {
+        const end = e.currentTarget.value.length;
+        e.currentTarget.setSelectionRange(end, end);
+      }}
+      onBlur={(e) => {
+        const next = e.target.value.replace(/\s+/g, " ").trim();
+        setAdding(false);
+        // Leaving a new one as just its line adds nothing.
+        if (!value && next === start.trim()) return;
+        if (next !== value) onSave(next);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+      maxLength={200}
+      placeholder="Placeholder"
+      title="Placeholder (clear it to remove it)"
+      aria-label={`Placeholder for ${name}`}
+      className="w-[12rem] max-w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+    />
   );
 }

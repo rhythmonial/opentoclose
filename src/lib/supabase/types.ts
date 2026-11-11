@@ -444,6 +444,7 @@ export type Database = {
       client_otc_field_selections: {
         Row: {
           custom_sections: Json
+          placeholders: Json
           custom_fields: Json
           client_account_id: string
           fields: string[]
@@ -453,6 +454,7 @@ export type Database = {
         }
         Insert: {
           custom_sections?: Json
+          placeholders?: Json
           custom_fields?: Json
           client_account_id: string
           fields?: string[]
@@ -462,6 +464,7 @@ export type Database = {
         }
         Update: {
           custom_sections?: Json
+          placeholders?: Json
           custom_fields?: Json
           client_account_id?: string
           fields?: string[]
