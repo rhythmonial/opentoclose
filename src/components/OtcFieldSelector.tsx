@@ -16,6 +16,7 @@ import {
   type OtcField,
 } from "@/lib/otcFields";
 import {
+  saveChoiceAdded,
   saveFieldPlaceholder,
   saveOtcFieldSelection,
   type OtcFieldSelection,
@@ -63,6 +64,7 @@ export function OtcFieldSelector({
   lines = {},
   savedPlaceholders = {},
   wasNew = {},
+  choices = {},
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
@@ -81,6 +83,9 @@ export function OtcFieldSelector({
   savedPlaceholders?: Record<string, string>;
   // OTC fields that were fields they added (↺ puts the added one back).
   wasNew?: Record<string, { id: string; name: string }>;
+  // Each choice field's options: OTC's, the ones on their contracts, and
+  // the ones they've added (shown when its "(Choice)" is clicked).
+  choices?: Record<string, { defaults: string[]; contract: string[]; added: string[] }>;
 }) {
   // Every section of OTC's field groups (empty ones too, as OTC shows
   // them), with the client's new fields at the end of theirs.
@@ -105,6 +110,17 @@ export function OtcFieldSelector({
   const [picked, setPicked] = useState<Set<string>>(() => new Set(initial.fields));
   const [names, setNames] = useState<Record<string, string>>(initial.names);
   const [placeholders, setPlaceholders] = useState(savedPlaceholders);
+  const [added, setAdded] = useState(() =>
+    Object.fromEntries(Object.entries(choices).map(([id, c]) => [id, c.added])),
+  );
+  const [choiceFor, setChoiceFor] = useState<Field | null>(null);
+  async function saveAdded(id: string, next: string[]) {
+    setAdded((a) => ({ ...a, [id]: next }));
+    setStatus("saving");
+    const res = await saveChoiceAdded(accountId, id, next);
+    setStatus(res.ok ? "saved" : "error");
+    setError(res.ok ? null : (res.error ?? "Couldn't save."));
+  }
   async function savePlaceholder(id: string, text: string) {
     setPlaceholders((p) => ({ ...p, [id]: text }));
     setStatus("saving");
@@ -352,6 +368,7 @@ export function OtcFieldSelector({
                       line={lines[f.id]?.line ?? null}
                       onPlaceholder={(text) => savePlaceholder(f.id, text)}
                       wasNew={wasNew[f.id]}
+                      onChoices={choices[f.id] ? () => setChoiceFor(f) : undefined}
                       onDisplayName={(value) => {
                         const next = { ...names };
                         if (value && value.toLowerCase() !== f.name.toLowerCase()) next[f.id] = value;
@@ -385,6 +402,16 @@ export function OtcFieldSelector({
         </div>
       ))}
 
+      {choiceFor && choices[choiceFor.id] && (
+        <ChoiceOptionsDialog
+          name={choiceFor.name}
+          defaults={choices[choiceFor.id].defaults}
+          contract={choices[choiceFor.id].contract}
+          added={added[choiceFor.id] ?? []}
+          onAdded={(next) => saveAdded(choiceFor.id, next)}
+          onClose={() => setChoiceFor(null)}
+        />
+      )}
       {dialog && (
         <CustomFieldDialog
           sectionName={SECTIONS.find((x) => x.id === dialog.sectionId)?.name ?? ""}
@@ -430,6 +457,7 @@ function FieldRow({
   line,
   onPlaceholder,
   wasNew,
+  onChoices,
 }: {
   field: Field;
   checked: boolean;
@@ -446,6 +474,8 @@ function FieldRow({
   line: number | null;
   onPlaceholder: (text: string) => void;
   wasNew?: { id: string; name: string };
+  // Opens its choice options (a choice field).
+  onChoices?: () => void;
 }) {
   const aliases = OTC_FIELD_ALIASES[field.id];
   const created = field.id.startsWith(NEW_OTC_PREFIX);
@@ -471,7 +501,7 @@ function FieldRow({
           onChange={(e) => onCheck(e.target.checked)}
           className="h-4 w-4 shrink-0"
         />
-        <FieldName field={field} required={required} bold={checked} />
+        <FieldName field={field} required={required} bold={checked} onType={onChoices} />
         {onContract ? (
           <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
             Contract
@@ -488,13 +518,6 @@ function FieldRow({
           they added, pointed at an Open to Close field instead). */}
       {checked && (
         <span className="flex max-w-full flex-wrap items-center gap-2">
-          <PlaceholderCell
-            key={placeholder}
-            value={placeholder}
-            line={line}
-            name={field.name}
-            onSave={onPlaceholder}
-          />
           {created ? (
             <NewFieldMapper
               accountId={accountId}
@@ -535,6 +558,13 @@ function FieldRow({
               )}
             </span>
           )}
+          <PlaceholderCell
+            key={placeholder}
+            value={placeholder}
+            line={line}
+            name={field.name}
+            onSave={onPlaceholder}
+          />
         </span>
       )}
     </div>
@@ -542,7 +572,18 @@ function FieldRow({
 }
 
 // "* Name (Type)": the asterisk when OTC requires it.
-function FieldName({ field, required, bold }: { field: Field; required: boolean; bold?: boolean }) {
+function FieldName({
+  field,
+  required,
+  bold,
+  onType,
+}: {
+  field: Field;
+  required: boolean;
+  bold?: boolean;
+  // Clicking the type (a choice field's options).
+  onType?: () => void;
+}) {
   const type = KIND_LABELS[field.kind ?? ""];
   return (
     <span className="min-w-0 text-sm">
@@ -551,7 +592,25 @@ function FieldName({ field, required, bold }: { field: Field; required: boolean;
       </span>
       {required && <span className="sr-only">Required: </span>}
       <span className={`text-accent ${bold ? "font-semibold" : ""}`}>{field.name}</span>
-      {type && <span className="text-ink-soft"> ({type})</span>}
+      {type &&
+        (onType ? (
+          <>
+            {" "}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                onType();
+              }}
+              title="See and add its choice options"
+              className="text-ink-soft underline decoration-dotted underline-offset-2 hover:text-accent"
+            >
+              ({type})
+            </button>
+          </>
+        ) : (
+          <span className="text-ink-soft"> ({type})</span>
+        ))}
       {field.isNew && (
         <span className="ml-1.5 rounded bg-gold/20 px-1 py-px align-middle text-[10px] font-bold uppercase text-ink">
           New
@@ -877,5 +936,123 @@ function PlaceholderCell({
         </button>
       </span>
     </span>
+  );
+}
+
+// A choice field's options in a popup: Open to Close's, the ones on their
+// contracts, and the ones they've added (which can be taken off), with a
+// box to add more.
+function ChoiceOptionsDialog({
+  name,
+  defaults,
+  contract,
+  added,
+  onAdded,
+  onClose,
+}: {
+  name: string;
+  defaults: string[];
+  contract: string[];
+  added: string[];
+  onAdded: (next: string[]) => void;
+  onClose: () => void;
+}) {
+  const [text, setText] = useState("");
+  const all = [...defaults, ...contract, ...added];
+  const add = () => {
+    const t = text.trim().slice(0, 120);
+    setText("");
+    if (!t || all.some((x) => x.toLowerCase() === t.toLowerCase())) return;
+    onAdded([...added, t]);
+  };
+  const chips = (items: string[], remove?: (t: string) => void) => (
+    <div className="mt-1.5 flex flex-wrap gap-1.5">
+      {items.map((t) => (
+        <span
+          key={t}
+          className="inline-flex items-center gap-1 rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs text-ink"
+        >
+          {t}
+          {remove && (
+            <button
+              type="button"
+              onClick={() => remove(t)}
+              aria-label={`Remove ${t}`}
+              className="text-ink-faint hover:text-danger"
+            >
+              &times;
+            </button>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="choice-options-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-xl">
+        <h2 id="choice-options-title" className="font-display text-lg font-bold text-ink">
+          {name} options
+        </h2>
+        {defaults.length > 0 && (
+          <div className="mt-3">
+            <p className="text-xs font-semibold text-ink-soft">Open to Close&rsquo;s options</p>
+            {chips(defaults)}
+          </div>
+        )}
+        {contract.length > 0 && (
+          <div className="mt-3">
+            <p className="text-xs font-semibold text-ink-soft">From your contracts</p>
+            {chips(contract)}
+          </div>
+        )}
+        {added.length > 0 && (
+          <div className="mt-3">
+            <p className="text-xs font-semibold text-ink-soft">Added by you</p>
+            {chips(added, (t) => onAdded(added.filter((x) => x !== t)))}
+          </div>
+        )}
+        {all.length === 0 && <p className="mt-3 text-sm text-ink-faint">No options yet.</p>}
+        <form
+          className="mt-4 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            add();
+          }}
+        >
+          <input
+            autoFocus
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            maxLength={120}
+            placeholder="Add an option"
+            aria-label={`Add an option to ${name}`}
+            className="min-w-0 flex-1 rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
+          />
+          <button
+            type="submit"
+            disabled={!text.trim()}
+            className="rounded-md bg-accent px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            Add
+          </button>
+        </form>
+        <div className="mt-4 flex justify-end">
+          <button type="button" onClick={onClose} className="text-sm font-semibold text-ink-soft">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

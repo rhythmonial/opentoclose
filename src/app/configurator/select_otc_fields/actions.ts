@@ -13,7 +13,7 @@ import {
   OTC_FIELDS,
   SELECTABLE_GROUPS,
 } from "@/lib/otcFields";
-import { isActive, newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
+import { isActive, NEW_OTC_PREFIX, newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 
 const STEP_KEY = "select_otc_fields";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -106,6 +106,41 @@ export async function saveFieldPlaceholder(
   const placeholders = { ...cleanPlaceholders(saved?.placeholders), [fieldId]: text.replace(/\s+/g, " ").trim().slice(0, 200) };
   const { error } = await supabase.from("client_otc_field_selections").upsert(
     { client_account_id: account, placeholders, updated_at: new Date().toISOString() },
+    { onConflict: "client_account_id" },
+  );
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  return { ok: true };
+}
+
+// Saves the choice options a client added to a choice field (an Open to
+// Close one, or one they added), kept with the ones Organize Your Fields
+// edits.
+export async function saveChoiceAdded(
+  accountId: string | null,
+  fieldId: string,
+  added: string[],
+): Promise<{ ok: boolean; error?: string }> {
+  const isChoice =
+    OTC_FIELDS.some((f) => f.id === fieldId && f.kind === "choice") ||
+    (fieldId.startsWith(NEW_OTC_PREFIX) && fieldId.length <= 120);
+  if (!isChoice) return { ok: false, error: "Unknown field." };
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const clean: string[] = [];
+  for (const x of added.slice(0, 200)) {
+    const t = String(x ?? "").trim().slice(0, 120);
+    if (t && !clean.some((c) => c.toLowerCase() === t.toLowerCase())) clean.push(t);
+  }
+  const { data } = await supabase
+    .from("client_field_organization")
+    .select("choice_edits")
+    .eq("client_account_id", account)
+    .maybeSingle();
+  const edits = (data?.choice_edits ?? {}) as Record<string, { removed?: string[]; added?: string[] }>;
+  const choice_edits = { ...edits, [fieldId]: { removed: edits[fieldId]?.removed ?? [], added: clean } };
+  const { error } = await supabase.from("client_field_organization").upsert(
+    { client_account_id: account, choice_edits, updated_at: new Date().toISOString() },
     { onConflict: "client_account_id" },
   );
   if (error) return { ok: false, error: error.message };

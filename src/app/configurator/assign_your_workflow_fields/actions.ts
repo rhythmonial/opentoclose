@@ -14,6 +14,7 @@ import {
   newOtcFieldsFrom,
   mapCreated,
   needsSection,
+  otcTargetOf,
   unmapCreated,
   withCreatedSection,
   withChoiceOf,
@@ -331,7 +332,44 @@ export async function mapCreatedField(
 ): Promise<{ ok: boolean; error?: string }> {
   const to = OTC_FIELDS.find((f) => f.id === otcId);
   if (!to || !createdId.startsWith(NEW_OTC_PREFIX)) return { ok: false, error: "Unknown field." };
-  return changeAccountFields(accountId, (fields) => mapCreated(fields, createdId, to));
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const createdName = (await accountContracts(supabase, account)).created.find((f) => f.id === createdId)?.name;
+  const res = await changeAccountFields(accountId, (fields) => mapCreated(fields, createdId, to));
+  if (!res.ok) return res;
+  // The OTC field takes the added field's name (in its rename box) and the
+  // choice options they added to it (its contract options move with it).
+  if (createdName && createdName.trim().toLowerCase() !== to.name.toLowerCase()) {
+    await saveFieldName(accountId, otcId, createdName);
+  }
+  await moveChoiceEdits(supabase, account, createdId, otcId);
+  return res;
+}
+
+// Moves the options a client added to one choice field to another.
+async function moveChoiceEdits(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  account: string,
+  from: string,
+  to: string,
+) {
+  const { data } = await supabase
+    .from("client_field_organization")
+    .select("choice_edits")
+    .eq("client_account_id", account)
+    .maybeSingle();
+  const edits = (data?.choice_edits ?? {}) as Record<string, { removed?: string[]; added?: string[] }>;
+  const moving = edits[from];
+  if (!moving?.added?.length) return;
+  const target = edits[to] ?? { removed: [], added: [] };
+  const added = [...(target.added ?? [])];
+  for (const t of moving.added) if (!added.some((a) => a.toLowerCase() === t.toLowerCase())) added.push(t);
+  const next = { ...edits, [to]: { removed: target.removed ?? [], added } };
+  delete next[from];
+  await supabase
+    .from("client_field_organization")
+    .update({ choice_edits: next, updated_at: new Date().toISOString() })
+    .eq("client_account_id", account);
 }
 
 // Undoes mapCreatedField: back to the field the client created.
@@ -340,7 +378,25 @@ export async function unmapCreatedField(
   createdId: string,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!createdId.startsWith(NEW_OTC_PREFIX)) return { ok: false, error: "Unknown field." };
-  return changeAccountFields(accountId, (fields) => unmapCreated(fields, createdId));
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  // The OTC field it was pointed at, and the name it took from it.
+  const was = (await accountContracts(supabase, account)).docs
+    .flatMap((d) => d.fields)
+    .find((f) => f.was_new?.id === createdId);
+  const otcId = was ? otcTargetOf(was) : undefined;
+  const res = await changeAccountFields(accountId, (fields) => unmapCreated(fields, createdId));
+  if (!res.ok || !otcId || !was?.was_new) return res;
+  const { data: saved } = await supabase
+    .from("client_otc_field_selections")
+    .select("field_names")
+    .eq("client_account_id", account)
+    .maybeSingle();
+  const names = (saved?.field_names ?? {}) as Record<string, string>;
+  if (names[otcId]?.trim().toLowerCase() === was.was_new.name.trim().toLowerCase()) {
+    await saveFieldName(accountId, otcId, "");
+  }
+  return res;
 }
 
 // Changes the workflow fields on every one of the account's contracts.

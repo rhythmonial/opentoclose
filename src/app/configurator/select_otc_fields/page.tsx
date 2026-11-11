@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
 import {
+  OTC_CHOICE_OPTIONS,
   cleanCustomFields,
   cleanCustomSections,
   cleanFieldNames,
@@ -19,6 +20,7 @@ import { isActive, newOtcFieldsFrom, otcTargetOf, type WorkflowField } from "@/l
 import { inContractOrder } from "@/components/WorkflowFieldsSummary";
 import { OtcFieldSelector } from "@/components/OtcFieldSelector";
 import { cleanPlaceholders, contractLines } from "@/lib/placeholders";
+import { loadFieldUse } from "@/lib/fieldUse";
 import { finishSelectOtcFields } from "./actions";
 
 const STEP_KEY = "select_otc_fields";
@@ -115,6 +117,31 @@ export default async function SelectOtcFieldsPage({
     if (target && f.was_new) wasNew[target] = { id: f.was_new.id, name: f.was_new.name };
   }
 
+  // Each choice field's options: Open to Close's, the ones on their
+  // contracts, and the ones they've added.
+  const [use, { data: org }] = accountId
+    ? await Promise.all([
+        loadFieldUse(supabase, accountId),
+        supabase
+          .from("client_field_organization")
+          .select("choice_edits")
+          .eq("client_account_id", accountId)
+          .maybeSingle(),
+      ])
+    : [null, { data: null }];
+  const edits = (org?.choice_edits ?? {}) as Record<string, { added?: string[] }>;
+  const choices: Record<string, { defaults: string[]; contract: string[]; added: string[] }> = {};
+  for (const f of [...OTC_FIELDS, ...newFields]) {
+    if (f.kind !== "choice") continue;
+    const defaults = OTC_CHOICE_OPTIONS[f.id] ?? [];
+    const seen = (t: string, list: string[]) => list.some((x) => x.toLowerCase() === t.toLowerCase());
+    const contract = (use?.contractOptions[f.id] ?? []).filter((t) => !seen(t, defaults));
+    const added = (Array.isArray(edits[f.id]?.added) ? edits[f.id].added! : []).filter(
+      (t) => typeof t === "string" && !seen(t, [...defaults, ...contract]),
+    );
+    choices[f.id] = { defaults, contract, added };
+  }
+
   const groupsDone = cleanGroupsDone(saved?.groups_done);
   const allDone = groupsDone.length === SELECTABLE_GROUPS.length;
 
@@ -206,6 +233,7 @@ export default async function SelectOtcFieldsPage({
               lines={lines}
               savedPlaceholders={cleanPlaceholders(saved?.placeholders)}
               wasNew={wasNew}
+              choices={choices}
             />
           ) : (
             <p className="rounded-xl border border-border bg-surface p-6 text-sm text-ink-soft">
