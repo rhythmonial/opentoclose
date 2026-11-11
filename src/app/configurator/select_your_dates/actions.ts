@@ -125,15 +125,16 @@ export async function setDefaultTimeFrame(
   timeFrame: string,
   dateIds: string[],
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!TIME_FRAMES.some((t) => t.value === timeFrame)) return { ok: false, error: "Unknown choice." };
+  // "" takes the default off.
+  if (timeFrame && !TIME_FRAMES.some((t) => t.value === timeFrame)) return { ok: false, error: "Unknown choice." };
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   if (!account) return { ok: false, error: "Not signed in." };
   const { error } = await supabase.from("client_otc_field_selections").upsert(
-    { client_account_id: account, default_time_frame: timeFrame, updated_at: new Date().toISOString() },
+    { client_account_id: account, default_time_frame: timeFrame || null, updated_at: new Date().toISOString() },
     { onConflict: "client_account_id" },
   );
   if (error) return { ok: false, error: error.message };
-  const ids = dateIds.filter(idOk).slice(0, 500);
+  const ids = timeFrame ? dateIds.filter(idOk).slice(0, 500) : [];
   if (ids.length > 0) {
     const { error: calcError } = await supabase
       .from("date_calculations")

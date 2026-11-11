@@ -163,10 +163,15 @@ export function DatePairsSelector({
           {title}
           <select
               value={defaultFrame}
-              aria-label="Default Type"
+              aria-label="Default type"
               onChange={(e) => {
                 const v = e.target.value;
                 setDefaultFrame(v);
+                // Back to no default: the dates keep their types.
+                if (!v) {
+                  void run(setDefaultTimeFrame(accountId, "", []));
+                  return;
+                }
                 // Every paired date takes it.
                 const paired = Object.values(ties);
                 setFrames((f) => ({ ...f, ...Object.fromEntries(paired.map((id) => [id, v])) }));
@@ -177,9 +182,7 @@ export function DatePairsSelector({
                 defaultFrame ? "text-ink" : "text-ink-faint"
               }`}
             >
-              <option value="" disabled hidden>
-                Select your default Type
-              </option>
+              <option value="">Select your default type</option>
               {TIME_FRAMES.map((t) => (
                 <option key={t.value} value={t.value} className="text-ink">
                   {t.label}

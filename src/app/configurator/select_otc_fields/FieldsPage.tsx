@@ -329,8 +329,8 @@ export async function FieldsPage({
                     Here are the dates and number fields you use, each date beside the number field that
                     holds its days. Check a date to have it calculated, then pick its number field. A
                     number field without a date needs its date picked (or marked as not a date&rsquo;s
-                    days). Choose how each date&rsquo;s days are counted, or set them all with Default
-                    Type.
+                    days). Choose how each date&rsquo;s days are counted, or set them all with the
+                    default type.
                   </p>
                 )
               }
