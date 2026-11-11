@@ -162,8 +162,8 @@ export default async function SelectOtcFieldsPage({
       ...NOT_DAYS_FIELDS,
     ]),
   ];
-  const edits = (org?.choice_edits ?? {}) as Record<string, { added?: string[] }>;
-  const choices: Record<string, { defaults: string[]; contract: string[]; added: string[] }> = {};
+  const edits = (org?.choice_edits ?? {}) as Record<string, { added?: string[]; removed?: string[] }>;
+  const choices: Record<string, { defaults: string[]; contract: string[]; added: string[]; removed: string[] }> = {};
   for (const f of [...OTC_FIELDS, ...newFields]) {
     if (f.kind !== "choice") continue;
     const defaults = OTC_CHOICE_OPTIONS[f.id] ?? [];
@@ -172,7 +172,10 @@ export default async function SelectOtcFieldsPage({
     const added = (Array.isArray(edits[f.id]?.added) ? edits[f.id].added! : []).filter(
       (t) => typeof t === "string" && !seen(t, [...defaults, ...contract]),
     );
-    choices[f.id] = { defaults, contract, added };
+    const removed = (Array.isArray(edits[f.id]?.removed) ? edits[f.id].removed! : []).filter(
+      (t) => typeof t === "string",
+    );
+    choices[f.id] = { defaults, contract, added, removed };
   }
 
   const groupsDone = cleanGroupsDone(saved?.groups_done);

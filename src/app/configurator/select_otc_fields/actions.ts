@@ -120,6 +120,7 @@ export async function saveChoiceAdded(
   accountId: string | null,
   fieldId: string,
   added: string[],
+  removed: string[] = [],
 ): Promise<{ ok: boolean; error?: string }> {
   const isChoice =
     OTC_FIELDS.some((f) => f.id === fieldId && f.kind === "choice") ||
@@ -127,18 +128,21 @@ export async function saveChoiceAdded(
   if (!isChoice) return { ok: false, error: "Unknown field." };
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   if (!account) return { ok: false, error: "Not signed in." };
-  const clean: string[] = [];
-  for (const x of added.slice(0, 200)) {
-    const t = String(x ?? "").trim().slice(0, 120);
-    if (t && !clean.some((c) => c.toLowerCase() === t.toLowerCase())) clean.push(t);
-  }
+  const list = (items: string[]) => {
+    const out: string[] = [];
+    for (const x of items.slice(0, 200)) {
+      const t = String(x ?? "").trim().slice(0, 120);
+      if (t && !out.some((c) => c.toLowerCase() === t.toLowerCase())) out.push(t);
+    }
+    return out;
+  };
   const { data } = await supabase
     .from("client_field_organization")
     .select("choice_edits")
     .eq("client_account_id", account)
     .maybeSingle();
   const edits = (data?.choice_edits ?? {}) as Record<string, { removed?: string[]; added?: string[] }>;
-  const choice_edits = { ...edits, [fieldId]: { removed: edits[fieldId]?.removed ?? [], added: clean } };
+  const choice_edits = { ...edits, [fieldId]: { removed: list(removed), added: list(added) } };
   const { error } = await supabase.from("client_field_organization").upsert(
     { client_account_id: account, choice_edits, updated_at: new Date().toISOString() },
     { onConflict: "client_account_id" },

@@ -96,7 +96,7 @@ export function OtcFieldSelector({
   wasNew?: Record<string, { id: string; name: string }>;
   // Each choice field's options: OTC's, the ones on their contracts, and
   // the ones they've added (shown when its "(Choice)" is clicked).
-  choices?: Record<string, { defaults: string[]; contract: string[]; added: string[] }>;
+  choices?: Record<string, { defaults: string[]; contract: string[]; added: string[]; removed: string[] }>;
   // The group to open on (from the page's address, kept as they switch so a
   // reload comes back to it).
   initialGroup?: string;
@@ -137,15 +137,19 @@ export function OtcFieldSelector({
   const [added, setAdded] = useState(() =>
     Object.fromEntries(Object.entries(choices).map(([id, c]) => [id, c.added])),
   );
+  const [removedOpts, setRemovedOpts] = useState(() =>
+    Object.fromEntries(Object.entries(choices).map(([id, c]) => [id, c.removed])),
+  );
   const [choiceFor, setChoiceFor] = useState<Field | null>(null);
   const [ties, setTies] = useState(dateOf);
   const [notDate, setNotDate] = useState(() => new Set(notDates));
   const [numberFor, setNumberFor] = useState<{ field: Field; sectionId: string } | null>(null);
   const [dateNames, setDateNames] = useState(() => new Map(addedDates.map((d) => [d.id, d.name] as const)));
-  async function saveAdded(id: string, next: string[]) {
+  async function saveAdded(id: string, next: string[], removed: string[] = removedOpts[id] ?? []) {
     setAdded((a) => ({ ...a, [id]: next }));
+    setRemovedOpts((r) => ({ ...r, [id]: removed }));
     setStatus("saving");
-    const res = await saveChoiceAdded(accountId, id, next);
+    const res = await saveChoiceAdded(accountId, id, next, removed);
     setStatus(res.ok ? "saved" : "error");
     setError(res.ok ? null : (res.error ?? "Couldn't save."));
   }
@@ -539,7 +543,9 @@ export function OtcFieldSelector({
           defaults={choices[choiceFor.id].defaults}
           contract={choices[choiceFor.id].contract}
           added={added[choiceFor.id] ?? []}
+          removed={removedOpts[choiceFor.id] ?? []}
           onAdded={(next) => saveAdded(choiceFor.id, next)}
+          onRemoved={(next) => saveAdded(choiceFor.id, added[choiceFor.id] ?? [], next)}
           onClose={() => setChoiceFor(null)}
         />
       )}
@@ -1149,54 +1155,72 @@ function PlaceholderCell({
   );
 }
 
-// A choice field's options in a popup: Open to Close's, the ones on their
-// contracts, and the ones they've added (which can be taken off), with a
-// box to add more.
+// A choice field's options in a popup: Open to Close's (light green) and new
+// ones, from their contracts or added here (light yellow). The × on an
+// option turns it light red, to be deleted (clicking it again keeps it).
 function ChoiceOptionsDialog({
   name,
   defaults,
   contract,
   added,
+  removed,
   onAdded,
+  onRemoved,
   onClose,
 }: {
   name: string;
   defaults: string[];
   contract: string[];
   added: string[];
+  removed: string[];
   onAdded: (next: string[]) => void;
+  onRemoved: (next: string[]) => void;
   onClose: () => void;
 }) {
   const [text, setText] = useState("");
   const all = [...defaults, ...contract, ...added];
+  const isRemoved = (t: string) => removed.some((r) => r.toLowerCase() === t.toLowerCase());
   const add = () => {
     const t = text.trim().slice(0, 120);
     setText("");
-    if (!t || all.some((x) => x.toLowerCase() === t.toLowerCase())) return;
+    if (!t) return;
+    // Typing a deleted one again keeps it.
+    if (isRemoved(t)) {
+      onRemoved(removed.filter((r) => r.toLowerCase() !== t.toLowerCase()));
+      return;
+    }
+    if (all.some((x) => x.toLowerCase() === t.toLowerCase())) return;
     onAdded([...added, t]);
   };
-  const chips = (items: string[], remove?: (t: string) => void) => (
-    <div className="mt-1.5 flex flex-wrap gap-1.5">
-      {items.map((t) => (
-        <span
-          key={t}
-          className="inline-flex items-center gap-1 rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs text-ink"
+  const toggle = (t: string) =>
+    onRemoved(isRemoved(t) ? removed.filter((r) => r.toLowerCase() !== t.toLowerCase()) : [...removed, t]);
+  const chip = (t: string, isNew: boolean) => {
+    const off = isRemoved(t);
+    return (
+      <span
+        key={t}
+        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+          off
+            ? "bg-danger/10 text-danger line-through"
+            : isNew
+              ? "bg-warning-soft text-warning"
+              : "bg-success-soft text-success"
+        }`}
+      >
+        {t}
+        <button
+          type="button"
+          onClick={() => toggle(t)}
+          aria-label={off ? `Keep ${t}` : `Delete ${t}`}
+          title={off ? "Keep it" : "Delete it"}
+          className="no-underline opacity-70 hover:opacity-100"
         >
-          {t}
-          {remove && (
-            <button
-              type="button"
-              onClick={() => remove(t)}
-              aria-label={`Remove ${t}`}
-              className="text-ink-faint hover:text-danger"
-            >
-              &times;
-            </button>
-          )}
-        </span>
-      ))}
-    </div>
-  );
+          {off ? "↺" : "×"}
+        </button>
+      </span>
+    );
+  };
+  const newOnes = [...contract, ...added];
   return (
     <div
       role="dialog"
@@ -1214,25 +1238,17 @@ function ChoiceOptionsDialog({
         <h2 id="choice-options-title" className="font-display text-lg font-bold text-ink">
           {name} options
         </h2>
-        {defaults.length > 0 && (
-          <div className="mt-3">
-            <p className="text-xs font-semibold text-ink-soft">Open to Close&rsquo;s options</p>
-            {chips(defaults)}
+        <p className="mt-1 text-xs text-ink-faint">
+          Green options are Open to Close&rsquo;s; yellow ones are new. Click &times; on one to delete it.
+        </p>
+        {all.length > 0 ? (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {defaults.map((t) => chip(t, false))}
+            {newOnes.map((t) => chip(t, true))}
           </div>
+        ) : (
+          <p className="mt-3 text-sm text-ink-faint">No options yet.</p>
         )}
-        {contract.length > 0 && (
-          <div className="mt-3">
-            <p className="text-xs font-semibold text-ink-soft">From your contracts</p>
-            {chips(contract)}
-          </div>
-        )}
-        {added.length > 0 && (
-          <div className="mt-3">
-            <p className="text-xs font-semibold text-ink-soft">Added by you</p>
-            {chips(added, (t) => onAdded(added.filter((x) => x !== t)))}
-          </div>
-        )}
-        {all.length === 0 && <p className="mt-3 text-sm text-ink-faint">No options yet.</p>}
         <form
           className="mt-4 flex gap-2"
           onSubmit={(e) => {

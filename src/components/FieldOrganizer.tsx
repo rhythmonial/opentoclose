@@ -15,8 +15,8 @@ import { saveFieldOrganization } from "@/app/configurator/organize_your_fields/a
 const KIND_LABELS: Record<string, string> = {
   text: "Text",
   text_area: "Text Area",
-  currency: "Decimal: Dollar",
-  percentage: "Decimal: Percentage",
+  currency: "Dollar",
+  percentage: "Percentage",
   date: "Date",
   number: "Number",
   choice: "Choice",
@@ -320,25 +320,24 @@ export function FieldOrganizer({
                         node: (
                           <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-bg px-3 py-1.5 text-sm">
                             <div className="flex min-w-0 items-center gap-2">
-                              <span className="min-w-0 flex-1 truncate">
-                                <span className="font-medium text-accent">{f?.name ?? id}</span>
-                                {f?.kind && (
-                                  <span className="text-ink-soft"> ({KIND_LABELS[f.kind] ?? f.kind})</span>
+                              <span className="flex min-w-0 flex-1 items-center gap-2">
+                                <span className="min-w-0 truncate">
+                                  <span className="font-medium text-accent">{f?.name ?? id}</span>
+                                  {f?.kind && (
+                                    <span className="text-ink-soft"> ({KIND_LABELS[f.kind] ?? f.kind})</span>
+                                  )}
+                                </span>
+                                {spots[id] && (
+                                  <span className="max-w-[14rem] shrink-0 truncate rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
+                                    {spots[id]}
+                                  </span>
                                 )}
                                 {names[id] && (
-                                  <span className="text-ink-soft"> &middot; shown as &ldquo;{names[id]}&rdquo;</span>
+                                  <span className="min-w-0 truncate text-ink-soft">
+                                    shown as &ldquo;{names[id]}&rdquo;
+                                  </span>
                                 )}
                               </span>
-                              {f?.isNew && (
-                                <span className="shrink-0 rounded bg-gold/20 px-1 py-px text-[10px] font-bold uppercase text-ink">
-                                  New
-                                </span>
-                              )}
-                              {spots[id] && (
-                                <span className="max-w-[14rem] shrink-0 truncate rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
-                                  {spots[id]}
-                                </span>
-                              )}
                               <MoveMenu
                                 label={`Move ${f?.name ?? "this field"} to another section`}
                                 heading="Move this field to"
