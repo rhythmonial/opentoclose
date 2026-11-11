@@ -89,6 +89,8 @@ export default async function SelectOtcFieldsPage({
     fields: Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : [],
   }));
   const assigned: Record<string, string[]> = {};
+  // Where each first is: its contract's name and page ("Purchase Agreement #3").
+  const firstSpot: Record<string, string> = {};
   for (const doc of summaryDocs) {
     for (const { field, first } of inContractOrder(doc)) {
       const target = otcTargetOf(field);
@@ -97,6 +99,7 @@ export default async function SelectOtcFieldsPage({
         first.line ? `line ${first.line}` : `page ${first.page}`
       }: ${fieldLabel(first)}`;
       (assigned[target] ??= []).push(where);
+      firstSpot[target] ??= `${doc.name} #${first.page}`;
     }
   }
   const newFields = newOtcFieldsFrom(
@@ -257,6 +260,7 @@ export default async function SelectOtcFieldsPage({
               showSummary={isStaff}
               customSections={cleanCustomSections(saved?.custom_sections)}
               assigned={assigned}
+              firstSpot={firstSpot}
               newFields={newFields}
               lines={lines}
               savedPlaceholders={cleanPlaceholders(saved?.placeholders)}

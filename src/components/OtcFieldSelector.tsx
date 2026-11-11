@@ -61,6 +61,7 @@ export function OtcFieldSelector({
   accountId,
   initial,
   assigned,
+  firstSpot = {},
   newFields,
   showSummary,
   customSections = [],
@@ -79,6 +80,8 @@ export function OtcFieldSelector({
   initial: OtcFieldSelection;
   // OTC field id -> where it's assigned on the contracts.
   assigned: Record<string, string[]>;
+  // Where it first is: its contract's name and page ("Purchase Agreement #3").
+  firstSpot?: Record<string, string>;
   // Fields the client added while assigning (shown in their sections).
   newFields: OtcField[];
   // The "Your fields" summary (staff only; clients use it later in the
@@ -396,6 +399,7 @@ export function OtcFieldSelector({
                       checked={isOn(f.id)}
                       required={isSystemRequired(f.id)}
                       onContract={assigned[f.id]}
+                      spot={firstSpot[f.id]}
                       onCheck={(on) => setChecked([f.id], on)}
                       displayName={names[f.id] ?? ""}
                       accountId={accountId}
@@ -590,6 +594,7 @@ function FieldRow({
   onMappedTo,
   onPutBack,
   onRename,
+  spot,
 }: {
   field: Field;
   checked: boolean;
@@ -617,6 +622,7 @@ function FieldRow({
   onPutBack: (was: { id: string; name: string }) => void;
   // Renames a field they added (with the pencil beside its name).
   onRename?: (name: string) => void;
+  spot?: string;
 }) {
   const [renaming, setRenaming] = useState(false);
   const aliases = OTC_FIELD_ALIASES[field.id];
@@ -710,8 +716,9 @@ function FieldRow({
           </>
         )}
         {onContract && (
-          <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
-            Contract
+          <span className="max-w-[14rem] shrink-0 truncate rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
+            {spot ?? "Contract"}
+            {onContract.length > 1 && ` +${onContract.length - 1}`}
           </span>
         )}
       </label>
