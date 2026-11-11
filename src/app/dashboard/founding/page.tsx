@@ -43,12 +43,8 @@ export default async function FoundingApplicationsPage() {
                   {a.states_serviced ?? "—"}
                   {a.priority_state && ` (priority: ${a.priority_state})`}
                 </dd>
-                <dt className="text-ink-faint">Tools</dt>
-                <dd className="text-ink">
-                  {[a.tms && `TMS: ${a.tms}`, a.email_provider && `Email: ${a.email_provider}`, a.esign_platform && `E-sign: ${a.esign_other || a.esign_platform}`]
-                    .filter(Boolean)
-                    .join(" · ") || "—"}
-                </dd>
+                <dt className="text-ink-faint">Transaction management software</dt>
+                <dd className="text-ink">{a.tms ?? "—"}</dd>
                 {QUESTIONS.map((q) => (
                   <div key={q.key} className="contents">
                     <dt className="text-ink-faint">{q.label}</dt>

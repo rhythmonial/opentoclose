@@ -28,14 +28,8 @@ export const QUESTIONS: { key: string; label: string; options?: string[]; long?:
   },
   {
     key: "users",
-    label: "How many people will use Open to Close?",
+    label: "How many TCs and admins will use Open to Close?",
     options: ["Just me", "2 to 5", "6 to 15", "16 or more"],
-    required: true,
-  },
-  {
-    key: "contracts_ready",
-    label: "Do you have blank copies of your contracts and addenda?",
-    options: ["Yes, all of them", "Some of them", "Not yet"],
     required: true,
   },
   {
