@@ -196,7 +196,7 @@ export function ContractUploader({
             type="button"
             onClick={() => inputRef.current?.click()}
             aria-describedby="upload-help"
-            className={`group flex items-center gap-2 rounded-lg border-2 border-dashed px-3.5 py-2 text-sm font-semibold transition-colors ${
+            className={`group flex h-[50px] items-center gap-2 rounded-lg border-2 border-dashed px-3.5 text-sm font-semibold transition-colors ${
               dragging
                 ? "border-accent bg-accent-soft text-accent"
                 : "border-accent/50 bg-surface text-accent hover:border-accent hover:bg-accent-soft/50"
@@ -216,13 +216,13 @@ export function ContractUploader({
               <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
               <path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3" />
             </svg>
-            {/* The hover note sits under the title, just as wide. */}
-            <span className="relative">
+            {/* The hover note shows in the box under the title, just as wide
+                (the box keeps its size; the title moves up to make room). */}
+            <span className="flex flex-col items-stretch justify-center leading-tight">
               {dragging ? "Drop to upload" : "Drag here or choose files"}
               <span
                 id="upload-help"
-                role="tooltip"
-                className="pointer-events-none absolute inset-x-0 top-full z-20 mt-3 hidden whitespace-nowrap text-center text-[11px] font-medium leading-tight tracking-[0.7px] text-ink-soft group-hover:block group-focus-visible:block"
+                className="max-h-0 overflow-hidden whitespace-nowrap text-center text-[11px] font-medium tracking-[0.7px] text-ink-soft opacity-0 transition-all group-hover:mt-0.5 group-hover:max-h-4 group-hover:opacity-100 group-focus-visible:mt-0.5 group-focus-visible:max-h-4 group-focus-visible:opacity-100"
               >
                 PDF only, up to 25 MB each
               </span>
