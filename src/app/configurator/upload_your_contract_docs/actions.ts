@@ -65,7 +65,7 @@ export async function saveContractDocument(input: {
     return { ok: false, error: error.message };
   }
 
-  revalidatePath(PAGE);
+  revalidatePath(PAGE, "layout");
   return { ok: true };
 }
 
@@ -83,7 +83,10 @@ export async function deleteContractDocument(formData: FormData) {
     await supabase.from("contract_documents").delete().eq("id", id);
   }
 
-  revalidatePath(PAGE);
+  revalidatePath(PAGE, "layout");
+  // Deleted from its own page: back to the documents.
+  const back = String(formData.get("back") ?? "");
+  if (back.startsWith(`${PAGE}?`) || back === PAGE) redirect(back);
 }
 
 // Marks the lesson complete once the client is done uploading.
@@ -281,7 +284,7 @@ export async function saveContractReview(input: {
     .eq("id", input.id);
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath(PAGE);
+  revalidatePath(PAGE, "layout");
   return { ok: true };
 }
 
@@ -301,6 +304,6 @@ export async function reorderUploadDocs(
   for (const [i, id] of order.entries()) {
     await supabase.from("contract_documents").update({ upload_order: i }).eq("id", id);
   }
-  revalidatePath(PAGE);
+  revalidatePath(PAGE, "layout");
   return { ok: true };
 }

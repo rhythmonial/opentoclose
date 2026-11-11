@@ -21,7 +21,7 @@ import {
 import { logHours, logTimedHours, deleteClientAccount } from "./actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { InitiationSummary } from "@/components/InitiationSummary";
-import { SavedContractDoc } from "@/components/SavedContractDoc";
+import { inUploadOrder } from "@/lib/docOrder";
 import { signSupportAttachments } from "@/lib/signSupportAttachments";
 import {
   AttachmentList,
@@ -29,7 +29,6 @@ import {
   SupportThread,
   type SupportMessage,
 } from "@/components/SupportThread";
-import type { ContractBlank } from "@/lib/contractBlanks";
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
   free: "Free",
@@ -544,23 +543,57 @@ export default async function ClientDetailPage({
         </summary>
         {contractDocs && contractDocs.length > 0 && (
           <div className="flex flex-col gap-3 border-t border-border-soft px-5 py-4">
-            {contractDocs.map((doc) => (
-              <SavedContractDoc
-                key={doc.id}
-                id={doc.id}
-                confirmedPages={doc.confirmed_pages}
-                fileName={doc.file_name}
-                url={contractUrlByPath.get(doc.storage_path) ?? null}
-                pageCount={doc.page_count ?? 0}
-                blanks={doc.blanks as ContractBlank[]}
-                isScanned={doc.is_scanned}
-                uploadedOn={new Date(doc.created_at).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              />
-            ))}
+            {/* Each opens on its page in Upload Your Contracts (/doc1, /doc2…). */}
+            {inUploadOrder(contractDocs).map((doc, i) => {
+              const url = contractUrlByPath.get(doc.storage_path);
+              return (
+                <div
+                  key={doc.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3"
+                >
+                  <Link
+                    href={`/configurator/upload_your_contract_docs/doc${i + 1}?client=${account.id}`}
+                    className="min-w-0 hover:text-accent"
+                  >
+                    <span className="block truncate text-sm font-semibold text-ink">{doc.file_name}</span>
+                    <span className="block text-xs text-ink-faint">
+                      {doc.page_count ?? 0} page{doc.page_count === 1 ? "" : "s"} &middot; Uploaded{" "}
+                      {new Date(doc.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </Link>
+                  <span className="flex items-center gap-3">
+                    {doc.is_scanned ? (
+                      <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
+                        Scanned copy
+                      </span>
+                    ) : doc.reviewed_at ? (
+                      <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-semibold text-success">
+                        Reviewed
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
+                        {doc.confirmed_pages.length} of {doc.page_count ?? 0} pages confirmed
+                      </span>
+                    )}
+                    {url && (
+                      <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent">
+                        Open PDF
+                      </a>
+                    )}
+                    <Link
+                      href={`/configurator/upload_your_contract_docs/doc${i + 1}?client=${account.id}`}
+                      className="text-xs font-semibold text-accent"
+                    >
+                      Review &rsaquo;
+                    </Link>
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </details>

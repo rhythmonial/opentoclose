@@ -1,86 +1,43 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
-import { inUploadOrder } from "@/lib/docOrder";
-import { createClient } from "@/lib/supabase/server";
-import { requireStepAccess } from "@/lib/stepAccess";
-import { getSandboxTier } from "@/lib/devSandbox";
-import type { ContractBlank } from "@/lib/contractBlanks";
 import { ContractUploader } from "@/components/ContractUploader";
-import { withWorkflowTypes } from "@/lib/fieldTypes";
-import { cleanWorkflowFields, workflowKeys } from "@/lib/workflowFields";
-import { SavedContractDoc } from "@/components/SavedContractDoc";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { deleteContractDocument, finishContractDocs, reorderUploadDocs } from "./actions";
-
-const STEP_KEY = "upload_your_contract_docs";
+import { isReviewed, loadUploadDocs } from "./load";
 
 export default async function UploadContractDocsPage({
   searchParams,
 }: {
   searchParams: Promise<{ client?: string }>;
 }) {
-  await requireStepAccess(STEP_KEY);
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const [{ data: profile }, { data: step }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("role, client_account_id")
-      .eq("id", user.id)
-      .single(),
-    supabase
-      .from("setup_steps")
-      .select("title, description")
-      .eq("key", STEP_KEY)
-      .limit(1)
-      .maybeSingle(),
-  ]);
-
-  const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
-  const sandboxTier = isStaff ? await getSandboxTier() : null;
-  // Staff open a client's work from that client's page (?client=<account>).
   const { client } = await searchParams;
-  const { data: staffClient } =
-    isStaff && client && /^[0-9a-f-]{36}$/i.test(client)
-      ? await supabase.from("client_accounts").select("id, name").eq("id", client).maybeSingle()
-      : { data: null };
-  const accountId = isStaff ? (staffClient?.id ?? null) : (profile?.client_account_id ?? null);
-  // Staff with no client picked get the test mode.
-  const testMode = isStaff && !staffClient;
+  const { step, isStaff, sandboxTier, staffClient, accountId, testMode, docs, docHref } =
+    await loadUploadDocs(client);
 
-  const { data: unordered } = accountId
-    ? await supabase
-        .from("contract_documents")
-        .select("*")
-        .eq("client_account_id", accountId)
-        .order("created_at")
-    : { data: [] };
-  const docs = unordered ? inUploadOrder(unordered) : unordered;
-
-  const { data: signed } =
-    docs && docs.length > 0
-      ? await supabase.storage
-          .from("contract-docs")
-          .createSignedUrls(
-            docs.map((d) => d.storage_path),
-            60 * 60,
-          )
-      : { data: [] };
   // Scans can't be reviewed; everything else needs every page confirmed.
-  const toReview = (docs ?? []).filter((d) => !d.is_scanned && !d.reviewed_at);
-  const firstToReview = toReview[0];
+  const toReview = docs.filter((d) => !d.is_scanned && !d.reviewed_at);
 
-  const urlByPath = new Map(
-    (signed ?? []).map((s) => [s.path, s.signedUrl] as const),
+  const title = (
+    <h1 className="font-display text-2xl font-bold text-ink">
+      {step?.title ?? "Upload Your Contract Docs"}
+    </h1>
+  );
+  const description = step?.description ? (
+    <div
+      className="mt-1.5 text-sm leading-relaxed text-ink-soft
+        [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
+        [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
+        [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
+        [&_li]:mt-1 first:[&>*]:mt-0"
+    >
+      <ReactMarkdown>{step.description}</ReactMarkdown>
+    </div>
+  ) : (
+    <p className="mt-1.5 text-sm text-ink-soft">
+      Upload the blank versions of your contracts and addenda. We&rsquo;ll read each one for
+      its fill-in blanks to map them to fields in your setup.
+    </p>
   );
 
   return (
@@ -117,110 +74,112 @@ export default async function UploadContractDocsPage({
           </div>
         )}
 
-        <h1 className="mt-3 font-display text-2xl font-bold text-ink">
-          {step?.title ?? "Upload Your Contract Docs"}
-        </h1>
-        {step?.description ? (
-          <div
-            className="mt-1.5 text-sm leading-relaxed text-ink-soft
-              [&_p]:mt-2 [&_strong]:font-bold [&_strong]:text-ink [&_em]:italic
-              [&_a]:font-semibold [&_a]:text-accent [&_a]:underline
-              [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5
-              [&_li]:mt-1 first:[&>*]:mt-0"
-          >
-            <ReactMarkdown>{step.description}</ReactMarkdown>
-          </div>
-        ) : (
-          <p className="mt-1.5 text-sm text-ink-soft">
-            Upload the blank versions of your contracts and addenda.
-            We&rsquo;ll read each one for its fill-in blanks to map them to
-            fields in your setup.
-          </p>
-        )}
+        <div className="mt-3">
+          {/* Only the client uploads their own contracts. */}
+          {staffClient ? (
+            <>
+              {title}
+              {description}
+            </>
+          ) : (
+            <ContractUploader accountId={accountId} testMode={isStaff} title={title}>
+              {description}
+            </ContractUploader>
+          )}
+        </div>
 
-        {/* Only the client uploads their own contracts. */}
-        {!staffClient && (
-          <div className="mt-6">
-            <ContractUploader accountId={accountId} testMode={isStaff} />
-          </div>
-        )}
-        {staffClient && (!docs || docs.length === 0) && (
+        {staffClient && docs.length === 0 && (
           <p className="mt-6 rounded-xl border border-border bg-surface p-6 text-sm text-ink-soft">
             {staffClient.name} hasn&rsquo;t uploaded any contracts yet.
           </p>
         )}
 
-        {docs && docs.length > 0 && (
+        {docs.length > 0 && (
           <section className="mt-8">
             <h2 className="text-[15px] font-bold text-ink">
               {staffClient ? "Their" : "Your"} uploaded documents ({docs.length})
             </h2>
             <p className="mt-0.5 text-xs text-ink-faint">
-              Drag the handle beside a document to put them in the order you like.
+              Click a document to review its pages. Drag the handle beside a document to put
+              them in the order you like.
             </p>
             <div className="mt-3">
               <SortableGroup
-                gapClass="gap-3"
-                handleClass="mt-5"
+                gapClass="gap-2"
+                handleClass="mt-4"
                 onReorder={reorderUploadDocs.bind(null, staffClient?.id ?? null)}
-                items={docs.map((doc) => ({
-                  id: doc.id,
-                  node: (
-                <SavedContractDoc
-                  key={doc.id}
-                  id={doc.id}
-                  confirmedPages={doc.confirmed_pages}
-                  defaultOpen={doc.id === firstToReview?.id}
-                  fileName={doc.file_name}
-                  url={urlByPath.get(doc.storage_path) ?? null}
-                  pageCount={doc.page_count ?? 0}
-                  // With the types picked for its workflow fields (from
-                  // before types were chosen here).
-                  blanks={withWorkflowTypes(
-                    doc.blanks as ContractBlank[],
-                    cleanWorkflowFields(
-                      doc.workflow_fields,
-                      workflowKeys(doc.blanks as ContractBlank[]),
+                items={docs.map((doc, i) => {
+                  const confirmed = doc.confirmed_pages.length;
+                  const pages = doc.page_count ?? 0;
+                  return {
+                    id: doc.id,
+                    node: (
+                      <div className="flex items-stretch gap-2">
+                        <Link
+                          href={docHref(i)}
+                          className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface p-4 hover:border-accent"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-ink">
+                              {doc.file_name}
+                            </span>
+                            <span className="block text-xs text-ink-faint">
+                              {pages} page{pages === 1 ? "" : "s"} &middot; Uploaded{" "}
+                              {new Date(doc.created_at).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </span>
+                          </span>
+                          <span className="flex items-center gap-3">
+                            {doc.is_scanned ? (
+                              <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
+                                Scanned copy
+                              </span>
+                            ) : isReviewed(doc) ? (
+                              <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-semibold text-success">
+                                Reviewed
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
+                                {confirmed} of {pages} pages confirmed
+                              </span>
+                            )}
+                            <span className="text-xs font-semibold text-accent">
+                              {doc.is_scanned ? "View" : isReviewed(doc) ? "Review again" : "Review pages"}{" "}
+                              &rsaquo;
+                            </span>
+                          </span>
+                        </Link>
+                        <form action={deleteContractDocument} className="flex items-center">
+                          <input type="hidden" name="id" value={doc.id} />
+                          <ConfirmDeleteButton title={`Delete ${doc.file_name}`} size="sm" />
+                        </form>
+                      </div>
                     ),
-                  )}
-                  isScanned={doc.is_scanned}
-                  uploadedOn={new Date(doc.created_at).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                  actions={
-                    <form action={deleteContractDocument}>
-                      <input type="hidden" name="id" value={doc.id} />
-                      <ConfirmDeleteButton title={`Delete ${doc.file_name}`} size="sm" />
-                    </form>
-                  }
-                />
-                  ),
-                }))}
+                  };
+                })}
               />
             </div>
 
             {!isStaff && (
-            <form
-              action={finishContractDocs}
-              className="mt-6 flex flex-col items-center gap-2"
-            >
-              <button
-                type="submit"
-                disabled={toReview.length > 0}
-                className="rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                I&rsquo;m Done Uploading
-              </button>
-              {toReview.length > 0 && (
-                <span className="text-xs text-ink-faint">
-                  Confirm every page of{" "}
-                  {toReview.length === 1 ? "your document" : `all ${toReview.length} documents`}{" "}
-                  to finish.
-                </span>
-              )}
-            </form>
+              <form action={finishContractDocs} className="mt-6 flex flex-col items-center gap-2">
+                <button
+                  type="submit"
+                  disabled={toReview.length > 0}
+                  className="rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  I&rsquo;m Done Uploading
+                </button>
+                {toReview.length > 0 && (
+                  <span className="text-xs text-ink-faint">
+                    Confirm every page of{" "}
+                    {toReview.length === 1 ? "your document" : `all ${toReview.length} documents`}{" "}
+                    to finish.
+                  </span>
+                )}
+              </form>
             )}
           </section>
         )}
