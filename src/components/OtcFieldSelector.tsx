@@ -438,6 +438,16 @@ export function OtcFieldSelector({
                         if (f.name.trim().toLowerCase() !== to.name.toLowerCase()) {
                           setNames((n) => ({ ...n, [to.id]: f.name }));
                         }
+                        // An OTC choice field now has their options to go
+                        // over with its own.
+                        if (to.kind === "choice" && doneChoices.has(to.id)) {
+                          setDoneChoices((d) => {
+                            const next = new Set(d);
+                            next.delete(to.id);
+                            return next;
+                          });
+                          void markChoiceDone(accountId, to.id, false);
+                        }
                         router.refresh();
                       }}
                       onPutBack={(was) => {
@@ -702,7 +712,7 @@ function FieldRow({
               tone={
             !checked
               ? undefined
-              : onChoices
+              : onChoices && !created
                 ? choiceDone
                   ? "done"
                   : "needed"
