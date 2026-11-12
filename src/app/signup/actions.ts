@@ -6,10 +6,12 @@ import { INVITE_COOKIE } from "@/lib/coupons";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatPhone } from "@/lib/phone";
-import { saveSetupDetailsAndContinue } from "@/lib/setupDetails";
+import { saveSignupDetails } from "@/lib/setupDetails";
+import { startPlanCheckout } from "@/app/checkout/actions";
 
-// Creates the account from the sign-up form (the setup details plus a
-// password), then sends them to payment for their plan.
+// Creates the account from the sign-up form (the founders-form basics plus
+// a password), then sends them to checkout for the monthly membership.
+// (Whether they add a Setup is decided later, in Initiate Your Setup.)
 export async function signUp(formData: FormData) {
   // Not open yet (see the sign-up page): invite links only.
   if (!(await cookies()).get(INVITE_COOKIE)) redirect("/");
@@ -43,9 +45,16 @@ export async function signUp(formData: FormData) {
 
   await applyFoundingApplication(user.id, email);
 
-  // Anything that goes wrong from here is fixed on /setup (the account
-  // exists now).
-  await saveSetupDetailsAndContinue(supabase, user, user.id, formData, "/setup");
+  const { error: detailsError } = await saveSignupDetails(supabase, user.id, formData);
+  if (detailsError) console.error("Couldn't save sign-up details", detailsError.message);
+  // The invite link has done its job (getting them in).
+  (await cookies()).delete(INVITE_COOKIE);
+
+  const checkout = new FormData();
+  checkout.set("plan", "diy");
+  // If they leave checkout, their portal asks them to choose a plan.
+  checkout.set("return_to", "/portal");
+  await startPlanCheckout(checkout);
 }
 
 // A founding group applicant gets founding pricing, and their application

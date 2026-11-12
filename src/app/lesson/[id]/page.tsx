@@ -460,6 +460,25 @@ export default async function LessonPage({
           </div>
         )}
 
+        {/* After the field prep video, DIY clients get another chance to
+            add a Setup. */}
+        {step.key === "understand_your_field_prep" && clientPlan === "diy" && !isEditorPreview && (
+          <div className="mt-6 flex flex-col gap-2 rounded-xl border-2 border-gold bg-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="font-semibold text-ink">Want our team to build it for you?</div>
+              <p className="mt-0.5 text-sm text-ink-soft">
+                Add a Setup and we&rsquo;ll handle the rest of your build with you.
+              </p>
+            </div>
+            <Link
+              href="/setup?plan=setup"
+              className="shrink-0 self-start rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 sm:self-auto"
+            >
+              Add a Setup &rarr;
+            </Link>
+          </div>
+        )}
+
         {step.description && (
           <div
             className="mt-6 text-[15px] leading-relaxed text-ink-soft

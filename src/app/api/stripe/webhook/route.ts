@@ -170,13 +170,14 @@ async function fulfill(session: Stripe.Checkout.Session): Promise<string | null>
         .eq("converted_client_account_id", accountId);
     }
 
-    const { data: paidStep } = await admin
+    // Paying for a Setup completes Initiate Your Setup (DIY completes it
+    // when they submit the form).
+    const { data: paidSteps } = await admin
       .from("setup_steps")
       .select("id")
       .eq("path", account?.setup_path ?? "custom")
-      .eq("key", "setup_paid")
-      .maybeSingle();
-    if (paidStep) {
+      .in("key", kind === "setup" ? ["setup_paid", "setup_initiation"] : ["setup_paid"]);
+    for (const paidStep of paidSteps ?? []) {
       await admin.from("client_step_status").upsert(
         {
           client_id: clientId,

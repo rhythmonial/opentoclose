@@ -1,12 +1,5 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import {
-  daysUntil,
-  freeDaysLabel,
-  freeMonthStatus,
-  INVITE_COOKIE,
-  inviteStatus,
-} from "@/lib/coupons";
+import { FOUNDING_SETUP_CENTS, PLAN_PRICES, formatDollars } from "@/lib/pricing";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { MissingFieldsNotice } from "@/components/MissingFieldsNotice";
@@ -52,32 +45,19 @@ export default async function SetupInitiationPage({
   const { data: account } = profile?.client_account_id
     ? await supabase
         .from("client_accounts")
-        .select("name")
+        .select("name, price_offer")
         .eq("id", profile.client_account_id)
         .single()
     : { data: null };
 
-  const isUpdate = Boolean(existing);
+  // Initiate Your Setup: stay on the monthly membership (DIY) or add a
+  // Setup. A Setup they already have stays picked.
   const paidPlan = existing?.engagement_type ?? "free";
   const defaultEngagementType: "diy" | "custom" =
-    paidPlan === "custom" || paidPlan === "diy"
-      ? paidPlan
-      : plan === "setup" || plan === "custom"
-        ? "custom"
-        : "diy";
-  const hasPaidPlan = paidPlan === "custom" || paidPlan === "diy";
-  // An invite link they're holding (DIY free for its days, no payment), or
-  // the free time they're already in.
-  const invite = hasPaidPlan ? null : await inviteStatus((await cookies()).get(INVITE_COOKIE)?.value);
-  const freeMonth = isStaff
-    ? { activeUntil: null, endedOn: null }
-    : await freeMonthStatus(profile?.client_account_id);
-  const daysLeft = freeMonth.activeUntil ? daysUntil(freeMonth.activeUntil) : 0;
-  const freeOffer = invite
-    ? { label: freeDaysLabel(invite.freeDays), started: false }
-    : freeMonth.activeUntil
-      ? { label: `${daysLeft} day${daysLeft === 1 ? "" : "s"}`, started: true }
-      : null;
+    paidPlan === "custom" || plan === "setup" || plan === "custom" ? "custom" : "diy";
+  const setupPrice = formatDollars(
+    account?.price_offer === "founding" ? FOUNDING_SETUP_CENTS : PLAN_PRICES.setup.cents,
+  );
 
   return (
     <main className="flex flex-1 items-center justify-center bg-bg px-4 py-12">
@@ -110,7 +90,7 @@ export default async function SetupInitiationPage({
         )}
 
         <h1 className="mt-3 font-display text-2xl font-bold text-ink">
-          {hasPaidPlan ? "Your setup details" : "Choose your plan"}
+          Initiate Your Setup
         </h1>
 
         {error && (
@@ -125,11 +105,12 @@ export default async function SetupInitiationPage({
         >
         <fieldset className="contents">
           <SetupDetailsFields
+            mode="initiate"
             existing={existing}
             accountName={account?.name ?? ""}
             email={user.email ?? ""}
-            defaultEngagementType={invite ? "diy" : defaultEngagementType}
-            freeOffer={freeOffer}
+            defaultEngagementType={defaultEngagementType}
+            setupPrice={setupPrice}
           />
 
           <MissingFieldsNotice />
@@ -137,13 +118,7 @@ export default async function SetupInitiationPage({
             type="submit"
             className="mt-2 justify-self-center rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50 sm:col-span-2"
           >
-            {freeOffer
-              ? "Submit"
-              : hasPaidPlan
-                ? isUpdate
-                  ? "Save Changes"
-                  : "Submit"
-                : "Continue to Payment"}
+            Submit
           </button>
         </fieldset>
         </form>

@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { saveSetupDetailsAndContinue } from "@/lib/setupDetails";
+import { saveInitiationAndContinue } from "@/lib/setupDetails";
 import { getSandboxTier } from "@/lib/devSandbox";
 import { progressOwnerId } from "@/lib/accountOwner";
 
@@ -52,5 +52,5 @@ export async function submitSetupInitiation(formData: FormData) {
     redirect(`/setup?tested=${tested}`);
   }
 
-  await saveSetupDetailsAndContinue(supabase, user, accountUserId, formData, "/setup");
+  await saveInitiationAndContinue(supabase, user, accountUserId, formData, "/setup");
 }

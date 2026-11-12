@@ -13,6 +13,8 @@ export function PlanChoice({
   defaultOtcUsername,
   otcPasswordSaved,
   freeOffer = null,
+  onPlanChange,
+  setupPrice = "$1,111",
 }: {
   defaultPlan: "diy" | "custom";
   defaultOtcUsername: string;
@@ -20,8 +22,15 @@ export function PlanChoice({
   // Invited to a free stretch of DIY: the one service shown, with how long
   // it lasts (before they submit) or how many days are left (after).
   freeOffer?: { label: string; started: boolean } | null;
+  onPlanChange?: (plan: "diy" | "custom") => void;
+  // What the setup costs them (founding members pay less).
+  setupPrice?: string;
 }) {
-  const [plan, setPlan] = useState(defaultPlan);
+  const [plan, setPlanState] = useState(defaultPlan);
+  const setPlan = (p: "diy" | "custom") => {
+    setPlanState(p);
+    onPlanChange?.(p);
+  };
 
   if (freeOffer) {
     return (
@@ -62,7 +71,7 @@ export function PlanChoice({
               onChange={() => setPlan("diy")}
               className="h-4 w-4"
             />
-            DIY ($111/mo)
+            DIY (stay monthly)
           </span>
         </label>
         <label className={optionClass}>
@@ -75,7 +84,7 @@ export function PlanChoice({
               onChange={() => setPlan("custom")}
               className="h-4 w-4"
             />
-            Setup ($1,111 + $111/mo)
+            Add a Setup ({setupPrice})
           </span>
         </label>
       </div>
