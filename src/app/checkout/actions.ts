@@ -36,7 +36,7 @@ async function requireClient(returnTo: string) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, client_accounts(comped)")
     .eq("id", user.id)
     .single();
 
@@ -44,6 +44,10 @@ async function requireClient(returnTo: string) {
     redirect(
       `${returnTo}?error=${encodeURIComponent("Payments are turned off for staff and sandboxes.")}`,
     );
+  }
+  // Accounts given their plan at no charge are never billed.
+  if (profile?.client_accounts?.comped) {
+    redirect(`${returnTo}?error=${encodeURIComponent("This account is included at no charge.")}`);
   }
 
   // Plans, hours and steps belong to the whole account: record them under

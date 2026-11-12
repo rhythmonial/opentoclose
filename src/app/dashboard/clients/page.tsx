@@ -169,6 +169,7 @@ export default async function ClientsPage() {
       id: account.id,
       name: account.name,
       contactName,
+      comped: account.comped,
       lessonsDone,
       lessonsTotal,
       engagementType,
@@ -815,6 +816,7 @@ export default async function ClientsPage() {
                               accountName={row.name}
                               subscription={row.subscription}
                               freeUntil={row.freeUntil}
+                              comped={row.comped}
                             />
                           </td>
                         </tr>
@@ -876,6 +878,7 @@ export default async function ClientsPage() {
                               accountName={row.name}
                               subscription={row.subscription}
                               freeUntil={row.freeUntil}
+                              comped={row.comped}
                             />
                           </td>
                         </tr>

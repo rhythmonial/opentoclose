@@ -91,6 +91,7 @@ export type Database = {
       }
       client_accounts: {
         Row: {
+          comped: boolean
           created_at: string
           hours_purchased: number
           id: string
@@ -103,6 +104,7 @@ export type Database = {
           status: Database["public"]["Enums"]["client_account_status"]
         }
         Insert: {
+          comped?: boolean
           created_at?: string
           hours_purchased?: number
           id?: string
@@ -115,6 +117,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["client_account_status"]
         }
         Update: {
+          comped?: boolean
           created_at?: string
           hours_purchased?: number
           id?: string

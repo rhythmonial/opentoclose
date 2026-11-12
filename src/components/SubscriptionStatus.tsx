@@ -23,12 +23,15 @@ export function SubscriptionStatus({
   accountName,
   subscription,
   freeUntil = null,
+  comped = false,
 }: {
   accountId: string;
   accountName: string;
   subscription: SubscriptionInfo;
   // A coupon's free month, running until this date.
   freeUntil?: string | null;
+  // Given their plan at no charge.
+  comped?: boolean;
 }) {
   // Where the cancel popover opens (fixed, so the table's scrolling box
   // doesn't clip it); null when closed.
@@ -55,6 +58,9 @@ export function SubscriptionStatus({
   const s = subscription;
   const live = s && ["active", "trialing", "past_due"].includes(s.status);
 
+  if (!live && comped) {
+    return <span className={`${pill} bg-success-soft text-success`}>No charge</span>;
+  }
   if (!live && freeUntil) {
     return (
       <span className={`${pill} bg-accent-soft text-accent`} title="Coupon free month">

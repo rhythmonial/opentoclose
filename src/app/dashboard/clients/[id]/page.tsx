@@ -429,7 +429,7 @@ export default async function ClientDetailPage({
         <select
           id="price_offer"
           name="price_offer"
-          defaultValue={account.price_offer ?? ""}
+          defaultValue={account.comped ? "comped" : (account.price_offer ?? "")}
           className="rounded-md border border-border bg-bg px-2 py-1 text-sm text-ink"
         >
           <option value="">Regular ($111/mo, $1,111 setup)</option>
@@ -438,6 +438,7 @@ export default async function ClientDetailPage({
               {label}
             </option>
           ))}
+          <option value="comped">No charge (never billed)</option>
         </select>
         <button type="submit" className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white">
           Save

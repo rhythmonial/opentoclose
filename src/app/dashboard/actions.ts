@@ -158,7 +158,10 @@ export async function updatePriceOffer(formData: FormData) {
   const supabase = await createClient();
   await supabase
     .from("client_accounts")
-    .update({ price_offer: offer === "founding" || offer === "first_month" ? offer : null })
+    .update({
+      price_offer: offer === "founding" || offer === "first_month" ? offer : null,
+      comped: offer === "comped",
+    })
     .eq("id", accountId);
   revalidatePath(`/dashboard/clients/${accountId}`);
 }

@@ -271,7 +271,7 @@ export default async function ProfilePage({
   const { data: account } = profile?.client_account_id
     ? await supabase
         .from("client_accounts")
-        .select("name, hours_purchased")
+        .select("name, hours_purchased, comped")
         .eq("id", profile.client_account_id)
         .single()
     : { data: null };
@@ -493,12 +493,13 @@ export default async function ProfilePage({
             plan={initiation?.engagement_type ?? null}
             subscription={subscriptions?.[0] ?? null}
             complimentary={
-              (initiation?.engagement_type === "diy" ||
+              Boolean(account?.comped) ||
+              ((initiation?.engagement_type === "diy" ||
                 initiation?.engagement_type === "custom") &&
-              (subscriptions ?? []).length === 0 &&
-              !freeMonth.activeUntil
+                (subscriptions ?? []).length === 0 &&
+                !freeMonth.activeUntil)
             }
-            freeMonth={freeMonth}
+            freeMonth={account?.comped ? undefined : freeMonth}
             payments={(payments ?? []).slice(0, 8)}
             isOwner={isOwner}
             notice={
