@@ -4,10 +4,9 @@ import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
-import type { ContractBlank } from "@/lib/contractBlanks";
 import { AssignWorkflowWorkspace } from "@/components/AssignWorkflowWorkspace";
 import { inAssignOrder } from "@/lib/docOrder";
-import { fieldsLeft } from "@/app/configurator/upload_your_contract_docs/load";
+import { fieldsLeft, typedBlanks } from "@/app/configurator/upload_your_contract_docs/load";
 import { newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldsTester } from "@/components/WorkflowFieldsTester";
 import {
@@ -21,7 +20,7 @@ const STEP_KEY = "assign_your_workflow_fields";
 export default async function AssignWorkflowFieldsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string; doc?: string; page?: string }>;
+  searchParams: Promise<{ client?: string; doc?: string; page?: string; step?: string }>;
 }) {
   await requireStepAccess(STEP_KEY);
   const supabase = await createClient();
@@ -50,7 +49,7 @@ export default async function AssignWorkflowFieldsPage({
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
   const sandboxTier = isStaff ? await getSandboxTier() : null;
   // Staff open a client's work from that client's page (?client=<account>).
-  const { client, doc: openDoc, page: openPage } = await searchParams;
+  const { client, doc: openDoc, page: openPage, step: openStep } = await searchParams;
   const { data: staffClient } =
     isStaff && client && /^[0-9a-f-]{36}$/i.test(client)
       ? await supabase
@@ -200,7 +199,7 @@ export default async function AssignWorkflowFieldsPage({
                         fileName: doc.file_name,
                         url,
                         pageCount: doc.page_count ?? 0,
-                        blanks: doc.blanks as ContractBlank[],
+                        blanks: typedBlanks(doc),
                         fields: fieldsOf(doc),
                         reviewed: fieldsLeft(doc) === 0,
                         done: Boolean(doc.assign_done_at),
@@ -216,6 +215,7 @@ export default async function AssignWorkflowFieldsPage({
               canFinish={!isStaff}
               initialDocId={openDoc ?? null}
               initialPage={Number(openPage) || undefined}
+              initialStep={openStep === "types" || openStep === "fields" ? openStep : undefined}
               customSections={cleanCustomSections(selection?.custom_sections)}
               intro={intro}
             />
