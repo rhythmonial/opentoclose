@@ -35,7 +35,7 @@ export default async function ClientsPage() {
       .order("created_at", { ascending: false }),
     supabase
       .from("profiles")
-      .select("id, role, client_account_id")
+      .select("id, role, client_account_id, name, first_name, last_name")
       .in("role", ["client_owner", "client_admin"]),
     supabase
       .from("setup_steps")
@@ -117,6 +117,14 @@ export default async function ClientsPage() {
       .filter((s) => s.path === path)
       .sort((a, b) => a.sort_order - b.sort_order);
 
+    const lessonsTotal = pathSteps.length;
+    const lessonsDone = owner
+      ? pathSteps.filter((s) => statusByClientStep.get(`${owner.id}:${s.id}`) === "approved").length
+      : 0;
+    const contactName = owner
+      ? owner.name?.trim() || [owner.first_name, owner.last_name].filter(Boolean).join(" ").trim()
+      : "";
+
     let stage = "Not Started";
     let section = "—";
     if (owner) {
@@ -159,6 +167,9 @@ export default async function ClientsPage() {
     return {
       id: account.id,
       name: account.name,
+      contactName,
+      lessonsDone,
+      lessonsTotal,
       engagementType,
       status: account.status,
       stage,
@@ -180,11 +191,11 @@ export default async function ClientsPage() {
   const activeRows = clientRows.filter(
     (r) => r.status !== "completed" && r.status !== "churned",
   );
-  const closedRows = clientRows.filter(
-    (r) => r.status === "completed" || r.status === "churned",
-  );
+  // Won: finished their setup. Lost: unsubscribed.
+  const wonRows = clientRows.filter((r) => r.status === "completed");
+  const lostRows = clientRows.filter((r) => r.status === "churned");
 
-  const clientGroups: {
+  const allClientGroups: {
     label: string;
     tier: SandboxTier;
     rows: typeof clientRows;
@@ -205,6 +216,8 @@ export default async function ClientsPage() {
       rows: activeRows.filter((r) => r.engagementType === "free" && r.hoursPurchased <= 0),
     },
   ];
+  // Free only shows while someone's still on it.
+  const clientGroups = allClientGroups.filter((g) => g.tier !== "free" || g.rows.length > 0);
 
   // Free signups are linked to their client account. A lead counts as won
   // once marked won or once its linked account is on a paid plan; won leads
@@ -303,6 +316,37 @@ export default async function ClientsPage() {
   const wonLeads = activeLeads.filter(isWon);
   const archivedLeads = shownLeads.filter((l) => l.archived_at);
   const newLeadCount = openLeads.filter((l) => l.status === "new").length;
+
+  type ClientRow = (typeof clientRows)[number];
+  function clientNameCell(row: ClientRow) {
+    return (
+      <td className="p-0">
+        <Link href={`/dashboard/clients/${row.id}`} className="block px-5 py-3.5 hover:text-accent">
+          <span className="font-semibold text-ink">{row.contactName || row.name}</span>
+          <QuestionBubble count={row.openQuestions} />
+          <SetUpStar count={row.setUpRequests} />
+          {row.contactName && <span className="block text-xs text-ink-faint">{row.name}</span>}
+        </Link>
+      </td>
+    );
+  }
+  function stageCell(row: ClientRow) {
+    return (
+      <td className="px-5 py-3.5">
+        <span
+          className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
+            row.stage === "Complete" ? "bg-success-soft text-success" : "bg-accent-soft text-accent"
+          }`}
+        >
+          {row.stage.toUpperCase()}
+        </span>
+        {row.section !== "\u2014" && <div className="mt-1.5 text-xs text-ink-soft">{row.section}</div>}
+      </td>
+    );
+  }
+  const hoursText = (row: ClientRow) =>
+    `${row.hoursUsed.toFixed(1)} used / ${Math.max(0, row.hoursPurchased - row.hoursUsed).toFixed(1)} left`;
+  const lessonsText = (row: ClientRow) => `${row.lessonsDone} / ${row.lessonsTotal} lessons`;
 
   function leadRow(lead: Lead) {
     return (
@@ -718,10 +762,10 @@ export default async function ClientsPage() {
         <details open>
           <summary className="cursor-pointer">
             <h2 className="inline font-display text-lg font-bold text-ink">
-              Clients ({clientGroups.map((g) => g.rows.length).join("/")})
+              Clients ({activeRows.length})
             </h2>
             <p className="mt-1 text-sm text-ink-soft">
-              Active and paused clients by plan: Setup / DIY / Free.
+              Active and paused clients by plan. Won and Lost below.
             </p>
           </summary>
           <div className="mt-4 flex flex-col gap-6">
@@ -729,7 +773,7 @@ export default async function ClientsPage() {
               <div key={group.label}>
                 <div className="mb-2 flex items-center gap-2">
                   <h3 className="text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-                    {group.label}
+                    {group.label} ({group.rows.length})
                   </h3>
                   <form action={startSandbox}>
                     <input type="hidden" name="tier" value={group.tier} />
@@ -739,16 +783,7 @@ export default async function ClientsPage() {
                       aria-label={`View as ${group.label}`}
                       className="flex h-6 w-6 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-accent"
                     >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
                         <circle cx="12" cy="12" r="3" />
                       </svg>
@@ -759,46 +794,19 @@ export default async function ClientsPage() {
                   <table className="w-full min-w-[640px] text-left text-sm">
                     <thead>
                       <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-                        <th className="px-5 py-3">Business</th>
-                        <th className="px-5 py-3">Stage</th>
-                        <th className="px-5 py-3">Section</th>
-                        <th className="px-5 py-3">Hours</th>
+                        <th className="px-5 py-3">Name</th>
+                        <th className="px-5 py-3">Stage &amp; section</th>
+                        <th className="px-5 py-3">{group.tier === "custom" ? "Hours" : "Lessons"}</th>
                         <th className="px-5 py-3">Subscription</th>
                       </tr>
                     </thead>
                     <tbody>
                       {group.rows.map((row) => (
-                        <tr
-                          key={row.id}
-                          className="border-b border-border-soft last:border-0"
-                        >
-                          <td className="p-0">
-                            <Link
-                              href={`/dashboard/clients/${row.id}`}
-                              className="block px-5 py-3.5 font-semibold text-ink hover:text-accent"
-                            >
-                              {row.name}
-                              <QuestionBubble count={row.openQuestions} />
-                              <SetUpStar count={row.setUpRequests} />
-                            </Link>
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
-                                row.stage === "Complete"
-                                  ? "bg-success-soft text-success"
-                                  : "bg-accent-soft text-accent"
-                              }`}
-                            >
-                              {row.stage.toUpperCase()}
-                            </span>
-                          </td>
+                        <tr key={row.id} className="border-b border-border-soft align-top last:border-0">
+                          {clientNameCell(row)}
+                          {stageCell(row)}
                           <td className="px-5 py-3.5 text-ink-soft">
-                            {row.section}
-                          </td>
-                          <td className="px-5 py-3.5 text-ink-soft">
-                            {row.hoursUsed.toFixed(1)} /{" "}
-                            {row.hoursPurchased.toFixed(1)}
+                            {group.tier === "custom" ? hoursText(row) : lessonsText(row)}
                           </td>
                           <td className="px-5 py-3.5">
                             <SubscriptionStatus
@@ -810,13 +818,9 @@ export default async function ClientsPage() {
                           </td>
                         </tr>
                       ))}
-
                       {group.rows.length === 0 && (
                         <tr>
-                          <td
-                            className="px-5 py-6 text-sm text-ink-soft"
-                            colSpan={5}
-                          >
+                          <td className="px-5 py-6 text-sm text-ink-soft" colSpan={4}>
                             No clients yet.
                           </td>
                         </tr>
@@ -827,81 +831,66 @@ export default async function ClientsPage() {
               </div>
             ))}
 
-            <details className="rounded-xl border border-border bg-surface">
-              <summary className="cursor-pointer px-5 py-3.5 text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-                Completed / Churned ({closedRows.length})
-              </summary>
-              <div className="overflow-x-auto border-t border-border-soft">
-                <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
-                      <th className="px-5 py-3">Business</th>
-                      <th className="px-5 py-3">Stage</th>
-                      <th className="px-5 py-3">Subscription</th>
-                      <th className="px-5 py-3">Outcome</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {closedRows.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="border-b border-border-soft last:border-0"
-                      >
-                        <td className="p-0">
-                          <Link
-                            href={`/dashboard/clients/${row.id}`}
-                            className="block px-5 py-3.5 font-semibold text-ink hover:text-accent"
-                          >
-                            {row.name}
-                            <QuestionBubble count={row.openQuestions} />
-                            <SetUpStar count={row.setUpRequests} />
-                          </Link>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-bold font-caption tracking-wide ${
-                              row.stage === "Complete"
-                                ? "bg-success-soft text-success"
-                                : "bg-accent-soft text-accent"
-                            }`}
-                          >
-                            {row.stage.toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <SubscriptionStatus
-                            accountId={row.id}
-                            accountName={row.name}
-                            subscription={row.subscription}
-                            freeUntil={row.freeUntil}
-                          />
-                        </td>
-                        <td className="px-5 py-3.5 text-ink-soft">
-                          {row.cancelReason ? (
-                            <span title="Cancellation reason">{row.cancelReason}</span>
-                          ) : row.daysToComplete !== null ? (
-                            `Completed in ${row.daysToComplete} day${row.daysToComplete === 1 ? "" : "s"}`
-                          ) : (
-                            "—"
-                          )}
-                        </td>
+            {[
+              { label: "Won", rows: wonRows, empty: "No clients have completed their setup yet." },
+              { label: "Lost", rows: lostRows, empty: "No clients have unsubscribed." },
+            ].map((g) => (
+              <details key={g.label} className="rounded-xl border border-border bg-surface">
+                <summary className="cursor-pointer px-5 py-3.5 text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                  {g.label} ({g.rows.length})
+                </summary>
+                <div className="overflow-x-auto border-t border-border-soft">
+                  <table className="w-full min-w-[640px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+                        <th className="px-5 py-3">Name</th>
+                        <th className="px-5 py-3">Stage &amp; section</th>
+                        <th className="px-5 py-3">Progress</th>
+                        <th className="px-5 py-3">{g.label === "Won" ? "Outcome" : "Reason"}</th>
+                        <th className="px-5 py-3">Subscription</th>
                       </tr>
-                    ))}
-
-                    {closedRows.length === 0 && (
-                      <tr>
-                        <td
-                          className="px-5 py-6 text-sm text-ink-soft"
-                          colSpan={4}
-                        >
-                          No completed or churned clients yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </details>
+                    </thead>
+                    <tbody>
+                      {g.rows.map((row) => (
+                        <tr key={row.id} className="border-b border-border-soft align-top last:border-0">
+                          {clientNameCell(row)}
+                          {stageCell(row)}
+                          <td className="px-5 py-3.5 text-ink-soft">
+                            {row.engagementType === "custom" || row.hoursPurchased > 0
+                              ? hoursText(row)
+                              : lessonsText(row)}
+                          </td>
+                          <td className="px-5 py-3.5 text-ink-soft">
+                            {row.cancelReason ? (
+                              <span title="Cancellation reason">{row.cancelReason}</span>
+                            ) : row.daysToComplete !== null ? (
+                              `Completed in ${row.daysToComplete} day${row.daysToComplete === 1 ? "" : "s"}`
+                            ) : (
+                              row.outcome || "\u2014"
+                            )}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <SubscriptionStatus
+                              accountId={row.id}
+                              accountName={row.name}
+                              subscription={row.subscription}
+                              freeUntil={row.freeUntil}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                      {g.rows.length === 0 && (
+                        <tr>
+                          <td className="px-5 py-6 text-sm text-ink-soft" colSpan={5}>
+                            {g.empty}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            ))}
           </div>
         </details>
       </section>
