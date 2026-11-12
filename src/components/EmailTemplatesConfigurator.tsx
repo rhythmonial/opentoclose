@@ -17,10 +17,45 @@ import {
   removeEmailTemplate,
   saveEmailTemplate,
 } from "@/app/configurator/sample_email_templates/actions";
-import { readContactFile } from "@/lib/contactFiles";
-import { downloadCsv, readImportSheet, toImportCsv } from "@/lib/emailImportSheet";
+import { downloadCsv, toImportCsv, type ImportedTemplate } from "@/lib/emailImportSheet";
+import { UploadMapper, type MapTarget, type UploadedSheet } from "@/components/UploadMapper";
+import type { ContactTable } from "@/lib/contactFiles";
 
 type Item = EmailTemplate & { key: string };
+
+// What an uploaded message file's columns can be imported as.
+const MESSAGE_TARGETS: MapTarget[] = [
+  { key: "title", label: "Title (template name)", aliases: ["title", "name", "template", "template name"], required: true },
+  { key: "subject", label: "Subject", aliases: ["subject", "subject line"] },
+  { key: "body", label: "Body (message)", aliases: ["body", "message", "content", "text"] },
+  { key: "to", label: "To roles", aliases: ["to", "to roles", "recipients"] },
+  { key: "cc", label: "Cc roles", aliases: ["cc", "cc roles"] },
+  { key: "bcc", label: "Bcc roles", aliases: ["bcc", "bcc roles"] },
+  { key: "files", label: "File roles (attachments)", aliases: ["files", "file roles", "attachments"] },
+];
+
+// An uploaded file's rows as templates, by how its columns were matched.
+function templatesFrom(table: ContactTable, mapping: Record<string, string | null>): ImportedTemplate[] {
+  const colOf = (key: string) => table.columns.findIndex((c) => mapping[c] === key);
+  const get = (row: string[], key: string) => {
+    const i = colOf(key);
+    return i >= 0 ? (row[i] ?? "").trim() : "";
+  };
+  const list = (v: string) => [...new Set(v.split(",").map((x) => x.trim()).filter(Boolean))];
+  return table.rows
+    .map((row) => ({
+      title: get(row, "title"),
+      subject: get(row, "subject"),
+      body: withBlankLines(get(row, "body")).trim(),
+      to: list(get(row, "to")),
+      cc: list(get(row, "cc")),
+      bcc: list(get(row, "bcc")),
+      files: list(get(row, "files")),
+    }))
+    .filter((t) => t.title);
+}
+
+const SIDE_ORDER: TemplateSide[] = ["buyer", "seller", "listing", "other"];
 
 const inputClass =
   "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent";
@@ -31,6 +66,7 @@ const inputClass =
 // roles) and the documents attached (from their documents).
 export function EmailTemplatesConfigurator({
   accountId,
+  uploads = [],
   initial,
   roleOptions,
   fileOptions,
@@ -38,6 +74,8 @@ export function EmailTemplatesConfigurator({
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
+  // Message files they uploaded in Upload Your Messages.
+  uploads?: UploadedSheet[];
   initial: EmailTemplate[];
   roleOptions: string[];
   fileOptions: string[];
@@ -55,27 +93,17 @@ export function EmailTemplatesConfigurator({
   const [onlyUsed, setOnlyUsed] = useState(false);
   const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
 
-  const [importing, setImporting] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  // Adds the templates from a filled-in import sheet, at the top.
-  async function importFile(file: File) {
-    setImporting(true);
-    setNotice(null);
-    try {
-      const rows = readImportSheet(await readContactFile(file, file.name));
-      const result = await importEmailTemplates(accountId, rows);
-      if (!result.ok || !result.templates) throw new Error(result.error ?? "Couldn't import that file.");
-      const added = result.templates.map((t) => ({ ...t, key: t.id ?? crypto.randomUUID() }));
-      setItems((all) => [...added, ...all]);
-      setNotice(`Imported ${added.length} template${added.length === 1 ? "" : "s"}.`);
-      setQuery("");
-      setSide("all");
-    } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Couldn't import that file.");
-    } finally {
-      setImporting(false);
-    }
+  // Adds an uploaded file's rows as their own templates (checked to use),
+  // at the top.
+  async function importRows(table: ContactTable, mapping: Record<string, string | null>) {
+    const rows = templatesFrom(table, mapping);
+    const result = await importEmailTemplates(accountId, rows);
+    if (!result.ok || !result.templates) throw new Error(result.error ?? "Couldn't add them.");
+    const added = result.templates.map((t) => ({ ...t, key: t.id ?? crypto.randomUUID() }));
+    setItems((all) => [...added, ...all]);
+    setQuery("");
+    setSide("all");
+    return added.length;
   }
 
   async function persist(item: Item) {
@@ -158,23 +186,6 @@ export function EmailTemplatesConfigurator({
             className="w-64 rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-ink outline-none focus:border-accent"
           />
           <div className="flex flex-wrap items-center gap-2">
-            <label
-              className={`cursor-pointer rounded-lg border border-border px-4 py-1.5 text-sm font-semibold text-accent hover:border-accent ${
-                importing ? "pointer-events-none opacity-60" : ""
-              }`}
-            >
-              {importing ? "Importing…" : "Import templates"}
-              <input
-                type="file"
-                accept=".csv,.tsv,.txt,.xlsx"
-                className="sr-only"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (file) void importFile(file);
-                }}
-              />
-            </label>
             <button
               type="button"
               onClick={addTemplate}
@@ -185,16 +196,6 @@ export function EmailTemplatesConfigurator({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-          <span className="text-ink-faint">
-            Have your own templates? Fill in OTC&rsquo;s import sheet and import it.
-          </span>
-          <button
-            type="button"
-            onClick={() => downloadCsv(toImportCsv([]), "Email Templates import sheet.csv")}
-            className="font-semibold text-accent"
-          >
-            Download the blank import sheet
-          </button>
           <button
             type="button"
             disabled={used === 0}
@@ -208,7 +209,6 @@ export function EmailTemplatesConfigurator({
           >
             Download the ones I&rsquo;m using (OTC import format)
           </button>
-          {notice && <span className="font-semibold text-ink">{notice}</span>}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-1.5">
@@ -246,28 +246,43 @@ export function EmailTemplatesConfigurator({
         </div>
       </div>
 
-      <ul className="flex flex-col gap-2">
-        {shown.map((t) => {
+      {uploads.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-[15px] font-bold text-ink">Your uploaded messages</h2>
+          <p className="-mt-1 text-xs text-ink-faint">
+            Match each file&rsquo;s columns, then add its templates. They come in checked to use.
+          </p>
+          {uploads.map((u) => (
+            <UploadMapper
+              key={u.id}
+              sheet={u}
+              accountId={accountId}
+              targets={MESSAGE_TARGETS}
+              noun="templates"
+              onImport={importRows}
+            />
+          ))}
+        </section>
+      )}
+
+      {(() => {
+        const renderRow = (t: Item) => {
           const open = openKey === t.key;
           const editing = editingKey === t.key;
           const edited = isEdited(t, filesFor(t));
-          const s = sideOf(t.title);
-          return (
-            <li
-              key={t.key}
-              className={`rounded-xl border bg-surface transition-colors ${
-                t.include ? "border-border" : "border-border/60 bg-surface/60"
-              }`}
-            >
-              <div className="flex items-start gap-3 px-4 py-3">
+          return [
+            <tr key={t.key} className={`border-b border-border-soft align-top ${t.include ? "" : "bg-bg/50"}`}>
+              <td className="w-10 px-3 py-2.5">
                 <input
                   type="checkbox"
                   checked={t.include}
                   onChange={(e) => update(t.key, { include: e.target.checked })}
                   aria-label={`Use ${t.title}`}
                   title="Use this template"
-                  className="mt-1 h-4 w-4 shrink-0"
+                  className="h-4 w-4"
                 />
+              </td>
+              <td className="px-3 py-2.5">
                 <button
                   type="button"
                   onClick={() => {
@@ -275,46 +290,30 @@ export function EmailTemplatesConfigurator({
                     if (open) setEditingKey(null);
                   }}
                   aria-expanded={open}
-                  className="min-w-0 flex-1 text-left"
+                  className="flex items-center gap-2 text-left"
                 >
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className={`font-semibold ${t.include ? "text-ink" : "text-ink-faint"}`}>
-                      {t.title}
-                    </span>
-                    {s !== "other" && (
-                      <span className="rounded bg-accent-soft/60 px-1.5 py-px text-[10px] font-bold uppercase text-accent">
-                        {SIDE_LABELS[s]}
-                      </span>
-                    )}
-                    {!t.sampleKey && (
-                      <span className="rounded bg-gold/20 px-1.5 py-px text-[10px] font-bold uppercase text-ink">
-                        Yours
-                      </span>
-                    )}
-                    {edited && (
-                      <span className="rounded bg-gold/20 px-1.5 py-px text-[10px] font-bold uppercase text-ink">
-                        Edited
-                      </span>
-                    )}
+                  <span aria-hidden className={`text-ink-faint transition-transform ${open ? "rotate-90" : ""}`}>
+                    &rsaquo;
                   </span>
-                  <span className="mt-0.5 block truncate text-sm text-ink-soft">
-                    <Inline text={t.subject || "(no subject)"} />
+                  <span className={`font-semibold hover:text-accent ${t.include ? "text-ink" : "text-ink-faint"}`}>
+                    {t.title}
                   </span>
-                  {(t.to.length > 0 || t.cc.length > 0) && (
-                    <span className="mt-1 block text-xs text-ink-faint">
-                      {t.to.length > 0 && <>To: {t.to.join(", ")}</>}
-                      {t.to.length > 0 && t.cc.length > 0 && " · "}
-                      {t.cc.length > 0 && <>Cc: {t.cc.join(", ")}</>}
+                  {edited && (
+                    <span className="rounded bg-gold/20 px-1.5 py-px text-[10px] font-bold uppercase text-ink">
+                      Edited
                     </span>
                   )}
                 </button>
-                <span aria-hidden className={`mt-1 text-ink-faint transition-transform ${open ? "rotate-90" : ""}`}>
-                  &rsaquo;
-                </span>
-              </div>
-
-              {open && (
-                <div className="border-t border-border px-4 pb-4 pt-3">
+              </td>
+              <td className="max-w-[18rem] truncate px-3 py-2.5 text-ink-soft">
+                <Inline text={t.subject || "(no subject)"} />
+              </td>
+              <td className="px-3 py-2.5 text-xs text-ink-faint">{t.to.join(", ") || "\u2014"}</td>
+            </tr>,
+            open && (
+              <tr key={`${t.key}-open`} className="border-b border-border-soft">
+                <td colSpan={4} className="p-0">
+                  <div className="border-t border-border px-4 pb-4 pt-3">
                   {/* Who it goes to and what's attached, changed right here
                       (and saved as they change). */}
                   <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -363,16 +362,63 @@ export function EmailTemplatesConfigurator({
                     </>
                   )}
                 </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      {shown.length === 0 && (
-        <p className="rounded-xl border border-border bg-surface p-5 text-sm text-ink-faint">
-          No templates match.
-        </p>
-      )}
+                </td>
+              </tr>
+            ),
+          ];
+        };
+        // A table of templates grouped by type (buyer, seller, listing, other).
+        const renderTable = (list: Item[], heading: string, empty: string) => (
+          <section className="flex flex-col gap-2">
+            <h2 className="text-[15px] font-bold text-ink">
+              {heading} ({list.length})
+            </h2>
+            <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-border-soft bg-bg font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
+                    <th className="px-3 py-2.5">Use</th>
+                    <th className="px-3 py-2.5">Template</th>
+                    <th className="px-3 py-2.5">Subject</th>
+                    <th className="px-3 py-2.5">To</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SIDE_ORDER.flatMap((sd) => {
+                    const rows = list.filter((t) => sideOf(t.title) === sd);
+                    if (rows.length === 0) return [];
+                    return [
+                      <tr key={`h-${heading}-${sd}`} className="border-b border-border-soft bg-accent-soft/40">
+                        <td colSpan={4} className="px-3 py-1.5 font-caption text-xs font-bold uppercase tracking-wide text-accent">
+                          {SIDE_LABELS[sd]} ({rows.length})
+                        </td>
+                      </tr>,
+                      ...rows.flatMap(renderRow),
+                    ];
+                  })}
+                  {list.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-3 py-4 text-sm text-ink-faint">
+                        {empty}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        );
+        return (
+          <>
+            {renderTable(
+              shown.filter((t) => !t.sampleKey),
+              "Your templates",
+              "None yet. Add the ones from your uploaded files above, or start a new one.",
+            )}
+            {renderTable(shown.filter((t) => t.sampleKey), "Sample templates", "No samples match.")}
+          </>
+        );
+      })()}
     </div>
   );
 }

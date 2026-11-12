@@ -91,3 +91,28 @@ export async function finishUpload(formData: FormData) {
   await approveStep(supabase, user.id, accountId, UPLOAD_LESSONS[kind].stepKey);
   redirect("/portal");
 }
+
+// Saves how an uploaded message or task file's columns match the fields
+// they're imported into (and, once its rows are added, that they were).
+export async function saveUploadMapping(
+  accountId: string | null,
+  id: string,
+  mapping: Record<string, string | boolean | null>,
+): Promise<Result> {
+  if (!UUID.test(id)) return { ok: false };
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const clean: Record<string, string | boolean | null> = {};
+  for (const [k, v] of Object.entries(mapping).slice(0, 200)) {
+    clean[String(k).slice(0, 200)] = typeof v === "boolean" ? v : v ? String(v).slice(0, 60) : null;
+  }
+  const { data, error } = await supabase
+    .from("prep_file_uploads")
+    .update({ mapping: clean, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("client_account_id", account)
+    .select("kind")
+    .single();
+  if (error || !data) return { ok: false, error: error?.message ?? "File not found." };
+  return { ok: true };
+}

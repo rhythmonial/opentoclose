@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { loadUploadedSheets } from "@/lib/uploadedSheets";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
@@ -213,6 +214,7 @@ export default async function SampleEmailTemplatesPage({
           {accountId ? (
             <EmailTemplatesConfigurator
               key={accountId}
+              uploads={await loadUploadedSheets(supabase, accountId, "messages")}
               accountId={isStaff ? accountId : null}
               initial={templates}
               roleOptions={roleOptions}
