@@ -852,6 +852,8 @@ function FieldRow({
             )}
           </>
         )}
+        {/* On the contracts: a document icon, its contract and line on hover.
+            Red when it's in 2+ places (click to reassign one). */}
         {onContract &&
           (onSpots ? (
             <button
@@ -860,14 +862,20 @@ function FieldRow({
                 e.preventDefault();
                 onSpots();
               }}
-              title={`On your contracts in ${onContract.length} places. Click to reassign one.`}
-              className="max-w-[14rem] shrink-0 truncate rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-semibold text-danger hover:bg-danger/20"
+              title={`On your contracts in ${onContract.length} places (click to reassign one):\n${onContract.join("\n")}`}
+              aria-label={`On your contracts in ${onContract.length} places. Click to reassign one.`}
+              className="flex shrink-0 items-center gap-0.5 rounded p-0.5 text-danger hover:bg-danger/10"
             >
-              {spot ?? "Contract"}
+              {DOC_ICON}
+              <span className="text-[11px] font-bold">{onContract.length}</span>
             </button>
           ) : (
-            <span className="max-w-[14rem] shrink-0 truncate rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
-              {spot ?? "Contract"}
+            <span
+              title={spot ?? onContract.join("\n")}
+              aria-label={`On your contract: ${spot ?? onContract.join(", ")}`}
+              className="shrink-0 text-accent"
+            >
+              {DOC_ICON}
             </span>
           ))}
       </label>
@@ -1551,6 +1559,13 @@ export function NumberDateDialog({
 }
 
 type Spot = { docId: string; key: string; label: string; text: string };
+
+const DOC_ICON = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+    <path d="M14 3v5h5M9 13h6M9 17h4" />
+  </svg>
+);
 
 // A field on the contracts in more than one place: each place, with the
 // field it fills, to point one of them at another field (searched, or a
