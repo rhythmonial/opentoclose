@@ -48,17 +48,17 @@ export default function AboutPage() {
             </div>
             <h2 className="mt-2 font-display text-3xl font-bold text-ink">Hi, I&rsquo;m Josie!</h2>
             <p className="mt-2 font-display text-lg font-semibold text-navy">
-              Open to Close setup specialist, and a TC at heart.
+              Open to Close Setup Specialist
             </p>
 
             <div className="mt-5 flex flex-col gap-4 text-ink-soft">
               <p>
                 I&rsquo;ve been in real estate since 2015 as an Agent, ISA, Listing Manager, Listing
-                Referral Agent and Operations Manager, and found my passion in Transaction
+                Referral Agent, Operations Manager, and then I found my passion in Transaction
                 Management. In 2020 I turned my focus to the tech side.
               </p>
               <p>
-                While planning the launch of my own TC business, I met with the owners of 10 Keller
+                While planning the launch of my own TC business, I met with the leaders of 10 Keller
                 Williams offices in the Atlanta area about starting an in-house Transaction
                 Management Division. Researching software for them, I found the best transaction
                 management tool of its time, and soon after, Open to Close released its new, fully
