@@ -211,7 +211,7 @@ export default async function DashboardHome() {
           <div className="min-w-0 rounded-xl border border-border bg-surface p-4">
             <h3 className="text-[15px] font-bold text-ink">Clients by path</h3>
             <div className="mt-3 flex justify-between gap-2 text-sm">
-              <span className="text-ink-soft">Setup ($999 + $111/mo)</span>
+              <span className="text-ink-soft">Setup ($1,111 + $111/mo)</span>
               <span className="font-bold text-ink">{clientsByEngagement.custom}</span>
             </div>
             <div className="mt-1.5 flex justify-between gap-2 text-sm">

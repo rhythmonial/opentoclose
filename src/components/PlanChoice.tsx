@@ -75,7 +75,7 @@ export function PlanChoice({
               onChange={() => setPlan("custom")}
               className="h-4 w-4"
             />
-            Setup ($999 + $111/mo)
+            Setup ($1,111 + $111/mo)
           </span>
         </label>
       </div>

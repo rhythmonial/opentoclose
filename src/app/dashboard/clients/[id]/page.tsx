@@ -35,7 +35,7 @@ import {
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
   free: "Free",
-  custom: "Setup ($999 + $111/mo)",
+  custom: "Setup ($1,111 + $111/mo)",
   diy: "DIY ($111/mo)",
 };
 
@@ -429,7 +429,7 @@ export default async function ClientDetailPage({
           defaultValue={account.price_offer ?? ""}
           className="rounded-md border border-border bg-bg px-2 py-1 text-sm text-ink"
         >
-          <option value="">Regular ($111/mo, $999 setup)</option>
+          <option value="">Regular ($111/mo, $1,111 setup)</option>
           {Object.entries(PRICE_OFFER_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
               {label}

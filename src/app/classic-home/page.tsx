@@ -83,7 +83,7 @@ const PLANS = [
   },
   {
     name: "Setup",
-    price: "$999",
+    price: "$1,111",
     priceNote: "+ $111/month",
     tagline: "We build it with you",
     features: [

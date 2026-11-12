@@ -130,8 +130,8 @@ export default async function RootPage() {
             <div className="mt-6 rounded-xl border-2 border-gold bg-surface p-4">
               <div className="font-semibold text-ink">Want hands-on help?</div>
               <p className="mt-1 text-sm text-ink-soft">
-                Done-with-you setup is normally $999 for 10 hours. One founding member in each
-                group gets it for <span className="font-semibold text-ink">$499 for 10 hours</span>{" "}
+                Done-with-you setup is normally $1,111 for 10 hours. One founding member in each
+                group gets it for <span className="font-semibold text-ink">$555 for 10 hours</span>{" "}
                 (plus the $111/month), so only 4 in total.
               </p>
             </div>

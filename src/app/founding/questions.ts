@@ -53,7 +53,7 @@ export const QUESTIONS: {
   },
   {
     key: "done_with_you",
-    label: "Are you interested in the done-with-you spot for your group ($499 for 10 hours)?",
+    label: "Are you interested in the done-with-you spot for your group ($555 for 10 hours)?",
     options: ["Yes", "Maybe", "No, I'll set it up myself"],
     required: true,
   },

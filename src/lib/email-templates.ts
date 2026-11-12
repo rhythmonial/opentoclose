@@ -24,7 +24,7 @@ Here's what setup looks like:
 5. Kickoff call, then you're live.
 
 Pricing:
-- Setup — $999 + $111/month (renews until you cancel), up to 10 hours of setup support from our team
+- Setup — $1,111 + $111/month (renews until you cancel), up to 10 hours of setup support from our team
 - DIY — $111/month (renews until you cancel), you complete every step yourself with our checklist and
   videos as your guide (upgrade to Setup any time)
 
