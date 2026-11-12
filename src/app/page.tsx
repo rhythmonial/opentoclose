@@ -55,7 +55,8 @@ export default async function RootPage() {
             This is an interactive setup course built around your own contracts, so you build
             only what you&rsquo;ll actually use.
           </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <p className="mt-6 text-sm font-semibold text-white">*For brand-new Open to Close accounts only*</p>
+          <div className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <a
               href={APPLY_HREF}
               className="w-full rounded-lg bg-gold px-6 py-3 text-sm font-semibold text-navy sm:w-auto"
@@ -69,7 +70,6 @@ export default async function RootPage() {
               See the offer
             </a>
           </div>
-          <p className="mt-4 text-xs text-white/60">For brand-new Open to Close accounts only.</p>
         </div>
       </section>
 
@@ -84,8 +84,9 @@ export default async function RootPage() {
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {PIECES.map((p) => (
             <div key={p.title} className="rounded-xl border border-border bg-surface p-5">
-              <h3 className="font-display text-base font-bold text-ink">{p.title}</h3>
-              <p className="mt-1.5 text-sm text-ink-soft">{p.body}</p>
+              <p className="text-sm text-ink-soft">
+                <span className="font-display text-base font-bold text-ink">{p.title}:</span> {p.body}
+              </p>
             </div>
           ))}
         </div>
