@@ -10,7 +10,6 @@ import {
   HOUR_BUNDLE,
   MAX_HOURLY_PURCHASE,
   FIRST_MONTH_CENTS,
-  FOUNDING_MONTHLY_CENTS,
   FOUNDING_SETUP_CENTS,
   formatDollars,
   isPriceOffer,
@@ -136,14 +135,14 @@ export async function startPlanCheckout(formData: FormData) {
 
   const price = PLAN_PRICES[plan];
   const origin = await siteOrigin();
-  // Special pricing staff gave the account: founding members pay less each
-  // month and for the setup; past clients and referrals get their first
-  // month for less (a one-time Stripe discount).
+  // Special pricing staff gave the account: founding members pay less for
+  // the setup; past clients and referrals get their first month for less
+  // (a one-time Stripe discount).
   const { data: account } = accountId
     ? await supabase.from("client_accounts").select("price_offer").eq("id", accountId).maybeSingle()
     : { data: null };
   const offer = isPriceOffer(account?.price_offer) ? account.price_offer : null;
-  const monthlyCents = offer === "founding" ? FOUNDING_MONTHLY_CENTS : MONTHLY_FEE_CENTS;
+  const monthlyCents = MONTHLY_FEE_CENTS;
   const setupCents = offer === "founding" && plan === "setup" ? FOUNDING_SETUP_CENTS : price.cents;
   const firstMonthOff =
     offer === "first_month" && !live && !trialEnd ? await firstMonthCoupon() : null;

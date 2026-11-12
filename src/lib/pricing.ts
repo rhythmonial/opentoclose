@@ -5,14 +5,14 @@
 export const MONTHLY_FEE_CENTS = 11100;
 
 // Special pricing staff can give an account (client_accounts.price_offer):
-// founding members pay $55/month and $499 for the setup; past clients and
-// referrals pay $55 for their first month, then the regular price.
+// founding members pay $499 for the setup (the monthly fee is the same);
+// past clients and referrals pay $55 for their first month, then the
+// regular price.
 export type PriceOffer = "founding" | "first_month";
-export const FOUNDING_MONTHLY_CENTS = 5500;
 export const FOUNDING_SETUP_CENTS = 49900;
 export const FIRST_MONTH_CENTS = 5500;
 export const PRICE_OFFER_LABELS: Record<PriceOffer, string> = {
-  founding: "Founding member ($55/mo, $499 setup)",
+  founding: "Founding member ($499 setup)",
   first_month: "Past client or referral ($55 first month)",
 };
 export const isPriceOffer = (v: unknown): v is PriceOffer => v === "founding" || v === "first_month";

@@ -25,7 +25,7 @@ const PERKS = [
   "Setup completed in less than 4 weeks",
   "A build based on your own process",
   "Direct access as we refine the system",
-  "System access at $55/month",
+  "System access at $111/month",
 ];
 
 export default async function RootPage() {
@@ -132,7 +132,7 @@ export default async function RootPage() {
               <p className="mt-1 text-sm text-ink-soft">
                 Done-with-you setup is normally $999 for 10 hours. One founding member in each
                 group gets it for <span className="font-semibold text-ink">$499 for 10 hours</span>{" "}
-                (plus the $55/month), so only 4 in total.
+                (plus the $111/month), so only 4 in total.
               </p>
             </div>
           </div>
