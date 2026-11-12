@@ -134,23 +134,22 @@ export function FoundingMembers({ apps: initial }: { apps: FoundingApp[] }) {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 id="founding-app-title" className="font-display text-lg font-bold text-ink">
-                  {open.first_name} {open.last_name}
+                  {open.first_name} {open.last_name} &middot; {open.business_name}
                 </h2>
                 <p className="text-sm text-ink-soft">
-                  <a href={`mailto:${open.email}`} className="text-accent">
+                  {open.states_serviced ?? "—"} &middot; ({open.company_structure})
+                </p>
+                <p className="mt-1 text-sm text-ink-soft">
+                  {/* Opens a Gmail message to them (in a new tab). */}
+                  <a
+                    href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(open.email)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent hover:underline"
+                  >
                     {open.email}
                   </a>
-                  {open.phone && (
-                    <>
-                      {" · "}
-                      <a href={`tel:${open.phone}`} className="text-accent">
-                        {open.phone}
-                      </a>
-                    </>
-                  )}
-                </p>
-                <p className="text-sm text-ink-soft">
-                  {open.business_name} &middot; {open.company_structure}
+                  {open.phone && <> &middot; {formatPhone(open.phone)}</>}
                 </p>
               </div>
               <button
@@ -165,10 +164,7 @@ export function FoundingMembers({ apps: initial }: { apps: FoundingApp[] }) {
             </div>
             <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
               {[
-                [
-                  "States serviced",
-                  `${open.states_serviced ?? "—"}${open.priority_state ? ` (priority: ${open.priority_state})` : ""}`,
-                ],
+                ...(open.priority_state ? [["Priority state", open.priority_state]] : []),
                 ["Current transaction management software", open.tms ?? "—"],
                 ...QUESTIONS.map((q) => [q.label, open.answers[q.key] ?? "—"]),
                 [
@@ -187,4 +183,11 @@ export function FoundingMembers({ apps: initial }: { apps: FoundingApp[] }) {
       )}
     </>
   );
+}
+
+// "+1 (813) 906-6019" -> "813-906-6019" (anything else as typed).
+function formatPhone(raw: string) {
+  let d = raw.replace(/\D/g, "");
+  if (d.length === 11 && d.startsWith("1")) d = d.slice(1);
+  return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}` : raw;
 }
