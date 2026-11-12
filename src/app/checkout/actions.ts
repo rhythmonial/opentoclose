@@ -9,6 +9,12 @@ import { siteOrigin } from "@/lib/site-origin";
 import {
   HOUR_BUNDLE,
   MAX_HOURLY_PURCHASE,
+  FIRST_MONTH_CENTS,
+  FOUNDING_MONTHLY_CENTS,
+  FOUNDING_SETUP_CENTS,
+  formatDollars,
+  isPriceOffer,
+  MONTHLY_FEE_CENTS,
   MONTHLY_FEE_LABEL,
   PLAN_PRICES,
   stepPriceCents,
@@ -45,6 +51,30 @@ async function requireClient(returnTo: string) {
   // the owner, so the account gets them whoever pays.
   const ownerId = await progressOwnerId(supabase, user.id);
   return { supabase, user, ownerId };
+}
+
+// The Stripe coupon for a past client's or referral's first month: the
+// monthly price down to $55, once. Made the first time it's needed.
+async function firstMonthCoupon(): Promise<string | null> {
+  const id = `first-month-${FIRST_MONTH_CENTS}-of-${MONTHLY_FEE_CENTS}`;
+  const stripe = getStripe();
+  try {
+    await stripe.coupons.retrieve(id);
+    return id;
+  } catch {
+    try {
+      await stripe.coupons.create({
+        id,
+        amount_off: MONTHLY_FEE_CENTS - FIRST_MONTH_CENTS,
+        currency: "usd",
+        duration: "once",
+        name: "Past client / referral: first month",
+      });
+      return id;
+    } catch {
+      return null;
+    }
+  }
 }
 
 async function openCheckout(
@@ -106,11 +136,22 @@ export async function startPlanCheckout(formData: FormData) {
 
   const price = PLAN_PRICES[plan];
   const origin = await siteOrigin();
+  // Special pricing staff gave the account: founding members pay less each
+  // month and for the setup; past clients and referrals get their first
+  // month for less (a one-time Stripe discount).
+  const { data: account } = accountId
+    ? await supabase.from("client_accounts").select("price_offer").eq("id", accountId).maybeSingle()
+    : { data: null };
+  const offer = isPriceOffer(account?.price_offer) ? account.price_offer : null;
+  const monthlyCents = offer === "founding" ? FOUNDING_MONTHLY_CENTS : MONTHLY_FEE_CENTS;
+  const setupCents = offer === "founding" && plan === "setup" ? FOUNDING_SETUP_CENTS : price.cents;
+  const firstMonthOff =
+    offer === "first_month" && !live && !trialEnd ? await firstMonthCoupon() : null;
   const setupItem: Stripe.Checkout.SessionCreateParams.LineItem = {
     quantity: 1,
     price_data: {
       currency: "usd",
-      unit_amount: price.cents,
+      unit_amount: setupCents,
       product_data: {
         name: `OTC ${price.label}`,
         description: `Josie's team builds your Open to Close setup (${price.hours}-hour bundle).`,
@@ -126,7 +167,9 @@ export async function startPlanCheckout(formData: FormData) {
         { mode: "payment" as const, line_items: [setupItem] }
       : {
           mode: "subscription" as const,
-          line_items: plan === "setup" ? [setupItem, monthlyLineItem()] : [monthlyLineItem()],
+          line_items:
+            plan === "setup" ? [setupItem, monthlyLineItem(monthlyCents)] : [monthlyLineItem(monthlyCents)],
+          ...(firstMonthOff ? { discounts: [{ coupon: firstMonthOff }] } : {}),
           subscription_data: {
             metadata: { client_id: ownerId, client_account_id: accountId ?? "" },
             ...(trialEnd ? { trial_end: trialEnd } : {}),
@@ -140,7 +183,9 @@ export async function startPlanCheckout(formData: FormData) {
       : {
           custom_text: {
             submit: {
-              message: `Your ${MONTHLY_FEE_LABEL} monthly access renews automatically each month until you cancel it from your profile.`,
+              message: firstMonthOff
+                ? `Your first month is ${formatDollars(FIRST_MONTH_CENTS)}; then your ${MONTHLY_FEE_LABEL} monthly access renews automatically each month until you cancel it from your profile.`
+                : `Your ${formatDollars(monthlyCents)}/mo monthly access renews automatically each month until you cancel it from your profile.`,
             },
           },
         }),

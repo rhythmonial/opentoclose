@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PRICE_OFFER_LABELS } from "@/lib/pricing";
 import { formatPhone } from "@/lib/phone";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -17,6 +18,7 @@ import {
   returnSubmission,
   markStaffStepComplete,
   markUpgraded,
+  updatePriceOffer,
 } from "../../actions";
 import { logHours, logTimedHours, deleteClientAccount } from "./actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
@@ -33,8 +35,8 @@ import {
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
   free: "Free",
-  custom: "Setup ($999 + $55/mo)",
-  diy: "DIY ($55/mo)",
+  custom: "Setup ($999 + $111/mo)",
+  diy: "DIY ($111/mo)",
 };
 
 const STEP_STATUS_LABEL: Record<string, string> = {
@@ -411,6 +413,34 @@ export default async function ClientDetailPage({
         )}
         </div>
       </div>
+
+      {/* Special pricing for their next checkout. */}
+      <form
+        action={updatePriceOffer}
+        className="mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface px-5 py-3 text-sm"
+      >
+        <input type="hidden" name="account_id" value={account.id} />
+        <label htmlFor="price_offer" className="font-semibold text-ink">
+          Pricing
+        </label>
+        <select
+          id="price_offer"
+          name="price_offer"
+          defaultValue={account.price_offer ?? ""}
+          className="rounded-md border border-border bg-bg px-2 py-1 text-sm text-ink"
+        >
+          <option value="">Regular ($111/mo, $999 setup)</option>
+          {Object.entries(PRICE_OFFER_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <button type="submit" className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white">
+          Save
+        </button>
+        <span className="text-xs text-ink-faint">Used at their next checkout.</span>
+      </form>
 
       <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-border bg-surface p-5">

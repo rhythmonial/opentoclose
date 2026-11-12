@@ -4,8 +4,8 @@ import { formatPhone } from "@/lib/phone";
 type Initiation = Tables<"setup_initiation">;
 
 const PLAN_LABEL: Record<string, string> = {
-  custom: "Setup ($999 + $55/mo)",
-  diy: "DIY ($55/mo)",
+  custom: "Setup ($999 + $111/mo)",
+  diy: "DIY ($111/mo)",
   free: "Free (not paid yet)",
 };
 

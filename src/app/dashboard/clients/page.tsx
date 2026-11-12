@@ -189,12 +189,12 @@ export default async function ClientsPage() {
     rows: typeof clientRows;
   }[] = [
     {
-      label: "Setup ($999 + $55/mo)",
+      label: "Setup ($999 + $111/mo)",
       tier: "custom",
       rows: activeRows.filter((r) => r.engagementType === "custom" || r.hoursPurchased > 0),
     },
     {
-      label: "DIY ($55/mo)",
+      label: "DIY ($111/mo)",
       tier: "diy",
       rows: activeRows.filter((r) => r.engagementType === "diy"),
     },

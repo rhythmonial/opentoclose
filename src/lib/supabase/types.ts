@@ -93,6 +93,7 @@ export type Database = {
           id: string
           name: string
           outcome: string | null
+          price_offer: string | null
           setup_path: Database["public"]["Enums"]["setup_path"] | null
           unlock_all: boolean
           state: string | null
@@ -104,6 +105,7 @@ export type Database = {
           id?: string
           name: string
           outcome?: string | null
+          price_offer?: string | null
           setup_path?: Database["public"]["Enums"]["setup_path"] | null
           unlock_all?: boolean
           state?: string | null
@@ -115,6 +117,7 @@ export type Database = {
           id?: string
           name?: string
           outcome?: string | null
+          price_offer?: string | null
           setup_path?: Database["public"]["Enums"]["setup_path"] | null
           unlock_all?: boolean
           state?: string | null

@@ -148,3 +148,17 @@ export async function updateClientOutcome(formData: FormData) {
 
   revalidatePath("/dashboard/clients", "layout");
 }
+
+// Staff: an account's special pricing (founding member, or past client /
+// referral), used at their next checkout. Blank takes it off.
+export async function updatePriceOffer(formData: FormData) {
+  const accountId = String(formData.get("account_id") ?? "");
+  const offer = String(formData.get("price_offer") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(accountId)) return;
+  const supabase = await createClient();
+  await supabase
+    .from("client_accounts")
+    .update({ price_offer: offer === "founding" || offer === "first_month" ? offer : null })
+    .eq("id", accountId);
+  revalidatePath(`/dashboard/clients/${accountId}`);
+}

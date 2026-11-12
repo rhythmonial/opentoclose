@@ -9,12 +9,12 @@ type Admin = ReturnType<typeof createAdminClient>;
 export const LIVE_STATUSES = ["active", "trialing", "past_due"];
 
 // The monthly access fee, as a Checkout line item.
-export function monthlyLineItem(): Stripe.Checkout.SessionCreateParams.LineItem {
+export function monthlyLineItem(cents: number = MONTHLY_FEE_CENTS): Stripe.Checkout.SessionCreateParams.LineItem {
   return {
     quantity: 1,
     price_data: {
       currency: "usd",
-      unit_amount: MONTHLY_FEE_CENTS,
+      unit_amount: cents,
       recurring: { interval: "month" },
       product_data: {
         name: "OTC Setup monthly access",
