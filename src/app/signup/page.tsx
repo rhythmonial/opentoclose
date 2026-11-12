@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { INVITE_COOKIE } from "@/lib/coupons";
 import { signUp } from "./actions";
 import { PasswordInput } from "@/components/PasswordInput";
 
@@ -8,6 +11,9 @@ export default async function SignUpPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+  // Not open yet: only someone with an invite link signs up; everyone else
+  // goes to the founding members page.
+  if (!(await cookies()).get(INVITE_COOKIE)) redirect("/");
 
   return (
     <main className="flex flex-1 items-center justify-center bg-bg px-4">

@@ -56,8 +56,8 @@ export default async function LoginPage({
 
         <p className="mt-6 text-center text-sm text-ink-soft">
           New here?{" "}
-          <Link href="/signup" className="font-medium text-accent">
-            Create an account
+          <Link href="/" className="font-medium text-accent">
+            Apply for the founding group
           </Link>
         </p>
       </div>
