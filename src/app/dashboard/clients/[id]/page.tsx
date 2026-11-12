@@ -247,7 +247,10 @@ export default async function ClientDetailPage({
   // (the first with an unfinished step), plus any later pillar where
   // they've already finished or sent in a step (just opening a lesson
   // doesn't count). Later pillars show once they get there.
-  const nextStep = sortedSteps.find((st) => statusByStepId.get(st.id) !== "approved");
+  // Lessons that are off don't count toward where they are.
+  const nextStep = sortedSteps.find(
+    (st) => st.is_published && statusByStepId.get(st.id) !== "approved",
+  );
   const currentIndex = nextStep
     ? phases.indexOf(nextStep.phase ?? "General")
     : phases.length - 1;

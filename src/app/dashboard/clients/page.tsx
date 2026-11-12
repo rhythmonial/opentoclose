@@ -39,7 +39,7 @@ export default async function ClientsPage() {
       .in("role", ["client_owner", "client_admin"]),
     supabase
       .from("setup_steps")
-      .select("id, path, title, phase, section, sort_order"),
+      .select("id, path, title, phase, section, sort_order, is_published"),
     supabase.from("client_step_status").select("client_id, step_id, status, updated_at"),
     supabase.from("hours_log").select("client_id, hours"),
     supabase.from("setup_initiation").select("client_id, engagement_type"),
@@ -113,8 +113,9 @@ export default async function ClientsPage() {
     );
 
     const path = account.setup_path ?? "custom";
+    // Only lessons that are on count toward where they are.
     const pathSteps = (steps ?? [])
-      .filter((s) => s.path === path)
+      .filter((s) => s.path === path && s.is_published)
       .sort((a, b) => a.sort_order - b.sort_order);
 
     const lessonsTotal = pathSteps.length;
