@@ -50,7 +50,7 @@ export default async function RootPage() {
           <h1 className="mt-4 font-display text-3xl font-bold leading-tight sm:text-5xl">
             Set up Open to Close right the first time.
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-[15px] text-pretty text-white/80 sm:text-lg">
+          <p className="mx-auto mt-5 max-w-2xl text-[15px] text-balance text-white/80 sm:text-lg">
             Most Open to Close setups go wrong before the first transaction is ever entered.
             This is an interactive setup course built around your own contracts, so you build
             only what you&rsquo;ll actually use.
