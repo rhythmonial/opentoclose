@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requestInfo } from "./actions";
 import { HeardAboutField } from "@/components/HeardAboutField";
 
@@ -15,7 +16,12 @@ export default async function PricingPage({
           Get pricing &amp; setup details
         </h1>
         <p className="mt-1.5 text-sm text-ink-soft">
-          Tell us where to send pricing and an overview of how setup works.
+          We haven&rsquo;t launched yet. Right now we&rsquo;re choosing our{" "}
+          <Link href="/" className="font-semibold text-accent">
+            founding members
+          </Link>
+          . Fill this out to join the launch list, and we&rsquo;ll send you pricing and an overview
+          of how setup works when we launch.
         </p>
 
         {error && (
@@ -26,7 +32,7 @@ export default async function PricingPage({
 
         {sent ? (
           <div className="mt-5 rounded-lg border border-success/30 bg-success-soft px-4 py-3 text-sm text-success">
-            Thanks! Keep an eye on your inbox.
+            Thanks! You&rsquo;re on the launch list. Keep an eye on your inbox.
           </div>
         ) : (
           <form action={requestInfo} className="mt-6 flex flex-col gap-4">
