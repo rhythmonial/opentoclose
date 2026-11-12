@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { loadUploadedSheets } from "@/lib/uploadedSheets";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
@@ -229,6 +230,7 @@ export default async function PlanYourTaskTemplatesPage({
           {accountId ? (
             <TaskPlanner
               key={accountId}
+              uploads={await loadUploadedSheets(supabase, accountId, "tasks")}
               accountId={isStaff ? accountId : null}
               initial={tasks}
               dateGroups={dateGroups}

@@ -263,3 +263,24 @@ export async function finishTaskPlans() {
   await approveStep(supabase, user.id, accountId, STEP_KEY);
   redirect("/portal");
 }
+
+// Adds the tasks from a file they uploaded in Upload Your Tasks (each on
+// its side, or Buyer when it has none).
+export async function importTasks(
+  accountId: string | null,
+  tasks: PlannedTask[],
+): Promise<Result & { tasks?: PlannedTask[] }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  if (tasks.length === 0) return { ok: false, error: "No tasks with a name were found." };
+  if (tasks.length > 1000) return { ok: false, error: "That's more than 1,000 tasks; split it up." };
+  const sides = await sidesOf(supabase, account);
+  const rows = tasks.flatMap((t, i) => {
+    const row = cleanTask({ ...t, side: sides.includes(t.side) ? t.side : "buyer", sortOrder: i }, sides);
+    return row ? [{ ...row, client_account_id: account }] : [];
+  });
+  const { data, error } = await supabase.from("client_task_plans").insert(rows).select("*");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  return { ok: true, tasks: (data ?? []).sort((a, b) => a.sort_order - b.sort_order).map(fromRow) };
+}

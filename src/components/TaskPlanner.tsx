@@ -13,12 +13,16 @@ import {
   type PlannedTask,
   type SideInfo,
   type TaskSide,
+  type TaskTiming,
 } from "@/lib/taskPlans";
+import { UploadMapper, type MapTarget, type UploadedSheet } from "@/components/UploadMapper";
+import type { ContactTable } from "@/lib/contactFiles";
 import { SAMPLE_TASKS } from "@/lib/sampleTasks";
 import {
   addEmailTasks,
   addSampleTasks,
   addSide,
+  importTasks,
   deleteTask,
   removeSide,
   renameTemplate,
@@ -26,6 +30,72 @@ import {
 } from "@/app/configurator/plan_your_task_templates/actions";
 
 type Row = PlannedTask & { key: string };
+
+// What an uploaded task file's columns can be imported as.
+const TASK_TARGETS: MapTarget[] = [
+  { key: "name", label: "Task name", aliases: ["task", "name", "task name", "title"], required: true },
+  { key: "side", label: "Side (Buyer / Seller / Listing)", aliases: ["side", "type"] },
+  { key: "template", label: "Template", aliases: ["template", "group", "category", "checklist"] },
+  { key: "notes", label: "Notes", aliases: ["notes", "description", "details"] },
+  { key: "critical", label: "Critical", aliases: ["critical", "important"] },
+  { key: "days", label: "Days", aliases: ["days", "due days", "due"] },
+  { key: "timing", label: "Before / After / Same day", aliases: ["timing", "when", "before after"] },
+  { key: "dateField", label: "Date field", aliases: ["date", "date field", "due from"] },
+  { key: "parentTask", label: "Parent task", aliases: ["parent", "parent task", "after task"] },
+];
+
+// An uploaded file's rows as tasks, by how its columns were matched.
+function tasksFrom(
+  table: ContactTable,
+  mapping: Record<string, string | null>,
+  sides: SideInfo[],
+  fallbackSide: TaskSide,
+): PlannedTask[] {
+  const colOf = (key: string) => table.columns.findIndex((c) => mapping[c] === key);
+  const get = (row: string[], key: string) => {
+    const i = colOf(key);
+    return i >= 0 ? (row[i] ?? "").trim() : "";
+  };
+  const sideFrom = (v: string): TaskSide => {
+    const x = v.toLowerCase();
+    const hit = sides.find(
+      (sd) =>
+        sd.label.toLowerCase() === x ||
+        sd.value === x ||
+        sd.prefix.replace(/\s*-\s*$/, "").toLowerCase() === x,
+    );
+    return hit?.value ?? fallbackSide;
+  };
+  const timingFrom = (v: string): TaskTiming | null => {
+    const x = v.toLowerCase();
+    if (x.startsWith("before")) return "before";
+    if (x.startsWith("after")) return "after";
+    if (x.startsWith("same")) return "same_day";
+    return null;
+  };
+  return table.rows
+    .map((row, i) => {
+      const days = Number.parseInt(get(row, "days"), 10);
+      return {
+        id: null,
+        side: get(row, "side") ? sideFrom(get(row, "side")) : fallbackSide,
+        template: get(row, "template") || "Imported",
+        name: get(row, "name"),
+        notes: get(row, "notes"),
+        critical: /^(y|yes|true|x|1|critical)$/i.test(get(row, "critical")),
+        recurDays: null,
+        dueDays: Number.isFinite(days) ? days : null,
+        timeFrame: null,
+        timing: timingFrom(get(row, "timing")),
+        dateField: get(row, "parentTask") ? "" : get(row, "dateField"),
+        parentTask: get(row, "parentTask"),
+        sortOrder: i,
+        emails: [],
+        documents: [],
+      };
+    })
+    .filter((t) => t.name);
+}
 
 // Date Field choices under a heading (an OTC section, or the client's own).
 export type DateGroup = { section: string; names: string[] };
@@ -42,6 +112,7 @@ const cellInput =
 // A side can start from TC Optimize's sample tasks.
 export function TaskPlanner({
   accountId,
+  uploads = [],
   initial,
   dateGroups,
   customSides,
@@ -50,6 +121,8 @@ export function TaskPlanner({
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
+  // Task files they uploaded in Upload Your Tasks.
+  uploads?: UploadedSheet[];
   initial: PlannedTask[];
   // Every date a task can be due from.
   dateGroups: DateGroup[];
@@ -269,6 +342,30 @@ export function TaskPlanner({
 
   return (
     <div className="flex flex-col gap-4">
+      {uploads.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-[15px] font-bold text-ink">Your uploaded tasks</h2>
+          <p className="-mt-1 text-xs text-ink-faint">
+            Match each file&rsquo;s columns, then add its tasks. Tasks without a side go on the{" "}
+            {sideInfo.label} side.
+          </p>
+          {uploads.map((u) => (
+            <UploadMapper
+              key={u.id}
+              sheet={u}
+              accountId={accountId}
+              targets={TASK_TARGETS}
+              noun="tasks"
+              onImport={async (table, mapping) => {
+                const result = await importTasks(accountId, tasksFrom(table, mapping, sides, side));
+                if (!result.ok || !result.tasks) throw new Error(result.error ?? "Couldn't add them.");
+                setRows((all) => [...all, ...result.tasks!.map((t) => ({ ...t, key: t.id! }))]);
+                return result.tasks.length;
+              }}
+            />
+          ))}
+        </section>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="flex flex-wrap gap-1.5" role="tablist">
@@ -863,6 +960,64 @@ export function TaskPlanner({
           </form>
         </>
       )}
+
+      {/* TC Optimize's sample tasks, to start a side from. */}
+      <section className="mt-4 flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-[15px] font-bold text-ink">Sample tasks ({SAMPLE_TASKS.length})</h2>
+          {sideRows.length === 0 ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={startFromSamples}
+              className="rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+            >
+              {busy ? "Adding…" : `Add them to ${sideInfo.label}`}
+            </button>
+          ) : (
+            <span className="text-xs text-ink-faint">
+              Your {sideInfo.label} side already has tasks.
+            </span>
+          )}
+        </div>
+        <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-border-soft bg-bg font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
+                <th className="px-3 py-2.5">Task</th>
+                <th className="px-3 py-2.5">Due</th>
+                <th className="px-3 py-2.5">Critical</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...new Set(SAMPLE_TASKS.map((t) => t.template))].flatMap((template) => {
+                const list = SAMPLE_TASKS.filter((t) => t.template === template);
+                return [
+                  <tr key={`h-${template}`} className="border-b border-border-soft bg-accent-soft/40">
+                    <td colSpan={3} className="px-3 py-1.5 font-caption text-xs font-bold uppercase tracking-wide text-accent">
+                      {template} ({list.length})
+                    </td>
+                  </tr>,
+                  ...list.map((t, i) => (
+                    <tr key={`${template}-${i}`} className="border-b border-border-soft last:border-0">
+                      <td className="px-3 py-2 font-medium text-ink">{t.name}</td>
+                      <td className="px-3 py-2 text-xs text-ink-soft">
+                        {t.timing === "same_day"
+                          ? "Same day as "
+                          : t.timing
+                            ? `${t.days ?? "?"} day${t.days === 1 ? "" : "s"} ${t.timing} `
+                            : ""}
+                        {t.parent ? `"${t.parent}" is done` : t.dateField}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-ink-soft">{t.critical ? "Yes" : ""}</td>
+                    </tr>
+                  )),
+                ];
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
