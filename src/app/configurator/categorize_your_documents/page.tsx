@@ -4,8 +4,15 @@ import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
-import { CUSTOM_PREFIX, type CategoryColor, type DocCategory } from "@/lib/documentCategories";
-import { DocumentCategorizer, type CategorizedDoc } from "@/components/DocumentCategorizer";
+import {
+  CUSTOM_PREFIX,
+  STARTER_CATEGORIES,
+  type CategoryColor,
+  type DocCategory,
+} from "@/lib/documentCategories";
+import { DocumentCategoryTable, type CategoryRow } from "@/components/DocumentCategoryTable";
+import { allSides, sideAbbreviations } from "@/lib/docSides";
+import { inUploadOrder } from "@/lib/docOrder";
 import { finishCategorizing } from "./actions";
 
 const STEP_KEY = "categorize_your_documents";
@@ -50,7 +57,7 @@ export default async function CategorizeYourDocumentsPage({
     ? await Promise.all([
         supabase
           .from("contract_documents")
-          .select("id, file_name")
+          .select("id, file_name, side, upload_order, created_at")
           .eq("client_account_id", accountId)
           .order("created_at"),
         supabase
@@ -65,41 +72,27 @@ export default async function CategorizeYourDocumentsPage({
       ])
     : [{ data: [] }, { data: [] }, { data: [] }];
 
-  // Uploaded contracts first (with what's been saved for them), then the
-  // documents added by name.
+  // Their uploaded contracts, with the category and priority saved for each.
   const byContract = new Map(
     (saved ?? []).filter((d) => d.contract_document_id).map((d) => [d.contract_document_id!, d]),
   );
-  const docs: CategorizedDoc[] = [
-    ...(contracts ?? []).map((c) => {
-      const s = byContract.get(c.id);
-      return {
-        key: `contract-${c.id}`,
-        id: s?.id ?? null,
-        contractDocumentId: c.id,
-        name: c.file_name,
-        categories: s?.categories ?? [],
-        sides: s?.sides ?? [],
-      };
-    }),
-    ...(saved ?? [])
-      .filter((d) => !d.contract_document_id)
-      .map((d) => ({
-        key: d.id,
-        id: d.id,
-        contractDocumentId: null,
-        name: d.name,
-        categories: d.categories,
-        sides: d.sides,
-      })),
-  ];
+  const rows: CategoryRow[] = inUploadOrder(contracts ?? []).map((c) => {
+    const s = byContract.get(c.id);
+    return {
+      contractDocumentId: c.id,
+      name: c.file_name,
+      side: c.side,
+      category: s?.categories?.[0] ?? null,
+      priority: s?.priority ?? null,
+    };
+  });
+  const sides = allSides((contracts ?? []).map((c) => c.side));
   const customCategories: DocCategory[] = (custom ?? []).map((c) => ({
     id: `${CUSTOM_PREFIX}${c.id}`,
     name: c.name,
     color: c.color as CategoryColor,
   }));
-  const ready =
-    docs.length > 0 && docs.every((d) => d.categories.length > 0 && d.sides.length > 0);
+  const ready = rows.length > 0 && rows.every((r) => r.category && r.priority);
 
   return (
     <main className="flex flex-1 justify-center bg-bg px-4 py-12">
@@ -166,9 +159,8 @@ export default async function CategorizeYourDocumentsPage({
           </div>
         ) : (
           <p className="mt-1.5 text-sm text-ink-soft">
-            Give each of your documents one or more categories, and check whether it&rsquo;s
-            used on the seller, buyer and/or listing side. Add any documents that aren&rsquo;t
-            listed, and add your own categories if you need more.
+            Give each of your documents a priority and a category. They&rsquo;re grouped by the
+            side you picked when you uploaded them, then by category.
           </p>
         )}
 
@@ -178,11 +170,14 @@ export default async function CategorizeYourDocumentsPage({
               Choose a client above to see their documents.
             </p>
           ) : (
-            <DocumentCategorizer
+            <DocumentCategoryTable
               key={accountId ?? "none"}
               accountId={isStaff ? accountId : null}
-              initialDocs={docs}
+              initialRows={rows}
+              starterCategories={STARTER_CATEGORIES}
               initialCustom={customCategories}
+              sides={sides}
+              abbreviations={sideAbbreviations(sides)}
             />
           )}
         </div>
@@ -198,7 +193,7 @@ export default async function CategorizeYourDocumentsPage({
             </button>
             {!ready && (
               <span className="text-xs text-ink-faint">
-                Every document needs at least one category and one side.
+                Every document needs a priority and a category.
               </span>
             )}
           </form>

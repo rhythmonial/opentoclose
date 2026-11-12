@@ -14,19 +14,30 @@ const STARTERS: [string, CategoryColor][] = [
   ["Cash", "yellow"],
   ["Loan", "yellow"],
   ["Appraisal", "yellow"],
+  ["New Construction", "yellow"],
+  ["Rental", "yellow"],
+  ["Property Disclosure", "red"],
   ["Inspection", "red"],
   ["Septic", "red"],
-  ["Termite", "red"],
+  // Kept as "termite" (its id) so earlier picks stay.
+  ["Termite/Pest", "red"],
   ["Well", "red"],
+  ["Radon", "red"],
+  ["Pool", "red"],
+  ["Survey", "red"],
+  ["Solar", "red"],
   ["Home Warranty", "red"],
   ["HOA", "red"],
   ["LBP", "red"],
   ["Referral", "red"],
   ["Cancellation", "red"],
+  ["Photography", "blue"],
+  ["For Sale Sign", "blue"],
+  ["Open House", "blue"],
 ];
 
 export const STARTER_CATEGORIES: DocCategory[] = STARTERS.map(([name, color]) => ({
-  id: name.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+  id: name === "Termite/Pest" ? "termite" : name.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
   name,
   color,
 }));
@@ -65,4 +76,20 @@ export function templatePrefix(sides: string[]) {
     .filter((side) => sides.includes(side))
     .map((side) => SIDE_LETTERS[side])
     .join("/");
+}
+
+// How much a document matters to their files.
+export const PRIORITIES = [
+  { value: "high", label: "High" },
+  { value: "medium", label: "Med" },
+  { value: "low", label: "Low" },
+] as const;
+
+// The template sides (buyer, seller, listing) for a contract's side from
+// Upload Your Contracts. A transaction document is both buyer and seller.
+export function templateSidesFor(side: string | null | undefined): string[] {
+  const s = side?.toLowerCase();
+  if (s === "buyer" || s === "seller" || s === "listing") return [s];
+  if (s === "transaction") return ["buyer", "seller"];
+  return [];
 }

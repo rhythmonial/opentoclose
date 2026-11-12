@@ -28,6 +28,7 @@ export async function saveDocument(
     name: string;
     categories: string[];
     sides: string[];
+    priority?: string | null;
   },
 ): Promise<Result> {
   const { supabase, accountId: account } = await configuratorAccount(accountId);
@@ -46,6 +47,7 @@ export async function saveDocument(
     name: doc.name.trim().slice(0, 160),
     categories: [...new Set(doc.categories)].filter((c) => known.has(c)),
     sides: [...new Set(doc.sides)].filter((s) => SIDES.some((x) => x.value === s)),
+    priority: ["high", "medium", "low"].includes(doc.priority ?? "") ? doc.priority! : null,
     updated_at: new Date().toISOString(),
   };
   if (!row.name) return { ok: false, error: "A document needs a name." };
@@ -154,7 +156,8 @@ export async function deleteCategory(accountId: string | null, categoryId: strin
   return { ok: true };
 }
 
-// Marks the lesson complete once every document has a category and a side.
+// Marks the lesson complete once every uploaded contract has a category
+// and a priority.
 export async function finishCategorizing() {
   const { supabase, user, accountId } = await configuratorAccount(null);
   if (!user) redirect("/login");
@@ -164,16 +167,13 @@ export async function finishCategorizing() {
     supabase.from("contract_documents").select("id").eq("client_account_id", accountId),
     supabase
       .from("prep_documents")
-      .select("contract_document_id, categories, sides")
+      .select("contract_document_id, categories, priority")
       .eq("client_account_id", accountId),
   ]);
-  const done = (d?: { categories: string[]; sides: string[] }) =>
-    Boolean(d && d.categories.length > 0 && d.sides.length > 0);
   const byContract = new Map((docs ?? []).map((d) => [d.contract_document_id, d] as const));
-  const all = [
-    ...(contracts ?? []).map((c) => byContract.get(c.id)),
-    ...(docs ?? []).filter((d) => !d.contract_document_id),
-  ];
+  const all = (contracts ?? []).map((c) => byContract.get(c.id));
+  const done = (d?: { categories: string[]; priority: string | null }) =>
+    Boolean(d && d.categories.length > 0 && d.priority);
   if (all.length === 0 || !all.every(done)) redirect(PAGE);
 
   await approveStep(supabase, user.id, accountId, STEP_KEY);

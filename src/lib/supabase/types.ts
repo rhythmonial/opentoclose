@@ -339,6 +339,7 @@ export type Database = {
           client_account_id: string
           contract_document_id: string | null
           name: string
+          priority: string | null
           categories: string[]
           sides: string[]
           created_at: string
@@ -349,6 +350,7 @@ export type Database = {
           client_account_id: string
           contract_document_id?: string | null
           name: string
+          priority?: string | null
           categories?: string[]
           sides?: string[]
           created_at?: string
@@ -359,6 +361,7 @@ export type Database = {
           client_account_id?: string
           contract_document_id?: string | null
           name?: string
+          priority?: string | null
           categories?: string[]
           sides?: string[]
           created_at?: string
