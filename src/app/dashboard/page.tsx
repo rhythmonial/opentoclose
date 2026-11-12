@@ -53,13 +53,14 @@ export default async function DashboardHome() {
       .from("leads")
       .select("*", { count: "exact", head: true })
       .not("status", "in", "(won,lost)")
+      .neq("source", "signup")
       .is("archived_at", null),
     supabase
       .from("support_tickets")
       .select("*")
       .order("updated_at", { ascending: true }),
     supabase.from("setup_initiation").select("engagement_type"),
-    supabase.from("leads").select("status"),
+    supabase.from("leads").select("status").neq("source", "signup"),
   ]);
 
   // --- Cards ---

@@ -274,9 +274,9 @@ export default async function ClientsPage() {
       ? engagementByAccountId.get(lead.converted_client_account_id)
       : undefined;
   }
+  // Won once marked won or once they've signed up (linked to an account).
   function isWon(lead: Lead) {
-    const plan = leadPlan(lead);
-    return lead.status === "won" || plan === "custom" || plan === "diy";
+    return lead.status === "won" || !!lead.converted_client_account_id;
   }
   function purchasedFor(lead: Lead) {
     const accountId = lead.converted_client_account_id;
@@ -295,25 +295,13 @@ export default async function ClientsPage() {
     .not("status", "in", "(won,lost)")
     .order("created_at", { ascending: false });
 
-  const activeLeads = (leads ?? []).filter((l) => !l.archived_at);
-  const manualLeads = activeLeads.filter(
-    (l) => !l.converted_client_account_id && !isWon(l),
-  );
-  const freeLeads = activeLeads.filter(
-    (l) => l.converted_client_account_id && !isWon(l),
-  );
+  // Sign-ups aren't leads (they pay to join), so the old free-signup rows
+  // stay hidden.
+  const shownLeads = (leads ?? []).filter((l) => l.source !== "signup");
+  const activeLeads = shownLeads.filter((l) => !l.archived_at);
+  const openLeads = activeLeads.filter((l) => !isWon(l));
   const wonLeads = activeLeads.filter(isWon);
-  const archivedLeads = (leads ?? []).filter((l) => l.archived_at);
-  const leadGroups = [
-    { label: "Manual", rows: manualLeads, empty: "No manual leads yet." },
-    {
-      label: "Free signups",
-      rows: freeLeads,
-      empty: "No free signups to upsell.",
-    },
-    { label: "Won", rows: wonLeads, empty: "No won leads yet." },
-  ];
-  const openLeads = [...manualLeads, ...freeLeads];
+  const archivedLeads = shownLeads.filter((l) => l.archived_at);
   const newLeadCount = openLeads.filter((l) => l.status === "new").length;
 
   function leadRow(lead: Lead) {
@@ -579,8 +567,8 @@ export default async function ClientsPage() {
             </h2>
             <p className="mt-1 text-sm text-ink-soft">
               Applications from the founding group form. Click one to see their answers. Won
-              takes them off this list (they&rsquo;re a client once they sign up); Lost files them
-              under archived leads.
+              moves them to won leads (and Clients once they sign up); Lost files them under
+              archived leads.
             </p>
           </summary>
           <FoundingMembers
@@ -611,37 +599,38 @@ export default async function ClientsPage() {
               <table className="w-full min-w-[640px] text-left text-sm">
                 {leadTableHead}
                 <tbody>
-                  {leadGroups.map((group) => [
-                    <tr
-                      key={group.label}
-                      className="border-b border-border-soft bg-bg"
-                    >
-                      <td
-                        colSpan={6}
-                        className="px-5 py-2 font-caption text-[11px] font-bold uppercase tracking-wide text-ink-faint"
-                      >
-                        {group.label} ({group.rows.length})
+                  {openLeads.map(leadRow)}
+                  {openLeads.length === 0 && (
+                    <tr>
+                      <td className="px-5 py-4 text-sm text-ink-soft" colSpan={6}>
+                        No open leads.
                       </td>
-                    </tr>,
-                    ...(group.rows.length === 0
-                      ? [
-                          <tr
-                            key={`${group.label}-empty`}
-                            className="border-b border-border-soft last:border-0"
-                          >
-                            <td
-                              className="px-5 py-4 text-sm text-ink-soft"
-                              colSpan={6}
-                            >
-                              {group.empty}
-                            </td>
-                          </tr>,
-                        ]
-                      : group.rows.map(leadRow)),
-                  ])}
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
+
+            <details className="rounded-xl border border-border bg-surface">
+              <summary className="cursor-pointer px-5 py-3.5 font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
+                Won ({wonLeads.length})
+              </summary>
+              <div className="overflow-x-auto border-t border-border-soft">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  {leadTableHead}
+                  <tbody>
+                    {wonLeads.map(leadRow)}
+                    {wonLeads.length === 0 && (
+                      <tr>
+                        <td className="px-5 py-4 text-sm text-ink-soft" colSpan={6}>
+                          No won leads yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </details>
 
             <details className="rounded-xl border border-border bg-surface">
               <summary className="cursor-pointer px-5 py-3.5 font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">

@@ -163,9 +163,9 @@ export async function updatePriceOffer(formData: FormData) {
   revalidatePath(`/dashboard/clients/${accountId}`);
 }
 
-// Staff: where they are with a founding group application. Won takes it off
-// the list (they're a client once they sign up); lost files it under the
-// archived leads.
+// Staff: where they are with a founding group application. Won moves it to
+// the won leads (linked to their account once they sign up); lost files it
+// under the archived leads.
 export async function setFoundingStatus(
   id: string,
   status: string,
@@ -179,16 +179,16 @@ export async function setFoundingStatus(
     .select("first_name, last_name, email, phone, business_name, company_structure, states_serviced, priority_state, tms, answers")
     .maybeSingle();
   if (error || !app) return { ok: false, error: error?.message ?? "Application not found." };
-  if (status === "lost") {
+  if (status === "lost" || status === "won") {
     const answers = (app.answers ?? {}) as Record<string, string>;
     await supabase.from("leads").insert({
       name: `${app.first_name} ${app.last_name}`,
       email: app.email,
       phone: app.phone,
       source: "founding",
-      status: "lost",
+      status,
       heard_about: answers.referral ?? null,
-      archived_at: new Date().toISOString(),
+      archived_at: status === "lost" ? new Date().toISOString() : null,
       details: {
         company_structure: app.company_structure,
         business_name: app.business_name,
