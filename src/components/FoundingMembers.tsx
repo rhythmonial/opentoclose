@@ -137,6 +137,19 @@ export function FoundingMembers({ apps: initial }: { apps: FoundingApp[] }) {
                   {open.first_name} {open.last_name}
                 </h2>
                 <p className="text-sm text-ink-soft">
+                  <a href={`mailto:${open.email}`} className="text-accent">
+                    {open.email}
+                  </a>
+                  {open.phone && (
+                    <>
+                      {" · "}
+                      <a href={`tel:${open.phone}`} className="text-accent">
+                        {open.phone}
+                      </a>
+                    </>
+                  )}
+                </p>
+                <p className="text-sm text-ink-soft">
                   {open.business_name} &middot; {open.company_structure}
                 </p>
               </div>
@@ -152,8 +165,6 @@ export function FoundingMembers({ apps: initial }: { apps: FoundingApp[] }) {
             </div>
             <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
               {[
-                ["Email", open.email],
-                ["Cell phone", open.phone ?? "—"],
                 [
                   "States serviced",
                   `${open.states_serviced ?? "—"}${open.priority_state ? ` (priority: ${open.priority_state})` : ""}`,
