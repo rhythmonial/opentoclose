@@ -29,6 +29,18 @@ const STATUSES = [
   { value: "lost", label: "Lost" },
 ];
 
+// Short names for the questions in the popup.
+const SHORT_LABELS: Record<string, string> = {
+  otc_status: "Where are they",
+  launch_timeline: "Launch plan",
+  volume: "# of closings",
+  users: "# of team members",
+  commitment: "5 hours/week",
+  done_with_you: "Setup interest",
+  challenge: "Challenge",
+  referral: "Source",
+};
+
 // Staff: the founding group applications still in play, one row each.
 // Clicking a row opens their answers. Won takes them off the list (they're
 // a client once they sign up); Lost files them under the archived leads.
@@ -134,11 +146,12 @@ export function FoundingMembers({ apps: initial }: { apps: FoundingApp[] }) {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 id="founding-app-title" className="font-display text-lg font-bold text-ink">
-                  {open.first_name} {open.last_name} &middot; {open.business_name}
+                  {open.first_name} {open.last_name} &middot; {open.business_name}{" "}
+                  <span className="font-sans text-sm font-normal text-ink-soft">
+                    ({open.states_serviced ? <>{open.states_serviced} &middot; </> : null}
+                    {open.company_structure})
+                  </span>
                 </h2>
-                <p className="text-sm text-ink-soft">
-                  {open.states_serviced ?? "—"} &middot; ({open.company_structure})
-                </p>
                 <p className="mt-1 text-sm text-ink-soft">
                   {/* Opens a Gmail message to them (in a new tab). */}
                   <a
@@ -165,8 +178,8 @@ export function FoundingMembers({ apps: initial }: { apps: FoundingApp[] }) {
             <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
               {[
                 ...(open.priority_state ? [["Priority state", open.priority_state]] : []),
-                ["Current transaction management software", open.tms ?? "—"],
-                ...QUESTIONS.map((q) => [q.label, open.answers[q.key] ?? "—"]),
+                ["TM Software", open.tms ?? "—"],
+                ...QUESTIONS.map((q) => [SHORT_LABELS[q.key] ?? q.label, open.answers[q.key] ?? "—"]),
                 [
                   "Applied",
                   new Date(open.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
