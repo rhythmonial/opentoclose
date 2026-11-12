@@ -17,6 +17,10 @@ The project owner wants Claude usage kept as low as possible:
 - Run a full `next build` only before larger pushes, not after every tweak.
 - Keep replies short: what changed and anything the owner needs to know.
 
+## Batch pushes
+
+Every push to the branch starts a Vercel deploy, and the owner's plan has a daily deploy limit. Commit each change as you go, but push only when the owner says "push" or at the end of a batch of requests, not after every tweak. In replies, say what's committed and waiting to be pushed.
+
 ## Reloads keep your place
 
 A reload must bring the owner back to where they were. Any in-page tab, view or page of a document goes in the address (`setUrlParam` in `src/lib/urlState.ts`) and the page reads it back from its search params. After a change, update the page in place (local state and `router.refresh()`), not with `window.location.reload()`.
