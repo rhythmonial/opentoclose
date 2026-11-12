@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const OPTIONS = ["OTC FB Group", "YouTube", "OTC Staff", "Referral", "Other"];
+const OPTIONS = ["Facebook", "YouTube", "Referral", "Other"];
 
 export function HeardAboutField() {
   const [value, setValue] = useState("");
