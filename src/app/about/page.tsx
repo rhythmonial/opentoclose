@@ -86,7 +86,8 @@ export default function AboutPage() {
             What I do today
           </div>
           <h2 className="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">
-            A setup built around your contracts
+            <span className="block">A setup built</span>
+            <span className="block">around your contracts</span>
           </h2>
           <p className="mt-3 text-ink-soft">
             I took everything I&rsquo;ve learned and built an interactive setup course. You upload
