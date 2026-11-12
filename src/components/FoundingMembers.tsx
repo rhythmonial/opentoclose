@@ -130,7 +130,7 @@ export function FoundingMembers({ apps: initial }: { apps: FoundingApp[] }) {
             if (e.key === "Escape") setOpen(null);
           }}
         >
-          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-xl">
+          <div className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 id="founding-app-title" className="font-display text-lg font-bold text-ink">
@@ -150,7 +150,7 @@ export function FoundingMembers({ apps: initial }: { apps: FoundingApp[] }) {
                 &times;
               </button>
             </div>
-            <dl className="mt-4 flex flex-col gap-3 text-sm">
+            <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
               {[
                 ["Email", open.email],
                 ["Cell phone", open.phone ?? "—"],
