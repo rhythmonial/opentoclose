@@ -272,6 +272,7 @@ export function ContractUploader({
                   source={item.bytes}
                   pageCount={item.analysis.pageCount}
                   initialBlanks={item.analysis.blanks}
+                  deleteOnly
                 />
               </div>
             </details>

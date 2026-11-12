@@ -5,7 +5,9 @@ import { ContractUploader } from "@/components/ContractUploader";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { DocTitle } from "@/components/DocTitle";
 import { deleteContractDocument, finishContractDocs, reorderUploadDocs } from "./actions";
-import { fieldsLeft, loadUploadDocs } from "./load";
+import { loadUploadDocs } from "./load";
+import { DocSideSelect } from "@/components/DocSideSelect";
+import { allSides } from "@/lib/docSides";
 
 export default async function UploadContractDocsPage({
   searchParams,
@@ -16,8 +18,9 @@ export default async function UploadContractDocsPage({
   const { step, isStaff, sandboxTier, staffClient, accountId, testMode, docs, docHref } =
     await loadUploadDocs(client);
 
-  // Scans can't be reviewed; everything else needs every page confirmed.
-  const toReview = docs.filter((d) => fieldsLeft(d) > 0);
+  // Each contract needs its side (buyer, seller, transaction, listing…).
+  const toReview = docs.filter((d) => !d.side);
+  const sides = allSides(docs.map((d) => d.side));
 
   const title = (
     <h1 className="font-display text-2xl font-bold text-ink">
@@ -101,8 +104,9 @@ export default async function UploadContractDocsPage({
               {staffClient ? "Their" : "Your"} uploaded documents ({docs.length})
             </h2>
             <p className="mt-0.5 text-xs text-ink-faint">
-              Click a document to review its pages, or the pencil to rename it. Drag the handle beside a document to put
-              them in the order you like.
+              Pick each document&rsquo;s side. Click a document to remove any fields you don&rsquo;t
+              want to track, or the pencil to rename it. Drag the handle beside a document to put them in
+              the order you like.
             </p>
             <div className="mt-3">
               <SortableGroup
@@ -110,7 +114,6 @@ export default async function UploadContractDocsPage({
                 handleClass="mt-4"
                 onReorder={reorderUploadDocs.bind(null, staffClient?.id ?? null)}
                 items={docs.map((doc, i) => {
-                  const left = fieldsLeft(doc);
                   const pages = doc.page_count ?? 0;
                   return {
                     id: doc.id,
@@ -138,20 +141,13 @@ export default async function UploadContractDocsPage({
                               })}
                             </span>
                           </span>
-                          <span className="pointer-events-none relative">
-                            {doc.is_scanned ? (
-                              <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
+                          <span className="relative flex items-center gap-2">
+                            {doc.is_scanned && (
+                              <span className="pointer-events-none rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning">
                                 Scanned copy
                               </span>
-                            ) : left === 0 ? (
-                              <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-semibold text-success">
-                                Completed
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-semibold text-danger">
-                                {left} field{left === 1 ? " needs" : "s need"} a field type
-                              </span>
                             )}
+                            <DocSideSelect docId={doc.id} value={doc.side} sides={sides} />
                           </span>
                         </div>
                         <form action={deleteContractDocument} className="flex items-center">
@@ -176,7 +172,7 @@ export default async function UploadContractDocsPage({
                 </button>
                 {toReview.length > 0 && (
                   <span className="text-xs text-ink-faint">
-                    Give every field a type in{" "}
+                    Pick a side for{" "}
                     {toReview.length === 1 ? "1 more document" : `${toReview.length} more documents`}{" "}
                     to finish.
                   </span>

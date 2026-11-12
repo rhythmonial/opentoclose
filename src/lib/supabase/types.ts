@@ -684,6 +684,7 @@ export type Database = {
           id: string
           is_scanned: boolean
           page_count: number | null
+          side: string | null
           reviewed_at: string | null
           storage_path: string
           uploaded_by: string | null
@@ -705,6 +706,7 @@ export type Database = {
           id?: string
           is_scanned?: boolean
           page_count?: number | null
+          side?: string | null
           reviewed_at?: string | null
           storage_path: string
           uploaded_by?: string | null
@@ -726,6 +728,7 @@ export type Database = {
           id?: string
           is_scanned?: boolean
           page_count?: number | null
+          side?: string | null
           reviewed_at?: string | null
           storage_path?: string
           uploaded_by?: string | null

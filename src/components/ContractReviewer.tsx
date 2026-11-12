@@ -90,6 +90,7 @@ export function ContractReviewer({
   onFieldsLeft,
   nextDocHref,
   syncPage = false,
+  deleteOnly = false,
 }: {
   // The file's bytes (just picked) or a signed URL (already uploaded).
   source: ArrayBuffer | string;
@@ -104,6 +105,9 @@ export function ContractReviewer({
   nextDocHref?: string | null;
   // Keeps the page in the address (?page=), so a reload comes back to it.
   syncPage?: boolean;
+  // Upload Your Contracts: they only remove fields they don't want to
+  // track (no drawing, moving, linking or field types; that's in Assign).
+  deleteOnly?: boolean;
 }) {
   const [blanks, setBlanks] = useState(initialBlanks);
   const [page, setPageState] = useState(Math.min(Math.max(1, initialPage), Math.max(1, pageCount)));
@@ -668,7 +672,7 @@ export function ContractReviewer({
             <button
               key={n}
               type="button"
-              title={pageCountTitle(fieldsOnPage(n))}
+              title={deleteOnly ? undefined : pageCountTitle(fieldsOnPage(n))}
               onClick={() => {
                 setPage(n);
                 setSelected(null);
@@ -679,7 +683,7 @@ export function ContractReviewer({
               }`}
             >
               Page {n}
-              <PageCount {...fieldsOnPage(n)} current={n === page} />
+              {!deleteOnly && <PageCount {...fieldsOnPage(n)} current={n === page} />}
             </button>
           ))}
         </div>
@@ -692,6 +696,26 @@ export function ContractReviewer({
         </span>
       </div>
 
+      {deleteOnly ? (
+        <>
+          <p className="text-sm text-ink-soft">
+            These are the fields we found on this page. Click any you don&rsquo;t want to track in
+            Open to Close, then remove it (it grays out; click it again to put it back). You&rsquo;ll
+            give the rest their field types in Assign Your Fields.
+          </p>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-ink-soft">
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-4 rounded-sm border-2 border-accent bg-accent/15" />
+              Tracked
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-4 rounded-sm border-2 border-zinc-400 bg-zinc-400/40" />
+              Removed
+            </span>
+          </div>
+        </>
+      ) : (
+      <>
       <p className="text-sm text-ink-soft">
         Check that every spot someone fills in or checks on this page is
         highlighted. Missing a checkbox? Click where it is. Missing a blank
@@ -724,6 +748,8 @@ export function ContractReviewer({
           Removed
         </span>
       </div>
+      </>
+      )}
 
       {optionsFor && (
         <ChoiceOptionsPanel
@@ -761,12 +787,16 @@ export function ContractReviewer({
                 onPointerDown={(e) => {
                   if (e.button !== 0) return;
                   setLinking([]);
+                  if (deleteOnly) {
+                    setSelected(null);
+                    return;
+                  }
                   startDrag(e, "draw", blanks.length);
                 }}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
                 onPointerCancel={onPointerUp}
-                className="absolute inset-0 cursor-crosshair touch-none select-none"
+                className={`absolute inset-0 touch-none select-none ${deleteOnly ? "cursor-default" : "cursor-crosshair"}`}
               >
                 {onPage.map((b) => {
                   const isSelected = selected === b.index;
@@ -777,6 +807,12 @@ export function ContractReviewer({
                       key={b.index}
                       onPointerDown={(e) => {
                         if (e.button !== 0) return;
+                        if (deleteOnly) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelected(b.index);
+                          return;
+                        }
                         if (optionsFor) {
                           e.preventDefault();
                           e.stopPropagation();
@@ -800,7 +836,7 @@ export function ContractReviewer({
                         setHoverGroup(null);
                         setHoverIndex(null);
                       }}
-                      className={`absolute rounded-sm border-2 ${optionsFor ? "cursor-pointer" : "cursor-move"} ${
+                      className={`absolute rounded-sm border-2 ${optionsFor || deleteOnly ? "cursor-pointer" : "cursor-move"} ${
                         optionsFor && keyOf(b) === optionsFor
                           ? "z-10 border-accent bg-accent/30 ring-2 ring-accent ring-offset-1"
                           : optionsFor && b.fieldType === "choice_option" && b.choiceOf === optionsFor
@@ -813,7 +849,9 @@ export function ContractReviewer({
                             ? "z-10 border-dashed border-accent bg-accent/25"
                             : b.removed
                               ? "border-zinc-400 bg-zinc-400/40"
-                              : isTyped(b)
+                              : deleteOnly
+                                ? "border-accent bg-accent/10 hover:bg-accent/25"
+                                : isTyped(b)
                                 ? `border-success ${lit ? "bg-success/40" : "bg-success/20 hover:bg-success/30"}`
                                 : b.group
                                   ? `border-gold ${lit ? "bg-gold/50" : "bg-gold/25 hover:bg-gold/40"}`
@@ -826,7 +864,7 @@ export function ContractReviewer({
                         height: `${b.height * 100}%`,
                       }}
                     >
-                      {!b.removed &&
+                      {!b.removed && !deleteOnly &&
                         ((b.group && firstOfGroup.has(b.index)) || (!b.group && b.fieldType)) &&
                         (hoverIndex === null ||
                           hoverIndex === b.index ||
@@ -856,7 +894,7 @@ export function ContractReviewer({
                           {/* Blank lines stretch from their ends only;
                               checkboxes get small corner handles. */}
                           {HANDLES.filter((h) =>
-                            b.type === "checkbox" ? SMALL_CORNERS[h.id] : h.id === "e" || h.id === "w",
+                            deleteOnly ? false : b.type === "checkbox" ? SMALL_CORNERS[h.id] : h.id === "e" || h.id === "w",
                           ).map((h) => (
                             <span
                               key={h.id}
@@ -974,6 +1012,28 @@ export function ContractReviewer({
                               className="whitespace-nowrap rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white"
                             >
                               Put it back
+                            </button>
+                          </span>
+                        </span>
+                      ) : deleteOnly ? (
+                        <span className="flex w-60 flex-col gap-2">
+                          <span className="text-xs text-ink-soft">
+                            Not tracking this one in Open to Close?
+                          </span>
+                          <span className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelected(null)}
+                              className="whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold text-ink-soft"
+                            >
+                              Keep it
+                            </button>
+                            <button
+                              type="button"
+                              onClick={removeSelected}
+                              className="whitespace-nowrap rounded-md bg-danger px-3 py-1 text-xs font-semibold text-white"
+                            >
+                              Remove
                             </button>
                           </span>
                         </span>

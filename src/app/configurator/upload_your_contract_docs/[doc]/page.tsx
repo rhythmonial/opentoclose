@@ -45,6 +45,7 @@ export default async function UploadedContractPage({
             nextDocHref={n < docs.length ? docHref(n) : null}
             initialPage={Number(openPage) || 1}
             isScanned={doc.is_scanned}
+            deleteOnly
             uploadedOn={new Date(doc.created_at).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",

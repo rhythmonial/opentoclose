@@ -21,6 +21,7 @@ export function SavedContractDoc({
   nextDocHref,
   initialPage = 1,
   actions,
+  deleteOnly = false,
 }: {
   id: string;
   fileName: string;
@@ -34,6 +35,8 @@ export function SavedContractDoc({
   // The page to open on (from the address).
   initialPage?: number;
   actions?: React.ReactNode;
+  // Upload Your Contracts: only removing fields (types come in Assign).
+  deleteOnly?: boolean;
 }) {
   const [left, setLeft] = useState(() => fieldsNeedingType(blanks).left);
   const canReview = Boolean(url) && !isScanned;
@@ -53,7 +56,7 @@ export function SavedContractDoc({
           <p className="text-xs text-ink-faint">
             {pageCount} page{pageCount === 1 ? "" : "s"} &middot; Uploaded {uploadedOn}
           </p>
-          {!isScanned && (
+          {!isScanned && !deleteOnly && (
             <span
               className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                 left === 0 ? "bg-success-soft text-success" : "bg-danger/10 text-danger"
@@ -99,6 +102,7 @@ export function SavedContractDoc({
               nextDocHref={nextDocHref}
               initialPage={initialPage}
               syncPage
+              deleteOnly={deleteOnly}
               onSave={(next) => saveContractReview({ id, blanks: next })}
             />
           </DocumentBoundary>

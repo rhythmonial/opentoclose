@@ -322,3 +322,22 @@ export async function renameContractDocument(
   revalidatePath(PAGE, "layout");
   return { ok: true, name: clean };
 }
+
+// A contract's side: buyer, seller, transaction, listing, other, or one of
+// their own.
+export async function setContractSide(
+  id: string,
+  side: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const clean = side.replace(/\s+/g, " ").trim().slice(0, 40);
+  if (!clean) return { ok: false, error: "Pick a side." };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("contract_documents")
+    .update({ side: clean })
+    .eq("id", id)
+    .select("id");
+  if (error || !data?.length) return { ok: false, error: error?.message ?? "Document not found." };
+  revalidatePath(PAGE, "layout");
+  return { ok: true };
+}
