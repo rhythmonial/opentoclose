@@ -47,7 +47,7 @@ async function requireClient(returnTo: string) {
   }
   // Accounts given their plan at no charge are never billed.
   if (profile?.client_accounts?.comped) {
-    redirect(`${returnTo}?error=${encodeURIComponent("This account is included at no charge.")}`);
+    redirect(`${returnTo}?error=${encodeURIComponent("This is a demo account, so there's nothing to pay.")}`);
   }
 
   // Plans, hours and steps belong to the whole account: record them under

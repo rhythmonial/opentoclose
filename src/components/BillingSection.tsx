@@ -39,6 +39,7 @@ export function BillingSection({
   payments,
   isOwner,
   complimentary = false,
+  demo = false,
   freeMonth = { activeUntil: null, endedOn: null },
   notice,
   error,
@@ -50,6 +51,8 @@ export function BillingSection({
   isOwner: boolean;
   // A paid plan given at no charge (no Stripe subscription ever).
   complimentary?: boolean;
+  // A demo account: never billed.
+  demo?: boolean;
   // A coupon's free month: running until, or ended on (not subscribed).
   freeMonth?: { activeUntil: string | null; endedOn: string | null };
   notice?: string;
@@ -68,7 +71,7 @@ export function BillingSection({
     <section id="billing" className="scroll-mt-6 rounded-xl border border-border bg-surface p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-[15px] font-bold text-ink">Billing</h2>
-        {isOwner && !live && !complimentary && (
+        {isOwner && !live && !complimentary && !demo && (
           <form action={startPlanCheckout}>
             <input type="hidden" name="plan" value="diy" />
             <input type="hidden" name="return_to" value="/profile" />
@@ -98,7 +101,9 @@ export function BillingSection({
         <dd className="font-semibold text-ink">{ENGAGEMENT_LABELS[plan ?? "free"] ?? "Free"}</dd>
         <dt className="text-ink-soft">Monthly access</dt>
         <dd className="text-ink">
-          {live ? (
+          {demo ? (
+            <span>Demo account</span>
+          ) : live ? (
             live.status === "past_due" ? (
               <span className="font-semibold text-danger">
                 {amount}/month &middot; payment failed. The card on file needs updating.
@@ -181,7 +186,7 @@ export function BillingSection({
           next charge, and you keep access until the end of the month you&rsquo;ve paid for.
         </p>
       )}
-      {freeMonth.activeUntil && isOwner && (
+      {freeMonth.activeUntil && isOwner && !demo && (
         <p className="mt-2 text-xs text-ink-faint">
           Subscribe any time to keep DIY after your free month. Billing starts when it ends.
         </p>

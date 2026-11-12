@@ -499,6 +499,7 @@ export default async function ProfilePage({
                 (subscriptions ?? []).length === 0 &&
                 !freeMonth.activeUntil)
             }
+            demo={Boolean(account?.comped)}
             freeMonth={account?.comped ? undefined : freeMonth}
             payments={(payments ?? []).slice(0, 8)}
             isOwner={isOwner}

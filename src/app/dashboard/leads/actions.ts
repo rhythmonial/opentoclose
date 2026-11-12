@@ -30,7 +30,8 @@ export async function updateLeadStatus(formData: FormData) {
     .update(
       status === "lost"
         ? { status, lost_reason: lostReason || null, lost_at: now, archived_at: now, updated_at: now }
-        : { status: status as never, lost_reason: null, lost_at: null, updated_at: now },
+        : // Any other status brings it back to the open leads.
+          { status: status as never, lost_reason: null, lost_at: null, archived_at: null, updated_at: now },
     )
     .eq("id", leadId);
 

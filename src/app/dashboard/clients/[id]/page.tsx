@@ -438,7 +438,7 @@ export default async function ClientDetailPage({
               {label}
             </option>
           ))}
-          <option value="comped">No charge (never billed)</option>
+          <option value="comped">Demo account (never billed)</option>
         </select>
         <button type="submit" className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white">
           Save

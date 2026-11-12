@@ -59,7 +59,7 @@ export function SubscriptionStatus({
   const live = s && ["active", "trialing", "past_due"].includes(s.status);
 
   if (!live && comped) {
-    return <span className={`${pill} bg-success-soft text-success`}>No charge</span>;
+    return <span className={`${pill} bg-success-soft text-success`}>Demo</span>;
   }
   if (!live && freeUntil) {
     return (
