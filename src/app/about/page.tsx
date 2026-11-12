@@ -18,8 +18,8 @@ export default function AboutPage() {
             About
           </div>
           <h1 className="mt-4 font-display text-3xl font-bold leading-tight sm:text-5xl">
-            <span className="block whitespace-nowrap">Open to Close setups</span>
-            <span className="block">done right the first time</span>
+            <span className="block whitespace-nowrap">Open to Close Setups</span>
+            <span className="mt-1 block whitespace-nowrap text-xl sm:text-3xl">done right the first time</span>
           </h1>
           <p className="mx-auto mt-5 max-w-3xl text-base text-white/85 sm:text-lg">
             Most Open to Close setups go wrong before the first transaction is ever entered.
