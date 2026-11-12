@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useEffect, useRef, useState } from "react";
 import { updateStep } from "@/app/profile/setup-steps-actions";
 
 // Fired on a lesson's form by SaveStepButton (and by this panel) once its
 // fields are saved, so the panel knows they're no longer unsaved.
 export const LESSON_SAVED_EVENT = "lesson-saved";
+
+// Whether the lesson has unsaved changes (for its Save button).
+export const LessonDirtyContext = createContext(false);
 
 // Serializes a lesson's form fields, to tell when they differ from what's
 // saved (typing, toolbar formatting, changing the lesson type, ...).
@@ -86,6 +89,7 @@ export function LessonPanel({
   }
 
   return (
+    <LessonDirtyContext.Provider value={dirty}>
     <details
       ref={ref}
       className="rounded-lg border border-border bg-surface px-4 py-2 open:pb-4"
@@ -131,5 +135,6 @@ export function LessonPanel({
 
       {children}
     </details>
+    </LessonDirtyContext.Provider>
   );
 }

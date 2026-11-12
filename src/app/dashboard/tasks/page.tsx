@@ -535,12 +535,22 @@ function StepEditPanel({
             <div className="flex shrink-0 items-center gap-2 sm:hidden">
               {moveSelect}
               <PublishToggle stepId={step.id} value={step.is_published} />
+              <SaveStepButton formId={`step-form-${step.id}`} />
+              <form action={deleteStep}>
+                <input type="hidden" name="id" value={step.id} />
+                <ConfirmDeleteButton title="Delete this task" size="md" />
+              </form>
             </div>
           </div>
         </div>
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
           {moveSelect}
           <PublishToggle stepId={step.id} value={step.is_published} />
+          <SaveStepButton formId={`step-form-${step.id}`} />
+          <form action={deleteStep}>
+            <input type="hidden" name="id" value={step.id} />
+            <ConfirmDeleteButton title="Delete this task" size="md" />
+          </form>
         </div>
         </>
       }
@@ -596,13 +606,6 @@ function StepEditPanel({
         />
       </label>
 
-      <div className="mt-3 flex items-center justify-end gap-2 border-t border-border-soft pt-3">
-          <SaveStepButton formId={`step-form-${step.id}`} />
-          <form action={deleteStep}>
-            <input type="hidden" name="id" value={step.id} />
-            <ConfirmDeleteButton title="Delete this task" size="lg" />
-          </form>
-      </div>
     </LessonPanel>
   );
 }
