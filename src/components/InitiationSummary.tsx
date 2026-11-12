@@ -61,7 +61,7 @@ export function InitiationSummary({
   return (
     <details className="mt-5 rounded-xl border border-border bg-surface">
       <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-2 px-5 py-3.5">
-        <span className="text-[15px] font-bold text-ink">Setup Initiation</span>
+        <span className="text-[15px] font-bold text-ink">Setup details</span>
         <span className="text-xs text-ink-faint">
           {initiation
             ? `Last updated ${new Date(initiation.updated_at).toLocaleDateString(
@@ -88,19 +88,6 @@ export function InitiationSummary({
               initiation.cell_phone,
               initiation.email,
             )}
-          />
-          <Field
-            label="OTC Guru"
-            value={
-              initiation.guru_same_as_owner
-                ? "Same as decision maker"
-                : contact(
-                    initiation.guru_first_name,
-                    initiation.guru_last_name,
-                    initiation.guru_cell,
-                    initiation.guru_email,
-                  )
-            }
           />
           <Field
             label="States serviced"

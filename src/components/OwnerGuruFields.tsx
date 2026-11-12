@@ -68,31 +68,24 @@ function ContactInputs({
   );
 }
 
+// The decision maker's contact details. (The OTC Guru is just added as a
+// teammate now, so there's no separate guru section.)
 export function OwnerGuruFields({
   defaultOwner,
-  defaultGuru,
-  defaultSame,
+  heading = "Your Team\u2019s Decision Maker",
 }: {
   defaultOwner: Contact;
-  defaultGuru: Contact;
-  defaultSame: boolean;
+  heading?: string;
 }) {
   const [owner, setOwner] = useState({
     ...defaultOwner,
     cell: formatPhone(defaultOwner.cell),
   });
-  const [guru, setGuru] = useState({
-    ...defaultGuru,
-    cell: formatPhone(defaultGuru.cell),
-  });
-  const [same, setSame] = useState(defaultSame);
 
   return (
     <>
       <hr className="my-2 border-border sm:col-span-2" />
-      <h2 className="text-[15px] font-bold text-ink sm:col-span-2">
-        Your Team&rsquo;s Decision Maker
-      </h2>
+      <h2 className="text-[15px] font-bold text-ink sm:col-span-2">{heading}</h2>
       <ContactInputs
         prefix="Decision Maker"
         label="Decision Maker"
@@ -104,62 +97,6 @@ export function OwnerGuruFields({
         }}
         value={owner}
         onChange={setOwner}
-      />
-
-      <hr className="my-2 border-border sm:col-span-2" />
-      <div className="flex flex-col gap-2 text-sm text-ink-soft sm:col-span-2">
-        <h2 className="text-[15px] font-bold text-ink">
-          Your Team&rsquo;s OTC Guru
-        </h2>
-        <p>
-          The &ldquo;OTC Guru (in training)&rdquo; will most likely be someone
-          who is in it for the long haul and is serious about the success of
-          the business. They should have a vision for where OTC can take the
-          business and be committed to the role as your team&rsquo;s go-to for
-          all things OTC. They should have in-depth knowledge of real estate
-          transactions, contract/state expertise, an understanding of the
-          correspondence tied to each step, a keen eye for detail, and a deep
-          understanding of your specific processes and workflows. The
-          important piece is choosing someone who knows your processes like
-          the back of their hand.
-        </p>
-        <p>
-          Please note that an admin or assistant can help with the setup.
-          Given that certain tasks are repetitive and will be prepared by the
-          OTC Guru, you may opt to delegate some implementation
-          responsibilities to an assistant or virtual assistant who can
-          efficiently follow the step-by-step instructions provided in this
-          course.
-        </p>
-      </div>
-      <div className="sm:col-span-2">
-        <label className="inline-flex items-center gap-2 text-sm text-ink">
-          <input
-            type="checkbox"
-            name="guru_same_as_owner"
-            checked={same}
-            onChange={(e) => {
-              setSame(e.target.checked);
-              // Unchecking clears the copied details so the guru starts fresh.
-              setGuru({ first: "", last: "", cell: "", email: "" });
-            }}
-            className="h-4 w-4"
-          />
-          OTC Guru is the same as Decision Maker
-        </label>
-      </div>
-      <ContactInputs
-        prefix="OTC Guru"
-        label="OTC Guru"
-        names={{
-          first: "guru_first_name",
-          last: "guru_last_name",
-          cell: "guru_cell",
-          email: "guru_email",
-        }}
-        value={same ? owner : guru}
-        onChange={setGuru}
-        readOnly={same}
       />
     </>
   );

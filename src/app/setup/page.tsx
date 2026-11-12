@@ -9,16 +9,11 @@ import {
 } from "@/lib/coupons";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { ToolsQuestions } from "@/components/ToolsQuestions";
-import { OwnerGuruFields } from "@/components/OwnerGuruFields";
-import { StatesServicedField } from "@/components/StatesServicedField";
-import { PlanChoice } from "@/components/PlanChoice";
 import { MissingFieldsNotice } from "@/components/MissingFieldsNotice";
-import { normalizeStateName } from "@/lib/usStates";
+import { SetupDetailsFields } from "@/components/SetupDetailsFields";
 import { submitSetupInitiation } from "./actions";
 import { getSandboxTier } from "@/lib/devSandbox";
 import { progressOwnerId } from "@/lib/accountOwner";
-import { COMPANY_STRUCTURES, currentStructure } from "@/lib/companyStructures";
 
 export default async function SetupInitiationPage({
   searchParams,
@@ -115,7 +110,7 @@ export default async function SetupInitiationPage({
         )}
 
         <h1 className="mt-3 font-display text-2xl font-bold text-ink">
-          {isUpdate ? "Update your setup initiation details" : "Setup Initiation"}
+          {hasPaidPlan ? "Your setup details" : "Choose your plan"}
         </h1>
 
         {error && (
@@ -129,83 +124,12 @@ export default async function SetupInitiationPage({
           className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2"
         >
         <fieldset className="contents">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">
-              Company Structure
-            </span>
-            <select
-              name="company_structure"
-              required
-              defaultValue={currentStructure(existing?.company_structure)}
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-            >
-              <option value="" disabled>
-                Select one
-              </option>
-              {COMPANY_STRUCTURES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">
-              Business, Brokerage, or Team Name
-            </span>
-            <input
-              name="business_name"
-              required
-              defaultValue={existing?.business_name ?? account?.name ?? ""}
-              className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
-            />
-          </label>
-
-          <StatesServicedField
-            defaultStates={
-              existing?.states_serviced
-                ? existing.states_serviced
-                    .split(",")
-                    .map((s) => normalizeStateName(s.trim()))
-                    .filter(Boolean)
-                : []
-            }
-            defaultPriorityState={normalizeStateName(
-              existing?.priority_state ?? "",
-            )}
-          />
-          <ToolsQuestions
-            defaultEsign={existing?.esign_platform ?? ""}
-            defaultEsignOther={existing?.esign_other ?? ""}
-            defaultTms={existing?.tms ?? ""}
-            defaultEmailProvider={existing?.email_provider ?? ""}
-          />
-
-          <OwnerGuruFields
-            defaultOwner={{
-              first: existing?.first_name ?? "",
-              last: existing?.last_name ?? "",
-              cell: existing?.cell_phone ?? "",
-              email: existing?.email ?? user.email ?? "",
-            }}
-            defaultGuru={{
-              first: existing?.guru_first_name ?? "",
-              last: existing?.guru_last_name ?? "",
-              cell: existing?.guru_cell ?? "",
-              email: existing?.guru_email ?? "",
-            }}
-            defaultSame={existing?.guru_same_as_owner ?? false}
-          />
-
-          <hr className="my-2 border-border sm:col-span-2" />
-          <h2 className="text-center text-[15px] font-bold text-ink sm:col-span-2">
-            Your OTC Setup
-          </h2>
-          <PlanChoice
-            defaultPlan={invite ? "diy" : defaultEngagementType}
+          <SetupDetailsFields
+            existing={existing}
+            accountName={account?.name ?? ""}
+            email={user.email ?? ""}
+            defaultEngagementType={invite ? "diy" : defaultEngagementType}
             freeOffer={freeOffer}
-            defaultOtcUsername={existing?.otc_username ?? ""}
-            otcPasswordSaved={existing?.otc_password_set ?? false}
           />
 
           <MissingFieldsNotice />

@@ -155,10 +155,9 @@ export default async function PortalPage({
 
   const requestedSteps = new Set((setupRequests ?? []).map((r) => r.step_id));
 
-  // Access: the first pillar (Getting Started) is free to everyone. Once
-  // they've sent Initiate Your Setup, every pillar shows its sections and
-  // lesson titles, but lessons past the first pillar only open on a paid
-  // plan (DIY, Setup, or a free month). Staff previewing see everything.
+  // Access: every pillar shows its sections and lesson titles, and lessons
+  // open on a paid plan (DIY, Setup, or a free month), paid at sign-up.
+  // Staff previewing see everything.
   // Test accounts can have every lesson unlocked too.
   const previewAll = (isStaff && !isSandboxing) || Boolean(profile?.client_accounts?.unlock_all);
   const hasInitiation = isSandboxing || Boolean(initiation);
@@ -271,24 +270,20 @@ export default async function PortalPage({
         </div>
       )}
 
-      {/* Sent Initiate Your Setup but no paid plan yet (and not just
-          after a free month, which has its own prompt). */}
-      {!isStaff &&
-        !hasPaidPlan &&
-        ((hasInitiation && !freeMonth.endedOn && !paid) || (locked && !hasInitiation)) && (
+      {/* No paid plan yet (and not just after a free month, which has its
+          own prompt). */}
+      {!isStaff && !hasPaidPlan && !freeMonth.endedOn && !paid && (
         <div className="mx-4 mt-4 flex flex-col gap-2 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-3 text-sm text-accent sm:mx-6 sm:flex-row sm:items-center sm:justify-between lg:mx-12">
           <span className="font-semibold">
-            {!hasInitiation
-              ? "Initiate your setup to unlock the rest of your lessons."
-              : locked
-                ? "Choose a plan to open that lesson."
-                : "Getting Started is free. Choose a plan (DIY or Setup) to open the rest of your lessons."}
+            {locked
+              ? "Choose a plan to open that lesson."
+              : "Choose a plan (DIY or Setup) to open your lessons."}
           </span>
           <Link
             href="/setup"
             className="shrink-0 self-start rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90"
           >
-            {hasInitiation ? "Choose a plan" : "Initiate your setup"} &rarr;
+            Choose a plan &rarr;
           </Link>
         </div>
       )}
@@ -384,10 +379,9 @@ export default async function PortalPage({
                 (s) => statusByStep.get(s.id) === "approved",
               ).length;
               const isComplete = completeCount === requiredPhaseSteps.length;
-              // The free pillar always shows; the rest once they've sent
-              // Initiate Your Setup.
+              // Every pillar shows once they've given their setup details
+              // (at sign-up); lessons open on a paid plan.
               const phaseUnlocked = previewAll || phase === freePhase || hasInitiation;
-              const isFreePhase = phase === freePhase;
 
               if (!phaseUnlocked) {
                 return (
@@ -520,7 +514,7 @@ export default async function PortalPage({
 
                             // Opens when reached in order, and (past the free
                             // pillar) on a paid plan.
-                            const needsPlan = !isFreePhase && !hasPaidPlan;
+                            const needsPlan = !hasPaidPlan;
                             const canOpen =
                               previewAll || (!needsPlan && unlocked.has(step.id));
                             if (!canOpen) {

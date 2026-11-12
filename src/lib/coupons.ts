@@ -68,7 +68,7 @@ export async function redeemCoupon(rawCode: unknown, userId: string): Promise<Re
       .maybeSingle(),
     accountSubscription(admin, accountId),
   ]);
-  if (!initiation) return { ok: false, error: "Fill out Initiate Your Setup first." };
+  if (!initiation) return { ok: false, error: "Add your setup details first." };
   if (used) return { ok: false, error: "Your account has already had its free month." };
   if (live || initiation.engagement_type !== "free") {
     return { ok: false, error: "Your account already has a plan, so this coupon doesn't apply." };
