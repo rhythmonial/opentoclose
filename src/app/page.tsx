@@ -23,8 +23,8 @@ const GROUPS = ["TC teams", "Independent TCs", "Real estate teams", "Real estate
 
 const PERKS = [
   "Setup completed in less than 4 weeks",
-  "A build based on your own contracts and workflow",
-  "Direct access to me as we refine the system",
+  "A build based on your own process",
+  "Direct access as we refine the system",
   "System access at $55/month",
 ];
 
