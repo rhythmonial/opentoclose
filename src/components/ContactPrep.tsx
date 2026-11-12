@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Papa from "papaparse";
-import { createClient } from "@/lib/supabase/client";
 import {
-  CONTACT_FILE_ACCEPT,
-  contentTypeOf,
-  extensionOf,
   readContactFile,
   type ContactTable,
 } from "@/lib/contactFiles";
@@ -14,12 +9,9 @@ import {
   FULL_NAME,
   FULL_NAME_LABEL,
   OTC_CONTACT_FIELDS,
-  suggestMapping,
-  toOtcRows,
   type ContactMapping,
 } from "@/lib/otcContactFields";
 import {
-  recordContactFile,
   removeContactFile,
   saveContactMapping,
 } from "@/app/configurator/prep_contact_roles_for_setup/actions";
@@ -34,10 +26,9 @@ export type ContactFile = {
   url: string | null;
 };
 
-// Prep Your Contacts: the client uploads their contact lists in whatever
-// format they have (CSV, Excel, vCard...), then matches each of their
-// columns to OTC's contact import fields. Staff can download each list
-// rearranged into OTC's import layout.
+// Prep Your Contacts: each contact list they uploaded (in Upload Your
+// Contacts), with each of its columns matched to OTC's contact import
+// fields.
 export function ContactPrep({
   accountId,
   isStaff,
@@ -50,70 +41,17 @@ export function ContactPrep({
 }) {
   const [files, setFiles] = useState(initialFiles);
   const [tables, setTables] = useState(new Map<string, ContactTable>());
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const actionAccount = isStaff ? accountId : null;
-
-  async function upload(file: File) {
-    setError(null);
-    setBusy(`Reading ${file.name}…`);
-    try {
-      const table = await readContactFile(file, file.name);
-      if (table.columns.length === 0) throw new Error("We couldn't find any contacts in that file.");
-      setBusy(`Uploading ${file.name}…`);
-      const ext = extensionOf(file.name) || "csv";
-      const storagePath = `${accountId}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await createClient()
-        .storage.from("contact-files")
-        .upload(storagePath, file, { contentType: contentTypeOf(file.name) });
-      if (uploadError) throw new Error(uploadError.message);
-      const mapping = suggestMapping(table.columns);
-      const result = await recordContactFile(actionAccount, {
-        fileName: file.name,
-        storagePath,
-        columns: table.columns,
-        rowCount: table.rows.length,
-        mapping,
-      });
-      if (!result.ok || !result.id) throw new Error(result.error ?? "Couldn't save that file.");
-      const id = result.id;
-      setTables((all) => new Map(all).set(id, table));
-      setFiles((all) => [
-        ...all,
-        { id, fileName: file.name, columns: table.columns, rowCount: table.rows.length, mapping, url: null },
-      ]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't read that file.");
-    } finally {
-      setBusy(null);
-    }
-  }
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border bg-surface px-6 py-8 text-center hover:border-accent">
-        <span className="text-sm font-semibold text-ink">
-          {busy ?? "Upload a contacts file"}
-        </span>
-        <span className="text-xs text-ink-faint">
-          CSV, Excel (.xlsx), vCard (.vcf) or a text export from your CRM, phone or email.
-          You can upload more than one.
-        </span>
-        <input
-          type="file"
-          accept={CONTACT_FILE_ACCEPT}
-          disabled={Boolean(busy)}
-          className="text-xs"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) void upload(file);
-          }}
-        />
-      </label>
-      {error && (
-        <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
-          {error}
+      {files.length === 0 && (
+        <p className="rounded-xl border border-border bg-surface p-6 text-sm text-ink-soft">
+          No contact lists yet. Upload them in{" "}
+          <a href="/configurator/upload_your_contacts" className="font-semibold text-accent">
+            Upload Your Contacts
+          </a>
+          , then come back to match their columns.
         </p>
       )}
 
@@ -200,17 +138,6 @@ function ContactFileCard({
     void onMapping(next).then((r) => setStatus(r.ok ? "saved" : "error"));
   }
 
-  function downloadOtc() {
-    if (!table) return;
-    const csv = Papa.unparse(toOtcRows(table.columns, table.rows, file.mapping));
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${file.fileName.replace(/\.[^.]+$/, "")} - OTC import.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   return (
     <section className="rounded-xl border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -232,16 +159,6 @@ function ContactFileCard({
             <a href={file.url} className="text-accent" download={file.fileName}>
               Original file
             </a>
-          )}
-          {isStaff && (
-            <button
-              type="button"
-              disabled={!table}
-              onClick={downloadOtc}
-              className="rounded-md border border-border px-2.5 py-1 text-accent disabled:opacity-50"
-            >
-              Download in OTC import format
-            </button>
           )}
           <a
             href={`/configurator/prep_contact_roles_for_setup/view/${file.id}`}

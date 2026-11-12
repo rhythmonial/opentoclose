@@ -100,8 +100,8 @@ export default async function PrepYourContactsPage({
         {isStaff && (
           <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-accent-soft bg-accent-soft/40 px-4 py-2.5 text-sm text-accent">
             <span className="font-semibold">
-              Test mode &mdash; clients upload and match their own contacts here. Pick a client
-              to see theirs, or to upload for them.
+              Test mode &mdash; clients match their uploaded contact lists here. Pick a client
+              to see theirs.
             </span>
             <form className="flex items-center gap-2">
               <select
@@ -141,9 +141,8 @@ export default async function PrepYourContactsPage({
           </div>
         ) : (
           <p className="mt-1.5 text-sm text-ink-soft">
-            Upload your contacts in whatever format you have them: an export from your CRM,
-            email or phone, or a spreadsheet. Then match each of your columns to the Open to
-            Close field it belongs in. We&rsquo;ve matched the ones we could; check them and
+            For each contact list you uploaded, match each of its columns to the Open to Close
+            field it belongs in. We&rsquo;ve matched the ones we could; check them and
             fill in the rest. Anything set to &ldquo;Don&rsquo;t import&rdquo; is left out.
           </p>
         )}
@@ -176,7 +175,7 @@ export default async function PrepYourContactsPage({
             </button>
             {!ready && (
               <span className="text-xs text-ink-faint">
-                Upload at least one file, and match a name column in each.
+                Upload at least one list (in Upload Your Contacts), and match a name column in each.
               </span>
             )}
           </form>
