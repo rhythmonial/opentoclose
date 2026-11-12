@@ -333,6 +333,48 @@ export type Database = {
         }
         Relationships: []
       }
+      prep_file_uploads: {
+        Row: {
+          id: string
+          client_account_id: string
+          kind: string
+          file_name: string
+          storage_path: string
+          columns: string[]
+          row_count: number
+          mapping: Json
+          uploaded_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_account_id: string
+          kind: string
+          file_name: string
+          storage_path: string
+          columns?: string[]
+          row_count?: number
+          mapping?: Json
+          uploaded_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_account_id?: string
+          kind?: string
+          file_name?: string
+          storage_path?: string
+          columns?: string[]
+          row_count?: number
+          mapping?: Json
+          uploaded_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       prep_documents: {
         Row: {
           id: string
