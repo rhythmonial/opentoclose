@@ -12,6 +12,10 @@ import { InviteTeammateButton } from "@/components/InviteTeammateButton";
 import { HoursSection } from "@/components/HoursSection";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getHourlyRate } from "@/lib/hourlyRate";
+import { StatesServicedField } from "@/components/StatesServicedField";
+import { ToolsQuestions } from "@/components/ToolsQuestions";
+import { COMPANY_STRUCTURES, currentStructure } from "@/lib/companyStructures";
+import { normalizeStateName } from "@/lib/usStates";
 
 const CLIENT_ROLE_LABEL: Record<string, string> = {
   client_owner: "Client",
@@ -292,7 +296,7 @@ export default async function ProfilePage({
   const [{ data: initiation }, { data: subscriptions }, { data: payments }] = await Promise.all([
     supabase
       .from("setup_initiation")
-      .select("engagement_type")
+      .select("engagement_type, company_structure, states_serviced, priority_state, email_provider, esign_platform, esign_other")
       .eq("client_id", ownerId)
       .maybeSingle(),
     profile?.client_account_id
@@ -375,6 +379,46 @@ export default async function ProfilePage({
                 className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
               />
             </label>
+            {/* The business answers from their setup form, once it's filled in. */}
+            {initiation && (
+              <>
+                <hr className="my-1 border-border-soft" />
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-ink-soft">Company structure</span>
+                  <select
+                    name="company_structure"
+                    required
+                    defaultValue={currentStructure(initiation.company_structure)}
+                    className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                  >
+                    <option value="" disabled>
+                      Select one
+                    </option>
+                    {COMPANY_STRUCTURES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <StatesServicedField
+                  compact
+                  defaultStates={(initiation.states_serviced ?? "")
+                    .split(",")
+                    .map((s) => normalizeStateName(s.trim()))
+                    .filter(Boolean)}
+                  defaultPriorityState={normalizeStateName(initiation.priority_state ?? "")}
+                />
+                <ToolsQuestions
+                  compact
+                  showTms={false}
+                  defaultTms=""
+                  defaultEmailProvider={initiation.email_provider ?? ""}
+                  defaultEsign={initiation.esign_platform ?? ""}
+                  defaultEsignOther={initiation.esign_other ?? ""}
+                />
+              </>
+            )}
             <button
               type="submit"
               className="mt-1 self-start rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"

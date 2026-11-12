@@ -18,21 +18,7 @@ import { normalizeStateName } from "@/lib/usStates";
 import { submitSetupInitiation } from "./actions";
 import { getSandboxTier } from "@/lib/devSandbox";
 import { progressOwnerId } from "@/lib/accountOwner";
-
-const COMPANY_STRUCTURES = [
-  "Real Estate Brokerage",
-  "Real Estate Team",
-  "Independent TC",
-  "Team of TC's",
-];
-
-// Earlier answers, so returning clients keep their pick.
-const RENAMED_STRUCTURES: Record<string, string> = {
-  Brokerage: "Real Estate Brokerage",
-  "RE Team": "Real Estate Team",
-  "TC Team": "Team of TC's",
-  "Individual TC": "Independent TC",
-};
+import { COMPANY_STRUCTURES, currentStructure } from "@/lib/companyStructures";
 
 export default async function SetupInitiationPage({
   searchParams,
@@ -150,12 +136,7 @@ export default async function SetupInitiationPage({
             <select
               name="company_structure"
               required
-              defaultValue={
-                RENAMED_STRUCTURES[existing?.company_structure ?? ""] ??
-                (COMPANY_STRUCTURES.includes(existing?.company_structure ?? "")
-                  ? existing?.company_structure
-                  : "")
-              }
+              defaultValue={currentStructure(existing?.company_structure)}
               className="rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent"
             >
               <option value="" disabled>

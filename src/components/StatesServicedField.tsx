@@ -6,13 +6,20 @@ import { US_STATES } from "@/lib/usStates";
 const controlClass =
   "rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent";
 
+// compact: the smaller labels and inputs of the Profile page.
 export function StatesServicedField({
   defaultStates = [],
   defaultPriorityState = "",
+  compact = false,
 }: {
   defaultStates?: string[];
   defaultPriorityState?: string;
+  compact?: boolean;
 }) {
+  const control = compact
+    ? "rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+    : controlClass;
+  const labelText = compact ? "text-xs font-medium text-ink-soft" : "text-sm font-medium text-ink";
   const [selected, setSelected] = useState<string[]>(defaultStates);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -52,14 +59,14 @@ export function StatesServicedField({
         data-states-field
         className="relative flex flex-col gap-1.5"
       >
-        <span className="text-sm font-medium text-ink">
-          What state(s) do you service?
+        <span className={labelText}>
+          {compact ? "States" : "What state(s) do you service?"}
         </span>
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className={`${controlClass} flex items-center justify-between gap-2 text-left ${
+          className={`${control} flex items-center justify-between gap-2 text-left ${
             selected.length === 0 ? "text-ink-faint" : ""
           }`}
         >
@@ -125,8 +132,8 @@ export function StatesServicedField({
 
       {selected.length > 1 && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-ink">
-            Which state will you set up first?
+          <span className={labelText}>
+            {compact ? "Priority state" : "Which state will you set up first?"}
           </span>
           <select
             name="priority_state"
@@ -134,7 +141,7 @@ export function StatesServicedField({
             defaultValue={
               selected.includes(defaultPriorityState) ? defaultPriorityState : ""
             }
-            className={controlClass}
+            className={control}
           >
             <option value="" disabled>
               Select one

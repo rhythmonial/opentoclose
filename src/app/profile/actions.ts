@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { siteOrigin } from "@/lib/site-origin";
+import { progressOwnerId } from "@/lib/accountOwner";
+import { COMPANY_STRUCTURES } from "@/lib/companyStructures";
 
 export async function updateProfileInfo(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -23,6 +25,26 @@ export async function updateProfileInfo(formData: FormData) {
     .from("profiles")
     .update({ name: name || null, phone: phone || null })
     .eq("id", user.id);
+
+  // The business answers from the setup form (shared by the account).
+  const structure = String(formData.get("company_structure") ?? "");
+  if (COMPANY_STRUCTURES.includes(structure)) {
+    const text = (key: string) => String(formData.get(key) ?? "").trim().slice(0, 300);
+    const esign = text("esign_platform");
+    const states = text("states_serviced");
+    await supabase
+      .from("setup_initiation")
+      .update({
+        company_structure: structure,
+        ...(states ? { states_serviced: states } : {}),
+        priority_state: states.includes(",") ? text("priority_state") || null : null,
+        email_provider: text("email_provider") || null,
+        esign_platform: esign || null,
+        esign_other: esign === "Other" ? text("esign_other") || null : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("client_id", await progressOwnerId(supabase, user.id));
+  }
 
   revalidatePath("/profile");
   redirect("/profile?saved=1");
