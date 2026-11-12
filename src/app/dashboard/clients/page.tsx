@@ -364,6 +364,7 @@ export default async function ClientsPage() {
         <td className="px-5 py-3.5">
           <LeadStatusSelect
             leadId={lead.id}
+            leadName={lead.name}
             status={isWon(lead) ? "won" : lead.status}
           />
           {isWon(lead) && (
@@ -378,56 +379,107 @@ export default async function ClientsPage() {
             day: "numeric",
           })}
         </td>
-        <td className="px-5 py-3.5">
-          <div className="flex items-center justify-end gap-1.5">
-            <form action={setLeadArchived}>
-              <input type="hidden" name="lead_id" value={lead.id} />
-              <input
-                type="hidden"
-                name="archived"
-                value={lead.archived_at ? "false" : "true"}
-              />
-              <button
-                type="submit"
-                title={lead.archived_at ? "Restore lead" : "Archive lead"}
-                aria-label={lead.archived_at ? "Restore lead" : "Archive lead"}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-ink"
-              >
-                {lead.archived_at ? (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-                    <path d="M3 3v5h5" />
-                  </svg>
-                ) : (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="3" width="20" height="5" rx="1" />
-                    <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
-                    <path d="M10 12h4" />
-                  </svg>
-                )}
-              </button>
-            </form>
-            <form action={deleteLead}>
-              <input type="hidden" name="lead_id" value={lead.id} />
-              <ConfirmSubmitButton
-                confirmMessage={`Delete the lead "${lead.name}"? This cannot be undone.`}
-                title="Delete lead"
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-danger"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                  <path d="M10 11v6" />
-                  <path d="M14 11v6" />
-                </svg>
-              </ConfirmSubmitButton>
-            </form>
-          </div>
-        </td>
+        {leadActions(lead)}
       </tr>
     );
   }
+
+  function leadActions(lead: Lead) {
+    return (
+      <td className="px-5 py-3.5">
+        <div className="flex flex-col items-end gap-1.5">
+          <form action={setLeadArchived}>
+            <input type="hidden" name="lead_id" value={lead.id} />
+            <input
+              type="hidden"
+              name="archived"
+              value={lead.archived_at ? "false" : "true"}
+            />
+            <button
+              type="submit"
+              title={lead.archived_at ? "Restore lead" : "Archive lead"}
+              aria-label={lead.archived_at ? "Restore lead" : "Archive lead"}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-ink-soft hover:text-ink"
+            >
+              {lead.archived_at ? (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="5" rx="1" />
+                  <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+                  <path d="M10 12h4" />
+                </svg>
+              )}
+            </button>
+          </form>
+          <form action={deleteLead}>
+            <input type="hidden" name="lead_id" value={lead.id} />
+            <ConfirmSubmitButton
+              confirmMessage={`Delete the lead "${lead.name}"? This cannot be undone.`}
+              title="Delete lead"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-danger"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18" />
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+              </svg>
+            </ConfirmSubmitButton>
+          </form>
+        </div>
+      </td>
+    );
+  }
+
+  // Archived leads: who, where, when added and lost, and why.
+  function archivedRow(lead: Lead) {
+    const d =
+      lead.details && typeof lead.details === "object" && !Array.isArray(lead.details)
+        ? (lead.details as Record<string, string | null>)
+        : {};
+    const fmt = (iso: string | null) =>
+      iso
+        ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+        : "\u2014";
+    return (
+      <tr key={lead.id} className="border-b border-border-soft align-top last:border-0">
+        <td className="px-5 py-3.5">
+          <div className="font-semibold text-ink">{lead.name}</div>
+          {d.business_name && <div className="text-xs text-ink-faint">{d.business_name}</div>}
+        </td>
+        <td className="px-5 py-3.5 text-ink-soft">
+          <div>{d.states_serviced ?? "\u2014"}</div>
+          {d.company_structure && <div className="text-xs text-ink-faint">{d.company_structure}</div>}
+        </td>
+        <td className="whitespace-nowrap px-5 py-3.5 text-xs text-ink-faint">{fmt(lead.created_at)}</td>
+        <td className="whitespace-nowrap px-5 py-3.5 text-xs text-ink-faint">{fmt(lead.lost_at)}</td>
+        <td className="max-w-xs whitespace-pre-wrap px-5 py-3.5 text-ink-soft">{lead.lost_reason ?? "\u2014"}</td>
+        <td className="px-5 py-3.5">
+          <LeadStatusSelect leadId={lead.id} leadName={lead.name} status={lead.status} />
+        </td>
+        {leadActions(lead)}
+      </tr>
+    );
+  }
+
+  const archivedTableHead = (
+    <thead>
+      <tr className="border-b border-border-soft bg-bg text-xs font-bold uppercase font-caption tracking-wide text-ink-faint">
+        <th className="px-5 py-3">Name</th>
+        <th className="px-5 py-3">State &amp; structure</th>
+        <th className="px-5 py-3">Added</th>
+        <th className="px-5 py-3">Lost</th>
+        <th className="px-5 py-3">Lost reason</th>
+        <th className="px-5 py-3">Status</th>
+        <th className="px-5 py-3" />
+      </tr>
+    </thead>
+  );
 
   const leadTableHead = (
     <thead>
@@ -638,14 +690,14 @@ export default async function ClientsPage() {
               </summary>
               <div className="overflow-x-auto border-t border-border-soft">
                 <table className="w-full min-w-[640px] text-left text-sm">
-                  {leadTableHead}
+                  {archivedTableHead}
                   <tbody>
-                    {archivedLeads.map(leadRow)}
+                    {archivedLeads.map(archivedRow)}
                     {archivedLeads.length === 0 && (
                       <tr>
                         <td
                           className="px-5 py-4 text-sm text-ink-soft"
-                          colSpan={6}
+                          colSpan={7}
                         >
                           No archived leads.
                         </td>

@@ -930,6 +930,8 @@ export type Database = {
           heard_about: string | null
           heard_about_detail: string | null
           id: string
+          lost_at: string | null
+          lost_reason: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -946,6 +948,8 @@ export type Database = {
           heard_about?: string | null
           heard_about_detail?: string | null
           id?: string
+          lost_at?: string | null
+          lost_reason?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -962,6 +966,8 @@ export type Database = {
           heard_about?: string | null
           heard_about_detail?: string | null
           id?: string
+          lost_at?: string | null
+          lost_reason?: string | null
           name?: string
           notes?: string | null
           phone?: string | null

@@ -21,10 +21,17 @@ export async function updateLeadStatus(formData: FormData) {
   const supabase = await createClient();
   const leadId = String(formData.get("lead_id"));
   const status = String(formData.get("status"));
+  const lostReason = String(formData.get("lost_reason") ?? "").trim().slice(0, 1000);
+  const now = new Date().toISOString();
 
+  // Lost files the lead under archived, with why and when.
   await supabase
     .from("leads")
-    .update({ status: status as never, updated_at: new Date().toISOString() })
+    .update(
+      status === "lost"
+        ? { status, lost_reason: lostReason || null, lost_at: now, archived_at: now, updated_at: now }
+        : { status: status as never, lost_reason: null, lost_at: null, updated_at: now },
+    )
     .eq("id", leadId);
 
   revalidatePath("/dashboard/clients");

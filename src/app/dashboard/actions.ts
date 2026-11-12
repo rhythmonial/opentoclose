@@ -169,6 +169,7 @@ export async function updatePriceOffer(formData: FormData) {
 export async function setFoundingStatus(
   id: string,
   status: string,
+  lostReason?: string,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!["new", "contacted", "link_sent", "won", "lost"].includes(status)) return { ok: false, error: "Unknown status." };
   const supabase = await createClient();
@@ -189,6 +190,8 @@ export async function setFoundingStatus(
       status,
       heard_about: answers.referral ?? null,
       archived_at: status === "lost" ? new Date().toISOString() : null,
+      lost_at: status === "lost" ? new Date().toISOString() : null,
+      lost_reason: status === "lost" ? lostReason?.trim().slice(0, 1000) || null : null,
       details: {
         company_structure: app.company_structure,
         business_name: app.business_name,

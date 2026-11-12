@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { QUESTIONS } from "@/app/founding/questions";
 import { setFoundingStatus } from "@/app/dashboard/actions";
+import { LostReasonDialog } from "./LostReasonDialog";
 
 export type FoundingApp = {
   id: string;
@@ -48,14 +49,15 @@ export function FoundingMembers({ apps: initial }: { apps: FoundingApp[] }) {
   const router = useRouter();
   const [apps, setApps] = useState(initial);
   const [open, setOpen] = useState<FoundingApp | null>(null);
+  const [losing, setLosing] = useState<FoundingApp | null>(null);
 
-  async function changeStatus(app: FoundingApp, status: string) {
+  async function changeStatus(app: FoundingApp, status: string, lostReason?: string) {
     setApps((all) =>
       status === "won" || status === "lost"
         ? all.filter((a) => a.id !== app.id)
         : all.map((a) => (a.id === app.id ? { ...a, status } : a)),
     );
-    const res = await setFoundingStatus(app.id, status);
+    const res = await setFoundingStatus(app.id, status, lostReason);
     if (!res.ok) window.alert(res.error ?? "Couldn't save.");
     router.refresh();
   }
@@ -112,7 +114,9 @@ export function FoundingMembers({ apps: initial }: { apps: FoundingApp[] }) {
                 <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
                   <select
                     value={a.status}
-                    onChange={(e) => changeStatus(a, e.target.value)}
+                    onChange={(e) =>
+                      e.target.value === "lost" ? setLosing(a) : changeStatus(a, e.target.value)
+                    }
                     aria-label={`Status for ${a.first_name} ${a.last_name}`}
                     className="rounded-md border border-border bg-bg px-2 py-1 text-sm text-ink"
                   >
@@ -128,6 +132,18 @@ export function FoundingMembers({ apps: initial }: { apps: FoundingApp[] }) {
           </tbody>
         </table>
       </div>
+
+      {losing && (
+        <LostReasonDialog
+          name={`${losing.first_name} ${losing.last_name}`}
+          onCancel={() => setLosing(null)}
+          onSave={(reason) => {
+            const app = losing;
+            setLosing(null);
+            changeStatus(app, "lost", reason);
+          }}
+        />
+      )}
 
       {open && (
         <div
