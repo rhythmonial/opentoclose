@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FoundingMembers } from "@/components/FoundingMembers";
 import { createClient } from "@/lib/supabase/server";
 import { SubscriptionStatus } from "@/components/SubscriptionStatus";
 import { LeadStatusSelect } from "@/components/LeadStatusSelect";
@@ -290,7 +291,8 @@ export default async function ClientsPage() {
   // Founding group applications, newest first.
   const { data: foundingApps } = await supabase
     .from("founding_applications")
-    .select("id, created_at, first_name, last_name, email, phone, business_name, company_structure, states_serviced, priority_state, tms, answers")
+    .select("id, created_at, first_name, last_name, email, phone, business_name, company_structure, states_serviced, priority_state, tms, answers, status")
+    .not("status", "in", "(won,lost)")
     .order("created_at", { ascending: false });
 
   const activeLeads = (leads ?? []).filter((l) => !l.archived_at);
@@ -576,68 +578,14 @@ export default async function ClientsPage() {
               Founding members ({foundingApps?.length ?? 0})
             </h2>
             <p className="mt-1 text-sm text-ink-soft">
-              Applications from the founding group form, with their setup initiation answers.{" "}
-              <Link href="/dashboard/founding" className="font-semibold text-accent">
-                See every answer &rarr;
-              </Link>
+              Applications from the founding group form. Click one to see their answers. Won
+              takes them off this list (they&rsquo;re a client once they sign up); Lost files them
+              under archived leads.
             </p>
           </summary>
-          <div className="mt-4 min-w-0 overflow-x-auto rounded-xl border border-border bg-surface">
-            <table className="w-full min-w-[760px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border-soft bg-bg font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
-                  <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">Contact</th>
-                  <th className="px-5 py-3">Business</th>
-                  <th className="px-5 py-3">States &amp; software</th>
-                  <th className="px-5 py-3">Open to Close</th>
-                  <th className="px-5 py-3">Applied</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(foundingApps ?? []).length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-4 text-ink-faint">
-                      No applications yet.
-                    </td>
-                  </tr>
-                )}
-                {(foundingApps ?? []).map((a) => {
-                  const ans = (a.answers ?? {}) as Record<string, string>;
-                  return (
-                    <tr key={a.id} className="border-b border-border-soft align-top last:border-0">
-                      <td className="px-5 py-3.5 font-semibold text-ink">
-                        {a.first_name} {a.last_name}
-                      </td>
-                      <td className="px-5 py-3.5 text-ink-soft">
-                        <div>{a.email}</div>
-                        {a.phone && <div className="text-xs text-ink-faint">{a.phone}</div>}
-                      </td>
-                      <td className="px-5 py-3.5 text-ink-soft">
-                        <div>{a.business_name}</div>
-                        <div className="text-xs text-ink-faint">{a.company_structure}</div>
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-ink-soft">
-                        <div>
-                          {a.states_serviced ?? "—"}
-                          {a.priority_state && ` (priority: ${a.priority_state})`}
-                        </div>
-                        {a.tms && <div className="text-ink-faint">TMS: {a.tms}</div>}
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-ink-soft">
-                        {ans.otc_status && <div>{ans.otc_status}</div>}
-                        {ans.launch_timeline && <div className="text-ink-faint">Launch: {ans.launch_timeline}</div>}
-                        {ans.done_with_you && <div className="text-ink-faint">Done-with-you: {ans.done_with_you}</div>}
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-ink-faint">
-                        {new Date(a.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <FoundingMembers
+            apps={(foundingApps ?? []).map((a) => ({ ...a, answers: (a.answers ?? {}) as Record<string, string> }))}
+          />
         </details>
       </section>
 

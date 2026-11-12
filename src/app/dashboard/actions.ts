@@ -162,3 +162,42 @@ export async function updatePriceOffer(formData: FormData) {
     .eq("id", accountId);
   revalidatePath(`/dashboard/clients/${accountId}`);
 }
+
+// Staff: where they are with a founding group application. Won takes it off
+// the list (they're a client once they sign up); lost files it under the
+// archived leads.
+export async function setFoundingStatus(
+  id: string,
+  status: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!["new", "contacted", "link_sent", "won", "lost"].includes(status)) return { ok: false, error: "Unknown status." };
+  const supabase = await createClient();
+  const { data: app, error } = await supabase
+    .from("founding_applications")
+    .update({ status })
+    .eq("id", id)
+    .select("first_name, last_name, email, phone, business_name, company_structure, states_serviced, priority_state, tms, answers")
+    .maybeSingle();
+  if (error || !app) return { ok: false, error: error?.message ?? "Application not found." };
+  if (status === "lost") {
+    const answers = (app.answers ?? {}) as Record<string, string>;
+    await supabase.from("leads").insert({
+      name: `${app.first_name} ${app.last_name}`,
+      email: app.email,
+      phone: app.phone,
+      source: "founding",
+      status: "lost",
+      heard_about: answers.referral ?? null,
+      archived_at: new Date().toISOString(),
+      details: {
+        company_structure: app.company_structure,
+        business_name: app.business_name,
+        states_serviced: app.states_serviced,
+        priority_state: app.priority_state,
+        tms: app.tms,
+      },
+    });
+  }
+  revalidatePath("/dashboard/clients");
+  return { ok: true };
+}

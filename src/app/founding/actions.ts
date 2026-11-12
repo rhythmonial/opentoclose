@@ -54,8 +54,8 @@ export async function submitFoundingApplication(form: FormData) {
     subject: `Founding group application: ${business}`,
     heading: "New founding group application",
     body: lines.join("\n"),
-    ctaLabel: "See applications",
-    ctaUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://otcsetup.vercel.app"}/dashboard/founding`,
+    ctaLabel: "See founding members",
+    ctaUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://otcsetup.vercel.app"}/dashboard/clients`,
   });
   redirect("/founding?sent=1");
 }

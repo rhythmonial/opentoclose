@@ -25,6 +25,7 @@ export type Database = {
           email: string
           phone: string | null
           states_serviced: string | null
+          status: string
           priority_state: string | null
           tms: string | null
           email_provider: string | null
@@ -42,6 +43,7 @@ export type Database = {
           email: string
           phone?: string | null
           states_serviced?: string | null
+          status?: string
           priority_state?: string | null
           tms?: string | null
           email_provider?: string | null
@@ -59,6 +61,7 @@ export type Database = {
           email?: string
           phone?: string | null
           states_serviced?: string | null
+          status?: string
           priority_state?: string | null
           tms?: string | null
           email_provider?: string | null
