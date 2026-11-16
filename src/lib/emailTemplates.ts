@@ -31,11 +31,70 @@ export function withBlankLines(body: string) {
     .replace(/\n{3,}/g, "\n\n");
 }
 
+// Everyone an email can go to (To / Cc / Bcc), exactly as OTC names its
+// contact roles and in OTC's order, with each "CC / BCC on ALL ... Emails"
+// copy role beside the role it copies.
+export const EMAIL_RECIPIENT_ROLES = [
+  "Appraiser",
+  "Attorney",
+  "CC on ALL Attorney Emails",
+  "BCC on ALL Attorney Emails",
+  "Buyer",
+  "CC on ALL Buyer Emails",
+  "BCC on ALL Buyer Emails",
+  "Buyer's Agent Transaction Coordinator",
+  "Buyer's Agent",
+  "Buyer's Co Agent",
+  "CC on ALL Buyer Agent Emails",
+  "BCC on ALL Buyer Agent Emails",
+  "Cleaning Company",
+  "Escrow Officer",
+  "Escrow Officer Assistant",
+  "CC on ALL Escrow Emails",
+  "BCC on ALL Escrow Emails",
+  "Handyman",
+  "HOA Contact",
+  "Home Inspector",
+  "Home Inspector Recommended by Agent",
+  "Home Protection Plan Representative",
+  "Homeowners Insurance Agent Recommended by Agent",
+  "Home Protection Plan Company",
+  "Home Protection Plan Company Recommended by Agent",
+  "Landlord",
+  "Lender",
+  "Lender Assistant",
+  "Lender Processor",
+  "CC on ALL Lender Emails",
+  "BCC on ALL Lender Emails",
+  "Listing Agent Transaction Coordinator",
+  "Listing Agent",
+  "Listing Co Agent",
+  "CC on ALL Listing Agent Emails",
+  "BCC on ALL Listing Agent Emails",
+  "Photographer",
+  "Referral Agent",
+  "Referral Company",
+  "Seller",
+  "CC on ALL Seller Emails",
+  "BCC on ALL Seller Emails",
+  "Septic Inspector",
+  "Septic Inspector Recommended by Agent",
+  "Sign Installation Company",
+  "Stager",
+  "Tenant",
+  "Termite Inspector",
+  "Termite Inspector Recommended by Agent",
+  "Title Officer",
+  "Title Officer Assistant",
+  "Utility Concierge Company",
+  "Well Inspector",
+  "Well Inspector Recommended by Agent",
+  "Videographer",
+];
+
 // Copy roles: who else gets every email a role gets (OTC Settings > Contact
 // Roles). Only offered as email recipients, not as contact fields.
-export const EMAIL_COPY_ROLES = ["Attorney", "Buyer", "Buyer Agent", "Escrow", "Lender", "Listing Agent", "Seller"].flatMap(
-  (who) => [`CC on ALL ${who} Emails`, `BCC on ALL ${who} Emails`],
-);
+export const EMAIL_COPY_ROLES = EMAIL_RECIPIENT_ROLES.filter((r) => /^B?CC on ALL /.test(r));
 
 // Best-guess attachments for a sample, from the client's own documents
 // (Categorize Your Documents): the ones in the categories the email is

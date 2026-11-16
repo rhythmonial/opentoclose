@@ -17,13 +17,12 @@ export type OtcSection = {
 // Settings > Contact Roles), not by a field in the Field Editor.
 export const CONTACT_ROLES_SECTION = "contact-roles";
 
-// Names cut off in OTC's settings list are filled in with our best guess
-// and marked "(confirm)" in a comment.
-const CONTACT_ROLES = [
+// OTC's contact roles, exactly as OTC names them (Settings > Contact Roles).
+export const CONTACT_ROLES = [
   "Appraiser",
   "Attorney",
   "Buyer",
-  "Buyer's Agent Transaction Coordinator", // (confirm)
+  "Buyer's Agent Transaction Coordinator",
   "Buyer's Agent",
   "Buyer's Co Agent",
   "Cleaning Company",
@@ -32,16 +31,16 @@ const CONTACT_ROLES = [
   "Handyman",
   "HOA Contact",
   "Home Inspector",
-  "Home Inspector Recommended", // (confirm)
-  "Home Protection Plan", // (confirm)
-  "Homeowners Insurance", // (confirm)
-  "Home Protection Plan Company", // (confirm)
-  "Home Protection Plan Representative", // (confirm)
+  "Home Inspector Recommended by Agent",
+  "Home Protection Plan Representative",
+  "Homeowners Insurance Agent Recommended by Agent",
+  "Home Protection Plan Company",
+  "Home Protection Plan Company Recommended by Agent",
   "Landlord",
   "Lender",
   "Lender Assistant",
   "Lender Processor",
-  "Listing Agent Transaction Coordinator", // (confirm)
+  "Listing Agent Transaction Coordinator",
   "Listing Agent",
   "Listing Co Agent",
   "Photographer",
@@ -49,17 +48,17 @@ const CONTACT_ROLES = [
   "Referral Company",
   "Seller",
   "Septic Inspector",
-  "Septic Inspector Recommended", // (confirm)
-  "Sign Installation Company", // (confirm)
+  "Septic Inspector Recommended by Agent",
+  "Sign Installation Company",
   "Stager",
   "Tenant",
   "Termite Inspector",
-  "Termite Inspector Recommended", // (confirm)
+  "Termite Inspector Recommended by Agent",
   "Title Officer",
   "Title Officer Assistant",
-  "Utility Concierge Company", // (confirm)
+  "Utility Concierge Company",
   "Well Inspector",
-  "Well Inspector Recommended", // (confirm)
+  "Well Inspector Recommended by Agent",
   "Videographer",
 ];
 

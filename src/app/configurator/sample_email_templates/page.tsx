@@ -5,11 +5,11 @@ import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { requireStepAccess } from "@/lib/stepAccess";
 import { getSandboxTier } from "@/lib/devSandbox";
-import { isContactRole, OTC_FIELDS } from "@/lib/otcFields";
+import { isContactRole } from "@/lib/otcFields";
 import { isActive, newOtcFieldsFrom, type WorkflowField } from "@/lib/workflowFields";
 import { SAMPLE_EMAIL_TEMPLATES } from "@/lib/sampleEmailTemplates";
 import {
-  EMAIL_COPY_ROLES,
+  EMAIL_RECIPIENT_ROLES,
   fromSample,
   guessAttachments,
   type EmailTemplate,
@@ -113,19 +113,19 @@ export default async function SampleEmailTemplatesPage({
     }),
   ];
 
-  // To / Cc / Bcc: OTC's contact roles plus any the client added, and the
-  // CC / BCC on ALL roles. Attach:
+  // To / Cc / Bcc: OTC's contact roles and CC / BCC on ALL roles, exactly
+  // as OTC names them and in its order, then any roles the client added.
+  // Attach:
   // their documents (uploaded contracts, and ones added by name).
   const assigned = (docs ?? [])
     .flatMap((d) => (Array.isArray(d.workflow_fields) ? (d.workflow_fields as WorkflowField[]) : []))
     .filter(isActive);
   const roleOptions = [
     ...new Set([
-      ...OTC_FIELDS.filter(isContactRole).map((f) => f.name),
+      ...EMAIL_RECIPIENT_ROLES,
       ...newOtcFieldsFrom(assigned)
         .filter(isContactRole)
         .map((f) => f.name),
-      ...EMAIL_COPY_ROLES,
     ]),
   ];
   const fileOptions = [

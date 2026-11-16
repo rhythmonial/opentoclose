@@ -90,7 +90,6 @@ export function EmailTemplatesConfigurator({
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [side, setSide] = useState<TemplateSide | "all">("all");
-  const [onlyUsed, setOnlyUsed] = useState(false);
   const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
 
   // Adds an uploaded file's rows as their own templates (checked to use),
@@ -166,7 +165,6 @@ export function EmailTemplatesConfigurator({
   const shown = items.filter(
     (t) =>
       (side === "all" || sideOf(t.title) === side) &&
-      (!onlyUsed || t.include) &&
       (!q ||
         t.title.toLowerCase().includes(q) ||
         t.subject.toLowerCase().includes(q) ||
@@ -228,14 +226,6 @@ export function EmailTemplatesConfigurator({
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-4 text-sm text-ink-soft">
-            <label className="flex items-center gap-1.5">
-              <input
-                type="checkbox"
-                checked={onlyUsed}
-                onChange={(e) => setOnlyUsed(e.target.checked)}
-              />
-              Only ones I&rsquo;m using
-            </label>
             <span className="text-xs text-ink-faint">
               Using {used} of {items.length}
               {status === "saving" && " · Saving…"}

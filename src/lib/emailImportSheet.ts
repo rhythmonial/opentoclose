@@ -55,14 +55,42 @@ export function readImportSheet(table: ContactTable): ImportedTemplate[] {
     .filter((t) => t.title);
 }
 
+// A merge field's name as OTC writes it: lower case, words joined by
+// underscores ("Buyer's Agent First Name" -> "buyers_agent_first_name").
+const mergeName = (raw: string) =>
+  raw
+    .trim()
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+// Writes every merge field the same way, {{merge_field}}, whether it was
+// typed as {{ Merge Field }}, {merge_field}, <<merge field>> or
+// <merge field>, so OTC's merge field cleanup can remap them all. OTC's own
+// markers ([START_CONTACT], [BR]...) are left as they are.
+export function normalizeMergeFields(text: string) {
+  const field = (_: string, name: string) => {
+    const n = mergeName(name);
+    return n ? `{{${n}}}` : _;
+  };
+  return text
+    .replace(/\{\{\s*([^{}]+?)\s*\}\}/g, field)
+    .replace(/<<\s*([^<>]+?)\s*>>/g, field)
+    .replace(/(?<!\{)\{\s*([A-Za-z][\w '’-]*?)\s*\}(?!\})/g, field)
+    // <words like this> (not HTML tags, which have no spaces before ">"
+    // inside a name and start with a tag name).
+    .replace(/<([A-Za-z][A-Za-z0-9'’]*(?:[ _][A-Za-z0-9'’]+)+)>/g, field);
+}
+
 // Templates in the import sheet's layout, as CSV.
 export function toImportCsv(templates: ImportedTemplate[]) {
   return Papa.unparse([
     [...IMPORT_COLUMNS],
     ...templates.map((t) => [
       t.title,
-      t.subject,
-      withBlankLines(t.body),
+      normalizeMergeFields(t.subject),
+      normalizeMergeFields(withBlankLines(t.body)),
       t.to.join(", "),
       t.cc.join(", "),
       t.bcc.join(", "),
