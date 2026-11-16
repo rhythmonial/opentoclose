@@ -216,6 +216,7 @@ export default async function SampleEmailTemplatesPage({
               key={accountId}
               uploads={await loadUploadedSheets(supabase, accountId, "messages")}
               accountId={isStaff ? accountId : null}
+              storageAccountId={accountId}
               initial={templates}
               roleOptions={roleOptions}
               fileOptions={fileOptions}

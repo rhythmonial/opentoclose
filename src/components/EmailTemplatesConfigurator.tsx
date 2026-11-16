@@ -17,7 +17,17 @@ import {
   removeEmailTemplate,
   saveEmailTemplate,
 } from "@/app/configurator/sample_email_templates/actions";
-import { downloadCsv, toImportCsv, type ImportedTemplate } from "@/lib/emailImportSheet";
+import {
+  cleanMergeFields,
+  downloadCsv,
+  findMergeFields,
+  toImportCsv,
+  type ImportedTemplate,
+} from "@/lib/emailImportSheet";
+import { SAMPLE_EMAIL_TEMPLATES } from "@/lib/sampleEmailTemplates";
+import { createClient } from "@/lib/supabase/client";
+import { contentTypeOf, extensionOf, readContactFile } from "@/lib/contactFiles";
+import { recordUpload } from "@/app/configurator/upload_files/actions";
 import { UploadMapper, type MapTarget, type UploadedSheet } from "@/components/UploadMapper";
 import type { ContactTable } from "@/lib/contactFiles";
 
@@ -34,8 +44,18 @@ const MESSAGE_TARGETS: MapTarget[] = [
   { key: "files", label: "File roles (attachments)", aliases: ["files", "file roles", "attachments"] },
 ];
 
-// An uploaded file's rows as templates, by how its columns were matched.
-function templatesFrom(table: ContactTable, mapping: Record<string, string | null>): ImportedTemplate[] {
+// Merge fields to suggest when renaming: the ones the samples use.
+const SAMPLE_MERGE_FIELDS = findMergeFields(
+  SAMPLE_EMAIL_TEMPLATES.flatMap((t) => [t.subject, t.body]),
+).map((f) => f.name);
+
+// An uploaded file's rows as templates, by how its columns were matched,
+// with every merge field cleaned up ({{merge_field}}, renamed as asked).
+function templatesFrom(
+  table: ContactTable,
+  mapping: Record<string, string | null>,
+  renames: Record<string, string>,
+): ImportedTemplate[] {
   const colOf = (key: string) => table.columns.findIndex((c) => mapping[c] === key);
   const get = (row: string[], key: string) => {
     const i = colOf(key);
@@ -45,8 +65,8 @@ function templatesFrom(table: ContactTable, mapping: Record<string, string | nul
   return table.rows
     .map((row) => ({
       title: get(row, "title"),
-      subject: get(row, "subject"),
-      body: withBlankLines(get(row, "body")).trim(),
+      subject: cleanMergeFields(get(row, "subject"), renames),
+      body: cleanMergeFields(withBlankLines(get(row, "body")).trim(), renames),
       to: list(get(row, "to")),
       cc: list(get(row, "cc")),
       bcc: list(get(row, "bcc")),
@@ -66,6 +86,7 @@ const inputClass =
 // roles) and the documents attached (from their documents).
 export function EmailTemplatesConfigurator({
   accountId,
+  storageAccountId,
   uploads = [],
   initial,
   roleOptions,
@@ -74,6 +95,8 @@ export function EmailTemplatesConfigurator({
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
+  // The account the templates belong to (for the files they import).
+  storageAccountId: string;
   // Message files they uploaded in Upload Your Messages.
   uploads?: UploadedSheet[];
   initial: EmailTemplate[];
@@ -92,10 +115,52 @@ export function EmailTemplatesConfigurator({
   const [side, setSide] = useState<TemplateSide | "all">("all");
   const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
 
+  // Files to import: the ones from Upload Your Messages and any imported
+  // here (read right away, so they needn't be downloaded again).
+  const [sheets, setSheets] = useState(uploads);
+  const [pickedTables, setPickedTables] = useState(new Map<string, ContactTable>());
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  async function importFile(file: File) {
+    setImporting(true);
+    setImportError(null);
+    try {
+      const table = await readContactFile(file, file.name);
+      if (table.columns.length === 0) throw new Error("We couldn't find any rows in that file.");
+      const storagePath = `${storageAccountId}/messages/${crypto.randomUUID()}.${extensionOf(file.name) || "csv"}`;
+      const { error } = await createClient()
+        .storage.from("contact-files")
+        .upload(storagePath, file, { contentType: contentTypeOf(file.name) });
+      if (error) throw new Error(error.message);
+      const result = await recordUpload("messages", accountId, {
+        fileName: file.name,
+        storagePath,
+        columns: table.columns,
+        rowCount: table.rows.length,
+      });
+      if (!result.ok || !result.id) throw new Error(result.error ?? "Couldn't save that file.");
+      const id = result.id;
+      setPickedTables((all) => new Map(all).set(id, table));
+      setSheets((all) => [
+        { id, fileName: file.name, columns: table.columns, rowCount: table.rows.length, mapping: {}, url: null },
+        ...all,
+      ]);
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : "Couldn't import that file.");
+    } finally {
+      setImporting(false);
+    }
+  }
+
   // Adds an uploaded file's rows as their own templates (checked to use),
   // at the top.
-  async function importRows(table: ContactTable, mapping: Record<string, string | null>) {
-    const rows = templatesFrom(table, mapping);
+  async function importRows(
+    table: ContactTable,
+    mapping: Record<string, string | null>,
+    renames: Record<string, string>,
+  ) {
+    const rows = templatesFrom(table, mapping, renames);
     const result = await importEmailTemplates(accountId, rows);
     if (!result.ok || !result.templates) throw new Error(result.error ?? "Couldn't add them.");
     const added = result.templates.map((t) => ({ ...t, key: t.id ?? crypto.randomUUID() }));
@@ -184,6 +249,23 @@ export function EmailTemplatesConfigurator({
             className="w-64 rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-ink outline-none focus:border-accent"
           />
           <div className="flex flex-wrap items-center gap-2">
+            <label
+              className={`cursor-pointer rounded-lg border border-border px-4 py-1.5 text-sm font-semibold text-accent hover:border-accent ${
+                importing ? "pointer-events-none opacity-60" : ""
+              }`}
+            >
+              {importing ? "Importing…" : "Import templates"}
+              <input
+                type="file"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void importFile(file);
+                }}
+              />
+            </label>
             <button
               type="button"
               onClick={addTemplate}
@@ -236,13 +318,19 @@ export function EmailTemplatesConfigurator({
         </div>
       </div>
 
-      {uploads.length > 0 && (
+      {importError && (
+        <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+          {importError}
+        </p>
+      )}
+      {sheets.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-[15px] font-bold text-ink">Your uploaded messages</h2>
+          <h2 className="text-[15px] font-bold text-ink">Templates to import</h2>
           <p className="-mt-1 text-xs text-ink-faint">
-            Match each file&rsquo;s columns, then add its templates. They come in checked to use.
+            For each file, match its columns, check its merge fields, then add its templates.
+            They come in checked to use, ready for the Open to Close import.
           </p>
-          {uploads.map((u) => (
+          {sheets.map((u) => (
             <UploadMapper
               key={u.id}
               sheet={u}
@@ -250,6 +338,9 @@ export function EmailTemplatesConfigurator({
               targets={MESSAGE_TARGETS}
               noun="templates"
               onImport={importRows}
+              initialTable={pickedTables.get(u.id) ?? null}
+              mergeFieldTargets={["subject", "body"]}
+              mergeSuggestions={SAMPLE_MERGE_FIELDS}
             />
           ))}
         </section>

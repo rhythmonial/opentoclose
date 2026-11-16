@@ -57,7 +57,7 @@ export function readImportSheet(table: ContactTable): ImportedTemplate[] {
 
 // A merge field's name as OTC writes it: lower case, words joined by
 // underscores ("Buyer's Agent First Name" -> "buyers_agent_first_name").
-const mergeName = (raw: string) =>
+export const mergeName = (raw: string) =>
   raw
     .trim()
     .toLowerCase()
@@ -81,6 +81,29 @@ export function normalizeMergeFields(text: string) {
     // <words like this> (not HTML tags, which have no spaces before ">"
     // inside a name and start with a tag name).
     .replace(/<([A-Za-z][A-Za-z0-9'’]*(?:[ _][A-Za-z0-9'’]+)+)>/g, field);
+}
+
+// The merge fields in some text (after normalizing), by name, with how many
+// times each appears.
+export function findMergeFields(texts: string[]): { name: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const t of texts) {
+    for (const m of normalizeMergeFields(t).matchAll(/\{\{([a-z0-9_]+)\}\}/g)) {
+      counts.set(m[1], (counts.get(m[1]) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Normalizes the merge fields in some text, then renames any of them
+// ({{old}} -> {{new}}, both by their normalized names).
+export function cleanMergeFields(text: string, renames: Record<string, string>) {
+  return normalizeMergeFields(text).replace(/\{\{([a-z0-9_]+)\}\}/g, (whole, name: string) => {
+    const next = renames[name] ? mergeName(renames[name]) : name;
+    return next ? `{{${next}}}` : whole;
+  });
 }
 
 // Templates in the import sheet's layout, as CSV.

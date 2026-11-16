@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { readContactFile, type ContactTable } from "@/lib/contactFiles";
 import { saveUploadMapping } from "@/app/configurator/upload_files/actions";
+import { findMergeFields, mergeName } from "@/lib/emailImportSheet";
 
 export type UploadedSheet = {
   id: string;
@@ -17,6 +18,8 @@ export type UploadedSheet = {
 export type MapTarget = { key: string; label: string; aliases?: string[]; required?: boolean };
 
 export const IMPORTED = "__imported";
+// Merge field renames ({ old_name: new_name }), saved as JSON.
+const RENAMES = "__renames";
 
 const norm = (s: string) => s.toLowerCase().replace(/\([^)]*\)/g, "").replace(/[^a-z]+/g, " ").trim();
 
@@ -44,16 +47,38 @@ export function UploadMapper({
   targets,
   noun,
   onImport,
+  initialTable = null,
+  mergeFieldTargets,
+  mergeSuggestions = [],
 }: {
   sheet: UploadedSheet;
   accountId: string | null;
   targets: MapTarget[];
   // "templates" or "tasks", for the button.
   noun: string;
-  // Turns the file's rows into templates or tasks; returns how many.
-  onImport: (table: ContactTable, mapping: Record<string, string | null>) => Promise<number>;
+  // Turns the file's rows into templates or tasks (with any merge field
+  // renames); returns how many.
+  onImport: (
+    table: ContactTable,
+    mapping: Record<string, string | null>,
+    renames: Record<string, string>,
+  ) => Promise<number>;
+  // The file as just picked (so it needn't be downloaded again).
+  initialTable?: ContactTable | null;
+  // Targets whose text has merge fields (e.g. subject, body): the merge
+  // fields found there are listed to clean up before adding.
+  mergeFieldTargets?: string[];
+  // Merge field names to suggest when renaming.
+  mergeSuggestions?: string[];
 }) {
-  const [table, setTable] = useState<ContactTable | null>(null);
+  const [table, setTable] = useState<ContactTable | null>(initialTable);
+  const [renames, setRenames] = useState<Record<string, string>>(() => {
+    try {
+      return JSON.parse(String(sheet.mapping[RENAMES] ?? "{}"));
+    } catch {
+      return {};
+    }
+  });
   const [mapping, setMapping] = useState(() => {
     const m: Record<string, string | null> = {};
     const hasSaved = sheet.columns.some((c) => typeof sheet.mapping[c] === "string");
@@ -81,13 +106,32 @@ export function UploadMapper({
 
   const missing = targets.filter((t) => t.required && !Object.values(mapping).includes(t.key));
 
+  function persist(nextMapping: Record<string, string | null>, nextRenames: Record<string, string>) {
+    void saveUploadMapping(accountId, sheet.id, {
+      ...nextMapping,
+      [IMPORTED]: imported,
+      [RENAMES]: JSON.stringify(nextRenames),
+    });
+  }
+
   function choose(col: string, key: string | null) {
     const next = { ...mapping };
     if (key) for (const [c, k] of Object.entries(next)) if (k === key) next[c] = null;
     next[col] = key;
     setMapping(next);
-    void saveUploadMapping(accountId, sheet.id, { ...next, [IMPORTED]: imported });
+    persist(next, renames);
   }
+
+  // The merge fields in the columns that hold them (subject, body…).
+  const mergeCols = (mergeFieldTargets ?? []).flatMap((key) => {
+    const i = table?.columns.findIndex((c) => mapping[c] === key) ?? -1;
+    return i >= 0 ? [i] : [];
+  });
+  const found =
+    table && mergeCols.length > 0
+      ? findMergeFields(table.rows.flatMap((r) => mergeCols.map((i) => r[i] ?? "")))
+      : [];
+  const listId = `merge-suggestions-${sheet.id}`;
 
   function examples(col: string) {
     if (!table) return null;
@@ -123,9 +167,13 @@ export function UploadMapper({
               setBusy(true);
               setMessage(null);
               try {
-                const n = await onImport(table, mapping);
+                const n = await onImport(table, mapping, renames);
                 setImported(true);
-                await saveUploadMapping(accountId, sheet.id, { ...mapping, [IMPORTED]: true });
+                await saveUploadMapping(accountId, sheet.id, {
+                  ...mapping,
+                  [IMPORTED]: true,
+                  [RENAMES]: JSON.stringify(renames),
+                });
                 setMessage(`Added ${n} ${noun}.`);
               } catch (e) {
                 setMessage(e instanceof Error ? e.message : "Couldn't add them.");
@@ -194,6 +242,66 @@ export function UploadMapper({
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!imported && found.length > 0 && (
+        <div className="mt-4">
+          <h3 className="text-sm font-bold text-ink">Merge fields in this file ({found.length})</h3>
+          <p className="mt-0.5 text-xs text-ink-faint">
+            They&rsquo;re all written as {"{{merge_field}}"} when added. Rename any to match the
+            merge field you use (or to clean up spelling); leave the rest as they are.
+          </p>
+          <datalist id={listId}>
+            {mergeSuggestions.map((m) => (
+              <option key={m} value={m} />
+            ))}
+          </datalist>
+          <div className="mt-2 overflow-x-auto rounded-lg border border-border">
+            <table className="w-full min-w-[32rem] text-left text-sm">
+              <thead className="bg-bg text-xs text-ink-soft">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">In your file</th>
+                  <th className="px-3 py-2 font-semibold">Used</th>
+                  <th className="px-3 py-2 font-semibold">Becomes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {found.map((f) => (
+                  <tr key={f.name}>
+                    <td className="px-3 py-2 font-mono text-xs text-ink">{`{{${f.name}}}`}</td>
+                    <td className="px-3 py-2 text-xs text-ink-faint">
+                      {f.count} time{f.count === 1 ? "" : "s"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className="flex items-center gap-1 font-mono text-xs text-ink-soft">
+                        {"{{"}
+                        <input
+                          list={listId}
+                          value={renames[f.name] ?? f.name}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setRenames((all) => {
+                              const next = { ...all };
+                              if (!value.trim() || mergeName(value) === f.name) delete next[f.name];
+                              else next[f.name] = value;
+                              return next;
+                            });
+                          }}
+                          onBlur={() => persist(mapping, renames)}
+                          aria-label={`Rename ${f.name}`}
+                          className={`w-full min-w-0 rounded-md border bg-bg px-2 py-1 font-mono text-xs outline-none focus:border-accent ${
+                            renames[f.name] ? "border-accent/50 text-ink" : "border-border text-ink-soft"
+                          }`}
+                        />
+                        {"}}"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </section>
