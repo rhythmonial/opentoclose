@@ -629,10 +629,17 @@ function TemplateEditor({
           rows={Math.min(24, Math.max(8, draft.body.split("\n").length + 2))}
           className={`${inputClass} font-mono text-[13px] leading-relaxed`}
         />
-        <span className="text-xs text-ink-faint">
-          Leave a blank line between paragraphs; that&rsquo;s how they come through in Open
-          to Close. Merge fields look like{" "}
-          <code className="rounded bg-bg px-1">{"{{closing_date}}"}</code>.
+        <span className="text-xs leading-relaxed text-ink-faint">
+          Merge fields fill in each transaction&rsquo;s details when the email is sent. Write
+          them in double curly braces, lower case, with underscores between words, like{" "}
+          <code className="rounded bg-bg px-1">{"{{closing_date}}"}</code>. You can make one
+          for anything you&rsquo;d like, and they&rsquo;re matched up to Open to Close&rsquo;s
+          fields during your setup. For example: &ldquo;Hi{" "}
+          <code className="rounded bg-bg px-1">{"{{buyer_first_name}}"}</code>, we&rsquo;re
+          scheduled to close on{" "}
+          <code className="rounded bg-bg px-1">{"{{closing_date}}"}</code> at{" "}
+          <code className="rounded bg-bg px-1">{"{{title_officer_business_name}}"}</code>
+          .&rdquo;
         </span>
       </label>
       <div className="flex items-center gap-3">
