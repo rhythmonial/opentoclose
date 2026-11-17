@@ -57,12 +57,14 @@ export async function inviteClientAdmin(formData: FormData) {
   const firstName = String(formData.get("first_name") ?? "").trim().slice(0, 80);
   const lastName = String(formData.get("last_name") ?? "").trim().slice(0, 80);
   const phone = String(formData.get("phone") ?? "").trim().slice(0, 40);
+  // Sent from the Profile page or from Initiate Your Setup.
+  const back = formData.get("return_to") === "/setup" ? "/setup" : "/profile";
 
   if (!email) {
-    redirect("/profile?error=Enter+an+email+address");
+    redirect(`${back}?error=Enter+an+email+address`);
   }
   if (!firstName || !lastName) {
-    redirect("/profile?error=Enter+their+first+and+last+name");
+    redirect(`${back}?error=Enter+their+first+and+last+name`);
   }
 
   const supabase = await createClient();
@@ -81,7 +83,7 @@ export async function inviteClientAdmin(formData: FormData) {
     .single();
 
   if (profile?.role !== "client_owner" || !profile.client_account_id) {
-    redirect("/profile?error=Only+the+account+owner+can+invite+teammates");
+    redirect(`${back}?error=Only+the+account+owner+can+invite+teammates`);
   }
 
   const { data: account } = await supabase
@@ -102,7 +104,7 @@ export async function inviteClientAdmin(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/profile?error=${encodeURIComponent(error.message)}`);
+    redirect(`${back}?error=${encodeURIComponent(error.message)}`);
   }
 
   // Their name and phone go on the profile the invite created.
@@ -118,8 +120,8 @@ export async function inviteClientAdmin(formData: FormData) {
       .eq("id", invite.user.id);
   }
 
-  revalidatePath("/profile");
-  redirect("/profile?invited=1");
+  revalidatePath(back);
+  redirect(`${back}?invited=1`);
 }
 
 export async function inviteStaff(formData: FormData) {

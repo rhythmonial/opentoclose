@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { ToolsQuestions } from "@/components/ToolsQuestions";
 import { OwnerGuruFields } from "@/components/OwnerGuruFields";
 import { StatesServicedField } from "@/components/StatesServicedField";
@@ -15,10 +14,10 @@ const INPUT =
 // The setup details, inside a 2-column grid form.
 // - signup: the founders-form basics (business, states, current software,
 //   decision maker) plus `afterOwner` (the password).
-// - initiate (Initiate Your Setup): staying on the monthly membership (DIY)
-//   or electing a Setup. DIY answers only what sign-up didn't ask (email
-//   provider, e-sign platform); Setup answers everything, with their Open
-//   to Close login.
+// - initiate (Initiate Your Setup): every detail (filled in with what they
+//   gave at sign-up), their team's setup staff (`team`), then Your OTC
+//   Setup: staying on the monthly membership (DIY) or adding a Setup (which
+//   asks for their Open to Close login).
 export function SetupDetailsFields({
   mode,
   existing,
@@ -27,6 +26,7 @@ export function SetupDetailsFields({
   defaultEngagementType = "diy",
   afterOwner,
   setupPrice,
+  team,
 }: {
   mode: "signup" | "initiate";
   existing: Tables<"setup_initiation"> | null;
@@ -35,10 +35,9 @@ export function SetupDetailsFields({
   defaultEngagementType?: "diy" | "custom";
   afterOwner?: React.ReactNode;
   setupPrice?: string;
+  // Initiate Your Setup's "Your Team's Setup Staff" section.
+  team?: React.ReactNode;
 }) {
-  const [plan, setPlan] = useState(defaultEngagementType);
-  const showBasics = mode === "signup" || plan === "custom";
-
   const basics = (
     <>
       <label className="flex flex-col gap-1.5">
@@ -89,6 +88,15 @@ export function SetupDetailsFields({
           className={INPUT}
         />
       </label>
+      {mode === "initiate" && (
+        <ToolsQuestions
+          showTms={false}
+          defaultEsign={existing?.esign_platform ?? ""}
+          defaultEsignOther={existing?.esign_other ?? ""}
+          defaultTms=""
+          defaultEmailProvider={existing?.email_provider ?? ""}
+        />
+      )}
       <OwnerGuruFields
         defaultOwner={{
           first: existing?.first_name ?? "",
@@ -105,29 +113,17 @@ export function SetupDetailsFields({
 
   return (
     <>
+      <h2 className="text-[15px] font-bold text-ink sm:col-span-2">Your business</h2>
+      {basics}
+      {team}
+      <hr className="my-2 border-border sm:col-span-2" />
       <h2 className="text-center text-[15px] font-bold text-ink sm:col-span-2">Your OTC Setup</h2>
       <PlanChoice
         defaultPlan={defaultEngagementType}
-        onPlanChange={setPlan}
         setupPrice={setupPrice}
         defaultOtcUsername={existing?.otc_username ?? ""}
         otcPasswordSaved={existing?.otc_password_set ?? false}
       />
-      <hr className="my-2 border-border sm:col-span-2" />
-      <ToolsQuestions
-        showTms={false}
-        defaultEsign={existing?.esign_platform ?? ""}
-        defaultEsignOther={existing?.esign_other ?? ""}
-        defaultTms=""
-        defaultEmailProvider={existing?.email_provider ?? ""}
-      />
-      {showBasics && (
-        <>
-          <hr className="my-2 border-border sm:col-span-2" />
-          <h2 className="text-[15px] font-bold text-ink sm:col-span-2">Your business</h2>
-          {basics}
-        </>
-      )}
     </>
   );
 }

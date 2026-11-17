@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { formatPhone } from "@/lib/phone";
 
 const field =
@@ -12,10 +13,16 @@ export function InviteTeammateButton({
   action,
   error,
   invited,
+  returnTo,
+  label,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   error?: string;
   invited?: boolean;
+  // Where to come back to after sending (the page it's on).
+  returnTo?: string;
+  // A text button instead of the "+" icon.
+  label?: string;
 }) {
   const [open, setOpen] = useState(Boolean(error || invited));
   const [phone, setPhone] = useState("");
@@ -33,19 +40,31 @@ export function InviteTeammateButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Invite a teammate"
-        title="Invite a teammate"
-        className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white hover:opacity-90"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-      </button>
+      {label ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="rounded-lg border border-border px-3.5 py-1.5 text-sm font-semibold text-accent hover:border-accent"
+        >
+          {label}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Invite a teammate"
+          title="Invite a teammate"
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white hover:opacity-90"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+      )}
 
-      {open && (
+      {/* In its own layer on the page, so it works inside another form. */}
+      {open &&
+        createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
           onClick={(e) => {
@@ -90,7 +109,12 @@ export function InviteTeammateButton({
               </div>
             )}
 
-            <form action={action} className="flex flex-col gap-3">
+            <form
+              action={action}
+              onSubmit={(e) => e.stopPropagation()}
+              className="flex flex-col gap-3"
+            >
+              {returnTo && <input type="hidden" name="return_to" value={returnTo} />}
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1.5">
                   <span className="text-xs font-medium text-ink-soft">First name</span>
@@ -130,8 +154,9 @@ export function InviteTeammateButton({
               </button>
             </form>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
     </>
   );
 }

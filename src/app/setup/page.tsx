@@ -5,15 +5,17 @@ import { createClient } from "@/lib/supabase/server";
 import { MissingFieldsNotice } from "@/components/MissingFieldsNotice";
 import { SetupDetailsFields } from "@/components/SetupDetailsFields";
 import { submitSetupInitiation } from "./actions";
+import { inviteClientAdmin } from "@/app/profile/actions";
+import { InviteTeammateButton } from "@/components/InviteTeammateButton";
 import { getSandboxTier } from "@/lib/devSandbox";
 import { progressOwnerId } from "@/lib/accountOwner";
 
 export default async function SetupInitiationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; plan?: string; tested?: string }>;
+  searchParams: Promise<{ error?: string; plan?: string; tested?: string; invited?: string }>;
 }) {
-  const { error, plan, tested } = await searchParams;
+  const { error, plan, tested, invited } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -49,6 +51,63 @@ export default async function SetupInitiationPage({
         .eq("id", profile.client_account_id)
         .single()
     : { data: null };
+
+  // Everyone on the account (the setup staff), for "Your Team's Setup Staff".
+  const { data: teammates } = profile?.client_account_id
+    ? await supabase
+        .from("profiles")
+        .select("id, role, email, name, first_name, last_name, first_login_at")
+        .eq("client_account_id", profile.client_account_id)
+        .order("created_at")
+    : { data: [] };
+  const team = (
+    <div className="flex flex-col gap-2 sm:col-span-2">
+      <hr className="my-2 border-border" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[15px] font-bold text-ink">Your Team&rsquo;s Setup Staff</h2>
+        {profile?.role === "client_owner" && (
+          <InviteTeammateButton
+            action={inviteClientAdmin}
+            invited={Boolean(invited)}
+            returnTo="/setup"
+            label="+ Invite a teammate"
+          />
+        )}
+      </div>
+      <p className="text-sm text-ink-soft">
+        Invite anyone who should have access to your Open to Close setup, like your OTC Guru or
+        an assistant helping with the setup. They&rsquo;ll get an email to set a password and sign
+        in to your account.
+      </p>
+      {invited && (
+        <p className="rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-sm text-success">
+          Invite sent.
+        </p>
+      )}
+      <ul className="flex flex-col gap-1.5">
+        {(teammates ?? []).map((m) => {
+          const name = m.name?.trim() || [m.first_name, m.last_name].filter(Boolean).join(" ") || m.email;
+          return (
+            <li
+              key={m.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm"
+            >
+              <span className="min-w-0">
+                <span className="font-semibold text-ink">{name}</span>
+                {m.id === user.id && <span className="text-ink-faint"> (you)</span>}
+                {m.email && name !== m.email && (
+                  <span className="block truncate text-xs text-ink-faint">{m.email}</span>
+                )}
+              </span>
+              <span className="text-xs font-semibold text-ink-soft">
+                {m.role === "client_owner" ? "Owner" : m.first_login_at ? "Admin" : "Invited"}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 
   // Initiate Your Setup: stay on the monthly membership (DIY) or add a
   // Setup. A Setup they already have stays picked.
@@ -111,6 +170,7 @@ export default async function SetupInitiationPage({
             email={user.email ?? ""}
             defaultEngagementType={defaultEngagementType}
             setupPrice={setupPrice}
+            team={team}
           />
 
           <MissingFieldsNotice />
