@@ -6,9 +6,7 @@ import {
   withBlankLines,
   fromSample,
   isEdited,
-  SIDE_LABELS,
   sidesOf,
-  TEMPLATE_SIDES,
   sampleFor,
   type EmailTemplate,
   type TemplateSide,
@@ -77,6 +75,8 @@ function templatesFrom(
 }
 
 import { setUrlParam } from "@/lib/urlState";
+import { SIDES, type SideInfo } from "@/lib/taskPlans";
+import { addSide } from "@/app/configurator/plan_your_task_templates/actions";
 
 const inputClass =
   "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent";
@@ -87,6 +87,7 @@ const inputClass =
 // roles) and the documents attached (from their documents).
 export function EmailTemplatesConfigurator({
   initialSide = "all",
+  customSides = [],
   accountId,
   storageAccountId,
   uploads = [],
@@ -99,6 +100,8 @@ export function EmailTemplatesConfigurator({
   accountId: string | null;
   // The tab to open on (from the address).
   initialSide?: TemplateSide | "all";
+  // Sides they added with their own prefix (shared with their task lists).
+  customSides?: SideInfo[];
   // The account the templates belong to (for the files they import).
   storageAccountId: string;
   // Message files they uploaded in Upload Your Messages.
@@ -116,7 +119,26 @@ export function EmailTemplatesConfigurator({
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [side, setSideState] = useState<TemplateSide | "all">(initialSide);
+  // Buyer, Seller, Listing and the sides they added.
+  const [added, setAdded] = useState(customSides);
+  const sides = [...SIDES, ...added];
+  const sidesFor = (t: Pick<EmailTemplate, "title" | "sides">) => sidesOf(t, sides);
+  const [side, setSideState] = useState<TemplateSide | "all">(
+    initialSide === "all" || [...SIDES, ...customSides].some((x) => x.value === initialSide) ? initialSide : "all",
+  );
+  // The "+" form for a new side: null when closed.
+  const [newSide, setNewSide] = useState<{ label: string; prefix: string; edited: boolean } | null>(null);
+  async function createSide() {
+    if (!newSide) return;
+    const result = await addSide(accountId, newSide.label, newSide.prefix);
+    if (!result.ok || !result.side) {
+      setStatus("error");
+      return;
+    }
+    setAdded((all) => [...all, result.side!]);
+    setNewSide(null);
+    setSide(result.side.value);
+  }
   // The tab stays in the address, so a reload comes back to it.
   const setSide = (next: TemplateSide | "all") => {
     setSideState(next);
@@ -239,7 +261,7 @@ export function EmailTemplatesConfigurator({
   const q = query.trim().toLowerCase();
   const shown = items.filter(
     (t) =>
-      (side === "all" || sidesOf(t).includes(side)) &&
+      (side === "all" || sidesFor(t).includes(side)) &&
       (!q ||
         t.title.toLowerCase().includes(q) ||
         t.subject.toLowerCase().includes(q) ||
@@ -251,28 +273,98 @@ export function EmailTemplatesConfigurator({
     <div className="flex flex-col gap-4">
       {/* Tabs by side, like Customize Your Fields' group tabs, with how many
           templates on each are checked to use. */}
-      <div className="flex gap-1 sm:gap-2" role="tablist" aria-label="Template sides">
-        {(["all", ...TEMPLATE_SIDES] as const).map((sd) => {
-          const active = sd === side;
-          const on = items.filter((t) => t.include && (sd === "all" || sidesOf(t).includes(sd))).length;
-          return (
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-1 gap-1 sm:gap-2" role="tablist" aria-label="Template sides">
+          {[{ value: "all", label: "All", prefix: "" }, ...sides].map((sd) => {
+            const active = sd.value === side;
+            const on = items.filter(
+              (t) => t.include && (sd.value === "all" || sidesFor(t).includes(sd.value)),
+            ).length;
+            return (
+              <button
+                key={sd.value}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setSide(sd.value)}
+                title={sd.prefix ? `${sd.prefix} templates` : undefined}
+                className={`flex min-w-0 flex-1 items-center justify-center rounded-md border px-1 py-2 text-center text-[11px] font-semibold leading-tight sm:px-3 sm:text-sm ${
+                  active ? "border-accent bg-accent text-white" : "border-border bg-surface text-ink-soft"
+                }`}
+              >
+                <span className="min-w-0 break-words sm:truncate">
+                  {sd.label}
+                  <span className={active ? "text-white/80" : "text-ink-faint"}> &middot; {on}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {/* Add a side with its own prefix (also a task list). */}
+        {newSide ? (
+          <form
+            className="flex flex-wrap items-center gap-1.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void createSide();
+            }}
+          >
+            <input
+              autoFocus
+              value={newSide.label}
+              onChange={(e) => {
+                const label = e.target.value;
+                setNewSide({
+                  ...newSide,
+                  label,
+                  prefix: newSide.edited ? newSide.prefix : label.trim().charAt(0).toUpperCase(),
+                });
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setNewSide(null);
+              }}
+              maxLength={40}
+              placeholder="Name, e.g. Dual"
+              aria-label="New side name"
+              className="w-32 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-ink outline-none focus:border-accent"
+            />
+            <label className="flex items-center gap-1 text-xs text-ink-soft">
+              Prefix
+              <input
+                value={newSide.prefix}
+                onChange={(e) => setNewSide({ ...newSide, prefix: e.target.value, edited: true })}
+                maxLength={6}
+                placeholder="D"
+                aria-label="Prefix"
+                className="w-12 rounded-lg border border-border bg-surface px-2 py-1.5 text-center text-sm text-ink outline-none focus:border-accent"
+              />
+            </label>
             <button
-              key={sd}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setSide(sd)}
-              className={`flex min-w-0 flex-1 items-center justify-center rounded-md border px-1 py-2 text-center text-[11px] font-semibold leading-tight sm:px-3 sm:text-sm ${
-                active ? "border-accent bg-accent text-white" : "border-border bg-surface text-ink-soft"
-              }`}
+              type="submit"
+              disabled={!newSide.label.trim() || !newSide.prefix.trim()}
+              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
             >
-              <span className="min-w-0 break-words sm:truncate">
-                {sd === "all" ? "All" : SIDE_LABELS[sd]}
-                <span className={active ? "text-white/80" : "text-ink-faint"}> &middot; {on}</span>
-              </span>
+              Add
             </button>
-          );
-        })}
+            <button
+              type="button"
+              onClick={() => setNewSide(null)}
+              className="px-1 text-xs font-semibold text-ink-soft"
+            >
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setNewSide({ label: "", prefix: "", edited: false })}
+            title="Add a side with its own prefix"
+            aria-label="Add a side"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-ink-soft hover:border-accent hover:text-accent"
+          >
+            +
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-3">
@@ -433,6 +525,7 @@ export function EmailTemplatesConfigurator({
                   {editing ? (
                     <TemplateEditor
                       template={t}
+                      sides={sides}
                       onCancel={() => {
                         setEditingKey(null);
                         if (!t.id && !t.sampleKey) remove(t);
@@ -678,10 +771,13 @@ function EmailPreview({ template: t }: { template: EmailTemplate }) {
 // changed above it).
 function TemplateEditor({
   template,
+  sides,
   onSave,
   onCancel,
 }: {
   template: EmailTemplate;
+  // Buyer, Seller, Listing and the sides they added.
+  sides: SideInfo[];
   onSave: (change: Partial<EmailTemplate>) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -718,11 +814,9 @@ function TemplateEditor({
         {/* Which tabs it shows on: buyer, seller, listing and/or other. */}
         <MultiSelect
           label="Side(s)"
-          options={TEMPLATE_SIDES.map((x) => SIDE_LABELS[x])}
-          value={sidesOf(draft).map((x) => SIDE_LABELS[x])}
-          onChange={(labels) =>
-            set({ sides: TEMPLATE_SIDES.filter((x) => labels.includes(SIDE_LABELS[x])) })
-          }
+          options={sides.map((x) => x.label)}
+          value={sidesOf(draft, sides).map((v) => sides.find((x) => x.value === v)?.label ?? v)}
+          onChange={(labels) => set({ sides: sides.filter((x) => labels.includes(x.label)).map((x) => x.value) })}
         />
       </div>
       <label className="flex flex-col gap-1">

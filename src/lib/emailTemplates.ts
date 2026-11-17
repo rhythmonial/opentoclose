@@ -120,7 +120,9 @@ export type AttachableDoc = { name: string; categories: string[]; sides: string[
 export function guessAttachments(title: string, docs: AttachableDoc[]): string[] {
   const categories = new Set(ATTACH_RULES.filter(([re]) => re.test(title)).flatMap(([, c]) => c));
   if (categories.size === 0) return [];
-  const side = sideOf(title);
+  // The sample's side, from its title's B / S / L prefix.
+  const t = title.trim();
+  const side = /^B\s/.test(t) ? "buyer" : /^S\s/.test(t) ? "seller" : /^L\s/.test(t) ? "listing" : "other";
   return [
     ...new Set(
       docs
@@ -167,27 +169,23 @@ export function isEdited(t: EmailTemplate, defaultFiles: string[] = []) {
   );
 }
 
-// Which side a template is for, from its title ("B ...", "S ...", "L ...").
-export type TemplateSide = "buyer" | "seller" | "listing" | "other";
-export function sideOf(title: string): TemplateSide {
-  const t = title.trim();
-  if (/^B\s/.test(t)) return "buyer";
-  if (/^S\s/.test(t)) return "seller";
-  if (/^L\s/.test(t)) return "listing";
-  return "other";
-}
+// Which tabs a template shows on in Prep Your Messages: Buyer, Seller,
+// Listing, or a side the client added with its own prefix (the same ones as
+// their task lists). Picked on the template, or else from its title's prefix
+// ("B ...", "S ...", "D ..."); a template with neither shows on All only.
+export type TemplateSide = string;
 
-export const SIDE_LABELS: Record<TemplateSide, string> = {
-  buyer: "Buyer",
-  seller: "Seller",
-  listing: "Listing",
-  other: "Other",
-};
-
-export const TEMPLATE_SIDES: TemplateSide[] = ["buyer", "seller", "listing", "other"];
-
-// The tabs a template shows on.
-export function sidesOf(t: Pick<EmailTemplate, "title" | "sides">): TemplateSide[] {
-  const picked = (t.sides ?? []).filter((s) => TEMPLATE_SIDES.includes(s));
-  return picked.length > 0 ? picked : [sideOf(t.title)];
+export function sidesOf(
+  t: Pick<EmailTemplate, "title" | "sides">,
+  sides: { value: string; prefix: string }[],
+): TemplateSide[] {
+  const known = new Set(sides.map((s) => s.value));
+  const picked = (t.sides ?? []).filter((s) => known.has(s));
+  if (picked.length > 0) return picked;
+  const title = t.title.trim().toLowerCase();
+  const hit = sides.find((s) => {
+    const letter = s.prefix.replace(/\s*-\s*$/, "").trim().toLowerCase();
+    return letter && (title.startsWith(`${letter} `) || title.startsWith(`${letter}-`));
+  });
+  return hit ? [hit.value] : [];
 }

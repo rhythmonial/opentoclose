@@ -39,7 +39,8 @@ export async function saveEmailTemplate(
     cc_roles: names(t.cc),
     bcc_roles: names(t.bcc),
     file_roles: names(t.files),
-    sides: [...new Set(t.sides ?? [])].filter((x) => ["buyer", "seller", "listing", "other"].includes(x)),
+    // Buyer, Seller, Listing, or a side they added (its id).
+    sides: [...new Set(t.sides ?? [])].filter((x) => ["buyer", "seller", "listing"].includes(x) || UUID.test(x)),
     updated_at: new Date().toISOString(),
   };
 

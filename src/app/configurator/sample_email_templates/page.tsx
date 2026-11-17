@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { customSide } from "@/lib/taskPlans";
 import { LessonVideoButton } from "@/components/LessonVideoButton";
 import { loadUploadedSheets } from "@/lib/uploadedSheets";
 import Link from "next/link";
@@ -217,7 +218,16 @@ export default async function SampleEmailTemplatesPage({
           {accountId ? (
             <EmailTemplatesConfigurator
               key={accountId}
-              initialSide={tab === "buyer" || tab === "seller" || tab === "listing" || tab === "other" ? tab : "all"}
+              initialSide={tab || "all"}
+              customSides={(
+                (
+                  await supabase
+                    .from("client_task_sides")
+                    .select("id, label, prefix")
+                    .eq("client_account_id", accountId)
+                    .order("sort_order")
+                ).data ?? []
+              ).map(customSide)}
               uploads={await loadUploadedSheets(supabase, accountId, "messages")}
               accountId={isStaff ? accountId : null}
               storageAccountId={accountId}
