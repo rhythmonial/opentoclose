@@ -51,6 +51,9 @@ export type ContractBlank = {
   // Taken off the contract by the client (grayed out, kept so it can be
   // put back): it isn't a field anywhere else.
   removed?: boolean;
+  // Kept to track in Open to Close (Upload Your Contracts asks about each
+  // field: track it or remove it).
+  tracked?: boolean;
   // The box clicked first when its boxes were linked, which carries the
   // link's tag.
   linkLead?: boolean;

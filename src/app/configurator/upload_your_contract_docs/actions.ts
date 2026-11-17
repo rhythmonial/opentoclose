@@ -218,6 +218,7 @@ export async function saveContractReview(input: {
       ...(b.fieldName ? { fieldName: String(b.fieldName).slice(0, 120) } : {}),
       ...(typeof b.group === "string" && uuid.test(b.group) ? { group: b.group } : {}),
       ...(b.removed === true ? { removed: true } : {}),
+      ...(b.tracked === true && b.removed !== true ? { tracked: true } : {}),
       ...(b.fieldType === "number" && typeof b.ifBlank === "string" && b.ifBlank.trim()
         ? { ifBlank: b.ifBlank.trim().slice(0, 20) }
         : {}),

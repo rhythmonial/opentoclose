@@ -212,7 +212,7 @@ export function ContractReviewer({
     if (selected === null) return;
     const box = blanks[selected];
     if (box?.removed) changeBlanks(blanks.filter((_, i) => i !== selected));
-    else changeBlanks(blanks.map((b, i) => (i === selected ? { ...b, removed: true } : b)));
+    else changeBlanks(blanks.map((b, i) => (i === selected ? { ...b, removed: true, tracked: false } : b)));
     setSelected(null);
     setLinking([]);
   }
@@ -224,9 +224,28 @@ export function ContractReviewer({
         if (i !== selected) return b;
         const next = { ...b };
         delete next.removed;
+        // Putting a field back keeps it.
+        if (deleteOnly) next.tracked = true;
         return next;
       }),
     );
+  }
+
+  // Upload Your Contracts: keeps the selected field (and the boxes linked
+  // to it) to track.
+  function trackSelected() {
+    if (selected === null) return;
+    const g = blanks[selected]?.group;
+    changeBlanks(
+      blanks.map((b, i) => (i === selected || (g && b.group === g) ? { ...b, tracked: true } : b)),
+    );
+    setSelected(null);
+  }
+
+  // Keeps every field on this page they haven't removed.
+  function trackRestOfPage() {
+    changeBlanks(blanks.map((b) => (b.page === page && !b.removed ? { ...b, tracked: true } : b)));
+    setSelected(null);
   }
 
   // Shift+click adds a box to (or takes it out of) the ones to link,
@@ -663,6 +682,22 @@ export function ContractReviewer({
   // Per page, its fields (linked boxes count once) and how many still need
   // a field type.
   const fieldsOnPage = (n: number) => fieldsNeedingType(blanks, n);
+  // Upload Your Contracts: a field is decided once it's tracked (or typed
+  // already) or removed. Per page, how many aren't (linked boxes once).
+  const trackedGroups = new Set(blanks.filter((b) => b.group && b.tracked && !b.removed).map((b) => b.group!));
+  const isTracked = (b: ContractBlank) =>
+    Boolean(b.tracked || (b.group && trackedGroups.has(b.group)) || isTyped(b));
+  const undecidedOnPage = (n: number) => {
+    const all = new Set<string>();
+    const left = new Set<string>();
+    blanks.forEach((b, i) => {
+      if (b.page !== n || b.removed) return;
+      const key = b.group ?? `box-${i}`;
+      all.add(key);
+      if (!isTracked(b)) left.add(key);
+    });
+    return { total: all.size, left: left.size };
+  };
 
   return (
     <div ref={rootRef} className="flex scroll-mt-4 flex-col gap-3">
@@ -672,7 +707,13 @@ export function ContractReviewer({
             <button
               key={n}
               type="button"
-              title={deleteOnly ? undefined : pageCountTitle(fieldsOnPage(n))}
+              title={
+                deleteOnly
+                  ? undecidedOnPage(n).left > 0
+                    ? `${undecidedOnPage(n).left} field${undecidedOnPage(n).left === 1 ? "" : "s"} on this page to keep or remove`
+                    : undefined
+                  : pageCountTitle(fieldsOnPage(n))
+              }
               onClick={() => {
                 setPage(n);
                 setSelected(null);
@@ -683,7 +724,7 @@ export function ContractReviewer({
               }`}
             >
               Page {n}
-              {!deleteOnly && <PageCount {...fieldsOnPage(n)} current={n === page} />}
+              <PageCount {...(deleteOnly ? undecidedOnPage(n) : fieldsOnPage(n))} current={n === page} />
             </button>
           ))}
         </div>
@@ -699,19 +740,32 @@ export function ContractReviewer({
       {deleteOnly ? (
         <>
           <p className="text-sm text-ink-soft">
-            These are the fields we found on this page. Click any you don&rsquo;t want to track in
-            Open to Close, then remove it (it grays out; click it again to put it back). You&rsquo;ll
-            give the rest their field types in Assign Your Fields.
+            These are the fields we found on this page. Click each one to track it in Open to Close
+            or remove it (removed fields gray out; click one to put it back). You&rsquo;ll give the
+            tracked ones their field types in Assign Your Fields.
           </p>
           <div className="flex flex-wrap items-center gap-4 text-xs text-ink-soft">
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-4 rounded-sm border-2 border-accent bg-accent/15" />
+              <span className="h-3 w-4 rounded-sm border-2 border-danger bg-danger/15" />
+              Not picked yet
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-4 rounded-sm border-2 border-success bg-success/20" />
               Tracked
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-3 w-4 rounded-sm border-2 border-zinc-400 bg-zinc-400/40" />
               Removed
             </span>
+            {undecidedOnPage(page).left > 0 && (
+              <button
+                type="button"
+                onClick={trackRestOfPage}
+                className="ml-auto rounded-md border border-success/50 px-2.5 py-1 text-xs font-semibold text-success hover:bg-success-soft"
+              >
+                Track the rest of this page ({undecidedOnPage(page).left})
+              </button>
+            )}
           </div>
         </>
       ) : (
@@ -850,7 +904,9 @@ export function ContractReviewer({
                             : b.removed
                               ? "border-zinc-400 bg-zinc-400/40"
                               : deleteOnly
-                                ? "border-accent bg-accent/10 hover:bg-accent/25"
+                                ? isTracked(b)
+                                  ? `border-success ${lit ? "bg-success/40" : "bg-success/20 hover:bg-success/30"}`
+                                  : "border-danger bg-danger/15 hover:bg-danger/25"
                                 : isTyped(b)
                                 ? `border-success ${lit ? "bg-success/40" : "bg-success/20 hover:bg-success/30"}`
                                 : b.group
@@ -1018,15 +1074,15 @@ export function ContractReviewer({
                       ) : deleteOnly ? (
                         <span className="flex w-60 flex-col gap-2">
                           <span className="text-xs text-ink-soft">
-                            Not tracking this one in Open to Close?
+                            Track this field in Open to Close?
                           </span>
                           <span className="flex items-center justify-end gap-2">
                             <button
                               type="button"
-                              onClick={() => setSelected(null)}
-                              className="whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold text-ink-soft"
+                              onClick={trackSelected}
+                              className="whitespace-nowrap rounded-md bg-success px-3 py-1 text-xs font-semibold text-white"
                             >
-                              Keep it
+                              Track it
                             </button>
                             <button
                               type="button"
