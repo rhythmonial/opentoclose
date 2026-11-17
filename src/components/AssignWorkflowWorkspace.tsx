@@ -3,9 +3,7 @@
 import { useState } from "react";
 import { setUrlParam } from "@/lib/urlState";
 import { useFormStatus } from "react-dom";
-import { fieldsNeedingType, type ContractBlank } from "@/lib/contractBlanks";
-import { ContractReviewer } from "@/components/ContractReviewer";
-import { saveContractReview } from "@/app/configurator/upload_your_contract_docs/actions";
+import type { ContractBlank } from "@/lib/contractBlanks";
 import type { OtcField } from "@/lib/otcFields";
 import { isActive, isComplete, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldPicker } from "@/components/WorkflowFieldPicker";
@@ -45,7 +43,6 @@ export function AssignWorkflowWorkspace({
   canFinish,
   initialDocId,
   initialPage,
-  initialStep,
   customSections: initialSections = [],
   intro,
 }: {
@@ -58,9 +55,6 @@ export function AssignWorkflowWorkspace({
   initialDocId?: string | null;
   // The page of it to open on (from the address).
   initialPage?: number;
-  // Which step of it to open on (from the address): its field types, or
-  // its Open to Close fields.
-  initialStep?: "types" | "fields";
   // Sections the client added (for new fields).
   customSections?: CustomSection[];
   // The lesson's title and description (on the documents list only).
@@ -85,41 +79,38 @@ export function AssignWorkflowWorkspace({
     initialDocId && docs.some((d) => d.id === initialDocId) ? initialDocId : null,
   );
   const [finishing, setFinishing] = useState(false);
-  // Each contract's boxes as they're given field types here (step 1).
-  const [blanksByDoc, setBlanksByDoc] = useState<Record<string, ContractBlank[]>>(() =>
-    Object.fromEntries(docs.map((d) => [d.id, d.blanks])),
-  );
-  const blanksOf = (id: string) => blanksByDoc[id] ?? [];
-  const typesLeftIn = (id: string) => fieldsNeedingType(blanksOf(id)).left;
-  // Step 1 (field types) or 2 (Open to Close fields) of the open contract.
-  const [step, setStepState] = useState<"types" | "fields">(() => {
-    if (initialStep) return initialStep;
-    const first = docs.find((d) => d.id === initialDocId);
-    return first && fieldsNeedingType(first.blanks).left > 0 ? "types" : "fields";
-  });
-  const setStep = (next: "types" | "fields") => {
-    setStepState(next);
-    setUrlParam("step", next);
-    setUrlParam("page", null);
-  };
-  // Remounts the field picker after its boxes change in step 1.
-  const [pickerVersion, setPickerVersion] = useState(0);
-
   const fieldsOf = (id: string) => fieldsByDoc[id] ?? [];
-  const needsIn = (id: string) => fieldsOf(id).filter(isActive).filter((f) => !isComplete(f)).length;
+  // A contract's fields (linked boxes once), by the key their answer is
+  // saved under; fields removed in Upload Your Contracts aren't fields.
+  const keysIn = (d: WorkspaceDoc, page?: number) =>
+    new Set(
+      d.blanks
+        .filter((b) => b.id && !b.removed && (page === undefined || b.page === page))
+        .map((b) => b.group ?? b.id!),
+    );
+  // Fields still needing an answer: not given a field type yet, or missing
+  // something (an OTC field, a section…). Ones they removed here don't count.
+  const needsFor = (d: WorkspaceDoc, page?: number) => {
+    const byId = new Map(fieldsOf(d.id).map((f) => [f.id, f] as const));
+    return [...keysIn(d, page)].filter((k) => {
+      const f = byId.get(k);
+      return !f || (isActive(f) && !isComplete(f));
+    }).length;
+  };
+  const needsIn = (id: string) => {
+    const d = docs.find((x) => x.id === id);
+    return d ? needsFor(d) : 0;
+  };
   const pagesIn = (d: WorkspaceDoc) => Math.max(1, d.pageCount);
 
   // Keeps the open contract in the address, so a reload comes back to it.
   const open = (id: string | null) => {
     setOpenId(id);
-    const nextStep = id && typesLeftIn(id) > 0 ? "types" : "fields";
-    if (id) setStepState(nextStep);
     try {
       const url = new URL(window.location.href);
       if (id) url.searchParams.set("doc", id);
       else url.searchParams.delete("doc");
-      if (id) url.searchParams.set("step", nextStep);
-      else url.searchParams.delete("step");
+      url.searchParams.delete("step");
       url.searchParams.delete("page");
       window.history.replaceState(window.history.state, "", url);
     } catch {}
@@ -130,8 +121,7 @@ export function AssignWorkflowWorkspace({
 
   if (!doc) {
     const allPicked = docs.flatMap((d) => fieldsOf(d.id)).filter(isActive);
-    const allNeeds =
-      allPicked.filter((f) => !isComplete(f)).length + docs.reduce((n, d) => n + typesLeftIn(d.id), 0);
+    const allNeeds = docs.reduce((n, d) => n + needsFor(d), 0);
     const notDone = docs.filter((d) => !doneIds.has(d.id)).length;
     return (
       <div className="flex flex-col gap-3">
@@ -148,7 +138,6 @@ export function AssignWorkflowWorkspace({
           handleClass="mt-4"
           onReorder={(ids) => reorderAssignDocs(editing.accountId, ids)}
           items={docs.map((d) => {
-            const typesLeft = typesLeftIn(d.id);
             const needs = needsIn(d.id);
             const picked = fieldsOf(d.id).filter(isActive).length;
             const done = doneIds.has(d.id);
@@ -168,11 +157,7 @@ export function AssignWorkflowWorkspace({
                     </span>
                   </span>
                   <span className="flex items-center gap-3">
-                    {typesLeft > 0 ? (
-                      <span className="rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-semibold text-danger">
-                        {typesLeft} field{typesLeft === 1 ? " needs" : "s need"} a field type
-                      </span>
-                    ) : needs > 0 ? (
+                    {needs > 0 ? (
                       <span className="rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-semibold text-danger">
                         {needs} need{needs === 1 ? "s" : ""} an answer
                       </span>
@@ -215,13 +200,7 @@ export function AssignWorkflowWorkspace({
     setPages((prev) => ({ ...prev, [doc.id]: n }));
     setUrlParam("page", n);
   };
-  const docBlanks = blanksOf(doc.id);
-  const typesLeft = typesLeftIn(doc.id);
-  const onPage = (f: WorkflowField) =>
-    docBlanks.some((b) => (b.id === f.id || b.group === f.id) && b.page === page);
-  const pageNeeds = fieldsOf(doc.id)
-    .filter(isActive)
-    .filter((f) => onPage(f) && !isComplete(f)).length;
+  const pageNeeds = needsFor(doc, page);
   const lastPage = page >= pagesIn(doc);
 
   return (
@@ -235,76 +214,14 @@ export function AssignWorkflowWorkspace({
           &lsaquo; Back to documents
         </button>
       </div>
-      {/* Step 1: give each field its type (and link, choices, contact
-          roles); step 2: pick its Open to Close field. */}
-      <div className="flex flex-wrap gap-1.5">
-        {(
-          [
-            ["types", `1. Field types${typesLeft > 0 ? ` (${typesLeft} left)` : ""}`],
-            ["fields", "2. Open to Close fields"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            disabled={id === "fields" && typesLeft > 0}
-            title={id === "fields" && typesLeft > 0 ? "Give every field a type first." : undefined}
-            onClick={() => setStep(id)}
-            className={`rounded-md border px-3 py-1.5 text-sm font-semibold disabled:opacity-50 ${
-              step === id ? "border-accent bg-accent text-white" : "border-border bg-surface text-ink-soft"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      {step === "types" || typesLeft > 0 ? (
-        <>
-          <div className="rounded-xl border border-border bg-surface p-4">
-            <h1 className="mb-2 truncate font-display text-xl font-bold text-ink">{doc.fileName}</h1>
-            <DocumentBoundary>
-              <ContractReviewer
-                key={doc.id}
-                source={doc.url}
-                pageCount={doc.pageCount}
-                initialBlanks={docBlanks}
-                onSave={async (next) => {
-                  setBlanksByDoc((prev) => ({ ...prev, [doc.id]: next }));
-                  setPickerVersion((v) => v + 1);
-                  return saveContractReview({ id: doc.id, blanks: next });
-                }}
-              />
-            </DocumentBoundary>
-          </div>
-          <div className="mt-4 flex flex-col items-center gap-2">
-            <button
-              type="button"
-              disabled={typesLeft > 0}
-              onClick={() => {
-                setStep("fields");
-                requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
-              }}
-              className="rounded-lg bg-accent px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              Next: Open to Close fields
-            </button>
-            <span className={`text-xs ${typesLeft > 0 ? "text-danger" : "text-ink-faint"}`}>
-              {typesLeft > 0
-                ? `${typesLeft} field${typesLeft === 1 ? " still needs" : "s still need"} a field type.`
-                : "Every field has a type."}
-            </span>
-          </div>
-        </>
-      ) : (
-      <>
       <div className="rounded-xl border border-border bg-surface p-4">
         <h1 className="mb-0.5 truncate font-display text-xl font-bold text-ink">{doc.fileName}</h1>
         <DocumentBoundary>
           <WorkflowFieldPicker
-            key={`${doc.id}-${pickerVersion}`}
+            key={doc.id}
             source={doc.url}
             pageCount={doc.pageCount}
-            blanks={docBlanks}
+            blanks={doc.blanks}
             initialFields={fieldsOf(doc.id)}
             extraOtcFields={otcFields}
             page={page}
@@ -347,8 +264,6 @@ export function AssignWorkflowWorkspace({
               : `Next up: page ${page + 1}.`}
         </span>
       </div>
-      </>
-      )}
     </div>
   );
 }

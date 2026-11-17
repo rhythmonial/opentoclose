@@ -148,9 +148,15 @@ export function WorkflowFieldPicker({
 
   const onPage = fields.filter((b) => b.page === page);
   const active = [...picks.values()].filter(isActive);
-  const pickedOn = (n: number) =>
-    active.filter((f) => members.get(f.id)?.some((b) => b.page === n));
-  const incomplete = active.filter((f) => !isComplete(f)).length;
+  // Fields still needing an answer: not given a type yet, or missing
+  // something (removed ones don't count). Per page too.
+  const needsAnswer = (key: string) => {
+    const f = picks.get(key);
+    return !f || (isActive(f) && !isComplete(f));
+  };
+  const keysOn = (n?: number) =>
+    [...members.entries()].filter(([, bs]) => n === undefined || bs.some((b) => b.page === n)).map(([k]) => k);
+  const incomplete = keysOn().filter(needsAnswer).length;
   const open = onPage.find((b) => b.id === openId) ?? null;
 
   // Built-in OTC fields, plus the ones the client has added.
@@ -310,11 +316,8 @@ export function WorkflowFieldPicker({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5">
           {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => {
-            const picked = pickedOn(n);
-            const counts = {
-              total: picked.length,
-              left: picked.filter((f) => !isComplete(f)).length,
-            };
+            const keys = keysOn(n);
+            const counts = { total: keys.length, left: keys.filter(needsAnswer).length };
             return (
               <button
                 key={n}
@@ -335,18 +338,16 @@ export function WorkflowFieldPicker({
       </div>
 
       <p className="text-sm text-ink-soft">
-        Click each field to choose the Open to Close field it fills. Fields
-        you gave a type in Upload Your Contracts are already here with that
-        type (outlined in red until they have an OTC field); click any other
-        field your team tracks to choose its type. Fields you don&rsquo;t
-        need can be removed; they&rsquo;re grayed out, and clicking one lets
-        you restore it.
+        Click each field to choose its field type, then the Open to Close field it fills
+        (the list shows the Open to Close fields of that type). Fields stay outlined in red
+        until they have both. Fields you don&rsquo;t need can be removed; they&rsquo;re grayed
+        out, and clicking one lets you restore it.
       </p>
 
       <div className="flex flex-wrap items-center gap-4 text-xs text-ink-soft">
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-4 rounded-sm border-2 border-danger bg-danger/15" />
-          Needs an Open to Close field
+          Needs a field type or Open to Close field
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-4 rounded-sm border-2 border-gold bg-gold/25" />

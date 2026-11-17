@@ -20,7 +20,7 @@ const STEP_KEY = "assign_your_workflow_fields";
 export default async function AssignWorkflowFieldsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string; doc?: string; page?: string; step?: string }>;
+  searchParams: Promise<{ client?: string; doc?: string; page?: string }>;
 }) {
   await requireStepAccess(STEP_KEY);
   const supabase = await createClient();
@@ -49,7 +49,7 @@ export default async function AssignWorkflowFieldsPage({
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
   const sandboxTier = isStaff ? await getSandboxTier() : null;
   // Staff open a client's work from that client's page (?client=<account>).
-  const { client, doc: openDoc, page: openPage, step: openStep } = await searchParams;
+  const { client, doc: openDoc, page: openPage } = await searchParams;
   const { data: staffClient } =
     isStaff && client && /^[0-9a-f-]{36}$/i.test(client)
       ? await supabase
@@ -215,7 +215,6 @@ export default async function AssignWorkflowFieldsPage({
               canFinish={!isStaff}
               initialDocId={openDoc ?? null}
               initialPage={Number(openPage) || undefined}
-              initialStep={openStep === "types" || openStep === "fields" ? openStep : undefined}
               customSections={cleanCustomSections(selection?.custom_sections)}
               intro={intro}
             />
