@@ -284,6 +284,14 @@ export function TaskPlanner({
     }
   }
 
+  // Every task template, with its side's prefix ("B - Loan"), by side.
+  const taskTemplateGroups = sides
+    .map((sd) => ({
+      label: `${sd.label} templates`,
+      items: [...new Set(rows.filter((r) => r.side === sd.value).map((r) => `${sd.prefix} ${r.template}`))],
+    }))
+    .filter((g) => g.items.length > 0);
+
   // A task's email choices: this side's (and unprefixed) first, then the
   // other sides'.
   function emailGroups(r: Row) {
@@ -891,26 +899,37 @@ export function TaskPlanner({
                                 <td colSpan={9} className="px-2 pb-3">
                                   <div className="grid gap-3 rounded-lg bg-bg p-3 md:grid-cols-3">
                                     <PickList
-                                      label={`Emails (${r.emails.length} of ${MAX_TASK_EMAILS})`}
+                                      label={`Email templates (${r.emails.length} of ${MAX_TASK_EMAILS})`}
                                       hint="Sent from this task. OTC sends emails only from tasks."
                                       picked={r.emails}
                                       max={MAX_TASK_EMAILS}
                                       groups={emailGroups(r)}
                                       empty="Keep emails in Sample Email Templates to send them from tasks."
-                                      addLabel="Add an email…"
+                                      addLabel="Search your email templates…"
                                       onChange={(emails) =>
                                         update(r.key, { emails })
                                       }
                                     />
                                     <PickList
-                                      label={`Documents (${r.documents.length})`}
-                                      hint="Attached to this task."
+                                      label={`Task templates (${(r.taskTemplates ?? []).length})`}
+                                      hint="Launched when this task is completed."
+                                      picked={r.taskTemplates ?? []}
+                                      groups={taskTemplateGroups}
+                                      empty="Add task templates on any side to launch them from tasks."
+                                      addLabel="Search your task templates…"
+                                      onChange={(taskTemplates) =>
+                                        update(r.key, { taskTemplates })
+                                      }
+                                    />
+                                    <PickList
+                                      label={`File roles (${r.documents.length})`}
+                                      hint="The documents (file roles) attached to this task."
                                       picked={r.documents}
                                       groups={[
                                         { label: "", items: documentOptions },
                                       ]}
                                       empty="Add documents in Upload Your Contracts or Categorize Your Documents."
-                                      addLabel="Attach a document…"
+                                      addLabel="Search your documents…"
                                       onChange={(documents) =>
                                         update(r.key, { documents })
                                       }
@@ -1074,9 +1093,11 @@ function detailCounts(r: PlannedTask) {
   const parts: string[] = [];
   if (r.emails.length)
     parts.push(`${r.emails.length} email${r.emails.length === 1 ? "" : "s"}`);
+  const launches = r.taskTemplates?.length ?? 0;
+  if (launches) parts.push(`${launches} task template${launches === 1 ? "" : "s"}`);
   if (r.documents.length)
     parts.push(
-      `${r.documents.length} doc${r.documents.length === 1 ? "" : "s"}`,
+      `${r.documents.length} file role${r.documents.length === 1 ? "" : "s"}`,
     );
   if (r.notes.trim()) parts.push("notes");
   return parts.join(" · ");
@@ -1141,35 +1162,83 @@ function PickList({
           That&rsquo;s the most a task can send.
         </p>
       ) : (
-        left.length > 0 && (
-          <select
-            value=""
-            onChange={(e) => {
-              if (e.target.value) onChange([...picked, e.target.value]);
-            }}
-            aria-label={addLabel}
-            className="w-full rounded-md border border-dashed border-border bg-surface px-2 py-1 text-xs text-ink-soft outline-none focus:border-accent"
-          >
-            <option value="">{addLabel}</option>
-            {left.map((g) =>
-              g.label ? (
-                <optgroup key={g.label} label={g.label}>
-                  {g.items.map((i) => (
-                    <option key={i} value={i}>
-                      {i}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : (
-                g.items.map((i) => (
-                  <option key={i} value={i}>
-                    {i}
-                  </option>
-                ))
-              ),
-            )}
-          </select>
-        )
+        left.length > 0 && <PickSearch groups={left} placeholder={addLabel} onPick={(i) => onChange([...picked, i])} />
+      )}
+    </div>
+  );
+}
+
+// Search a list and pick one: matches show under the box as you type (or
+// all of them when it's focused).
+function PickSearch({
+  groups,
+  placeholder,
+  onPick,
+}: {
+  groups: { label: string; items: string[] }[];
+  placeholder: string;
+  onPick: (item: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const q = query.trim().toLowerCase();
+  const shown = groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !q || i.toLowerCase().includes(q)) }))
+    .filter((g) => g.items.length > 0);
+  return (
+    <div className="relative">
+      <input
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Enter") {
+            e.preventDefault();
+            const first = shown[0]?.items[0];
+            if (first) {
+              onPick(first);
+              setQuery("");
+            }
+          }
+        }}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        className="w-full rounded-md border border-dashed border-border bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-accent"
+      />
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-md border border-border bg-surface py-1 text-xs shadow-lg">
+          {shown.length === 0 ? (
+            <p className="px-2 py-1 text-ink-faint">No matches.</p>
+          ) : (
+            shown.map((g) => (
+              <div key={g.label || "all"}>
+                {g.label && (
+                  <p className="px-2 pt-1 font-semibold uppercase tracking-wide text-[10px] text-ink-faint">{g.label}</p>
+                )}
+                {g.items.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onPick(item);
+                      setQuery("");
+                    }}
+                    className="block w-full truncate px-2 py-1 text-left text-ink hover:bg-accent-soft/60"
+                    title={item}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
       )}
     </div>
   );

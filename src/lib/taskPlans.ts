@@ -28,6 +28,9 @@ export type PlannedTask = {
   emails: string[];
   // Documents attached to it (by name; any number).
   documents: string[];
+  // Task templates completing it launches (by name, with their prefix,
+  // e.g. "B - Loan").
+  taskTemplates?: string[];
 };
 
 export const MAX_TASK_EMAILS = 3;
@@ -136,6 +139,7 @@ export function cleanTask(
     sort_order: Math.trunc(Number(raw.sortOrder) || 0),
     email_templates: names(raw.emails, 200).slice(0, MAX_TASK_EMAILS),
     documents: names(raw.documents, 160).slice(0, 200),
+    task_templates: names(raw.taskTemplates, 120).slice(0, 50),
   };
 }
 
@@ -172,6 +176,7 @@ export function fromRow(r: {
   sort_order: number;
   email_templates: string[];
   documents: string[];
+  task_templates?: string[];
 }): PlannedTask {
   return {
     id: r.id,
@@ -189,6 +194,7 @@ export function fromRow(r: {
     sortOrder: r.sort_order,
     emails: r.email_templates ?? [],
     documents: r.documents ?? [],
+    taskTemplates: r.task_templates ?? [],
   };
 }
 

@@ -657,6 +657,7 @@ export type Database = {
           client_account_id: string
           side: string
           template: string
+          task_templates: string[]
           name: string
           notes: string
           critical: boolean
@@ -678,6 +679,7 @@ export type Database = {
           client_account_id: string
           side: string
           template: string
+          task_templates?: string[]
           name: string
           notes?: string
           critical?: boolean
@@ -699,6 +701,7 @@ export type Database = {
           client_account_id?: string
           side?: string
           template?: string
+          task_templates?: string[]
           name?: string
           notes?: string
           critical?: boolean
