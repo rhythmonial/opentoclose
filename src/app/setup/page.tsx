@@ -75,7 +75,7 @@ export default async function SetupInitiationPage({
         )}
       </div>
       <p className="text-sm text-ink-soft">
-        Invite anyone who should have access to your Open to Close setup, like your OTC Guru or
+        Invite anyone who should have access to your Open to Close setup, like your lead TC or
         an assistant helping with the setup. They&rsquo;ll get an email to set a password and sign
         in to your account.
       </p>
