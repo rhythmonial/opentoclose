@@ -284,3 +284,56 @@ export async function importTasks(
   revalidatePath(PAGE);
   return { ok: true, tasks: (data ?? []).sort((a, b) => a.sort_order - b.sort_order).map(fromRow) };
 }
+
+// Adds sample tasks (by their place in the sample list) to a side, skipping
+// any it already has (same template and name).
+export async function addSampleTasksAt(
+  accountId: string | null,
+  side: TaskSide,
+  indexes: number[],
+): Promise<Result & { tasks?: PlannedTask[] }> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  const sides = await sidesOf(supabase, account);
+  if (!sides.includes(side)) return { ok: false, error: "Unknown side." };
+  const { data: existing } = await supabase
+    .from("client_task_plans")
+    .select("template, name, sort_order")
+    .eq("client_account_id", account)
+    .eq("side", side);
+  const have = new Set((existing ?? []).map((r) => `${r.template}\u0000${r.name}`));
+  let order = Math.max(-1, ...(existing ?? []).map((r) => r.sort_order)) + 1;
+  const rows = [...new Set(indexes)]
+    .filter((i) => Number.isInteger(i) && i >= 0 && i < SAMPLE_TASKS.length)
+    .sort((a, b) => a - b)
+    .map((i) => SAMPLE_TASKS[i])
+    .filter((t) => !have.has(`${t.template}\u0000${t.name}`))
+    .flatMap((t) => {
+      const row = cleanTask(
+        {
+          id: null,
+          side,
+          template: t.template,
+          name: t.name,
+          notes: t.notes,
+          critical: t.critical,
+          recurDays: null,
+          dueDays: t.days,
+          timeFrame: null,
+          timing: t.timing,
+          dateField: t.dateField === TASK_COMPLETED ? "" : (SAMPLE_DATE_NAMES[t.dateField] ?? t.dateField),
+          parentTask: t.dateField === TASK_COMPLETED ? t.parent : "",
+          sortOrder: order++,
+          emails: [],
+          documents: [],
+        },
+        sides,
+      );
+      return row ? [{ ...row, client_account_id: account }] : [];
+    });
+  if (rows.length === 0) return { ok: true, tasks: [] };
+  const { data, error } = await supabase.from("client_task_plans").insert(rows).select("*");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(PAGE);
+  return { ok: true, tasks: (data ?? []).sort((a, b) => a.sort_order - b.sort_order).map(fromRow) };
+}

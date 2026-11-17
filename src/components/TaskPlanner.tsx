@@ -21,6 +21,7 @@ import { SAMPLE_TASKS } from "@/lib/sampleTasks";
 import {
   addEmailTasks,
   addSampleTasks,
+  addSampleTasksAt,
   addSide,
   importTasks,
   deleteTask,
@@ -248,6 +249,28 @@ export function TaskPlanner({
     if (row.id) await deleteTask(accountId, row.id);
   }
 
+  // Sample tasks this side already has (same template and name).
+  const sampleRow = (t: (typeof SAMPLE_TASKS)[number]) =>
+    rows.find((r) => r.side === side && r.template === t.template && r.name === t.name);
+
+  // Checks (adds) or unchecks (removes) sample tasks on this side.
+  async function toggleSamples(indexes: number[], on: boolean) {
+    if (!on) {
+      for (const i of indexes) {
+        const row = sampleRow(SAMPLE_TASKS[i]);
+        if (row) await remove(row);
+      }
+      return;
+    }
+    setBusy(true);
+    const result = await addSampleTasksAt(accountId, side, indexes);
+    setBusy(false);
+    report(result.ok, result.error);
+    if (result.ok && result.tasks) {
+      setRows((all) => [...all, ...result.tasks!.map((t) => ({ ...t, key: t.id! }))]);
+    }
+  }
+
   async function startFromSamples() {
     setBusy(true);
     const result = await addSampleTasks(accountId, side);
@@ -367,24 +390,29 @@ export function TaskPlanner({
         </section>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <div className="flex flex-wrap gap-1.5" role="tablist">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          {/* Side tabs, like Customize Your Fields' group tabs, with each
+              side's task count. */}
+          <div className="flex min-w-0 flex-1 gap-1 sm:gap-2" role="tablist">
             {sides.map((s) => {
+              const active = side === s.value;
+              const count = rows.filter((r) => r.side === s.value).length;
               return (
                 <button
                   key={s.value}
                   type="button"
                   role="tab"
-                  aria-selected={side === s.value}
+                  aria-selected={active}
                   onClick={() => setSide(s.value)}
                   title={`${s.prefix} templates`}
-                  className={`rounded-lg border px-4 py-1.5 text-sm font-semibold ${
-                    side === s.value
-                      ? "border-accent bg-accent text-white"
-                      : "border-border bg-surface text-ink-soft hover:border-accent"
+                  className={`flex min-w-0 flex-1 items-center justify-center rounded-md border px-1 py-2 text-center text-[11px] font-semibold leading-tight sm:px-3 sm:text-sm ${
+                    active ? "border-accent bg-accent text-white" : "border-border bg-surface text-ink-soft"
                   }`}
                 >
-                  {s.label}
+                  <span className="min-w-0 break-words sm:truncate">
+                    {s.label}
+                    <span className={active ? "text-white/80" : "text-ink-faint"}> &middot; {count}</span>
+                  </span>
                 </button>
               );
             })}
@@ -526,10 +554,8 @@ export function TaskPlanner({
       {sideRows.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-surface p-8 text-center">
           <p className="text-sm text-ink-soft">
-            No {sideInfo.label.toLowerCase()} tasks yet. Start from our{" "}
-            {SAMPLE_TASKS.length} sample tasks (in General, Loan, Inspection,
-            Termite and Home Warranty templates) and make them yours, or start
-            from scratch.
+            No {sideInfo.label.toLowerCase()} tasks yet. Check the sample tasks below to add
+            them one by one, add them all, or start from scratch.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <button
@@ -538,7 +564,7 @@ export function TaskPlanner({
               onClick={startFromSamples}
               className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {busy ? "Adding…" : "Start with the sample tasks"}
+              {busy ? "Adding…" : "Add all the sample tasks"}
             </button>
             <button
               type="button"
@@ -961,29 +987,22 @@ export function TaskPlanner({
         </>
       )}
 
-      {/* TC Optimize's sample tasks, to start a side from. */}
+      {/* TC Optimize's sample tasks: check one to add it to this side's
+          tasks (uncheck to take it off), like the sample email templates. */}
       <section className="mt-4 flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[15px] font-bold text-ink">Sample tasks ({SAMPLE_TASKS.length})</h2>
-          {sideRows.length === 0 ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={startFromSamples}
-              className="rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-            >
-              {busy ? "Adding…" : `Add them to ${sideInfo.label}`}
-            </button>
-          ) : (
-            <span className="text-xs text-ink-faint">
-              Your {sideInfo.label} side already has tasks.
-            </span>
-          )}
+          <h2 className="text-[15px] font-bold text-ink">
+            Sample tasks ({SAMPLE_TASKS.length})
+          </h2>
+          <span className="text-xs text-ink-faint">
+            Check a task to add it to your {sideInfo.label} tasks.
+          </span>
         </div>
         <div className="overflow-x-auto rounded-xl border border-border bg-surface">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-border-soft bg-bg font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
+                <th className="w-12 px-3 py-2.5">Use</th>
                 <th className="px-3 py-2.5">Task</th>
                 <th className="px-3 py-2.5">Due</th>
                 <th className="px-3 py-2.5">Critical</th>
@@ -991,27 +1010,55 @@ export function TaskPlanner({
             </thead>
             <tbody>
               {[...new Set(SAMPLE_TASKS.map((t) => t.template))].flatMap((template) => {
-                const list = SAMPLE_TASKS.filter((t) => t.template === template);
+                const list = SAMPLE_TASKS.map((t, i) => ({ t, i })).filter(({ t }) => t.template === template);
+                const missing = list.filter(({ t }) => !sampleRow(t)).map(({ i }) => i);
                 return [
                   <tr key={`h-${template}`} className="border-b border-border-soft bg-accent-soft/40">
-                    <td colSpan={3} className="px-3 py-1.5 font-caption text-xs font-bold uppercase tracking-wide text-accent">
-                      {template} ({list.length})
+                    <td colSpan={4} className="px-3 py-1.5">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="font-caption text-xs font-bold uppercase tracking-wide text-accent">
+                          {template} ({list.length})
+                        </span>
+                        {missing.length > 0 && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => toggleSamples(missing, true)}
+                            className="text-xs font-semibold text-accent disabled:opacity-50"
+                          >
+                            Add all {missing.length}
+                          </button>
+                        )}
+                      </span>
                     </td>
                   </tr>,
-                  ...list.map((t, i) => (
-                    <tr key={`${template}-${i}`} className="border-b border-border-soft last:border-0">
-                      <td className="px-3 py-2 font-medium text-ink">{t.name}</td>
-                      <td className="px-3 py-2 text-xs text-ink-soft">
-                        {t.timing === "same_day"
-                          ? "Same day as "
-                          : t.timing
-                            ? `${t.days ?? "?"} day${t.days === 1 ? "" : "s"} ${t.timing} `
-                            : ""}
-                        {t.parent ? `"${t.parent}" is done` : t.dateField}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-ink-soft">{t.critical ? "Yes" : ""}</td>
-                    </tr>
-                  )),
+                  ...list.map(({ t, i }) => {
+                    const on = Boolean(sampleRow(t));
+                    return (
+                      <tr key={`${template}-${i}`} className={`border-b border-border-soft last:border-0 ${on ? "" : "bg-bg/50"}`}>
+                        <td className="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            disabled={busy}
+                            onChange={(e) => toggleSamples([i], e.target.checked)}
+                            aria-label={`Use ${t.name} on ${sideInfo.label}`}
+                            className="h-4 w-4"
+                          />
+                        </td>
+                        <td className={`px-3 py-2 font-medium ${on ? "text-ink" : "text-ink-soft"}`}>{t.name}</td>
+                        <td className="px-3 py-2 text-xs text-ink-soft">
+                          {t.timing === "same_day"
+                            ? "Same day as "
+                            : t.timing
+                              ? `${t.days ?? "?"} day${t.days === 1 ? "" : "s"} ${t.timing} `
+                              : ""}
+                          {t.parent ? `"${t.parent}" is done` : t.dateField}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-ink-soft">{t.critical ? "Yes" : ""}</td>
+                      </tr>
+                    );
+                  }),
                 ];
               })}
             </tbody>

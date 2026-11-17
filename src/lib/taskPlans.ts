@@ -44,6 +44,7 @@ export const SIDES: SideInfo[] = [
   { value: "buyer", label: "Buyer", prefix: "B -" },
   { value: "seller", label: "Seller", prefix: "S -" },
   { value: "listing", label: "Listing", prefix: "L -" },
+  { value: "other", label: "Other", prefix: "O -" },
 ];
 
 export const TIMINGS: { value: TaskTiming; label: string }[] = [
