@@ -410,10 +410,6 @@ export function WorkflowFieldPicker({
           Needs a field type or Open to Close field
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-4 rounded-sm border-2 border-gold bg-gold/25" />
-          Linked, needs an Open to Close field
-        </span>
-        <span className="flex items-center gap-1.5">
           <span className="h-3 w-4 rounded-sm border-2 border-success bg-success/20" />
           Assigned
         </span>
@@ -529,9 +525,7 @@ export function WorkflowFieldPicker({
                         ? "border-zinc-400 bg-zinc-400/40 hover:bg-zinc-400/55"
                         : done
                           ? "border-success bg-success/20 hover:bg-success/30"
-                          : linked || (pick && needsSection(pick))
-                            ? "border-gold bg-gold/25 hover:bg-gold/40"
-                            : "border-danger bg-danger/15 hover:bg-danger/25"
+                          : "border-danger bg-danger/15 hover:bg-danger/25"
                     } ${
                       isOpen
                         ? "ring-2 ring-accent ring-offset-1"
@@ -551,9 +545,7 @@ export function WorkflowFieldPicker({
                         className={`pointer-events-none absolute -top-3.5 left-0 whitespace-nowrap rounded px-1 py-px text-[9px] font-bold leading-tight ${
                           done
                             ? "bg-success text-white"
-                            : linked || needsSection(pick)
-                              ? "bg-gold text-ink"
-                              : "bg-danger text-white"
+                            : "bg-danger text-white"
                         }`}
                       >
                         {/* The Open to Close field once it has one (an option's
