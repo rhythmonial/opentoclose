@@ -4,6 +4,7 @@ import { useState } from "react";
 import { setUrlParam } from "@/lib/urlState";
 import { useFormStatus } from "react-dom";
 import type { ContractBlank } from "@/lib/contractBlanks";
+import { saveContractReview } from "@/app/configurator/upload_your_contract_docs/actions";
 import type { OtcField } from "@/lib/otcFields";
 import { isActive, isComplete, type WorkflowField } from "@/lib/workflowFields";
 import { WorkflowFieldPicker } from "@/components/WorkflowFieldPicker";
@@ -80,11 +81,16 @@ export function AssignWorkflowWorkspace({
   );
   const [finishing, setFinishing] = useState(false);
   const fieldsOf = (id: string) => fieldsByDoc[id] ?? [];
+  // Each contract's boxes (they change when some are linked here).
+  const [blanksByDoc, setBlanksByDoc] = useState<Record<string, ContractBlank[]>>(() =>
+    Object.fromEntries(docs.map((d) => [d.id, d.blanks])),
+  );
+  const blanksOf = (d: WorkspaceDoc) => blanksByDoc[d.id] ?? d.blanks;
   // A contract's fields (linked boxes once), by the key their answer is
   // saved under; fields removed in Upload Your Contracts aren't fields.
   const keysIn = (d: WorkspaceDoc, page?: number) =>
     new Set(
-      d.blanks
+      blanksOf(d)
         .filter((b) => b.id && !b.removed && (page === undefined || b.page === page))
         .map((b) => b.group ?? b.id!),
     );
@@ -221,7 +227,11 @@ export function AssignWorkflowWorkspace({
             key={doc.id}
             source={doc.url}
             pageCount={doc.pageCount}
-            blanks={doc.blanks}
+            blanks={blanksOf(doc)}
+            onLink={(next) => {
+              setBlanksByDoc((prev) => ({ ...prev, [doc.id]: next }));
+              return saveContractReview({ id: doc.id, blanks: next });
+            }}
             initialFields={fieldsOf(doc.id)}
             extraOtcFields={otcFields}
             page={page}

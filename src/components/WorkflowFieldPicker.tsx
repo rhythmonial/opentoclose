@@ -62,6 +62,7 @@ export function WorkflowFieldPicker({
   syncKey,
   customSections = [],
   onAddSection,
+  onLink,
 }: {
   source: ArrayBuffer | string;
   pageCount: number;
@@ -84,6 +85,8 @@ export function WorkflowFieldPicker({
   // Sections the client added, and how to add one, for new fields.
   customSections?: CustomSection[];
   onAddSection?: (name: string, group: string) => Promise<CustomSection | null>;
+  // Saves the boxes after some are linked as one answer (or unlinked).
+  onLink?: (blanks: ContractBlank[]) => Promise<unknown>;
 }) {
   const { doc, error } = usePdfDocument(source);
   const [ownPage, setOwnPage] = useState(1);
@@ -105,6 +108,8 @@ export function WorkflowFieldPicker({
   }
   // The box that was clicked (its menu opens under it).
   const [openId, setOpenId] = useState<string | null>(null);
+  // Boxes shift+clicked to link as one answer (by box id).
+  const [linking, setLinking] = useState<string[]>([]);
   const [hoverKey, setHoverKey] = useState<string | null>(null);
   // The field under the pointer: the other fields' tags hide so they don't
   // cover the contract around it.
@@ -291,6 +296,53 @@ export function WorkflowFieldPicker({
     update(next);
   }
 
+  // Links the shift+clicked boxes (and anything already linked to them) as
+  // one answer. The answer already given for any of them carries over.
+  async function linkSelected() {
+    const joining = new Set(
+      linking.map((id) => blanks.find((b) => b.id === id)?.group).filter(Boolean),
+    );
+    const group = crypto.randomUUID();
+    const next = blanks.map((b) => {
+      if (!b.id || !(linking.includes(b.id) || (b.group && joining.has(b.group)))) return b;
+      const out: ContractBlank = { ...b, group };
+      if (b.id === linking[0]) out.linkLead = true;
+      else delete out.linkLead;
+      return out;
+    });
+    const rekeyed = new Map(
+      cleanWorkflowFields([...picks.values()], workflowKeys(next)).map((f) => [f.id, f] as const),
+    );
+    setPicks(rekeyed);
+    setLinking([]);
+    // The boxes save first, so the answers save against the new links.
+    await onLink?.(next);
+    update(rekeyed);
+  }
+
+  // Unlinks the shift+clicked boxes' links: each box is its own field again
+  // (the first keeps the link's answer).
+  async function unlinkSelected() {
+    const groups = new Set(
+      linking.map((id) => blanks.find((b) => b.id === id)?.group).filter((g): g is string => Boolean(g)),
+    );
+    const firstOf = new Map<string, string>();
+    for (const b of fields) if (b.group && groups.has(b.group) && !firstOf.has(b.group)) firstOf.set(b.group, b.id);
+    const next = blanks.map((b) => {
+      if (!b.group || !groups.has(b.group)) return b;
+      const out = { ...b };
+      delete out.group;
+      delete out.linkLead;
+      return out;
+    });
+    const carried = [...picks.values()].map((f) => (firstOf.has(f.id) ? { ...f, id: firstOf.get(f.id)! } : f));
+    const rekeyed = new Map(cleanWorkflowFields(carried, workflowKeys(next)).map((f) => [f.id, f] as const));
+    setPicks(rekeyed);
+    setLinking([]);
+    await onLink?.(next);
+    update(rekeyed);
+  }
+
   function changePage(n: number) {
     setOpenId(null);
     if (onPageChange) onPageChange(n);
@@ -342,6 +394,14 @@ export function WorkflowFieldPicker({
         (the list shows the Open to Close fields of that type). Fields stay outlined in red
         until they have both. Fields you don&rsquo;t need can be removed; they&rsquo;re grayed
         out, and clicking one lets you restore it.
+        {onLink && (
+          <>
+            {" "}
+            If one answer runs across more than one line, hold{" "}
+            <span className="font-semibold">Shift</span> and click each of its boxes, then click
+            Link.
+          </>
+        )}
       </p>
 
       <div className="flex flex-wrap items-center gap-4 text-xs text-ink-soft">
@@ -362,6 +422,43 @@ export function WorkflowFieldPicker({
           Removed
         </span>
       </div>
+
+      {linking.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent/40 bg-accent-soft/40 px-3 py-2 text-sm">
+          <span className="text-ink">
+            {linking.length} box{linking.length === 1 ? "" : "es"} selected
+            {linking.length < 2 && (
+              <span className="text-ink-faint"> &middot; Shift+click another box to link it</span>
+            )}
+          </span>
+          <span className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setLinking([])}
+              className="rounded-md px-2 py-1 text-xs font-semibold text-ink-soft"
+            >
+              Cancel
+            </button>
+            {linking.some((id) => blanks.find((b) => b.id === id)?.group) && (
+              <button
+                type="button"
+                onClick={unlinkSelected}
+                className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-ink-soft hover:text-ink"
+              >
+                Unlink
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={linking.length < 2}
+              onClick={linkSelected}
+              className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+            >
+              Link as one answer
+            </button>
+          </span>
+        </div>
+      )}
 
       <div className="relative overflow-hidden rounded-lg border border-border bg-white">
         {error ? (
@@ -390,7 +487,19 @@ export function WorkflowFieldPicker({
                     key={b.id}
                     type="button"
                     data-workflow-field
-                    onClick={() => setOpenId(isOpen ? null : b.id)}
+                    onClick={(e) => {
+                      // Shift+click picks boxes to link as one answer.
+                      if (onLink && e.shiftKey) {
+                        e.preventDefault();
+                        setOpenId(null);
+                        setLinking((all) =>
+                          all.includes(b.id) ? all.filter((x) => x !== b.id) : [...all, b.id],
+                        );
+                        return;
+                      }
+                      setLinking([]);
+                      setOpenId(isOpen ? null : b.id);
+                    }}
                     onPointerEnter={() => {
                       if (linked) setHoverKey(key);
                       setHoverField(key);
@@ -414,7 +523,9 @@ export function WorkflowFieldPicker({
                             : label
                     }
                     className={`absolute rounded-sm border-2 transition-colors ${
-                      removed
+                      linking.includes(b.id)
+                        ? "z-10 border-dashed border-accent bg-accent/30"
+                        : removed
                         ? "border-zinc-400 bg-zinc-400/40 hover:bg-zinc-400/55"
                         : done
                           ? "border-success bg-success/20 hover:bg-success/30"
