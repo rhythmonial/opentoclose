@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { LessonVideoButton } from "@/components/LessonVideoButton";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { saveTerminology } from "./actions";
@@ -73,6 +74,14 @@ export default async function TerminologyConfiguratorPage() {
     }
   }
 
+  // The lesson's video (the "i" beside the title).
+  const { data: terminologyStep } = await supabase
+    .from("setup_steps")
+    .select("video_url, video_thumbnail_url")
+    .eq("key", "terminology")
+    .limit(1)
+    .maybeSingle();
+
   return (
     <main className="flex flex-1 items-center justify-center bg-bg px-4 py-12">
       <div className="w-full max-w-2xl">
@@ -92,6 +101,11 @@ export default async function TerminologyConfiguratorPage() {
 
         <h1 className="mt-3 font-display text-2xl font-bold text-ink">
           Set Your Terminology
+          <LessonVideoButton
+            url={terminologyStep?.video_url}
+            thumbnail={terminologyStep?.video_thumbnail_url}
+            title="Set Your Terminology"
+          />
         </h1>
         <p className="mt-1.5 text-sm text-ink-soft">
           OTC uses its own vocabulary for a lot of things. Tell us which terms

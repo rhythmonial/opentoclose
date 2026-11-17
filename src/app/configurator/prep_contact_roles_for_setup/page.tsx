@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { LessonVideoButton } from "@/components/LessonVideoButton";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
@@ -26,7 +27,7 @@ export default async function PrepYourContactsPage({
     supabase.from("profiles").select("role, client_account_id").eq("id", user.id).single(),
     supabase
       .from("setup_steps")
-      .select("title, description")
+      .select("title, description, video_url, video_thumbnail_url")
       .eq("key", STEP_KEY)
       .limit(1)
       .maybeSingle(),
@@ -128,6 +129,7 @@ export default async function PrepYourContactsPage({
 
         <h1 className="mt-3 font-display text-2xl font-bold text-ink">
           {step?.title ?? "Prep Your Contacts"}
+            <LessonVideoButton url={step?.video_url} thumbnail={step?.video_thumbnail_url} title={step?.title ?? "Prep Your Contacts"} />
         </h1>
         {step?.description ? (
           <div

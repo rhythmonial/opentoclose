@@ -22,7 +22,8 @@ export function getVideoSource(raw: string): VideoSource | null {
         ? path.slice(1).split("/")[0]
         : (url.searchParams.get("v") ??
           path.match(/^\/(?:embed|shorts|live|v)\/([^/?]+)/)?.[1]);
-    if (id) return { kind: "embed", src: `https://www.youtube.com/embed/${id}` };
+    // enablejsapi lets the page pause it (when a lesson's video popup closes).
+    if (id) return { kind: "embed", src: `https://www.youtube.com/embed/${id}?enablejsapi=1` };
   }
 
   if (host === "vimeo.com" || host === "player.vimeo.com") {

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { LessonVideoButton } from "@/components/LessonVideoButton";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
@@ -52,7 +53,7 @@ export async function FieldsPage({
     supabase.from("profiles").select("role, client_account_id").eq("id", user.id).single(),
     supabase
       .from("setup_steps")
-      .select("title, description")
+      .select("title, description, video_url, video_thumbnail_url")
       .eq("key", STEP_KEY)
       .limit(1)
       .maybeSingle(),
@@ -278,6 +279,7 @@ export async function FieldsPage({
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-bold text-ink">
             {step?.title ?? (dates ? "Select Your Date Fields" : "Customize Your Fields")}
+            <LessonVideoButton url={step?.video_url} thumbnail={step?.video_thumbnail_url} title={step?.title ?? (dates ? "Select Your Date Fields" : "Customize Your Fields")} />
           </h1>
           {accountId && !dates && <ResetFinalizeButton accountId={isStaff ? accountId : null} />}
         </div>
@@ -317,7 +319,8 @@ export async function FieldsPage({
             <DatePairsSelector
               key={accountId}
               title={
-                <h1 className="font-display text-2xl font-bold text-ink">{step?.title ?? "Select Your Date Fields"}</h1>
+                <h1 className="font-display text-2xl font-bold text-ink">{step?.title ?? "Select Your Date Fields"}
+            <LessonVideoButton url={step?.video_url} thumbnail={step?.video_thumbnail_url} title={step?.title ?? "Select Your Date Fields"} /></h1>
               }
               intro={
                 step?.description ? (

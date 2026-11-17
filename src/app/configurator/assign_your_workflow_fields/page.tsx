@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { LessonVideoButton } from "@/components/LessonVideoButton";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
@@ -40,7 +41,7 @@ export default async function AssignWorkflowFieldsPage({
       .single(),
     supabase
       .from("setup_steps")
-      .select("title, description")
+      .select("title, description, video_url, video_thumbnail_url")
       .eq("key", STEP_KEY)
       .limit(1)
       .maybeSingle(),
@@ -130,6 +131,7 @@ export default async function AssignWorkflowFieldsPage({
 
       <h1 className="mt-3 font-display text-2xl font-bold text-ink">
         {step?.title ?? "Assign Your Fields"}
+            <LessonVideoButton url={step?.video_url} thumbnail={step?.video_thumbnail_url} title={step?.title ?? "Assign Your Fields"} />
       </h1>
       {step?.description ? (
         <div

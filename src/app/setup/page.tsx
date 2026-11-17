@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { LessonVideoButton } from "@/components/LessonVideoButton";
 import { FOUNDING_SETUP_CENTS, PLAN_PRICES, formatDollars } from "@/lib/pricing";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -51,6 +52,14 @@ export default async function SetupInitiationPage({
         .eq("id", profile.client_account_id)
         .single()
     : { data: null };
+
+  // The lesson's video (the "i" beside the title).
+  const { data: initiationStep } = await supabase
+    .from("setup_steps")
+    .select("video_url, video_thumbnail_url")
+    .eq("key", "setup_initiation")
+    .limit(1)
+    .maybeSingle();
 
   // Everyone on the account (the setup staff), for "Your Team's Setup Staff".
   const { data: teammates } = profile?.client_account_id
@@ -150,6 +159,11 @@ export default async function SetupInitiationPage({
 
         <h1 className="mt-3 font-display text-2xl font-bold text-ink">
           Initiate Your Setup
+          <LessonVideoButton
+            url={initiationStep?.video_url}
+            thumbnail={initiationStep?.video_thumbnail_url}
+            title="Initiate Your Setup"
+          />
         </h1>
 
         {error && (

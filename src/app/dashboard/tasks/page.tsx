@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { StaffToggle } from "@/components/StaffToggle";
 import { LessonPanel } from "@/components/LessonPanel";
 import { LessonTypeSelect } from "@/components/LessonTypeSelect";
-import { VideoFields } from "@/components/VideoFields";
+import { ConfiguratorVideoField, VideoFields } from "@/components/VideoFields";
 import { MarkdownTextarea } from "@/components/MarkdownTextarea";
 import { SaveStepButton } from "@/components/SaveStepButton";
 import { StepResourcesEditor } from "@/components/StepResourcesEditor";
@@ -587,10 +587,21 @@ function StepEditPanel({
         </label>
       </form>
 
-      <div className="mt-3 min-w-0">
-        <span className="text-xs font-medium text-ink-soft">Resource links</span>
-        <div className="mt-1.5">
-          <StepResourcesEditor stepId={step.id} initialResources={resources} />
+      {/* Configurators: their video link (the "i" by the title), left of
+          the resource links. */}
+      <div
+        className={`mt-3 grid min-w-0 gap-3 ${
+          step.step_type !== "lesson" ? "sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : ""
+        }`}
+      >
+        {step.step_type !== "lesson" && (
+          <ConfiguratorVideoField formId={`step-form-${step.id}`} defaultVideoUrl={step.video_url} />
+        )}
+        <div className="min-w-0">
+          <span className="text-xs font-medium text-ink-soft">Resource links</span>
+          <div className="mt-1.5">
+            <StepResourcesEditor stepId={step.id} initialResources={resources} />
+          </div>
         </div>
       </div>
 

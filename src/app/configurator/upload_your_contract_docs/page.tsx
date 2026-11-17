@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LessonVideoButton } from "@/components/LessonVideoButton";
 import ReactMarkdown from "react-markdown";
 import { SortableGroup } from "@/components/dnd/SortableGroup";
 import { ContractUploader } from "@/components/ContractUploader";
@@ -25,6 +26,7 @@ export default async function UploadContractDocsPage({
   const title = (
     <h1 className="font-display text-2xl font-bold text-ink">
       {step?.title ?? "Upload Your Contract Docs"}
+            <LessonVideoButton url={step?.video_url} thumbnail={step?.video_thumbnail_url} title={step?.title ?? "Upload Your Contract Docs"} />
     </h1>
   );
   const description = step?.description ? (

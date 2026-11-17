@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { LessonVideoButton } from "@/components/LessonVideoButton";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
@@ -30,7 +31,7 @@ export default async function OrganizeYourFieldsPage({
     supabase.from("profiles").select("role, client_account_id").eq("id", user.id).single(),
     supabase
       .from("setup_steps")
-      .select("title, description")
+      .select("title, description, video_url, video_thumbnail_url")
       .eq("key", STEP_KEY)
       .limit(1)
       .maybeSingle(),
@@ -146,6 +147,7 @@ export default async function OrganizeYourFieldsPage({
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-bold text-ink">
             {step?.title ?? "Organize Your Fields"}
+            <LessonVideoButton url={step?.video_url} thumbnail={step?.video_thumbnail_url} title={step?.title ?? "Organize Your Fields"} />
           </h1>
           {accountId && <ResetOrganizeButton accountId={isStaff ? accountId : null} />}
         </div>

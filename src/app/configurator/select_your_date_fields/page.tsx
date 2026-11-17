@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { LessonVideoButton } from "@/components/LessonVideoButton";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
@@ -44,7 +45,7 @@ export default async function SelectYourDateFieldsPage({
     supabase.from("profiles").select("role, client_account_id").eq("id", user.id).single(),
     supabase
       .from("setup_steps")
-      .select("title, description")
+      .select("title, description, video_url, video_thumbnail_url")
       .eq("key", STEP_KEY)
       .limit(1)
       .maybeSingle(),
@@ -187,6 +188,7 @@ export default async function SelectYourDateFieldsPage({
 
         <h1 className="mt-3 font-display text-2xl font-bold text-ink">
           {step?.title ?? "Calculate Your Dates"}
+            <LessonVideoButton url={step?.video_url} thumbnail={step?.video_thumbnail_url} title={step?.title ?? "Calculate Your Dates"} />
         </h1>
         {step?.description ? (
           <div

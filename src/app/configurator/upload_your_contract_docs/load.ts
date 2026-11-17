@@ -25,7 +25,7 @@ export async function loadUploadDocs(client: string | undefined) {
     supabase.from("profiles").select("role, client_account_id").eq("id", user.id).single(),
     supabase
       .from("setup_steps")
-      .select("title, description")
+      .select("title, description, video_url, video_thumbnail_url")
       .eq("key", STEP_KEY)
       .limit(1)
       .maybeSingle(),

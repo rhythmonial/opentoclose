@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { LessonVideoButton } from "@/components/LessonVideoButton";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
@@ -22,7 +23,7 @@ export async function UploadLessonPage({ kind, client }: { kind: UploadKind; cli
     supabase.from("profiles").select("role, client_account_id").eq("id", user.id).single(),
     supabase
       .from("setup_steps")
-      .select("title, description")
+      .select("title, description, video_url, video_thumbnail_url")
       .eq("key", lesson.stepKey)
       .limit(1)
       .maybeSingle(),
@@ -115,7 +116,8 @@ export async function UploadLessonPage({ kind, client }: { kind: UploadKind; cli
           </div>
         )}
 
-        <h1 className="mt-3 font-display text-2xl font-bold text-ink">{step?.title ?? lesson.title}</h1>
+        <h1 className="mt-3 font-display text-2xl font-bold text-ink">{step?.title ?? lesson.title}
+            <LessonVideoButton url={step?.video_url} thumbnail={step?.video_thumbnail_url} title={step?.title ?? lesson.title} /></h1>
         {step?.description ? (
           <div
             className="mt-1.5 text-sm leading-relaxed text-ink-soft
