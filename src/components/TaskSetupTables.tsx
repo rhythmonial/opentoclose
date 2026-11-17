@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Papa from "papaparse";
-import { TASK_COMPLETED, TASK_TIME_FRAMES, TIMINGS, type PlannedTask } from "@/lib/taskPlans";
+import { TASK_COMPLETED, TIMINGS, type PlannedTask } from "@/lib/taskPlans";
 import { DownloadCsvButton } from "@/components/CopyButton";
 
 type SetupTask = PlannedTask & { templateName: string; sideLabel: string };
@@ -10,58 +10,65 @@ type SetupTask = PlannedTask & { templateName: string; sideLabel: string };
 const labelOf = (list: readonly { value: string; label: string }[], v: string | null) =>
   list.find((x) => x.value === v)?.label ?? "";
 
-// Task Template Setup's import columns (the task setup prep sheet's).
+// Open to Close's task import columns (one file per task template).
 const TASK_COLUMNS = [
-  "Task Template Name",
-  "Task Name",
+  "Task Name ( title )",
+  "Exclude ( private )",
   "Critical",
-  "Recurring Every (Days)",
-  "Notes",
-  "Days",
-  "Time Frame",
-  "Before / After / Same Day As",
-  "Date Field",
-  "Parent Task",
+  "Recurring Days",
+  "Scheduled Due Days",
+  "Scheduled Due Time Frame",
+  "Scheduled Due Type",
+  "Due Date ( field )",
 ];
 
-const taskLine = (t: SetupTask) => [
-  t.templateName,
-  t.name,
-  t.critical ? "Yes" : "",
-  t.recurDays ? String(t.recurDays) : "",
-  t.notes,
-  t.timing === "same_day" || t.dueDays === null ? "" : String(t.dueDays),
-  labelOf(TASK_TIME_FRAMES, t.timeFrame),
-  labelOf(TIMINGS, t.timing),
-  t.parentTask ? TASK_COMPLETED : t.dateField,
-  t.parentTask,
-];
+const TIME_FRAME_NAMES: Record<string, string> = {
+  business_days: "Business",
+  calendar_days: "Calendar",
+  calendar_days_skip_weekend: "Calendar Skip Weekend",
+};
 
-// Task Template Setup: every task, grouped by its template, with the CSV.
+const taskLine = (t: SetupTask, exclude: boolean) => {
+  const sameDay = t.timing === "same_day";
+  return [
+    t.name,
+    exclude ? "Yes" : "",
+    t.critical ? "Yes" : "",
+    t.recurDays ? String(t.recurDays) : "",
+    sameDay || t.dueDays === null ? "" : String(t.dueDays),
+    sameDay ? "Same Day As" : (TIME_FRAME_NAMES[t.timeFrame ?? ""] ?? ""),
+    sameDay ? "" : labelOf(TIMINGS, t.timing),
+    t.parentTask ? TASK_COMPLETED : t.dateField,
+  ];
+};
+
+const fileNameFor = (template: string) =>
+  `${template.replace(/[\\/:*?"<>|]+/g, "-")} - OTC task import.csv`;
+
+// Task Template Setup: every task, grouped by its template, each template
+// with its own CSV in Open to Close's task import columns. "Exclude
+// (private)" starts as Yes and can be cleared per task.
 export function TaskTemplateSetup({ tasks }: { tasks: SetupTask[] }) {
+  const [shared, setShared] = useState<Set<string>>(new Set());
   if (tasks.length === 0) return <Empty />;
   const templates = [...new Set(tasks.map((t) => t.templateName))];
+  const keyOf = (t: SetupTask) => t.id ?? `${t.templateName}-${t.name}`;
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm text-ink-soft">
-          {tasks.length} task{tasks.length === 1 ? "" : "s"} in {templates.length} template
-          {templates.length === 1 ? "" : "s"}
-        </span>
-        <DownloadCsvButton
-          csv={Papa.unparse([TASK_COLUMNS, ...tasks.map(taskLine)])}
-          fileName="Task Templates - OTC import.csv"
-          label="Download CSV for Open to Close"
-        />
-      </div>
+      <span className="text-sm text-ink-soft">
+        {tasks.length} task{tasks.length === 1 ? "" : "s"} in {templates.length} template
+        {templates.length === 1 ? "" : "s"}. Download each template&rsquo;s CSV and import it into
+        that task template in Open to Close.
+      </span>
       <div className="overflow-x-auto rounded-xl border border-border bg-surface">
         <table className="w-full min-w-[820px] text-left text-sm">
           <thead>
             <tr className="border-b border-border-soft bg-bg font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
               <th className="px-3 py-2.5">Task name</th>
-              <th className="px-3 py-2.5">Due</th>
+              <th className="px-3 py-2.5">Exclude (private)</th>
               <th className="px-3 py-2.5">Critical</th>
-              <th className="px-3 py-2.5">Notes</th>
+              <th className="px-3 py-2.5">Due</th>
+              <th className="px-3 py-2.5">Due date field</th>
             </tr>
           </thead>
           <tbody>
@@ -69,27 +76,51 @@ export function TaskTemplateSetup({ tasks }: { tasks: SetupTask[] }) {
               const list = tasks.filter((t) => t.templateName === name);
               return [
                 <tr key={`h-${name}`} className="border-b border-border-soft bg-accent-soft/40">
-                  <td colSpan={4} className="px-3 py-1.5 font-caption text-xs font-bold uppercase tracking-wide text-accent">
-                    {name} ({list.length})
+                  <td colSpan={5} className="px-3 py-1.5">
+                    <span className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-caption text-xs font-bold uppercase tracking-wide text-accent">
+                        {name} ({list.length})
+                      </span>
+                      <DownloadCsvButton
+                        csv={Papa.unparse([TASK_COLUMNS, ...list.map((t) => taskLine(t, !shared.has(keyOf(t))))])}
+                        fileName={fileNameFor(name)}
+                        label="Download CSV"
+                      />
+                    </span>
                   </td>
                 </tr>,
-                ...list.map((t) => (
-                  <tr key={t.id ?? `${name}-${t.name}`} className="border-b border-border-soft align-top last:border-0">
-                    <td className="px-3 py-2 font-medium text-ink">{t.name}</td>
-                    <td className="px-3 py-2 text-xs text-ink-soft">
-                      {t.timing === "same_day"
-                        ? "Same day as "
-                        : t.timing
-                          ? `${t.dueDays ?? "?"} ${labelOf(TASK_TIME_FRAMES, t.timeFrame) || "day(s)"} ${t.timing} `
-                          : ""}
-                      {t.parentTask ? `"${t.parentTask}" is done` : t.dateField}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-ink-soft">{t.critical ? "Yes" : ""}</td>
-                    <td className="max-w-[18rem] truncate px-3 py-2 text-xs text-ink-soft" title={t.notes}>
-                      {t.notes}
-                    </td>
-                  </tr>
-                )),
+                ...list.map((t) => {
+                  const k = keyOf(t);
+                  const line = taskLine(t, !shared.has(k));
+                  return (
+                    <tr key={k} className="border-b border-border-soft align-top last:border-0">
+                      <td className="px-3 py-2 font-medium text-ink">{t.name}</td>
+                      <td className="px-3 py-2">
+                        <label className="flex items-center gap-1.5 text-xs text-ink">
+                          <input
+                            type="checkbox"
+                            checked={!shared.has(k)}
+                            onChange={(e) =>
+                              setShared((all) => {
+                                const next = new Set(all);
+                                if (e.target.checked) next.delete(k);
+                                else next.add(k);
+                                return next;
+                              })
+                            }
+                          />
+                          {shared.has(k) ? "(blank)" : "Yes"}
+                        </label>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-ink-soft">{line[2]}</td>
+                      <td className="px-3 py-2 text-xs text-ink-soft">
+                        {[line[4], line[5], line[6]].filter(Boolean).join(" ")}
+                        {line[3] && <span className="block">Every {line[3]} days</span>}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-ink">{line[7]}</td>
+                    </tr>
+                  );
+                }),
               ];
             })}
           </tbody>
