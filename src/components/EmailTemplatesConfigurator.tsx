@@ -7,7 +7,8 @@ import {
   fromSample,
   isEdited,
   SIDE_LABELS,
-  sideOf,
+  sidesOf,
+  TEMPLATE_SIDES,
   sampleFor,
   type EmailTemplate,
   type TemplateSide,
@@ -75,7 +76,7 @@ function templatesFrom(
     .filter((t) => t.title);
 }
 
-const SIDE_ORDER: TemplateSide[] = ["buyer", "seller", "listing", "other"];
+import { setUrlParam } from "@/lib/urlState";
 
 const inputClass =
   "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent";
@@ -85,6 +86,7 @@ const inputClass =
 // title, subject, body, who it goes to (To / Cc / Bcc, from the contact
 // roles) and the documents attached (from their documents).
 export function EmailTemplatesConfigurator({
+  initialSide = "all",
   accountId,
   storageAccountId,
   uploads = [],
@@ -95,6 +97,8 @@ export function EmailTemplatesConfigurator({
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
+  // The tab to open on (from the address).
+  initialSide?: TemplateSide | "all";
   // The account the templates belong to (for the files they import).
   storageAccountId: string;
   // Message files they uploaded in Upload Your Messages.
@@ -112,7 +116,12 @@ export function EmailTemplatesConfigurator({
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [side, setSide] = useState<TemplateSide | "all">("all");
+  const [side, setSideState] = useState<TemplateSide | "all">(initialSide);
+  // The tab stays in the address, so a reload comes back to it.
+  const setSide = (next: TemplateSide | "all") => {
+    setSideState(next);
+    setUrlParam("tab", next === "all" ? null : next);
+  };
   const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
 
   // Files to import: the ones from Upload Your Messages and any imported
@@ -218,18 +227,19 @@ export function EmailTemplatesConfigurator({
       cc: [],
       bcc: [],
       files: [],
+      // Added on a side's tab, it starts on that side.
+      sides: side === "all" ? [] : [side],
     };
     setItems((all) => [item, ...all]);
     setOpenKey(item.key);
     setEditingKey(item.key);
     setQuery("");
-    setSide("all");
   }
 
   const q = query.trim().toLowerCase();
   const shown = items.filter(
     (t) =>
-      (side === "all" || sideOf(t.title) === side) &&
+      (side === "all" || sidesOf(t).includes(side)) &&
       (!q ||
         t.title.toLowerCase().includes(q) ||
         t.subject.toLowerCase().includes(q) ||
@@ -239,6 +249,32 @@ export function EmailTemplatesConfigurator({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Tabs by side, like Customize Your Fields' group tabs, with how many
+          templates on each are checked to use. */}
+      <div className="flex gap-1 sm:gap-2" role="tablist" aria-label="Template sides">
+        {(["all", ...TEMPLATE_SIDES] as const).map((sd) => {
+          const active = sd === side;
+          const on = items.filter((t) => t.include && (sd === "all" || sidesOf(t).includes(sd))).length;
+          return (
+            <button
+              key={sd}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setSide(sd)}
+              className={`flex min-w-0 flex-1 items-center justify-center rounded-md border px-1 py-2 text-center text-[11px] font-semibold leading-tight sm:px-3 sm:text-sm ${
+                active ? "border-accent bg-accent text-white" : "border-border bg-surface text-ink-soft"
+              }`}
+            >
+              <span className="min-w-0 break-words sm:truncate">
+                {sd === "all" ? "All" : SIDE_LABELS[sd]}
+                <span className={active ? "text-white/80" : "text-ink-faint"}> &middot; {on}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <input
@@ -291,22 +327,7 @@ export function EmailTemplatesConfigurator({
           </button>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-1.5">
-            {(["all", "buyer", "seller", "listing", "other"] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSide(s)}
-                className={`rounded-full border px-3 py-0.5 text-xs font-semibold ${
-                  side === s
-                    ? "border-accent bg-accent text-white"
-                    : "border-border text-ink-soft hover:border-accent"
-                }`}
-              >
-                {s === "all" ? "All" : SIDE_LABELS[s]}
-              </button>
-            ))}
-          </div>
+          <span />
           <div className="flex flex-wrap items-center gap-4 text-sm text-ink-soft">
             <span className="text-xs text-ink-faint">
               Using {used} of {items.length}
@@ -465,18 +486,7 @@ export function EmailTemplatesConfigurator({
                   </tr>
                 </thead>
                 <tbody>
-                  {SIDE_ORDER.flatMap((sd) => {
-                    const rows = list.filter((t) => sideOf(t.title) === sd);
-                    if (rows.length === 0) return [];
-                    return [
-                      <tr key={`h-${heading}-${sd}`} className="border-b border-border-soft bg-accent-soft/40">
-                        <td colSpan={4} className="px-3 py-1.5 font-caption text-xs font-bold uppercase tracking-wide text-accent">
-                          {SIDE_LABELS[sd]} ({rows.length})
-                        </td>
-                      </tr>,
-                      ...rows.flatMap(renderRow),
-                    ];
-                  })}
+                  {list.flatMap(renderRow)}
                   {list.length === 0 && (
                     <tr>
                       <td colSpan={4} className="px-3 py-4 text-sm text-ink-faint">
@@ -686,6 +696,7 @@ function TemplateEditor({
         e.preventDefault();
         setSaving(true);
         await onSave({
+          sides: draft.sides,
           title: draft.title,
           subject: draft.subject,
           body: withBlankLines(draft.body),
@@ -693,16 +704,27 @@ function TemplateEditor({
         setSaving(false);
       }}
     >
-      <label className="flex flex-col gap-1">
-        <span className="text-xs font-semibold text-ink-soft">Title (template name)</span>
-        <input
-          required
-          value={draft.title}
-          onChange={(e) => set({ title: e.target.value })}
-          maxLength={200}
-          className={inputClass}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-semibold text-ink-soft">Title (template name)</span>
+          <input
+            required
+            value={draft.title}
+            onChange={(e) => set({ title: e.target.value })}
+            maxLength={200}
+            className={inputClass}
+          />
+        </label>
+        {/* Which tabs it shows on: buyer, seller, listing and/or other. */}
+        <MultiSelect
+          label="Side(s)"
+          options={TEMPLATE_SIDES.map((x) => SIDE_LABELS[x])}
+          value={sidesOf(draft).map((x) => SIDE_LABELS[x])}
+          onChange={(labels) =>
+            set({ sides: TEMPLATE_SIDES.filter((x) => labels.includes(SIDE_LABELS[x])) })
+          }
         />
-      </label>
+      </div>
       <label className="flex flex-col gap-1">
         <span className="text-xs font-semibold text-ink-soft">Subject</span>
         <input

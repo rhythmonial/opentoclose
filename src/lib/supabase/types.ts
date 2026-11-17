@@ -456,6 +456,7 @@ export type Database = {
           client_account_id: string
           sample_key: string | null
           include: boolean
+          sides: string[]
           title: string
           subject: string
           body: string
@@ -471,6 +472,7 @@ export type Database = {
           client_account_id: string
           sample_key?: string | null
           include?: boolean
+          sides?: string[]
           title: string
           subject?: string
           body?: string
@@ -486,6 +488,7 @@ export type Database = {
           client_account_id?: string
           sample_key?: string | null
           include?: boolean
+          sides?: string[]
           title?: string
           subject?: string
           body?: string

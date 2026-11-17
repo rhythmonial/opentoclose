@@ -23,7 +23,7 @@ const STEP_KEY = "sample_email_templates";
 export default async function SampleEmailTemplatesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string }>;
+  searchParams: Promise<{ client?: string; tab?: string }>;
 }) {
   await requireStepAccess(STEP_KEY);
   const supabase = await createClient();
@@ -44,7 +44,7 @@ export default async function SampleEmailTemplatesPage({
 
   const isStaff = profile?.role === "dev" || profile?.role === "dev_admin";
   const sandboxTier = isStaff ? await getSandboxTier() : null;
-  const { client } = await searchParams;
+  const { client, tab } = await searchParams;
 
   // Staff pick a client to see or help with theirs.
   const { data: clients } = isStaff
@@ -89,6 +89,7 @@ export default async function SampleEmailTemplatesPage({
     cc: r.cc_roles,
     bcc: r.bcc_roles,
     files: r.file_roles,
+    sides: r.sides as EmailTemplate["sides"],
   });
   // Documents, by the names templates attach them by, with their categories
   // and sides (from Categorize Your Documents).
@@ -216,6 +217,7 @@ export default async function SampleEmailTemplatesPage({
           {accountId ? (
             <EmailTemplatesConfigurator
               key={accountId}
+              initialSide={tab === "buyer" || tab === "seller" || tab === "listing" || tab === "other" ? tab : "all"}
               uploads={await loadUploadedSheets(supabase, accountId, "messages")}
               accountId={isStaff ? accountId : null}
               storageAccountId={accountId}

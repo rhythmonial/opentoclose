@@ -39,6 +39,7 @@ export async function saveEmailTemplate(
     cc_roles: names(t.cc),
     bcc_roles: names(t.bcc),
     file_roles: names(t.files),
+    sides: [...new Set(t.sides ?? [])].filter((x) => ["buyer", "seller", "listing", "other"].includes(x)),
     updated_at: new Date().toISOString(),
   };
 

@@ -14,6 +14,9 @@ export type EmailTemplate = {
   cc: string[];
   bcc: string[];
   files: string[];
+  // The tabs it shows on in Prep Your Messages; empty or missing means the
+  // one its title's prefix says (B, S, L, or other).
+  sides?: TemplateSide[];
 };
 
 // The sample sheet marked paragraph breaks with ADDABREAK lines, because
@@ -180,3 +183,11 @@ export const SIDE_LABELS: Record<TemplateSide, string> = {
   listing: "Listing",
   other: "Other",
 };
+
+export const TEMPLATE_SIDES: TemplateSide[] = ["buyer", "seller", "listing", "other"];
+
+// The tabs a template shows on.
+export function sidesOf(t: Pick<EmailTemplate, "title" | "sides">): TemplateSide[] {
+  const picked = (t.sides ?? []).filter((s) => TEMPLATE_SIDES.includes(s));
+  return picked.length > 0 ? picked : [sideOf(t.title)];
+}
