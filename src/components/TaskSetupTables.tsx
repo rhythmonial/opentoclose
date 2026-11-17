@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Papa from "papaparse";
-import { TASK_COMPLETED, TIMINGS, type PlannedTask } from "@/lib/taskPlans";
+import { TIMINGS, type PlannedTask } from "@/lib/taskPlans";
 import { DownloadCsvButton } from "@/components/CopyButton";
 
 type SetupTask = PlannedTask & { templateName: string; sideLabel: string };
@@ -28,8 +28,13 @@ const TIME_FRAME_NAMES: Record<string, string> = {
   calendar_days_skip_weekend: "Calendar Skip Weekend",
 };
 
+// A task due after another task is completed is set by hand in Open to
+// Close (the import can't), so its due columns are left blank.
 const taskLine = (t: SetupTask, exclude: boolean) => {
   const sameDay = t.timing === "same_day";
+  if (t.parentTask) {
+    return [t.name, exclude ? "Yes" : "", t.critical ? "Yes" : "", t.recurDays ? String(t.recurDays) : "", "", "", "", ""];
+  }
   return [
     t.name,
     exclude ? "Yes" : "",
@@ -38,9 +43,17 @@ const taskLine = (t: SetupTask, exclude: boolean) => {
     sameDay || t.dueDays === null ? "" : String(t.dueDays),
     sameDay ? "Same Day As" : (TIME_FRAME_NAMES[t.timeFrame ?? ""] ?? ""),
     sameDay ? "" : labelOf(TIMINGS, t.timing),
-    t.parentTask ? TASK_COMPLETED : t.dateField,
+    t.dateField,
   ];
 };
+
+// When a task after another one is due, in words, for setting it by hand.
+const afterText = (t: SetupTask) =>
+  t.timing === "same_day"
+    ? `the same day "${t.parentTask}" is completed`
+    : `${t.dueDays ?? "?"} ${TIME_FRAME_NAMES[t.timeFrame ?? ""] ?? ""} day${t.dueDays === 1 ? "" : "s"} ${
+        t.timing === "before" ? "before" : "after"
+      } "${t.parentTask}" is completed`.replace(/\s+/g, " ");
 
 const fileNameFor = (template: string) =>
   `${template.replace(/[\\/:*?"<>|]+/g, "-")} - OTC task import.csv`;
@@ -53,8 +66,29 @@ export function TaskTemplateSetup({ tasks }: { tasks: SetupTask[] }) {
   if (tasks.length === 0) return <Empty />;
   const templates = [...new Set(tasks.map((t) => t.templateName))];
   const keyOf = (t: SetupTask) => t.id ?? `${t.templateName}-${t.name}`;
+  const byHand = tasks.filter((t) => t.parentTask);
   return (
     <div className="flex flex-col gap-3">
+      {byHand.length > 0 && (
+        <div className="rounded-xl border-2 border-gold bg-surface px-4 py-3">
+          <h2 className="text-sm font-bold text-ink">
+            After you import: set {byHand.length} due date{byHand.length === 1 ? "" : "s"} by hand
+          </h2>
+          <p className="mt-0.5 text-xs text-ink-soft">
+            Open to Close&rsquo;s import can&rsquo;t make a task due after another task, so these
+            come in without a due date. Open each one in its task template and set it:
+          </p>
+          <ul className="mt-2 flex flex-col gap-1 text-sm">
+            {byHand.map((t) => (
+              <li key={keyOf(t)}>
+                <span className="font-semibold text-ink">{t.templateName}:</span>{" "}
+                <span className="text-ink">{t.name}</span>{" "}
+                <span className="text-ink-soft">&mdash; due {afterText(t)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <span className="text-sm text-ink-soft">
         {tasks.length} task{tasks.length === 1 ? "" : "s"} in {templates.length} template
         {templates.length === 1 ? "" : "s"}. Download each template&rsquo;s CSV and import it into
@@ -117,7 +151,15 @@ export function TaskTemplateSetup({ tasks }: { tasks: SetupTask[] }) {
                         {[line[4], line[5], line[6]].filter(Boolean).join(" ")}
                         {line[3] && <span className="block">Every {line[3]} days</span>}
                       </td>
-                      <td className="px-3 py-2 text-xs text-ink">{line[7]}</td>
+                      <td className="px-3 py-2 text-xs text-ink">
+                        {t.parentTask ? (
+                          <span className="rounded bg-gold/20 px-1.5 py-0.5 font-semibold text-ink" title={`Due ${afterText(t)}`}>
+                            Set by hand: after {t.parentTask}
+                          </span>
+                        ) : (
+                          line[7]
+                        )}
+                      </td>
                     </tr>
                   );
                 }),

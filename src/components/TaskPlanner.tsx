@@ -32,6 +32,9 @@ import {
 
 type Row = PlannedTask & { key: string };
 
+// The "after another task" choices in a task's date field menu.
+const AFTER_TASK = "__after__:";
+
 // What an uploaded task file's columns can be imported as.
 const TASK_TARGETS: MapTarget[] = [
   { key: "name", label: "Task name", aliases: ["task", "name", "task name", "title"], required: true },
@@ -785,11 +788,16 @@ export function TaskPlanner({
                                 {/* Every date field; one that isn't (from the
                                     samples) still shows, flagged. */}
                                 <select
-                                  value={r.dateField}
-                                  disabled={Boolean(r.parentTask)}
-                                  onChange={(e) =>
-                                    update(r.key, { dateField: e.target.value })
-                                  }
+                                  value={r.parentTask ? `${AFTER_TASK}${r.parentTask}` : r.dateField}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    // Due after another task is completed, or from a date.
+                                    if (v.startsWith(AFTER_TASK)) {
+                                      update(r.key, { parentTask: v.slice(AFTER_TASK.length), dateField: "" });
+                                    } else {
+                                      update(r.key, { dateField: v, parentTask: "" });
+                                    }
+                                  }}
                                   aria-label="Date field"
                                   title={
                                     r.dateField &&
@@ -804,11 +812,7 @@ export function TaskPlanner({
                                       : bad("a date field or parent task")
                                   }`}
                                 >
-                                  <option value="">
-                                    {r.parentTask
-                                      ? "From parent task"
-                                      : "Choose a date…"}
-                                  </option>
+                                  <option value="">Choose a date or task…</option>
                                   {r.dateField &&
                                     !dateOptions.includes(r.dateField) && (
                                       <option value={r.dateField}>
@@ -824,6 +828,15 @@ export function TaskPlanner({
                                       ))}
                                     </optgroup>
                                   ))}
+                                  <optgroup label="After another task is completed">
+                                    {items
+                                      .filter((o) => o.key !== r.key && o.name)
+                                      .map((o) => (
+                                        <option key={o.key} value={`${AFTER_TASK}${o.name}`}>
+                                          After: {o.name}
+                                        </option>
+                                      ))}
+                                  </optgroup>
                                 </select>
                               </td>
                               <td className="px-1 py-1.5">
@@ -831,7 +844,6 @@ export function TaskPlanner({
                                     chosen one is completed, instead of from a date. */}
                                 <select
                                   value={r.parentTask}
-                                  disabled={Boolean(r.dateField.trim())}
                                   onChange={(e) =>
                                     update(r.key, {
                                       parentTask: e.target.value,
@@ -843,9 +855,7 @@ export function TaskPlanner({
                                   className={`${cellInput} disabled:opacity-40 ${bad("a date field or parent task")}`}
                                 >
                                   <option value="">
-                                    {r.dateField.trim()
-                                      ? "From date field"
-                                      : "None"}
+                                    {r.dateField.trim() ? "From date field" : "None"}
                                   </option>
                                   {[
                                     ...new Set([
