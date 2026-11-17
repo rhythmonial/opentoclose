@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CATEGORY_COLORS,
-  PRIORITIES,
   sortByName,
   templateSidesFor,
   type DocCategory,
@@ -17,14 +16,13 @@ export type CategoryRow = {
   // Its side from Upload Your Contracts.
   side: string | null;
   category: string | null;
-  priority: string | null;
 };
 
 const ADD = "__add__";
 
 // Categorize Your Documents: their uploaded contracts in a table grouped by
 // side (from Upload Your Contracts), then by category. Each row has the
-// side's letter, the document, its priority and its category.
+// side's letter, the document and its category.
 export function DocumentCategoryTable({
   accountId,
   initialRows,
@@ -55,7 +53,6 @@ export function DocumentCategoryTable({
       name: next.name,
       categories: next.category ? [next.category] : [],
       sides: templateSidesFor(next.side),
-      priority: next.priority,
     });
     if (!res.ok) window.alert(res.error ?? "Couldn't save.");
     router.refresh();
@@ -102,20 +99,19 @@ export function DocumentCategoryTable({
           <tr className="border-b border-border-soft bg-bg font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
             <th className="w-14 px-4 py-3">Side</th>
             <th className="px-4 py-3">Document</th>
-            <th className="w-32 px-4 py-3">Priority</th>
             <th className="w-56 px-4 py-3">Category</th>
           </tr>
         </thead>
         <tbody>
           {groups.map((g) => [
             <tr key={`side-${g.side ?? "none"}`} className="border-b border-border-soft bg-accent-soft/40">
-              <td colSpan={4} className="px-4 py-2 font-caption text-xs font-bold uppercase tracking-wide text-accent">
+              <td colSpan={3} className="px-4 py-2 font-caption text-xs font-bold uppercase tracking-wide text-accent">
                 {g.side ?? "No side yet (pick one in Upload Your Contracts)"} ({g.count})
               </td>
             </tr>,
             ...g.subgroups.flatMap(([category, list]) => [
               <tr key={`cat-${g.side}-${category}`} className="border-b border-border-soft bg-bg">
-                <td colSpan={4} className="px-4 py-1.5 pl-8 text-xs font-semibold text-ink-soft">
+                <td colSpan={3} className="px-4 py-1.5 pl-8 text-xs font-semibold text-ink-soft">
                   {category || "Needs a category"} ({list.length})
                 </td>
               </tr>,
@@ -134,23 +130,6 @@ export function DocumentCategoryTable({
                       )}
                     </td>
                     <td className="px-4 py-2.5 font-medium text-ink">{r.name}</td>
-                    <td className="px-4 py-2.5">
-                      <select
-                        value={r.priority ?? ""}
-                        onChange={(e) => save(r, { priority: e.target.value || null })}
-                        aria-label={`Priority for ${r.name}`}
-                        className={`${select} ${r.priority ? "border-border bg-bg text-ink" : "border-danger/40 bg-danger/5 text-danger"}`}
-                      >
-                        <option value="" disabled>
-                          Priority
-                        </option>
-                        {PRIORITIES.map((p) => (
-                          <option key={p.value} value={p.value}>
-                            {p.label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
                     <td className="px-4 py-2.5">
                       <select
                         value={r.category ?? ""}
@@ -182,7 +161,7 @@ export function DocumentCategoryTable({
           ])}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={4} className="px-4 py-6 text-sm text-ink-soft">
+              <td colSpan={3} className="px-4 py-6 text-sm text-ink-soft">
                 Upload your contracts first, then come back to categorize them.
               </td>
             </tr>

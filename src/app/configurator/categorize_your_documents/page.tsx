@@ -73,7 +73,7 @@ export default async function CategorizeYourDocumentsPage({
       ])
     : [{ data: [] }, { data: [] }, { data: [] }];
 
-  // Their uploaded contracts, with the category and priority saved for each.
+  // Their uploaded contracts, with the category saved for each.
   const byContract = new Map(
     (saved ?? []).filter((d) => d.contract_document_id).map((d) => [d.contract_document_id!, d]),
   );
@@ -84,7 +84,6 @@ export default async function CategorizeYourDocumentsPage({
       name: c.file_name,
       side: c.side,
       category: s?.categories?.[0] ?? null,
-      priority: s?.priority ?? null,
     };
   });
   const sides = allSides((contracts ?? []).map((c) => c.side));
@@ -93,7 +92,7 @@ export default async function CategorizeYourDocumentsPage({
     name: c.name,
     color: c.color as CategoryColor,
   }));
-  const ready = rows.length > 0 && rows.every((r) => r.category && r.priority);
+  const ready = rows.length > 0 && rows.every((r) => r.category);
 
   return (
     <main className="flex flex-1 justify-center bg-bg px-4 py-12">
@@ -161,7 +160,7 @@ export default async function CategorizeYourDocumentsPage({
           </div>
         ) : (
           <p className="mt-1.5 text-sm text-ink-soft">
-            Give each of your documents a priority and a category. They&rsquo;re grouped by the
+            Give each of your documents a category. They&rsquo;re grouped by the
             side you picked when you uploaded them, then by category.
           </p>
         )}
@@ -195,7 +194,7 @@ export default async function CategorizeYourDocumentsPage({
             </button>
             {!ready && (
               <span className="text-xs text-ink-faint">
-                Every document needs a priority and a category.
+                Every document needs a category.
               </span>
             )}
           </form>

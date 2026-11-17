@@ -78,13 +78,6 @@ export function templatePrefix(sides: string[]) {
     .join("/");
 }
 
-// How much a document matters to their files.
-export const PRIORITIES = [
-  { value: "high", label: "High" },
-  { value: "medium", label: "Med" },
-  { value: "low", label: "Low" },
-] as const;
-
 // The template sides (buyer, seller, listing) for a contract's side from
 // Upload Your Contracts. A transaction document is both buyer and seller.
 export function templateSidesFor(side: string | null | undefined): string[] {
