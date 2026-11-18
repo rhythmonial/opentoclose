@@ -71,6 +71,8 @@ export function IntakeFormPlanner({
   // A blank trigger or condition row to fill in (on screen only until it
   // has templates or fields).
   const [extra, setExtra] = useState<{ kind: Kind; id: string } | null>(null);
+  // The condition just started, whose answers open to pick.
+  const [opened, setOpened] = useState<string | null>(null);
   const byId = new Map(fields.map((f) => [f.id, f] as const));
   const onForm = [...contractIds, ...otherIds];
   // Conditions pick fields by name.
@@ -154,30 +156,55 @@ export function IntakeFormPlanner({
       <>
         <td className="border-l border-border-soft px-3 py-1.5">
           <div className="flex items-center gap-1.5">
-            <select
-              value={rule.op}
-              onChange={(e) => {
-                const op = e.target.value as Rule["op"];
-                if (op === "") {
-                  if (r < saved) removeRule(kind, f.id, r);
-                  else setExtra(null);
-                } else setRule(kind, f.id, r, { op });
-              }}
-              aria-label={`${f.name}: when the answer`}
-              className={`min-w-0 flex-1 rounded-md border border-border bg-bg px-1.5 py-1 text-xs outline-none focus:border-accent ${
-                rule.op ? "text-ink" : "text-ink-faint"
-              }`}
-            >
-              <option value="">{isTrigger ? "Add a trigger…" : "Add a condition…"}</option>
-              <option value="is" className="text-ink">
-                is equal to
-              </option>
-              {isTrigger && (
-                <option value="not" className="text-ink">
-                  is not equal to
+            {isTrigger ? (
+              <select
+                value={rule.op}
+                onChange={(e) => {
+                  const op = e.target.value as Rule["op"];
+                  if (op === "") {
+                    if (r < saved) removeRule(kind, f.id, r);
+                    else setExtra(null);
+                  } else setRule(kind, f.id, r, { op });
+                }}
+                aria-label={`${f.name}: when the answer`}
+                className={`min-w-0 flex-1 rounded-md border border-border bg-bg px-1.5 py-1 text-xs outline-none focus:border-accent ${
+                  rule.op ? "text-ink" : "text-ink-faint"
+                }`}
+              >
+                <option value="">{isTrigger ? "Add a trigger…" : "Add a condition…"}</option>
+                <option value="is" className="text-ink">
+                  is equal to
                 </option>
-              )}
-            </select>
+                {isTrigger && (
+                  <option value="not" className="text-ink">
+                    is not equal to
+                  </option>
+                )}
+              </select>
+            ) : (
+              // Conditions only have "is equal to": faded until clicked, then
+              // dark blue with its answers open to pick (click again to
+              // take it off).
+              <button
+                type="button"
+                aria-pressed={rule.op !== ""}
+                onClick={() => {
+                  if (rule.op === "") {
+                    setOpened(`${f.id}:${r}`);
+                    setRule(kind, f.id, r, { op: "is" });
+                  } else if (r < saved) removeRule(kind, f.id, r);
+                  else setExtra(null);
+                }}
+                title={rule.op ? "Take this condition off" : "Add a condition"}
+                className={`rounded-md border px-2 py-1 text-xs ${
+                  rule.op
+                    ? "border-navy bg-surface font-semibold text-navy"
+                    : "border-border bg-bg text-ink-faint hover:border-navy hover:text-navy"
+                }`}
+              >
+                is equal to
+              </button>
+            )}
             {last && rule.op !== "" && (
               <button
                 type="button"
@@ -200,6 +227,7 @@ export function IntakeFormPlanner({
                 onChange={(v) => setRule(kind, f.id, r, { options: v })}
                 invalid={rule.options.length === 0}
                 addLabel={rule.options.length ? "+ Add" : "Pick answers"}
+                defaultOpen={opened === `${f.id}:${r}`}
               />
             </div>
           )}

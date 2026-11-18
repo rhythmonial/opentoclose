@@ -12,6 +12,7 @@ export function MultiSelect({
   compact = false,
   invalid = false,
   addLabel = "+ Add",
+  defaultOpen = false,
 }: {
   label: string;
   options: string[];
@@ -23,8 +24,10 @@ export function MultiSelect({
   // Red until something's chosen.
   invalid?: boolean;
   addLabel?: string;
+  // Opens its checklist as soon as it shows.
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
