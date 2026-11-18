@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CopyIcon } from "@/components/CopyButton";
 import { setFieldBuilt } from "@/app/configurator/field_setup/actions";
+import { optionKey } from "@/lib/fieldSetup";
 
 // A field's name in Field Setup. A field they're creating starts with an
 // empty checkbox; copying its name (or clicking the box) checks it off as
@@ -111,6 +112,3 @@ export function NewChoiceOption({
     </span>
   );
 }
-
-// How a new choice option is saved among the done items.
-export const optionKey = (fieldId: string, title: string) => `${fieldId}::option::${title}`;

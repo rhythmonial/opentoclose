@@ -8,7 +8,8 @@ import {
   reconcileLayout,
 } from "@/lib/fieldOrganization";
 import { CopyIcon } from "@/components/CopyButton";
-import { NewChoiceOption, NewFieldName, optionKey } from "@/components/NewFieldName";
+import { NewChoiceOption, NewFieldName } from "@/components/NewFieldName";
+import { optionKey } from "@/lib/fieldSetup";
 import { loadSetupLesson, SetupShell } from "../_setup/shell";
 
 const KIND_LABELS: Record<string, string> = {
