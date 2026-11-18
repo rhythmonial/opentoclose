@@ -8,6 +8,7 @@ import {
   emptyCalc,
   isSameDay,
   COUNTED_TIME_FRAMES,
+  ROLLS,
   type DateCalc,
 } from "@/lib/dateCalculations";
 import type { DateOption, DateRow } from "@/lib/dateRows";
@@ -98,7 +99,40 @@ export function DateFieldsConfigurator({
       ...(on && !c.relative_to && id !== ACCEPTANCE_DATE_ID ? { relative_to: ACCEPTANCE_DATE_ID } : {}),
       ...(on && !c.direction ? { direction: "after" as const } : {}),
       ...(on && !c.time_frame ? { time_frame: "calendar_days" as const } : {}),
+      // The weekend / holiday rules every other worked-out date shares.
+      ...(on
+        ? Object.fromEntries(
+            (["weekend_roll", "holiday_roll", "federal_holidays"] as const).flatMap((k) => {
+              const shared = new Set(worked.map((r) => calcFor(r.id)[k] ?? ""));
+              const v = shared.size === 1 ? [...shared][0] : "";
+              return v && !c[k] ? [[k, v]] : [];
+            }),
+          )
+        : {}),
     });
+  }
+
+  // The weekend / holiday rules: a default for every worked-out date (shown
+  // as the value they all share, or "Mixed"), changeable on each date too.
+  type RollKey = "weekend_roll" | "holiday_roll" | "federal_holidays";
+  const ROLL_FIELDS: { key: RollKey; label: string; options: { value: string; label: string }[] }[] = [
+    { key: "weekend_roll", label: "Weekend Roll", options: ROLLS.map((r) => ({ ...r })) },
+    { key: "holiday_roll", label: "Federal Holiday Roll", options: ROLLS.map((r) => ({ ...r })) },
+    {
+      key: "federal_holidays",
+      label: "Skip Federal Holidays",
+      options: [
+        { value: "skip", label: "Yes" },
+        { value: "count", label: "No" },
+      ],
+    },
+  ];
+  const sharedValue = (key: RollKey) => {
+    const values = new Set(worked.map((r) => calcFor(r.id)[key] ?? ""));
+    return values.size === 1 ? [...values][0] : values.size === 0 ? "" : "mixed";
+  };
+  function applyDefault(key: RollKey, value: string) {
+    for (const r of worked) update(r.id, { [key]: value || null } as Partial<DateCalc>);
   }
 
   const q = query.trim().toLowerCase();
@@ -159,9 +193,16 @@ export function DateFieldsConfigurator({
               className="h-4 w-4 shrink-0"
             />
           ) : (
-            <span aria-hidden className="w-4 shrink-0 text-center text-accent">
-              &#10003;
-            </span>
+            // Worked out either way (a days field sets it): their own check
+            // that they've reviewed it.
+            <input
+              type="checkbox"
+              checked={Boolean(c.reviewed)}
+              onChange={(e) => update(r.id, { reviewed: e.target.checked })}
+              aria-label={`${r.name} reviewed`}
+              title="Check it off once you've reviewed it"
+              className="h-4 w-4 shrink-0"
+            />
           )}
           {on ? (
             <button
@@ -326,6 +367,23 @@ export function DateFieldsConfigurator({
             )}
           </select>
         </label>
+        {ROLL_FIELDS.map((f, i) => (
+          <label key={f.key} className={`flex flex-col gap-1 ${i === 0 ? "sm:col-start-3" : ""}`}>
+            {label(f.label, false)}
+            <select
+              value={c[f.key] ?? ""}
+              onChange={(e) => update(r.id, { [f.key]: e.target.value || null } as Partial<DateCalc>)}
+              className={cellSelect}
+            >
+              <option value="">N/A</option>
+              {f.options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
         {c.number_field && blankNotes[c.number_field] && (
           <p className={`text-xs sm:col-span-5 ${c.days !== null ? "font-semibold text-danger" : "text-ink-soft"}`}>
             Leave Days blank: {numbers.find((n) => n.id === c.number_field)?.name ?? "its days field"} will
@@ -371,6 +429,44 @@ export function DateFieldsConfigurator({
           {saveState === "error" && <span className="text-danger"> · Couldn&rsquo;t save</span>}
         </span>
       </div>
+
+      {worked.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-3 py-2.5">
+          <span className="text-xs font-semibold text-ink">
+            Default weekend &amp; holiday rules{" "}
+            <span className="font-normal text-ink-faint">
+              (applied to every worked-out date; change any date&rsquo;s own below)
+            </span>
+          </span>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {ROLL_FIELDS.map((f) => {
+              const shared = sharedValue(f.key);
+              return (
+                <label key={f.key} className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-ink-soft">{f.label}</span>
+                  <select
+                    value={shared}
+                    onChange={(e) => e.target.value !== "mixed" && applyDefault(f.key, e.target.value)}
+                    className={cellSelect}
+                  >
+                    {shared === "mixed" && (
+                      <option value="mixed" disabled>
+                        Mixed
+                      </option>
+                    )}
+                    <option value="">N/A</option>
+                    {f.options.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {contract.length > 0 && (
         <section className="flex flex-col gap-1.5">

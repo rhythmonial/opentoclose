@@ -255,6 +255,7 @@ export type Database = {
           client_account_id: string
           otc_field: string
           enabled: boolean
+          reviewed: boolean
           days: number | null
           days_on_contract: boolean
           number_field: string | null
@@ -271,6 +272,7 @@ export type Database = {
           client_account_id: string
           otc_field: string
           enabled?: boolean
+          reviewed?: boolean
           days?: number | null
           days_on_contract?: boolean
           number_field?: string | null
@@ -287,6 +289,7 @@ export type Database = {
           client_account_id?: string
           otc_field?: string
           enabled?: boolean
+          reviewed?: boolean
           days?: number | null
           days_on_contract?: boolean
           number_field?: string | null

@@ -20,6 +20,8 @@ export type DateCalc = {
   federal_holidays: "count" | "skip" | null;
   // A date the client added (otc_field starts with NEW_OTC_PREFIX): its name.
   field_name?: string | null;
+  // Checked off by the client as reviewed.
+  reviewed?: boolean;
 };
 
 export type TimeFrame =
@@ -119,6 +121,7 @@ export function cleanCalc(raw: Partial<DateCalc>): DateCalc | null {
       raw.otc_field.startsWith(NEW_OTC_PREFIX) && typeof raw.field_name === "string"
         ? raw.field_name.trim().slice(0, 120) || null
         : null,
+    reviewed: raw.reviewed === true,
   };
 }
 
