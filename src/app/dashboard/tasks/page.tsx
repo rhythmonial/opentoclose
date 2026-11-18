@@ -531,10 +531,12 @@ function StepEditPanel({
                 </svg>
               </a>
               <LessonTypeSelect stepId={step.id} value={step.step_type} />
+              <span className="ml-2 inline-block align-middle">
+                <PublishToggle stepId={step.id} value={step.is_published} />
+              </span>
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:hidden">
               {moveSelect}
-              <PublishToggle stepId={step.id} value={step.is_published} />
               <SaveStepButton formId={`step-form-${step.id}`} />
               <form action={deleteStep}>
                 <input type="hidden" name="id" value={step.id} />
@@ -545,7 +547,6 @@ function StepEditPanel({
         </div>
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
           {moveSelect}
-          <PublishToggle stepId={step.id} value={step.is_published} />
           <SaveStepButton formId={`step-form-${step.id}`} />
           <form action={deleteStep}>
             <input type="hidden" name="id" value={step.id} />
