@@ -565,6 +565,7 @@ export type Database = {
         Row: {
           client_account_id: string
           added: string[]
+          conditions: Json
           required: string[]
           triggers: Json
           updated_at: string
@@ -572,6 +573,7 @@ export type Database = {
         Insert: {
           client_account_id: string
           added?: string[]
+          conditions?: Json
           required?: string[]
           triggers?: Json
           updated_at?: string
@@ -579,6 +581,7 @@ export type Database = {
         Update: {
           client_account_id?: string
           added?: string[]
+          conditions?: Json
           required?: string[]
           triggers?: Json
           updated_at?: string

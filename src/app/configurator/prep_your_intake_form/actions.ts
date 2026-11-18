@@ -3,16 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
-import { cleanIds, cleanIntakeTriggers } from "@/lib/intakeForm";
+import { cleanIds, cleanIntakeConditions, cleanIntakeTriggers } from "@/lib/intakeForm";
 
 const STEP_KEY = "prep_your_intake_form";
 const PAGE = `/configurator/${STEP_KEY}`;
 
 // Saves the whole intake form: fields added beyond the contract's, the
-// required ones, and each field's triggers.
+// required ones, and each field's triggers and conditions.
 export async function saveIntakeForm(
   accountId: string | null,
-  form: { added: string[]; required: string[]; triggers: unknown },
+  form: { added: string[]; required: string[]; triggers: unknown; conditions: unknown },
 ): Promise<{ ok: boolean; error?: string }> {
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   if (!account) return { ok: false, error: "Not signed in." };
@@ -22,6 +22,7 @@ export async function saveIntakeForm(
       added: cleanIds(form.added),
       required: cleanIds(form.required),
       triggers: cleanIntakeTriggers(form.triggers),
+      conditions: cleanIntakeConditions(form.conditions),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "client_account_id" },

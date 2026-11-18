@@ -19,23 +19,31 @@ const text = (v: unknown, max = 160) =>
 const texts = (v: unknown, max = 50) =>
   Array.isArray(v) ? [...new Set(v.map((x) => text(x)).filter(Boolean))].slice(0, max) : [];
 
-export function cleanIntakeTriggers(raw: unknown): IntakeTriggers {
+// Per field, the other fields it shows on the form and on which answers
+// (Financing Type = FHA, VA or Conventional shows the loan fields).
+export type IntakeCondition = { fields: string[]; options: string[] };
+export type IntakeConditions = Record<string, IntakeCondition[]>;
+
+function cleanRules<K extends string>(raw: unknown, key: K): Record<string, ({ options: string[] } & Record<K, string[]>)[]> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-  const out: IntakeTriggers = {};
+  const out: Record<string, ({ options: string[] } & Record<K, string[]>)[]> = {};
   for (const [id, list] of Object.entries(raw as Record<string, unknown>).slice(0, 1000)) {
     if (id.length > 120 || !Array.isArray(list)) continue;
     const rules = list
       .slice(0, 20)
       .map((r) => {
         const o = (r && typeof r === "object" ? r : {}) as Record<string, unknown>;
-        return { templates: texts(o.templates), options: texts(o.options) };
+        return { [key]: texts(o[key]), options: texts(o.options) } as { options: string[] } & Record<K, string[]>;
       })
-      // A trigger without templates can't bring anything in.
-      .filter((r) => r.templates.length > 0);
+      // A rule without templates (or fields) does nothing.
+      .filter((r) => r[key].length > 0);
     if (rules.length) out[id] = rules;
   }
   return out;
 }
+
+export const cleanIntakeTriggers = (raw: unknown): IntakeTriggers => cleanRules(raw, "templates");
+export const cleanIntakeConditions = (raw: unknown): IntakeConditions => cleanRules(raw, "fields");
 
 export const cleanIds = (v: unknown) =>
   Array.isArray(v)
