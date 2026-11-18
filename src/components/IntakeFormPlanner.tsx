@@ -103,8 +103,9 @@ export function IntakeFormPlanner({
         <table className="w-full min-w-[820px] text-left text-sm">
           <thead>
             <tr className="border-b border-border-soft bg-bg font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
-              <th className="px-4 py-3">Field</th>
-              <th className="w-20 px-2 py-3 text-center">Required</th>
+              <th className="px-4 py-3">
+                Field <span className="font-normal normal-case tracking-normal">(check if required)</span>
+              </th>
               <th className="w-[34%] px-3 py-3">Templates it brings in</th>
               <th className="w-[24%] px-3 py-3">When the answer is</th>
               <th className="w-10 px-2 py-3" aria-label="Actions" />
@@ -113,7 +114,7 @@ export function IntakeFormPlanner({
           <tbody>
             {onForm.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-sm text-ink-soft">
+                <td colSpan={4} className="px-4 py-6 text-sm text-ink-soft">
                   No contract fields yet. Assign your fields first, or add fields below.
                 </td>
               </tr>
@@ -130,7 +131,7 @@ export function IntakeFormPlanner({
                 <Fragment key={id}>
                   {isAdded && at === contractIds.length && (
                     <tr className="border-b border-border-soft bg-accent-soft/40">
-                      <td colSpan={5} className="px-4 py-2 font-caption text-xs font-bold uppercase tracking-wide text-accent">
+                      <td colSpan={4} className="px-4 py-2 font-caption text-xs font-bold uppercase tracking-wide text-accent">
                         Fields you added
                       </td>
                     </tr>
@@ -142,25 +143,22 @@ export function IntakeFormPlanner({
                         <td className="px-4 py-2.5">
                           {r === 0 && (
                             <span className="flex min-w-0 items-center gap-1.5">
+                              <input
+                                type="checkbox"
+                                checked={required.includes(id)}
+                                title="Required"
+                                aria-label={`${f.name} is required`}
+                                onChange={(e) =>
+                                  void commit({
+                                    required: e.target.checked ? [...required, id] : required.filter((x) => x !== id),
+                                  })
+                                }
+                                className="mr-1 h-4 w-4 shrink-0"
+                              />
                               <span className="font-medium text-ink">{f.name}</span>
                               <DocSpotIcon spot={spots[id]} />
                               {f.kind && <span className="text-xs text-ink-faint">({f.kind})</span>}
                             </span>
-                          )}
-                        </td>
-                        <td className="px-2 py-2.5 text-center">
-                          {r === 0 && (
-                            <input
-                              type="checkbox"
-                              checked={required.includes(id)}
-                              aria-label={`${f.name} is required`}
-                              onChange={(e) =>
-                                void commit({
-                                  required: e.target.checked ? [...required, id] : required.filter((x) => x !== id),
-                                })
-                              }
-                              className="mt-1 h-4 w-4"
-                            />
                           )}
                         </td>
                         <td className="px-3 py-1.5">
