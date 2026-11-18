@@ -7,7 +7,7 @@ import {
   orgFields,
   reconcileLayout,
 } from "@/lib/fieldOrganization";
-import { CopyButton, CopyIcon } from "@/components/CopyButton";
+import { CopyIcon } from "@/components/CopyButton";
 import { loadSetupLesson, SetupShell } from "../_setup/shell";
 
 const KIND_LABELS: Record<string, string> = {
@@ -52,19 +52,19 @@ export default async function FieldSetupPage({
           .filter((g) => g.sections.some((s) => s.fields.length > 0))
           .map((g) => (
             <section key={g.group} className="rounded-xl border border-border bg-surface">
-              <h2 className="flex items-center justify-between gap-2 border-b border-border-soft bg-navy px-4 py-2.5 font-display text-base font-bold text-white first:rounded-t-xl">
+              <h2 className="flex items-center gap-1.5 border-b border-border-soft bg-navy px-4 py-2.5 font-display text-base font-bold text-white first:rounded-t-xl">
                 <span>Field group: {g.group}</span>
-                {/* Only names they'll type in (new ones) get a copy button. */}
-                {!ORG_GROUPS.includes(g.group) && <CopyButton text={g.group} />}
+                {/* Only names they'll type in (new ones) can be copied. */}
+                {!ORG_GROUPS.includes(g.group) && <CopyIcon text={g.group} onDark />}
               </h2>
               <div className="flex flex-col divide-y divide-border-soft">
                 {g.sections
                   .filter((s) => s.fields.length > 0)
                   .map((s) => (
                     <div key={s.id} className="px-4 py-3">
-                      <h3 className="flex items-center gap-2 text-sm font-bold text-ink">
+                      <h3 className="flex items-center gap-1.5 text-sm font-bold text-ink">
                         Section: {sectionName(s.id)}
-                        {!ORG_SECTIONS.some((o) => o.id === s.id) && <CopyButton text={sectionName(s.id)} />}
+                        {!ORG_SECTIONS.some((o) => o.id === s.id) && <CopyIcon text={sectionName(s.id)} />}
                       </h3>
                       <ol className="mt-2 flex flex-col gap-1.5">
                         {s.fields.map((id, i) => {
@@ -80,7 +80,10 @@ export default async function FieldSetupPage({
                             <li key={id} className="rounded-lg border border-border bg-bg px-3 py-2 text-sm">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="w-6 shrink-0 text-xs text-ink-faint">{i + 1}.</span>
-                                <span className="font-semibold text-ink">{name}</span>
+                                <span className="inline-flex items-center gap-0.5">
+                                  <span className="font-semibold text-ink">{name}</span>
+                                  {(f.isNew || name !== f.name) && <CopyIcon text={name} />}
+                                </span>
                                 {f.kind && (
                                   <span className="text-xs text-ink-soft">({KIND_LABELS[f.kind] ?? f.kind})</span>
                                 )}
@@ -91,11 +94,6 @@ export default async function FieldSetupPage({
                                 )}
                                 {use.names[id] && use.names[id] !== f.name && (
                                   <span className="text-xs text-ink-faint">renamed from {f.name}</span>
-                                )}
-                                {(f.isNew || name !== f.name) && (
-                                  <span className="ml-auto">
-                                    <CopyButton text={name} />
-                                  </span>
                                 )}
                               </div>
                               {otcOptions.length > 0 && (

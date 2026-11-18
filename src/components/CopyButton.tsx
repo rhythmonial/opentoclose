@@ -46,7 +46,7 @@ export function DownloadCsvButton({ csv, fileName, label }: { csv: string; fileN
 }
 
 // A small copy icon (turns into a check for a moment once copied).
-export function CopyIcon({ text }: { text: string }) {
+export function CopyIcon({ text, onDark = false }: { text: string; onDark?: boolean }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -61,7 +61,13 @@ export function CopyIcon({ text }: { text: string }) {
       title={copied ? "Copied" : `Copy "${text}"`}
       aria-label={`Copy ${text}`}
       className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded ${
-        copied ? "text-success" : "text-ink-faint hover:text-accent"
+        copied
+          ? onDark
+            ? "text-white"
+            : "text-success"
+          : onDark
+            ? "text-white/70 hover:text-white"
+            : "text-ink-faint hover:text-accent"
       }`}
     >
       {copied ? (
