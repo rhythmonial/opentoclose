@@ -2,7 +2,6 @@ import { OTC_FIELDS, cleanCustomFields, type OtcField } from "@/lib/otcFields";
 import { isActive, newOtcFieldsFrom, otcTargetOf, type WorkflowField } from "@/lib/workflowFields";
 import {
   DIRECTIONS,
-  FEDERAL_HOLIDAYS,
   ROLLS,
   TIME_FRAMES,
   cleanCalc,
@@ -12,16 +11,16 @@ import {
 import { inUploadOrder } from "@/lib/docOrder";
 import type { ContractBlank } from "@/lib/contractBlanks";
 import { inContractOrder } from "@/components/WorkflowFieldsSummary";
-import { CopyButton } from "@/components/CopyButton";
+import { CopyIcon } from "@/components/CopyButton";
 import { loadSetupLesson, SetupShell } from "../_setup/shell";
 
 const label = (list: readonly { value: string; label: string }[], v: string | null) =>
   list.find((x) => x.value === v)?.label ?? "";
 
-// Date Setup: their date template laid out the way it's built in Open to
-// Close: each calculated date with its days (or the number field that holds
-// them), time frame, before / after and the date it counts from, plus the
-// weekend and holiday rules. Each name copies to paste into OTC.
+// Date Setup: each calculated date laid out like Open to Close's date editor:
+// Days, Type and When; the Number Field; the Date Field Options (the date it
+// counts from); then Weekend Roll, Federal Holiday Roll and Skip Federal
+// Holidays. Names copy to paste into OTC.
 export default async function DateSetupPage({
   searchParams,
 }: {
@@ -78,72 +77,46 @@ export default async function DateSetupPage({
           No calculated dates yet. Set them up in Calculate Your Dates first.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-surface">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-border-soft bg-bg font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
-                <th className="px-3 py-2.5">Date field</th>
-                <th className="px-3 py-2.5">Days</th>
-                <th className="px-3 py-2.5">Time frame</th>
-                <th className="px-3 py-2.5">Before / After</th>
-                <th className="px-3 py-2.5">Date field it counts from</th>
-                <th className="px-3 py-2.5">Weekends &amp; holidays</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((c) => {
-                const name = nameOf(c.otc_field, c.field_name);
-                const from = nameOf(c.relative_to);
-                const sameDay = isSameDay(c);
-                const days = c.number_field ? nameOf(c.number_field) : c.days !== null ? String(c.days) : "";
-                return (
-                  <tr key={c.otc_field} className="border-b border-border-soft align-top last:border-0">
-                    <td className="px-3 py-2.5">
-                      <span className="flex items-center gap-2">
-                        <span className="font-semibold text-ink">{name}</span>
-                        <CopyButton text={name} />
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-ink-soft">
-                      {sameDay ? (
-                        "—"
-                      ) : (
-                        <span className="flex items-center gap-2">
-                          {days || "—"}
-                          {c.number_field && <CopyButton text={days} />}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 text-ink-soft">{label(TIME_FRAMES, c.time_frame) || "—"}</td>
-                    <td className="px-3 py-2.5 text-ink-soft">{sameDay ? "" : label(DIRECTIONS, c.direction)}</td>
-                    <td className="px-3 py-2.5">
-                      {from ? (
-                        <span className="flex items-center gap-2">
-                          <span className="text-ink">{from}</span>
-                          <CopyButton text={from} />
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 text-xs text-ink-soft">
-                      {[
-                        c.weekend_roll && `Weekends: ${label(ROLLS, c.weekend_roll)}`,
-                        c.holiday_roll && `Holidays: ${label(ROLLS, c.holiday_roll)}`,
-                        c.federal_holidays && label(FEDERAL_HOLIDAYS, c.federal_holidays),
-                      ]
-                        .filter(Boolean)
-                        .map((t) => (
-                          <span key={String(t)} className="block">
-                            {t}
-                          </span>
-                        ))}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="flex flex-col gap-4">
+          {rows.map((c) => {
+            const name = nameOf(c.otc_field, c.field_name);
+            const from = nameOf(c.relative_to);
+            const sameDay = isSameDay(c);
+            const numberField = c.number_field ? nameOf(c.number_field) : "";
+            const NA = "N/A";
+            return (
+              <section key={c.otc_field} className="rounded-xl border border-border bg-surface p-4">
+                <h2 className="flex items-center gap-1 border-b border-border-soft pb-2 text-base font-bold text-ink">
+                  {name}
+                  <CopyIcon text={name} />
+                </h2>
+                {/* Laid out like Open to Close's date editor. */}
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Setting label="Days" value={sameDay ? "" : c.days !== null ? String(c.days) : ""} />
+                  <Setting label="Type" value={label(TIME_FRAMES, c.time_frame)} />
+                  <Setting label="When" value={sameDay ? "" : label(DIRECTIONS, c.direction)} />
+                  <Setting
+                    label="Number Field"
+                    value={numberField}
+                    hint="Fallback field (if applicable)"
+                    copy
+                  />
+                </div>
+                <div className="mt-3 border-t border-border-soft pt-3">
+                  <Setting label="Date Field Options" value={from} copy />
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-3 border-t border-border-soft pt-3 sm:grid-cols-3">
+                  <Setting label="Weekend Roll" value={label(ROLLS, c.weekend_roll) || NA} plain />
+                  <Setting label="Federal Holiday Roll" value={label(ROLLS, c.holiday_roll) || NA} plain />
+                  <Setting
+                    label="Skip Federal Holidays"
+                    value={c.federal_holidays === "skip" ? "Yes" : c.federal_holidays === "count" ? "No" : NA}
+                    plain
+                  />
+                </div>
+              </section>
+            );
+          })}
         </div>
       );
   }
@@ -157,5 +130,40 @@ export default async function DateSetupPage({
     >
       {content}
     </SetupShell>
+  );
+}
+
+// One setting, labeled like Open to Close's date editor (red for the ones
+// that set the calculation, plain for the rolls), with its value.
+function Setting({
+  label: name,
+  value,
+  hint,
+  copy = false,
+  plain = false,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  copy?: boolean;
+  plain?: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <span className={`text-xs font-semibold ${plain ? "text-ink" : "text-danger"}`}>{name}</span>
+      <span className="flex min-h-9 items-center gap-1 rounded-lg border border-border bg-bg px-3 py-1.5 text-sm">
+        {value ? (
+          <>
+            <span className="min-w-0 truncate text-ink" title={value}>
+              {value}
+            </span>
+            {copy && <CopyIcon text={value} />}
+          </>
+        ) : (
+          <span className="text-ink-faint">&mdash;</span>
+        )}
+      </span>
+      {hint && <span className="text-[11px] text-ink-faint">{hint}</span>}
+    </div>
   );
 }
