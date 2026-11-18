@@ -59,8 +59,9 @@ export function BuiltCheckbox({
       title={built ? "Done in Open to Close (click to undo)" : "Not done in Open to Close yet"}
       aria-label={built ? `${label}: done` : `${label}: not done yet`}
       aria-pressed={built}
-      // The size of the text beside it (14px), centered on it.
-      className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center self-center rounded-[3px] border-[1.5px] ${
+      // The size of the text beside it (14px). Josefin Sans sits its letters
+      // high in the line, so it's nudged up 2px to line up with them.
+      className={`flex h-3.5 w-3.5 shrink-0 -translate-y-0.5 items-center justify-center self-center rounded-[3px] border-[1.5px] ${
         built ? "border-success bg-success text-white" : "border-ink-faint bg-surface"
       }`}
     >
