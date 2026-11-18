@@ -532,6 +532,7 @@ export type Database = {
         Row: {
           choice_edits: Json
           client_account_id: string
+          built_fields: string[]
           done_at: string | null
           layout: Json
           moves: Json
@@ -540,6 +541,7 @@ export type Database = {
         Insert: {
           choice_edits?: Json
           client_account_id: string
+          built_fields?: string[]
           done_at?: string | null
           layout?: Json
           moves?: Json
@@ -548,6 +550,7 @@ export type Database = {
         Update: {
           choice_edits?: Json
           client_account_id?: string
+          built_fields?: string[]
           done_at?: string | null
           layout?: Json
           moves?: Json

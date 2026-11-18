@@ -8,6 +8,7 @@ import {
   reconcileLayout,
 } from "@/lib/fieldOrganization";
 import { CopyIcon } from "@/components/CopyButton";
+import { NewFieldName } from "@/components/NewFieldName";
 import { loadSetupLesson, SetupShell } from "../_setup/shell";
 
 const KIND_LABELS: Record<string, string> = {
@@ -38,7 +39,7 @@ export default async function FieldSetupPage({
     const fields = orgFields(use.inUse, use.newFields, use.custom, use.contractOptions, use.sections);
     const { data: saved } = await supabase
       .from("client_field_organization")
-      .select("layout, choice_edits")
+      .select("layout, choice_edits, built_fields")
       .eq("client_account_id", accountId)
       .maybeSingle();
     const layout = reconcileLayout(saved?.layout, fields, use.sections);
@@ -66,8 +67,8 @@ export default async function FieldSetupPage({
                         Section: {sectionName(s.id)}
                         {!ORG_SECTIONS.some((o) => o.id === s.id) && <CopyIcon text={sectionName(s.id)} />}
                       </h3>
-                      <ol className="mt-2 flex flex-col gap-1.5">
-                        {s.fields.map((id, i) => {
+                      <ul className="mt-2 flex flex-col gap-1.5">
+                        {s.fields.map((id) => {
                           const f = fieldById.get(id);
                           if (!f) return null;
                           const name = use.names[id] ?? f.name;
@@ -79,18 +80,16 @@ export default async function FieldSetupPage({
                           return (
                             <li key={id} className="rounded-lg border border-border bg-bg px-3 py-2 text-sm">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="w-6 shrink-0 text-xs text-ink-faint">{i + 1}.</span>
-                                <span className="inline-flex items-center gap-0.5">
-                                  <span className="font-semibold text-ink">{name}</span>
-                                  {(f.isNew || name !== f.name) && <CopyIcon text={name} />}
-                                </span>
+                                <NewFieldName
+                                  accountId={lesson.isStaff ? accountId : null}
+                                  fieldId={id}
+                                  name={name}
+                                  isNew={Boolean(f.isNew)}
+                                  copyable={Boolean(f.isNew) || name !== f.name}
+                                  initialBuilt={(saved?.built_fields ?? []).includes(id)}
+                                />
                                 {f.kind && (
                                   <span className="text-xs text-ink-soft">({KIND_LABELS[f.kind] ?? f.kind})</span>
-                                )}
-                                {f.isNew && (
-                                  <span className="rounded bg-gold/20 px-1.5 py-px text-[10px] font-bold uppercase text-ink">
-                                    Create
-                                  </span>
                                 )}
                                 {use.names[id] && use.names[id] !== f.name && (
                                   <span className="text-xs text-ink-faint">renamed from {f.name}</span>
@@ -119,7 +118,7 @@ export default async function FieldSetupPage({
                             </li>
                           );
                         })}
-                      </ol>
+                      </ul>
                     </div>
                   ))}
               </div>
