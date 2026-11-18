@@ -210,6 +210,25 @@ export async function tieNumberToDate(
   return { ok: true };
 }
 
+// Takes a number field's date off (its suggestion shows again).
+export async function untieNumber(
+  accountId: string | null,
+  numberId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!fieldIdOk(numberId)) return { ok: false, error: "Unknown field." };
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return { ok: false, error: "Not signed in." };
+  await supabase
+    .from("date_calculations")
+    .update({ number_field: null, days_on_contract: false, updated_at: new Date().toISOString() })
+    .eq("client_account_id", account)
+    .eq("number_field", numberId);
+  const error = await markNotDate(supabase, account, numberId, false);
+  if (error) return { ok: false, error };
+  revalidatePath("/configurator/select_your_date_fields");
+  return { ok: true };
+}
+
 // Marks a number field as not the days for any date (or takes that back).
 export async function setNumberNotDate(
   accountId: string | null,

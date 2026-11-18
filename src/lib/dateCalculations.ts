@@ -155,10 +155,18 @@ export const isDaysField = (name: string) => /\bdays?\b/i.test(name);
 
 // The date a days field sets: "Inspection Period Date" for "Inspection
 // Period - Days".
+// Then without words like "Due" or "Period", so "Possession Due - Days"
+// sets "Possession Date" rather than a new "Possession Due - Date".
 export function matchingDateField<T extends { name: string }>(numberName: string, dates: T[]) {
   const target = stemOf(numberName);
-  return dates.find((d) => stemOf(d.name) === target) ?? null;
+  const exact = dates.find((d) => stemOf(d.name) === target);
+  if (exact) return exact;
+  const loose = looseStem(numberName);
+  return (loose && dates.find((d) => looseStem(d.name) === loose)) || null;
 }
+
+const FILLER = /\b(due|deadline|period|by|the|of|for|to)\b/g;
+const looseStem = (s: string) => stemOf(s).replace(FILLER, " ").replace(/\s+/g, " ").trim();
 
 // What to call the date for a days field that doesn't have one ("Option
 // Period - Days" sets "Option Period - Date").

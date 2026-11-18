@@ -4,7 +4,12 @@ import { useState } from "react";
 import { setUrlParam } from "@/lib/urlState";
 import { NumberDateDialog, PlaceholderCell } from "@/components/OtcFieldSelector";
 import { TIME_FRAMES } from "@/lib/dateCalculations";
-import { saveFieldPlaceholder, setNumberNotDate, tieNumberToDate } from "@/app/configurator/select_otc_fields/actions";
+import {
+  saveFieldPlaceholder,
+  setNumberNotDate,
+  tieNumberToDate,
+  untieNumber,
+} from "@/app/configurator/select_otc_fields/actions";
 import {
   addOwnField,
   resetSelectYourDates,
@@ -15,7 +20,7 @@ import {
 
 export type PairField = { id: string; name: string; sectionId: string };
 
-// Select Your Date Fields: each calculated date beside the number field that
+// Select Your Date Calculations: each calculated date beside the number field that
 // holds its days, by field group and section (as in Customize Your Fields).
 // Checking a date makes it calculated: it needs a number field, picked in
 // red until it has one. A number field without a date is listed too, with
@@ -29,7 +34,7 @@ export function DatePairsSelector({
   allDates,
   allNumbers,
   initialTies,
-  suggestedDates,
+  suggestions,
   initialNotDates,
   initialCalcDates,
   timeFrames,
@@ -53,7 +58,9 @@ export function DatePairsSelector({
   allNumbers: PairField[];
   // Number field -> its date (picked here or in Customize Your Fields).
   initialTies: Record<string, string>;
-  suggestedDates: Record<string, string>;
+  // Each days field's suggested date, filled in until they confirm it
+  // (isNew: a date of their own to add, named for the days field).
+  suggestions: Record<string, { id: string; name: string; isNew?: boolean }>;
   initialNotDates: string[];
   // Dates checked as calculated that don't have a number field yet.
   initialCalcDates: string[];
@@ -109,15 +116,33 @@ export function DatePairsSelector({
   // then dates they use that no number field is the days for.
   const numberRows = [...numbers, ...extraNumbers.filter((n) => !numbers.some((x) => x.id === n.id))].map(named);
   const tiedDates = new Set(Object.values(ties));
-  type Row = { key: string; date: PairField | null; number: PairField | null; sectionId: string };
+  // A suggestion shows (to confirm) while the number has no date and its
+  // date isn't paired with another number.
+  const suggestionFor = (n: PairField) => {
+    const sug = suggestions[n.id];
+    if (!sug || ties[n.id] || notDate.has(n.id) || (sug.id && tiedDates.has(sug.id))) return null;
+    const existing = sug.id ? byId.get(sug.id) : undefined;
+    return existing
+      ? { ...existing, isNew: sug.isNew }
+      : { id: sug.id, name: sug.name, sectionId: n.sectionId, isNew: true };
+  };
+  type Row = {
+    key: string;
+    date: PairField | null;
+    number: PairField | null;
+    sectionId: string;
+    suggested?: (PairField & { isNew?: boolean }) | null;
+  };
+  const numberRowList: Row[] = numberRows.map((n) => {
+    const d = ties[n.id] ? (byId.get(ties[n.id]) ?? null) : null;
+    return { key: `n:${n.id}`, date: d, number: n, sectionId: n.sectionId, suggested: d ? null : suggestionFor(n) };
+  });
+  const suggestedIds = new Set(numberRowList.map((r) => r.suggested?.id).filter(Boolean));
   const rows: Row[] = [
-    ...numberRows.map((n) => {
-      const d = ties[n.id] ? (byId.get(ties[n.id]) ?? null) : null;
-      return { key: `n:${n.id}`, date: d, number: n, sectionId: n.sectionId };
-    }),
+    ...numberRowList,
     ...[...dates, ...extraDates.filter((d) => !dates.some((x) => x.id === d.id))]
       .map(named)
-      .filter((d) => !tiedDates.has(d.id))
+      .filter((d) => !tiedDates.has(d.id) && !(suggestedIds.has(d.id) && !calc.has(d.id)))
       .map((d) => ({ key: `d:${d.id}`, date: d, number: null, sectionId: d.sectionId })),
   ];
   const sectionsHere = sections.filter((s) => s.group === group && rows.some((r) => r.sectionId === s.id));
@@ -138,6 +163,24 @@ export function DatePairsSelector({
     });
     await run(tieNumberToDate(accountId, numberId, date.id, date.isNew ? date.name : undefined));
   }
+
+  // Confirms a suggested date (a new one is added as their own field).
+  const confirm = (n: PairField, sug: PairField & { isNew?: boolean }) =>
+    tie(
+      n.id,
+      sug.isNew ? { id: sug.id || `new-otc:${crypto.randomUUID()}`, name: sug.name, isNew: true } : sug,
+      sug.sectionId || n.sectionId,
+    );
+
+  // Takes a number's date off; its suggestion (if any) shows again.
+  const untie = (n: PairField) => {
+    setTies((t) => {
+      const next = { ...t };
+      delete next[n.id];
+      return next;
+    });
+    void run(untieNumber(accountId, n.id));
+  };
 
   // On the contracts: a document icon, its contract and line on hover.
   const badge = (id: string) =>
@@ -272,6 +315,7 @@ export function DatePairsSelector({
             .map((r) => {
               const d = r.date;
               const n = r.number;
+              const sug = r.suggested;
               const checked = Boolean(d && (n || calc.has(d.id)));
               return (
                 <div
@@ -282,14 +326,44 @@ export function DatePairsSelector({
                 >
                   {/* Date */}
                   <span className="flex min-w-0 items-center gap-2">
-                    {d ? (
+                    {!d && n && sug ? (
+                      <>
+                        <input
+                          type="checkbox"
+                          checked={false}
+                          title="Check to confirm this date"
+                          aria-label={`Confirm ${sug.name} for ${n.name}`}
+                          onChange={() => void confirm(n, sug)}
+                          className="h-4 w-4 shrink-0"
+                        />
+                        <span className="min-w-0 truncate text-sm text-accent">{sug.name}</span>
+                        {sug.isNew ? (
+                          <span className="shrink-0 rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent">
+                            New field
+                          </span>
+                        ) : (
+                          badge(sug.id)
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setPickDateFor(n)}
+                          title="Pick another date"
+                          className="shrink-0 text-xs text-ink-faint hover:text-accent"
+                        >
+                          &#9662;
+                        </button>
+                      </>
+                    ) : d ? (
                       <>
                         <input
                           type="checkbox"
                           checked={checked}
-                          disabled={Boolean(n)}
-                          title={n ? "Its number field is picked; uncheck by taking the date off the number." : undefined}
+                          title={n ? "Uncheck to take this date off its number field." : undefined}
                           onChange={(e) => {
+                            if (n) {
+                              untie(n);
+                              return;
+                            }
                             const on = e.target.checked;
                             setCalc((c) => {
                               const next = new Set(c);
@@ -392,7 +466,7 @@ export function DatePairsSelector({
           sectionName={sections.find((x) => x.id === pickDateFor.sectionId)?.name ?? ""}
           dates={allD}
           tiedTo={ties[pickDateFor.id] ?? null}
-          suggested={suggestedDates[pickDateFor.id] ?? null}
+          suggested={suggestions[pickDateFor.id]?.id || null}
           notDate={notDate.has(pickDateFor.id)}
           onTie={(date) => {
             const n = pickDateFor;

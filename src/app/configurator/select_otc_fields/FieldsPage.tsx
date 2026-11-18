@@ -27,11 +27,12 @@ import { OtcFieldSelector } from "@/components/OtcFieldSelector";
 import { ResetFinalizeButton } from "@/components/ResetFinalizeButton";
 import { cleanPlaceholders, contractLines, placeholderOf, spotLabel } from "@/lib/placeholders";
 import { DatePairsSelector } from "@/components/DatePairsSelector";
+import { dateNameFor, isDaysField, matchingDateField } from "@/lib/dateCalculations";
 import { loadFieldUse } from "@/lib/fieldUse";
 import { finishSelectOtcFields } from "./actions";
 import { finishSelectYourDates } from "@/app/configurator/select_your_dates/actions";
 
-// Customize Your Fields, and (mode "dates") Select Your Date Fields: the same
+// Customize Your Fields, and (mode "dates") Select Your Date Calculations: the same
 // page, the second listing only date and number fields.
 export async function FieldsPage({
   searchParams,
@@ -169,7 +170,7 @@ export async function FieldsPage({
   for (const [n, d] of Object.entries((saved?.number_ties ?? {}) as Record<string, unknown>)) {
     if (typeof d === "string") dateOf[n] = d;
   }
-  // How each date's days are counted (Select Your Date Fields).
+  // How each date's days are counted (Select Your Date Calculations).
   const timeFrames: Record<string, string> = {};
   for (const c of calcs ?? []) if (c.time_frame) timeFrames[c.otc_field] = c.time_frame;
   const addedDates = (calcs ?? [])
@@ -200,7 +201,7 @@ export async function FieldsPage({
     choices[f.id] = { defaults, contract, added, removed };
   }
 
-  // Select Your Date Fields: the date and number fields, in their sections, and
+  // Select Your Date Calculations: the date and number fields, in their sections, and
   // which they use (checked in Customize Your Fields).
   const pairSections = sectionsWith(cleanCustomSections(saved?.custom_sections))
     .filter((s) => s.id !== CONTACT_ROLES_SECTION)
@@ -219,6 +220,32 @@ export async function FieldsPage({
     selectedSet.has(id) ||
     custom.some((f) => f.id === id) ||
     newFields.some((f) => f.id === id);
+
+  // Select Your Date Calculations: each days field without a date gets one
+  // filled in to confirm: the date with its name ("Possession Due - Days"
+  // sets "Possession Date"), then the one Calculate Your Dates paired it
+  // with, then a new "... - Date" (added as their own field once confirmed).
+  const pairSuggestions: Record<string, { id: string; name: string; isNew?: boolean }> = {};
+  if (dates) {
+    const realDates = pairFields.filter((f) => f.kind === "date");
+    const taken = new Set(Object.values(dateOf));
+    for (const n of pairFields) {
+      if (n.kind !== "number" || !inUse(n.id) || !isDaysField(n.name)) continue;
+      if (dateOf[n.id] || notDates.includes(n.id)) continue;
+      const same = matchingDateField(n.name, realDates.filter((d) => !taken.has(d.id)));
+      const fromCalc = suggestedDates[n.id];
+      const calcDate = fromCalc
+        ? (realDates.find((d) => d.id === fromCalc) ?? addedDates.find((d) => d.id === fromCalc))
+        : undefined;
+      const pick = same
+        ? { id: same.id, name: same.name }
+        : calcDate && !taken.has(calcDate.id)
+          ? { id: calcDate.id, name: calcDate.name, isNew: calcDate.id.startsWith("new-otc:") }
+          : { id: "", name: dateNameFor(n.name), isNew: true };
+      if (pick.id) taken.add(pick.id);
+      pairSuggestions[n.id] = pick;
+    }
+  }
 
   const groupsDone = cleanGroupsDone(saved?.groups_done);
   const allDone = groupsDone.length === SELECTABLE_GROUPS.length;
@@ -273,13 +300,13 @@ export async function FieldsPage({
           </div>
         )}
 
-        {/* Select Your Date Fields puts its Default Type beside the title. */}
+        {/* Select Your Date Calculations puts its Default Type beside the title. */}
         {dates && accountId ? null : (
           <>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-bold text-ink">
-            {step?.title ?? (dates ? "Select Your Date Fields" : "Customize Your Fields")}
-            <LessonVideoButton url={step?.video_url} thumbnail={step?.video_thumbnail_url} title={step?.title ?? (dates ? "Select Your Date Fields" : "Customize Your Fields")} />
+            {step?.title ?? (dates ? "Select Your Date Calculations" : "Customize Your Fields")}
+            <LessonVideoButton url={step?.video_url} thumbnail={step?.video_thumbnail_url} title={step?.title ?? (dates ? "Select Your Date Calculations" : "Customize Your Fields")} />
           </h1>
           {accountId && !dates && <ResetFinalizeButton accountId={isStaff ? accountId : null} />}
         </div>
@@ -319,8 +346,8 @@ export async function FieldsPage({
             <DatePairsSelector
               key={accountId}
               title={
-                <h1 className="font-display text-2xl font-bold text-ink">{step?.title ?? "Select Your Date Fields"}
-            <LessonVideoButton url={step?.video_url} thumbnail={step?.video_thumbnail_url} title={step?.title ?? "Select Your Date Fields"} /></h1>
+                <h1 className="font-display text-2xl font-bold text-ink">{step?.title ?? "Select Your Date Calculations"}
+            <LessonVideoButton url={step?.video_url} thumbnail={step?.video_thumbnail_url} title={step?.title ?? "Select Your Date Calculations"} /></h1>
               }
               intro={
                 step?.description ? (
@@ -350,7 +377,7 @@ export async function FieldsPage({
               ]}
               allNumbers={pairFields.filter((f) => f.kind === "number")}
               initialTies={dateOf}
-              suggestedDates={suggestedDates}
+              suggestions={pairSuggestions}
               initialNotDates={notDates}
               initialCalcDates={(Array.isArray(saved?.calc_dates) ? saved.calc_dates : []).filter(
                 (x): x is string => typeof x === "string",
