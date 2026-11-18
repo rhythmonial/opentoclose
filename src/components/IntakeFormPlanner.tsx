@@ -4,7 +4,14 @@ import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MultiSelect } from "@/components/MultiSelect";
 import { DocSpotIcon } from "@/components/DocSpotIcon";
-import { VALUE_OPTIONS, type IntakeConditions, type IntakeTriggers } from "@/lib/intakeForm";
+import {
+  COMPARE_OPS,
+  INTAKE_OPS,
+  needsAnswer,
+  type IntakeConditions,
+  type IntakeOp,
+  type IntakeTriggers,
+} from "@/lib/intakeForm";
 import { saveIntakeForm } from "@/app/configurator/prep_your_intake_form/actions";
 
 export type IntakeField = {
@@ -19,8 +26,10 @@ export type IntakeField = {
 
 // A trigger or condition, either way: what it brings in or shows (template
 // names, or field ids) and the answers it happens on.
-// op: "" until they pick is (or, for triggers, is not) equal to.
-type Rule = { op: "" | "is" | "not"; options: string[]; items: string[] };
+// op: "" until they pick one (conditions only have "is").
+type Rule = { op: "" | IntakeOp; options: string[]; items: string[] };
+// Fields that can be compared (greater than, less than…).
+const COMPARABLE = new Set(["Number", "Dollar", "Percentage", "Date"]);
 type Kind = "triggers" | "conditions";
 const BLANK: Rule = { op: "", options: [], items: [] };
 
@@ -140,7 +149,7 @@ export function IntakeFormPlanner({
   const conditionCount = onForm.filter((id) => (rules.conditions[id] ?? []).length > 0).length;
   const unfinished = onForm.filter((id) =>
     [...(rules.triggers[id] ?? []), ...(rules.conditions[id] ?? [])].some(
-      (r) => r.options.length === 0 || r.items.length === 0,
+      (r) => (r.op !== "" && needsAnswer(r.op) && r.options.length === 0) || r.items.length === 0,
     ),
   );
 
@@ -159,8 +168,23 @@ export function IntakeFormPlanner({
     const rule = list[r];
     const last = r === list.length - 1;
     const saved = (rules[kind][f.id] ?? []).length;
-    const answers = f.options && f.options.length > 0 ? f.options : VALUE_OPTIONS;
+    const isChoice = Boolean(f.options && f.options.length > 0);
+    const answers = f.options ?? [];
     const isTrigger = kind === "triggers";
+    // Conditions are only for choice fields.
+    if (!isTrigger && !isChoice)
+      return (
+        <>
+          <td className="border-l border-border-soft px-3 py-2.5 text-ink-faint" title="Conditions are for choice fields">
+            {r === 0 ? <span className="text-xs">Choice fields only</span> : null}
+          </td>
+          <td className="px-3 py-1.5" />
+        </>
+      );
+    const ops = INTAKE_OPS.filter((o) => !COMPARE_OPS.has(o.value) || (!isChoice && COMPARABLE.has(f.kind)));
+    // A choice field's is / is not picks its options; the others type one.
+    const picksOptions = isChoice && (rule.op === "is" || rule.op === "not");
+    const answered = rule.op !== "" && (!needsAnswer(rule.op) || rule.options.length > 0);
     const noun = isTrigger ? "trigger" : "condition";
     const others = onForm.filter((x) => x !== f.id).map(nameOf);
     return (
@@ -175,22 +199,23 @@ export function IntakeFormPlanner({
                   if (op === "") {
                     if (r < saved) removeRule(kind, f.id, r);
                     else setExtra(null);
-                  } else setRule(kind, f.id, r, { op });
+                    return;
+                  }
+                  // Answers carry over between is and is not only.
+                  const keep = ["is", "not"].includes(op) && ["is", "not"].includes(rule.op) && needsAnswer(op);
+                  setRule(kind, f.id, r, { op, ...(keep ? {} : { options: [] }) });
                 }}
                 aria-label={`${f.name}: when the answer`}
                 className={`min-w-0 flex-1 rounded-md border border-border bg-bg px-1.5 py-1 text-xs outline-none focus:border-accent ${
                   rule.op ? "text-ink" : "text-ink-faint"
                 }`}
               >
-                <option value="">{isTrigger ? "Add a trigger…" : "Add a condition…"}</option>
-                <option value="is" className="text-ink">
-                  is equal to
-                </option>
-                {isTrigger && (
-                  <option value="not" className="text-ink">
-                    is not equal to
+                <option value="">Add a trigger…</option>
+                {ops.map((o) => (
+                  <option key={o.value} value={o.value} className="text-ink">
+                    {o.label}
                   </option>
-                )}
+                ))}
               </select>
             ) : (
               // Conditions only have "is equal to": faded until clicked, then
@@ -228,7 +253,25 @@ export function IntakeFormPlanner({
               </button>
             )}
           </div>
-          {rule.op !== "" && (
+          {rule.op !== "" && needsAnswer(rule.op) && !picksOptions && (
+            <input
+              key={rule.options[0] ?? ""}
+              defaultValue={rule.options[0] ?? ""}
+              onBlur={(e) => {
+                const v = e.target.value.trim();
+                if (v !== (rule.options[0] ?? "")) setRule(kind, f.id, r, { options: v ? [v] : [] });
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
+              placeholder={f.kind === "Date" ? "Date or days" : "Type a value"}
+              aria-label={`${f.name}: the value`}
+              className={`mt-1 w-full rounded-md border px-2 py-1 text-xs text-ink outline-none focus:border-accent ${
+                rule.options.length ? "border-border bg-bg" : "border-danger/40 bg-danger/5"
+              }`}
+            />
+          )}
+          {picksOptions && (
             <div className="mt-1">
               <MultiSelect
                 compact
@@ -244,7 +287,7 @@ export function IntakeFormPlanner({
           )}
         </td>
         <td className="px-3 py-1.5">
-          {rule.op !== "" && rule.options.length > 0 ? (
+          {answered ? (
             <MultiSelect
               compact
               label={isTrigger ? `Templates ${f.name} brings in` : `Fields ${f.name} shows`}

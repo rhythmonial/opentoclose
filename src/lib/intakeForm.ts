@@ -3,14 +3,25 @@
 // than one ("FHA, VA or Conventional" brings in the loan templates;
 // "Cash" the cash ones).
 // op: "is" (the answer is one of the options) or "not" (it isn't).
-export type IntakeOp = "is" | "not";
+export const INTAKE_OPS = [
+  { value: "has_value", label: "has a value" },
+  { value: "is_blank", label: "is blank" },
+  { value: "is", label: "is equal to" },
+  { value: "not", label: "is not equal to" },
+  { value: "gte", label: "is greater than or equals" },
+  { value: "lte", label: "is less than or equals" },
+  { value: "gt", label: "is greater than" },
+  { value: "lt", label: "is less than" },
+] as const;
+export type IntakeOp = (typeof INTAKE_OPS)[number]["value"];
+const OP_VALUES = new Set<string>(INTAKE_OPS.map((o) => o.value));
+// Has a value and is blank need no answer; the rest need one (or, for a
+// choice field's is / is not, one or more of its options).
+export const needsAnswer = (op: string) => op !== "has_value" && op !== "is_blank";
+// Comparisons are for numbers, dollars, percentages and dates.
+export const COMPARE_OPS = new Set(["gte", "lte", "gt", "lt"]);
 export type IntakeTrigger = { op: IntakeOp; options: string[]; templates: string[] };
 export type IntakeTriggers = Record<string, IntakeTrigger[]>;
-
-// What a field that isn't a choice field can trigger on.
-export const HAS_VALUE = "Has a value";
-export const IS_BLANK = "Is blank";
-export const VALUE_OPTIONS = [HAS_VALUE, IS_BLANK];
 
 // How templates are listed (and saved) in the templates column.
 export const taskTemplateLabel = (name: string) => `Tasks: ${name}`;
@@ -38,11 +49,24 @@ function cleanRules<K extends string>(raw: unknown, key: K): Record<string, Clea
     const rules = list.slice(0, 20).flatMap((r) => {
       if (!r || typeof r !== "object") return [];
       const o = r as Record<string, unknown>;
-      // Saved before is / isn't was picked first: "not: true", else "is".
-      const op: IntakeOp | null =
-        o.op === "is" || o.op === "not" ? o.op : o.not === true ? "not" : Array.isArray(o[key]) ? "is" : null;
+      // Saved before the operator was picked first: "not: true", else "is".
+      let op: IntakeOp | null =
+        typeof o.op === "string" && OP_VALUES.has(o.op)
+          ? (o.op as IntakeOp)
+          : o.not === true
+            ? "not"
+            : Array.isArray(o[key])
+              ? "is"
+              : null;
       if (!op) return [];
-      return [{ op, options: texts(o.options), [key]: texts(o[key]) } as CleanRule<K>];
+      let options = texts(o.options);
+      // "Has a value" / "Is blank" were answers before they were operators.
+      if (op === "is" && options.length === 1 && (options[0] === "Has a value" || options[0] === "Is blank")) {
+        op = options[0] === "Has a value" ? "has_value" : "is_blank";
+        options = [];
+      }
+      if (!needsAnswer(op)) options = [];
+      return [{ op, options, [key]: texts(o[key]) } as CleanRule<K>];
     });
     if (rules.length) out[id] = rules;
   }
@@ -55,7 +79,7 @@ export const cleanIntakeConditions = (raw: unknown): IntakeConditions =>
   Object.fromEntries(
     Object.entries(cleanRules(raw, "fields")).map(([id, list]) => [
       id,
-      list.map((r) => ({ op: "is" as const, options: r.options, fields: r.fields })),
+      list.filter((r) => r.op === "is").map((r) => ({ op: "is" as const, options: r.options, fields: r.fields })),
     ]),
   );
 

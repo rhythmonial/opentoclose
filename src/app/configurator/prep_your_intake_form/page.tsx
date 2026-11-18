@@ -142,7 +142,12 @@ export default async function PrepYourIntakeFormPage({
           initialRequired={cleanIds(saved?.required)}
           initialOptional={cleanIds(saved?.optional)}
           initialTriggers={cleanIntakeTriggers(saved?.triggers)}
-          initialConditions={cleanIntakeConditions(saved?.conditions)}
+          // Conditions are only for choice fields.
+          initialConditions={Object.fromEntries(
+            Object.entries(cleanIntakeConditions(saved?.conditions)).filter(([id]) =>
+              Boolean(fields.find((f) => f.id === id)?.options?.length),
+            ),
+          )}
           templates={[...taskTemplates, ...docTemplates]}
         />
         {!isStaff && (
