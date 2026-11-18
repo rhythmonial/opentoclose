@@ -2,8 +2,9 @@
 // brings in, and the answers that bring them in. A field can have more
 // than one ("FHA, VA or Conventional" brings in the loan templates;
 // "Cash" the cash ones).
-// not: brings them in when the answer is NOT one of the options.
-export type IntakeTrigger = { templates: string[]; options: string[]; not?: boolean };
+// op: "is" (the answer is one of the options) or "not" (it isn't).
+export type IntakeOp = "is" | "not";
+export type IntakeTrigger = { op: IntakeOp; options: string[]; templates: string[] };
 export type IntakeTriggers = Record<string, IntakeTrigger[]>;
 
 // What a field that isn't a choice field can trigger on.
@@ -22,26 +23,27 @@ const texts = (v: unknown, max = 50) =>
 
 // Per field, the other fields it shows on the form and on which answers
 // (Financing Type = FHA, VA or Conventional shows the loan fields).
-export type IntakeCondition = { fields: string[]; options: string[] };
+export type IntakeCondition = { op: "is"; options: string[]; fields: string[] };
 export type IntakeConditions = Record<string, IntakeCondition[]>;
 
-function cleanRules<K extends string>(raw: unknown, key: K): Record<string, ({ options: string[] } & Record<K, string[]>)[]> {
+type CleanRule<K extends string> = { op: IntakeOp; options: string[] } & Record<K, string[]>;
+
+// Rules are picked in order: is / isn't, the answers, then the templates
+// (or fields), so one with only its first parts is kept to finish.
+function cleanRules<K extends string>(raw: unknown, key: K): Record<string, CleanRule<K>[]> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-  const out: Record<string, ({ options: string[] } & Record<K, string[]>)[]> = {};
+  const out: Record<string, CleanRule<K>[]> = {};
   for (const [id, list] of Object.entries(raw as Record<string, unknown>).slice(0, 1000)) {
     if (id.length > 120 || !Array.isArray(list)) continue;
-    const rules = list
-      .slice(0, 20)
-      .map((r) => {
-        const o = (r && typeof r === "object" ? r : {}) as Record<string, unknown>;
-        return {
-          [key]: texts(o[key]),
-          options: texts(o.options),
-          ...(o.not === true ? { not: true } : {}),
-        } as { options: string[] } & Record<K, string[]>;
-      })
-      // A rule without templates (or fields) does nothing.
-      .filter((r) => r[key].length > 0);
+    const rules = list.slice(0, 20).flatMap((r) => {
+      if (!r || typeof r !== "object") return [];
+      const o = r as Record<string, unknown>;
+      // Saved before is / isn't was picked first: "not: true", else "is".
+      const op: IntakeOp | null =
+        o.op === "is" || o.op === "not" ? o.op : o.not === true ? "not" : Array.isArray(o[key]) ? "is" : null;
+      if (!op) return [];
+      return [{ op, options: texts(o.options), [key]: texts(o[key]) } as CleanRule<K>];
+    });
     if (rules.length) out[id] = rules;
   }
   return out;
@@ -51,7 +53,10 @@ export const cleanIntakeTriggers = (raw: unknown): IntakeTriggers => cleanRules(
 // Conditions only show fields when the answer IS one of the options.
 export const cleanIntakeConditions = (raw: unknown): IntakeConditions =>
   Object.fromEntries(
-    Object.entries(cleanRules(raw, "fields")).map(([id, list]) => [id, list.map((r) => ({ fields: r.fields, options: r.options }))]),
+    Object.entries(cleanRules(raw, "fields")).map(([id, list]) => [
+      id,
+      list.map((r) => ({ op: "is" as const, options: r.options, fields: r.fields })),
+    ]),
   );
 
 export const cleanIds = (v: unknown) =>

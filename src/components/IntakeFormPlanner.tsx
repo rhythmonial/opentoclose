@@ -19,10 +19,10 @@ export type IntakeField = {
 
 // A trigger or condition, either way: what it brings in or shows (template
 // names, or field ids) and the answers it happens on.
-// not (triggers only): when the answer is NOT one of them.
-type Rule = { items: string[]; options: string[]; not?: boolean };
+// op: "" until they pick is (or, for triggers, is not) equal to.
+type Rule = { op: "" | "is" | "not"; options: string[]; items: string[] };
 type Kind = "triggers" | "conditions";
-const BLANK: Rule = { items: [], options: [] };
+const BLANK: Rule = { op: "", options: [], items: [] };
 
 // Prep Your Intake Form: a row per field on the form (contract fields in
 // contract order, then the other fields they use), with Required, its
@@ -61,10 +61,10 @@ export function IntakeFormPlanner({
   const [required, setRequired] = useState(initialRequired);
   const [rules, setRules] = useState<Record<Kind, Record<string, Rule[]>>>(() => ({
     triggers: Object.fromEntries(
-      Object.entries(initialTriggers).map(([id, list]) => [id, list.map((r) => ({ items: r.templates, options: r.options, ...(r.not ? { not: true } : {}) }))]),
+      Object.entries(initialTriggers).map(([id, list]) => [id, list.map((r) => ({ op: r.op, options: r.options, items: r.templates }))]),
     ),
     conditions: Object.fromEntries(
-      Object.entries(initialConditions).map(([id, list]) => [id, list.map((r) => ({ items: r.fields, options: r.options }))]),
+      Object.entries(initialConditions).map(([id, list]) => [id, list.map((r) => ({ op: r.op, options: r.options, items: r.fields }))]),
     ),
   }));
   const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
@@ -87,10 +87,10 @@ export function IntakeFormPlanner({
       added: [],
       required: req,
       triggers: Object.fromEntries(
-        Object.entries(all.triggers).map(([id, list]) => [id, list.map((r) => ({ templates: r.items, options: r.options, ...(r.not ? { not: true } : {}) }))]),
+        Object.entries(all.triggers).map(([id, list]) => [id, list.map((r) => ({ op: r.op, options: r.options, templates: r.items }))]),
       ),
       conditions: Object.fromEntries(
-        Object.entries(all.conditions).map(([id, list]) => [id, list.map((r) => ({ fields: r.items, options: r.options }))]),
+        Object.entries(all.conditions).map(([id, list]) => [id, list.map((r) => ({ op: "is", options: r.options, fields: r.items }))]),
       ),
     });
     setStatus(res.ok ? "saved" : "error");
@@ -100,8 +100,8 @@ export function IntakeFormPlanner({
     const list = [...(rules[kind][id] ?? [])];
     while (list.length <= index) list.push(BLANK);
     list[index] = { ...list[index], ...patch };
-    // One without templates (or fields) does nothing.
-    const kept = list.filter((r) => r.items.length > 0);
+    // Kept once is / is not is picked (taking that off clears it).
+    const kept = list.filter((r) => r.op !== "");
     const forKind = { ...rules[kind], [id]: kept };
     if (kept.length === 0) delete forKind[id];
     if (extra?.kind === kind && extra.id === id) setExtra(null);
@@ -118,7 +118,7 @@ export function IntakeFormPlanner({
   const rowsOf = (kind: Kind, id: string): Rule[] => {
     const saved = rules[kind][id] ?? [];
     const list = saved.length ? [...saved] : [BLANK];
-    if (extra?.kind === kind && extra.id === id && list[list.length - 1].items.length > 0) list.push(BLANK);
+    if (extra?.kind === kind && extra.id === id && list[list.length - 1].op !== "") list.push(BLANK);
     return list;
   };
 
@@ -126,85 +126,75 @@ export function IntakeFormPlanner({
   const triggerCount = onForm.filter((id) => (rules.triggers[id] ?? []).length > 0).length;
   const conditionCount = onForm.filter((id) => (rules.conditions[id] ?? []).length > 0).length;
   const unfinished = onForm.filter((id) =>
-    [...(rules.triggers[id] ?? []), ...(rules.conditions[id] ?? [])].some((r) => r.options.length === 0),
+    [...(rules.triggers[id] ?? []), ...(rules.conditions[id] ?? [])].some(
+      (r) => r.options.length === 0 || r.items.length === 0,
+    ),
   );
 
-  // One kind's two cells (what, and when) on row r of a field.
+  // One kind's two cells on row r of a field: when the answer is (or, for
+  // a trigger, isn't) these, then the fields it shows (or templates it
+  // brings in), each appearing once the one before is picked.
   const cells = (kind: Kind, f: IntakeField, r: number) => {
     const list = rowsOf(kind, f.id);
-    if (r >= list.length) return (
-      <>
-        <td className="border-l border-border-soft px-3 py-1.5" />
-        <td className="px-3 py-1.5" />
-      </>
-    );
+    if (r >= list.length)
+      return (
+        <>
+          <td className="border-l border-border-soft px-3 py-1.5" />
+          <td className="px-3 py-1.5" />
+        </>
+      );
     const rule = list[r];
     const last = r === list.length - 1;
     const saved = (rules[kind][f.id] ?? []).length;
     const answers = f.options && f.options.length > 0 ? f.options : VALUE_OPTIONS;
     const isTrigger = kind === "triggers";
+    const noun = isTrigger ? "trigger" : "condition";
     const others = onForm.filter((x) => x !== f.id).map(nameOf);
     return (
       <>
         <td className="border-l border-border-soft px-3 py-1.5">
-          <div className="flex items-start gap-1">
-            <div className="min-w-0 flex-1">
-              <MultiSelect
-                compact
-                label={isTrigger ? `Templates ${f.name} brings in` : `Fields ${f.name} shows`}
-                options={isTrigger ? templates : others}
-                value={isTrigger ? rule.items : rule.items.map(nameOf)}
-                onChange={(v) =>
-                  setRule(kind, f.id, r, {
-                    items: isTrigger ? v : v.map((n) => idOf.get(n)).filter((x): x is string => Boolean(x)),
-                  })
-                }
-                emptyText={
-                  isTrigger
-                    ? "No templates yet. Plan your tasks and categorize your documents first."
-                    : "No other fields on the form."
-                }
-              />
-            </div>
-            {r > 0 && (
+          <div className="flex items-center gap-1.5">
+            <select
+              value={rule.op}
+              onChange={(e) => {
+                const op = e.target.value as Rule["op"];
+                if (op === "") {
+                  if (r < saved) removeRule(kind, f.id, r);
+                  else setExtra(null);
+                } else setRule(kind, f.id, r, { op });
+              }}
+              aria-label={`${f.name}: when the answer`}
+              className={`min-w-0 flex-1 rounded-md border border-border bg-bg px-1.5 py-1 text-xs outline-none focus:border-accent ${
+                rule.op ? "text-ink" : "text-ink-faint"
+              }`}
+            >
+              <option value="">{isTrigger ? "Add a trigger…" : "Add a condition…"}</option>
+              <option value="is" className="text-ink">
+                is equal to
+              </option>
+              {isTrigger && (
+                <option value="not" className="text-ink">
+                  is not equal to
+                </option>
+              )}
+            </select>
+            {last && rule.op !== "" && (
               <button
                 type="button"
-                title={isTrigger ? "Remove this trigger" : "Remove this condition"}
-                aria-label={`Remove this ${isTrigger ? "trigger" : "condition"} for ${f.name}`}
-                onClick={() => (r < saved ? removeRule(kind, f.id, r) : setExtra(null))}
-                className="mt-1.5 text-ink-faint hover:text-danger"
+                onClick={() => setExtra({ kind, id: f.id })}
+                title={`Add another ${noun}`}
+                aria-label={`Add another ${noun} for ${f.name}`}
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-accent text-sm leading-none text-accent hover:bg-accent-soft/50"
               >
-                &times;
+                +
               </button>
             )}
           </div>
-          {last && rule.items.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setExtra({ kind, id: f.id })}
-              className="mt-1 text-xs font-semibold text-accent"
-            >
-              + {isTrigger ? "Templates" : "Fields"} for another answer
-            </button>
-          )}
-        </td>
-        <td className="px-3 py-1.5">
-          {rule.items.length > 0 ? (
-            <div className="flex flex-col gap-1">
-              {isTrigger && (
-                <select
-                  value={rule.not ? "not" : "is"}
-                  onChange={(e) => setRule(kind, f.id, r, { not: e.target.value === "not" })}
-                  aria-label={`Whether ${f.name}'s answer is or isn't one of these`}
-                  className="self-start rounded-md border border-border bg-bg px-1.5 py-0.5 text-xs text-ink outline-none focus:border-accent"
-                >
-                  <option value="is">is equal to</option>
-                  <option value="not">is not equal to</option>
-                </select>
-              )}
+          {rule.op !== "" && (
+            <div className="mt-1">
               <MultiSelect
                 compact
-                label={`Answers to ${f.name} that ${isTrigger ? "bring them in" : "show them"}`}
+                label={`Answers to ${f.name}`}
                 options={answers}
                 value={rule.options}
                 onChange={(v) => setRule(kind, f.id, r, { options: v })}
@@ -212,8 +202,30 @@ export function IntakeFormPlanner({
                 addLabel={rule.options.length ? "+ Add" : "Pick answers"}
               />
             </div>
+          )}
+        </td>
+        <td className="px-3 py-1.5">
+          {rule.op !== "" && rule.options.length > 0 ? (
+            <MultiSelect
+              compact
+              label={isTrigger ? `Templates ${f.name} brings in` : `Fields ${f.name} shows`}
+              options={isTrigger ? templates : others}
+              value={isTrigger ? rule.items : rule.items.map(nameOf)}
+              onChange={(v) =>
+                setRule(kind, f.id, r, {
+                  items: isTrigger ? v : v.map((n) => idOf.get(n)).filter((x): x is string => Boolean(x)),
+                })
+              }
+              invalid={rule.items.length === 0}
+              addLabel={rule.items.length ? "+ Add" : isTrigger ? "Pick templates" : "Pick fields"}
+              emptyText={
+                isTrigger
+                  ? "No templates yet. Plan your tasks and categorize your documents first."
+                  : "No other fields on the form."
+              }
+            />
           ) : (
-            <span className="block py-2 text-ink-faint">&mdash;</span>
+            <span className="block py-1 text-ink-faint">&mdash;</span>
           )}
         </td>
       </>
@@ -233,7 +245,7 @@ export function IntakeFormPlanner({
       </div>
       {unfinished.length > 0 && (
         <p className="rounded-lg bg-danger/5 px-3 py-2 text-sm text-danger">
-          Pick the answers for: {unfinished.map(nameOf).join(", ")}.
+          Finish the conditions and triggers for: {unfinished.map(nameOf).join(", ")}.
         </p>
       )}
 
@@ -252,10 +264,10 @@ export function IntakeFormPlanner({
               </th>
             </tr>
             <tr className="border-b border-border-soft bg-bg font-caption text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-              <th className="w-[22%] border-l border-border-soft px-3 pb-2">Fields it shows</th>
-              <th className="w-[15%] px-3 pb-2">When the answer is</th>
-              <th className="w-[22%] border-l border-border-soft px-3 pb-2">Templates it brings in</th>
-              <th className="w-[15%] px-3 pb-2">When the answer</th>
+              <th className="w-[17%] border-l border-border-soft px-3 pb-2">When the answer</th>
+              <th className="w-[20%] px-3 pb-2">Fields it shows</th>
+              <th className="w-[17%] border-l border-border-soft px-3 pb-2">When the answer</th>
+              <th className="w-[20%] px-3 pb-2">Templates it brings in</th>
             </tr>
           </thead>
           <tbody>
