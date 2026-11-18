@@ -561,6 +561,30 @@ export type Database = {
         }
         Relationships: []
       }
+      client_intake_forms: {
+        Row: {
+          client_account_id: string
+          added: string[]
+          required: string[]
+          triggers: Json
+          updated_at: string
+        }
+        Insert: {
+          client_account_id: string
+          added?: string[]
+          required?: string[]
+          triggers?: Json
+          updated_at?: string
+        }
+        Update: {
+          client_account_id?: string
+          added?: string[]
+          required?: string[]
+          triggers?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_otc_field_selections: {
         Row: {
           custom_sections: Json
