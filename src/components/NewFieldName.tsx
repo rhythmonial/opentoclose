@@ -30,7 +30,7 @@ export function NewFieldName({
     void setFieldBuilt(accountId, fieldId, next);
   };
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className="inline-flex items-center gap-1.5 leading-none">
       {isNew && <BuiltCheckbox built={built} label={name} onToggle={() => mark(!built)} />}
       <span className="font-semibold text-ink">{name}</span>
       {copyable && (
@@ -59,12 +59,13 @@ export function BuiltCheckbox({
       title={built ? "Done in Open to Close (click to undo)" : "Not done in Open to Close yet"}
       aria-label={built ? `${label}: done` : `${label}: not done yet`}
       aria-pressed={built}
-      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 ${
+      // The size of the text beside it (14px), centered on it.
+      className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center self-center rounded-[3px] border-[1.5px] ${
         built ? "border-success bg-success text-white" : "border-ink-faint bg-surface"
       }`}
     >
       {built && (
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M20 6 9 17l-5-5" />
         </svg>
       )}
