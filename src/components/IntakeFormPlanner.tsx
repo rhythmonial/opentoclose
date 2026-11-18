@@ -38,6 +38,7 @@ export function IntakeFormPlanner({
   spots,
   fieldsHref,
   initialRequired,
+  initialOptional,
   initialTriggers,
   initialConditions,
   templates,
@@ -52,6 +53,7 @@ export function IntakeFormPlanner({
   // Customize Your Fields, where fields are added.
   fieldsHref: string;
   initialRequired: string[];
+  initialOptional: string[];
   initialTriggers: IntakeTriggers;
   initialConditions: IntakeConditions;
   // "Tasks: B - General", "Docs: B Inspection Documents"…
@@ -59,6 +61,7 @@ export function IntakeFormPlanner({
 }) {
   const router = useRouter();
   const [required, setRequired] = useState(initialRequired);
+  const [optional, setOptional] = useState(initialOptional);
   const [rules, setRules] = useState<Record<Kind, Record<string, Rule[]>>>(() => ({
     triggers: Object.fromEntries(
       Object.entries(initialTriggers).map(([id, list]) => [id, list.map((r) => ({ op: r.op, options: r.options, items: r.templates }))]),
@@ -79,15 +82,22 @@ export function IntakeFormPlanner({
   const nameOf = (id: string) => byId.get(id)?.name ?? id;
   const idOf = new Map(onForm.map((id) => [nameOf(id), id] as const));
 
-  async function commit(next: { required?: string[]; rules?: Record<Kind, Record<string, Rule[]>> }) {
+  async function commit(next: {
+    required?: string[];
+    optional?: string[];
+    rules?: Record<Kind, Record<string, Rule[]>>;
+  }) {
     const req = next.required ?? required;
+    const opt = next.optional ?? optional;
     const all = next.rules ?? rules;
     if (next.required) setRequired(next.required);
+    if (next.optional) setOptional(next.optional);
     if (next.rules) setRules(next.rules);
     setStatus("saving");
     const res = await saveIntakeForm(accountId, {
       added: [],
       required: req,
+      optional: opt,
       triggers: Object.fromEntries(
         Object.entries(all.triggers).map(([id, list]) => [id, list.map((r) => ({ op: r.op, options: r.options, templates: r.items }))]),
       ),
@@ -125,6 +135,7 @@ export function IntakeFormPlanner({
   };
 
   const requiredCount = onForm.filter((id) => required.includes(id)).length;
+  const optionalCount = onForm.filter((id) => optional.includes(id)).length;
   const triggerCount = onForm.filter((id) => (rules.triggers[id] ?? []).length > 0).length;
   const conditionCount = onForm.filter((id) => (rules.conditions[id] ?? []).length > 0).length;
   const unfinished = onForm.filter((id) =>
@@ -264,7 +275,7 @@ export function IntakeFormPlanner({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink-soft">
         <span>
-          {onForm.length} field{onForm.length === 1 ? "" : "s"} &middot; {requiredCount} required &middot;{" "}
+          {onForm.length} field{onForm.length === 1 ? "" : "s"} &middot; {requiredCount} required &middot; {optionalCount} optional &middot;{" "}
           {conditionCount} with conditions &middot; {triggerCount} with triggers
         </span>
         <span className="text-xs text-ink-faint">
@@ -282,7 +293,11 @@ export function IntakeFormPlanner({
           <thead>
             <tr className="bg-bg font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
               <th rowSpan={2} className="border-b border-border-soft px-4 py-3 align-bottom">
-                Field <span className="font-normal normal-case tracking-normal">(check if required)</span>
+                Field{" "}
+                <span className="font-normal normal-case tracking-normal">
+                  (<span className="font-bold text-danger">R</span> required,{" "}
+                  <span className="font-bold text-success">O</span> optional)
+                </span>
               </th>
               <th colSpan={2} className="border-l border-border-soft px-3 pt-3 pb-1 text-accent">
                 Conditions
@@ -324,17 +339,30 @@ export function IntakeFormPlanner({
                       <td className="px-4 py-2.5">
                         {r === 0 && (
                           <span className="flex min-w-0 items-center gap-1.5">
-                            <input
-                              type="checkbox"
+                            {/* Required (R) or optional (O): one or the other. */}
+                            <LetterBox
+                              letter="R"
+                              tone="danger"
                               checked={required.includes(id)}
-                              title="Required"
-                              aria-label={`${f.name} is required`}
-                              onChange={(e) =>
+                              label={`${f.name} is required`}
+                              onToggle={(on) =>
                                 void commit({
-                                  required: e.target.checked ? [...required, id] : required.filter((x) => x !== id),
+                                  required: on ? [...required, id] : required.filter((x) => x !== id),
+                                  optional: optional.filter((x) => x !== id),
                                 })
                               }
-                              className="mr-1 h-4 w-4 shrink-0"
+                            />
+                            <LetterBox
+                              letter="O"
+                              tone="success"
+                              checked={optional.includes(id)}
+                              label={`${f.name} is optional`}
+                              onToggle={(on) =>
+                                void commit({
+                                  optional: on ? [...optional, id] : optional.filter((x) => x !== id),
+                                  required: required.filter((x) => x !== id),
+                                })
+                              }
                             />
                             <span className="font-medium text-ink">{f.name}</span>
                             <DocSpotIcon spot={spots[id]} />
@@ -377,5 +405,43 @@ export function IntakeFormPlanner({
         </div>
       </div>
     </div>
+  );
+}
+
+// A checkbox with a letter in it (R for required, O for optional): the
+// letter in its color until checked, then filled with it.
+function LetterBox({
+  letter,
+  tone,
+  checked,
+  label,
+  onToggle,
+}: {
+  letter: string;
+  tone: "danger" | "success";
+  checked: boolean;
+  label: string;
+  onToggle: (on: boolean) => void;
+}) {
+  const colors =
+    tone === "danger"
+      ? checked
+        ? "border-danger bg-danger text-white"
+        : "border-danger/50 bg-surface text-danger/60 hover:border-danger hover:text-danger"
+      : checked
+        ? "border-success bg-success text-white"
+        : "border-success/50 bg-surface text-success/60 hover:border-success hover:text-success";
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      aria-label={label}
+      title={label}
+      onClick={() => onToggle(!checked)}
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border-[1.5px] pt-px text-[10px] font-bold leading-none ${colors}`}
+    >
+      {letter}
+    </button>
   );
 }

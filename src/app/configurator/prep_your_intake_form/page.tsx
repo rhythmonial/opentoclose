@@ -140,6 +140,7 @@ export default async function PrepYourIntakeFormPage({
           otherIds={otherIds}
           fieldsHref={`/configurator/select_otc_fields${isStaff ? `?client=${accountId}` : ""}`}
           initialRequired={cleanIds(saved?.required)}
+          initialOptional={cleanIds(saved?.optional)}
           initialTriggers={cleanIntakeTriggers(saved?.triggers)}
           initialConditions={cleanIntakeConditions(saved?.conditions)}
           templates={[...taskTemplates, ...docTemplates]}
@@ -160,7 +161,7 @@ export default async function PrepYourIntakeFormPage({
       lesson={lesson}
       wide
       fallbackTitle="Prep Your Intake Form"
-      blurb="Your contract fields in the order they're on your contracts, then the other fields you're using. Check the ones that must be filled in. Conditions: the other fields a field shows, and which answers show them (Financing Type = FHA, VA or Conventional shows your loan fields). Triggers: the document and task templates a field brings in when its answer is (or isn't) one you pick (Inspections Waived = No brings in your inspection templates)."
+      blurb="Your contract fields in the order they're on your contracts, then the other fields you're using. Mark each field R (required) or O (optional). Conditions: the other fields a field shows, and which answers show them (Financing Type = FHA, VA or Conventional shows your loan fields). Triggers: the document and task templates a field brings in when its answer is (or isn't) one you pick (Inspections Waived = No brings in your inspection templates)."
     >
       {content}
     </SetupShell>

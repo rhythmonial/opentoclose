@@ -12,7 +12,7 @@ const PAGE = `/configurator/${STEP_KEY}`;
 // required ones, and each field's triggers and conditions.
 export async function saveIntakeForm(
   accountId: string | null,
-  form: { added: string[]; required: string[]; triggers: unknown; conditions: unknown },
+  form: { added: string[]; required: string[]; optional: string[]; triggers: unknown; conditions: unknown },
 ): Promise<{ ok: boolean; error?: string }> {
   const { supabase, accountId: account } = await configuratorAccount(accountId);
   if (!account) return { ok: false, error: "Not signed in." };
@@ -21,6 +21,7 @@ export async function saveIntakeForm(
       client_account_id: account,
       added: cleanIds(form.added),
       required: cleanIds(form.required),
+      optional: cleanIds(form.optional).filter((id) => !form.required.includes(id)),
       triggers: cleanIntakeTriggers(form.triggers),
       conditions: cleanIntakeConditions(form.conditions),
       updated_at: new Date().toISOString(),
