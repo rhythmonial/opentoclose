@@ -19,7 +19,8 @@ export type IntakeField = {
 
 // A trigger or condition, either way: what it brings in or shows (template
 // names, or field ids) and the answers it happens on.
-type Rule = { items: string[]; options: string[] };
+// not (triggers only): when the answer is NOT one of them.
+type Rule = { items: string[]; options: string[]; not?: boolean };
 type Kind = "triggers" | "conditions";
 const BLANK: Rule = { items: [], options: [] };
 
@@ -60,7 +61,7 @@ export function IntakeFormPlanner({
   const [required, setRequired] = useState(initialRequired);
   const [rules, setRules] = useState<Record<Kind, Record<string, Rule[]>>>(() => ({
     triggers: Object.fromEntries(
-      Object.entries(initialTriggers).map(([id, list]) => [id, list.map((r) => ({ items: r.templates, options: r.options }))]),
+      Object.entries(initialTriggers).map(([id, list]) => [id, list.map((r) => ({ items: r.templates, options: r.options, ...(r.not ? { not: true } : {}) }))]),
     ),
     conditions: Object.fromEntries(
       Object.entries(initialConditions).map(([id, list]) => [id, list.map((r) => ({ items: r.fields, options: r.options }))]),
@@ -86,7 +87,7 @@ export function IntakeFormPlanner({
       added: [],
       required: req,
       triggers: Object.fromEntries(
-        Object.entries(all.triggers).map(([id, list]) => [id, list.map((r) => ({ templates: r.items, options: r.options }))]),
+        Object.entries(all.triggers).map(([id, list]) => [id, list.map((r) => ({ templates: r.items, options: r.options, ...(r.not ? { not: true } : {}) }))]),
       ),
       conditions: Object.fromEntries(
         Object.entries(all.conditions).map(([id, list]) => [id, list.map((r) => ({ fields: r.items, options: r.options }))]),
@@ -189,15 +190,28 @@ export function IntakeFormPlanner({
         </td>
         <td className="px-3 py-1.5">
           {rule.items.length > 0 ? (
-            <MultiSelect
-              compact
-              label={`Answers to ${f.name} that ${isTrigger ? "bring them in" : "show them"}`}
-              options={answers}
-              value={rule.options}
-              onChange={(v) => setRule(kind, f.id, r, { options: v })}
-              invalid={rule.options.length === 0}
-              addLabel={rule.options.length ? "+ Add" : "Pick answers"}
-            />
+            <div className="flex flex-col gap-1">
+              {isTrigger && (
+                <select
+                  value={rule.not ? "not" : "is"}
+                  onChange={(e) => setRule(kind, f.id, r, { not: e.target.value === "not" })}
+                  aria-label={`Whether ${f.name}'s answer is or isn't one of these`}
+                  className="self-start rounded-md border border-border bg-bg px-1.5 py-0.5 text-xs text-ink outline-none focus:border-accent"
+                >
+                  <option value="is">is equal to</option>
+                  <option value="not">is not equal to</option>
+                </select>
+              )}
+              <MultiSelect
+                compact
+                label={`Answers to ${f.name} that ${isTrigger ? "bring them in" : "show them"}`}
+                options={answers}
+                value={rule.options}
+                onChange={(v) => setRule(kind, f.id, r, { options: v })}
+                invalid={rule.options.length === 0}
+                addLabel={rule.options.length ? "+ Add" : "Pick answers"}
+              />
+            </div>
           ) : (
             <span className="block py-2 text-ink-faint">&mdash;</span>
           )}
@@ -211,7 +225,7 @@ export function IntakeFormPlanner({
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink-soft">
         <span>
           {onForm.length} field{onForm.length === 1 ? "" : "s"} &middot; {requiredCount} required &middot;{" "}
-          {triggerCount} with triggers &middot; {conditionCount} with conditions
+          {conditionCount} with conditions &middot; {triggerCount} with triggers
         </span>
         <span className="text-xs text-ink-faint">
           {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Couldn't save." : ""}
@@ -231,17 +245,17 @@ export function IntakeFormPlanner({
                 Field <span className="font-normal normal-case tracking-normal">(check if required)</span>
               </th>
               <th colSpan={2} className="border-l border-border-soft px-3 pt-3 pb-1 text-accent">
-                Triggers
+                Conditions
               </th>
               <th colSpan={2} className="border-l border-border-soft px-3 pt-3 pb-1 text-accent">
-                Conditions
+                Triggers
               </th>
             </tr>
             <tr className="border-b border-border-soft bg-bg font-caption text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-              <th className="w-[22%] border-l border-border-soft px-3 pb-2">Templates it brings in</th>
-              <th className="w-[15%] px-3 pb-2">When the answer is</th>
               <th className="w-[22%] border-l border-border-soft px-3 pb-2">Fields it shows</th>
               <th className="w-[15%] px-3 pb-2">When the answer is</th>
+              <th className="w-[22%] border-l border-border-soft px-3 pb-2">Templates it brings in</th>
+              <th className="w-[15%] px-3 pb-2">When the answer</th>
             </tr>
           </thead>
           <tbody>
@@ -288,8 +302,8 @@ export function IntakeFormPlanner({
                           </span>
                         )}
                       </td>
-                      {cells("triggers", f, r)}
                       {cells("conditions", f, r)}
+                      {cells("triggers", f, r)}
                     </tr>
                   ))}
                 </Fragment>

@@ -2,7 +2,8 @@
 // brings in, and the answers that bring them in. A field can have more
 // than one ("FHA, VA or Conventional" brings in the loan templates;
 // "Cash" the cash ones).
-export type IntakeTrigger = { templates: string[]; options: string[] };
+// not: brings them in when the answer is NOT one of the options.
+export type IntakeTrigger = { templates: string[]; options: string[]; not?: boolean };
 export type IntakeTriggers = Record<string, IntakeTrigger[]>;
 
 // What a field that isn't a choice field can trigger on.
@@ -33,7 +34,11 @@ function cleanRules<K extends string>(raw: unknown, key: K): Record<string, ({ o
       .slice(0, 20)
       .map((r) => {
         const o = (r && typeof r === "object" ? r : {}) as Record<string, unknown>;
-        return { [key]: texts(o[key]), options: texts(o.options) } as { options: string[] } & Record<K, string[]>;
+        return {
+          [key]: texts(o[key]),
+          options: texts(o.options),
+          ...(o.not === true ? { not: true } : {}),
+        } as { options: string[] } & Record<K, string[]>;
       })
       // A rule without templates (or fields) does nothing.
       .filter((r) => r[key].length > 0);
@@ -43,7 +48,11 @@ function cleanRules<K extends string>(raw: unknown, key: K): Record<string, ({ o
 }
 
 export const cleanIntakeTriggers = (raw: unknown): IntakeTriggers => cleanRules(raw, "templates");
-export const cleanIntakeConditions = (raw: unknown): IntakeConditions => cleanRules(raw, "fields");
+// Conditions only show fields when the answer IS one of the options.
+export const cleanIntakeConditions = (raw: unknown): IntakeConditions =>
+  Object.fromEntries(
+    Object.entries(cleanRules(raw, "fields")).map(([id, list]) => [id, list.map((r) => ({ fields: r.fields, options: r.options }))]),
+  );
 
 export const cleanIds = (v: unknown) =>
   Array.isArray(v)
