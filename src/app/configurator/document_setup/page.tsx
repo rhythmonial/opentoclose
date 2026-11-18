@@ -1,7 +1,8 @@
 import { CUSTOM_PREFIX, STARTER_CATEGORIES } from "@/lib/documentCategories";
 import { allSides, sideAbbreviations } from "@/lib/docSides";
 import { inUploadOrder } from "@/lib/docOrder";
-import { CopyButton } from "@/components/CopyButton";
+import { CopyIcon } from "@/components/CopyButton";
+import { CheckedCopyName, SetupCheckbox } from "@/components/SetupChecks";
 import { loadSetupLesson, SetupShell } from "../_setup/shell";
 
 // Document Setup: their documents organized by document template, one per
@@ -15,18 +16,31 @@ export default async function DocumentSetupPage({
 }) {
   const { client } = await searchParams;
   const lesson = await loadSetupLesson("document_setup", client);
-  const { supabase, accountId } = lesson;
+  const { supabase, accountId, isStaff } = lesson;
 
   let content: React.ReactNode = null;
   if (accountId) {
-    const [{ data: contracts }, { data: prep }, { data: custom }] = await Promise.all([
+    const [{ data: contracts }, { data: prep }, { data: custom }, { data: checks }] = await Promise.all([
       supabase
         .from("contract_documents")
         .select("id, file_name, side, upload_order, created_at")
         .eq("client_account_id", accountId),
       supabase.from("prep_documents").select("contract_document_id, categories").eq("client_account_id", accountId),
       supabase.from("document_categories").select("id, name").eq("client_account_id", accountId),
+      supabase
+        .from("client_setup_checks")
+        .select("checked")
+        .eq("client_account_id", accountId)
+        .eq("step_key", "document_setup")
+        .maybeSingle(),
     ]);
+    const checked = new Set(checks?.checked ?? []);
+    const check = (key: string) => ({
+      accountId: isStaff ? accountId : null,
+      stepKey: "document_setup",
+      checkKey: key,
+      initialChecked: checked.has(key),
+    });
     const categoryName = (id: string) =>
       STARTER_CATEGORIES.find((c) => c.id === id)?.name ??
       (custom ?? []).find((c) => `${CUSTOM_PREFIX}${c.id}` === id)?.name ??
@@ -71,23 +85,36 @@ export default async function DocumentSetupPage({
           const full = `${abbr[t.side] ?? t.side.charAt(0)} ${clean}`;
           return (
             <section key={`${t.side}-${t.category}`} className="rounded-xl border border-border bg-surface">
-              <div className="flex flex-col gap-2 border-b border-border-soft px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1.5 border-b border-border-soft px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Template</span>
-                  <span className="font-display text-base font-bold text-ink">{full}</span>
-                  <CopyButton text={full} label="Copy name" />
+                  <span className="w-24 text-xs font-semibold uppercase tracking-wide text-ink-faint">Template</span>
+                  <CheckedCopyName
+                    {...check(`t:${full}`)}
+                    name={full}
+                    className="font-display text-base font-bold text-ink"
+                  />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-ink-faint">Clean name</span>
-                  <span className="text-sm text-ink">{clean}</span>
-                  <CopyButton text={clean} />
+                  <span className="w-24 text-xs font-semibold uppercase tracking-wide text-ink-faint">Folder name</span>
+                  <span className="inline-flex items-center gap-1.5 leading-none">
+                    {/* Lines up with the template name (past its checkbox). */}
+                    <span className="w-3.5" aria-hidden />
+                    <span className="text-sm text-ink">{clean}</span>
+                    <CopyIcon text={clean} />
+                  </span>
                 </div>
+              </div>
+              <div className="grid grid-cols-[1fr_7rem] gap-2 border-b border-border-soft bg-bg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                <span>Document</span>
+                <span className="text-center">Doc Features</span>
               </div>
               <ul className="flex flex-col divide-y divide-border-soft">
                 {t.docs.map((d) => (
-                  <li key={d} className="flex items-center justify-between gap-2 px-4 py-2 text-sm">
-                    <span className="text-ink">{d}</span>
-                    <CopyButton text={d} />
+                  <li key={d} className="grid grid-cols-[1fr_7rem] items-center gap-2 px-4 py-2 text-sm">
+                    <CheckedCopyName {...check(`d:${full}:${d}`)} name={d} className="text-ink" />
+                    <span className="flex justify-center">
+                      <SetupCheckbox {...check(`f:${full}:${d}`)} label={`${d} doc features`} />
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -107,7 +134,7 @@ export default async function DocumentSetupPage({
     <SetupShell
       lesson={lesson}
       fallbackTitle="Document Setup"
-      blurb="Your documents organized by document template, one for each side and category. Copy each template's name (with its side's prefix), its clean name and its documents into Open to Close."
+      blurb="Your documents organized by document template, one for each side and category. Copy each template's name (with its side's prefix), its folder name and its documents into Open to Close. Each box checks off when you copy; check Doc Features once a document's features are set."
     >
       {content}
     </SetupShell>

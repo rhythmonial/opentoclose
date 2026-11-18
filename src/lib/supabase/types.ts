@@ -585,6 +585,27 @@ export type Database = {
         }
         Relationships: []
       }
+      client_setup_checks: {
+        Row: {
+          client_account_id: string
+          step_key: string
+          checked: string[]
+          updated_at: string
+        }
+        Insert: {
+          client_account_id: string
+          step_key: string
+          checked?: string[]
+          updated_at?: string
+        }
+        Update: {
+          client_account_id?: string
+          step_key?: string
+          checked?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_otc_field_selections: {
         Row: {
           custom_sections: Json
