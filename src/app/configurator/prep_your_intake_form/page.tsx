@@ -1,5 +1,5 @@
 import { loadFieldUse } from "@/lib/fieldUse";
-import { choiceOptions, cleanChoiceEdits, orgFields } from "@/lib/fieldOrganization";
+import { choiceOptions, cleanChoiceEdits, orgFields, reconcileLayout } from "@/lib/fieldOrganization";
 import { CONTACT_ROLES_SECTION, OTC_FIELDS } from "@/lib/otcFields";
 import { contractLines } from "@/lib/placeholders";
 import { spotLabel } from "@/lib/placeholders";
@@ -49,7 +49,7 @@ export default async function PrepYourIntakeFormPage({
           .select("id, blanks, workflow_fields, created_at, upload_order, file_name, side")
           .eq("client_account_id", accountId)
           .eq("is_scanned", false),
-        supabase.from("client_field_organization").select("choice_edits").eq("client_account_id", accountId).maybeSingle(),
+        supabase.from("client_field_organization").select("choice_edits, layout").eq("client_account_id", accountId).maybeSingle(),
         supabase.from("client_intake_forms").select("*").eq("client_account_id", accountId).maybeSingle(),
         supabase.from("prep_documents").select("contract_document_id, categories").eq("client_account_id", accountId),
         supabase.from("document_categories").select("id, name").eq("client_account_id", accountId),
@@ -94,6 +94,11 @@ export default async function PrepYourIntakeFormPage({
           (a.at.line !== null && b.at.line !== null ? a.at.line - b.at.line : a.i - b.i),
       )
       .map((x) => x.id);
+    // The other fields they use, in the order they organized them.
+    const used = orgFields(use.inUse, use.newFields, use.custom, use.contractOptions, use.sections);
+    const otherIds = reconcileLayout(org?.layout, used, use.sections)
+      .flatMap((g) => g.sections.flatMap((s) => s.fields))
+      .filter((id) => known.has(id) && !contractIds.includes(id));
     const spots = Object.fromEntries(
       contractIds.flatMap((id) => (spotLabel(lines[id]) ? [[id, spotLabel(lines[id])!]] : [])),
     );
@@ -128,10 +133,11 @@ export default async function PrepYourIntakeFormPage({
         <IntakeFormPlanner
           key={accountId}
           accountId={isStaff ? accountId : null}
-          fields={fields}
+          fields={fields.filter((f) => contractIds.includes(f.id) || otherIds.includes(f.id))}
           contractIds={contractIds}
           spots={spots}
-          initialAdded={cleanIds(saved?.added).filter((id) => known.has(id) && !contractIds.includes(id))}
+          otherIds={otherIds}
+          fieldsHref={`/configurator/select_otc_fields${isStaff ? `?client=${accountId}` : ""}`}
           initialRequired={cleanIds(saved?.required)}
           initialTriggers={cleanIntakeTriggers(saved?.triggers)}
           templates={[...taskTemplates, ...docTemplates]}
@@ -152,7 +158,7 @@ export default async function PrepYourIntakeFormPage({
       lesson={lesson}
       wide
       fallbackTitle="Prep Your Intake Form"
-      blurb="Your contract fields in the order they're on your contracts. Add any other fields your intake form needs and check the ones that must be filled in. Then pick the document and task templates a field brings in, and which answers bring them in (for example, Inspections Waived = No brings in your inspection templates)."
+      blurb="Your contract fields in the order they're on your contracts, then the other fields you're using. Check the ones that must be filled in. Then pick the document and task templates a field brings in, and which answers bring them in (for example, Inspections Waived = No brings in your inspection templates)."
     >
       {content}
     </SetupShell>

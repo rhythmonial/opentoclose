@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MultiSelect } from "@/components/MultiSelect";
 import { DocSpotIcon } from "@/components/DocSpotIcon";
 import { VALUE_OPTIONS, type IntakeTrigger, type IntakeTriggers } from "@/lib/intakeForm";
@@ -17,7 +18,7 @@ export type IntakeField = {
 };
 
 // Prep Your Intake Form: a row per field on the form (contract fields in
-// contract order, then ones they added), with Required, the templates the
+// contract order, then the other fields they use), with Required, the templates the
 // field brings in, and which answers bring them in. A field can have more
 // than one trigger ("FHA, VA, Conventional" → loan templates; "Cash" →
 // cash ones).
@@ -25,8 +26,9 @@ export function IntakeFormPlanner({
   accountId,
   fields,
   contractIds,
+  otherIds,
   spots,
-  initialAdded,
+  fieldsHref,
   initialRequired,
   initialTriggers,
   templates,
@@ -34,23 +36,26 @@ export function IntakeFormPlanner({
   accountId: string | null;
   fields: IntakeField[];
   contractIds: string[];
+  // Fields they use that aren't on their contracts (in their Organize
+  // Your Fields order).
+  otherIds: string[];
   spots: Record<string, string>;
-  initialAdded: string[];
+  // Customize Your Fields, where fields are added.
+  fieldsHref: string;
   initialRequired: string[];
   initialTriggers: IntakeTriggers;
   // "Tasks: B - General", "Docs: B Inspection Documents"…
   templates: string[];
 }) {
-  const [added, setAdded] = useState(initialAdded);
+  const router = useRouter();
   const [required, setRequired] = useState(initialRequired);
   const [triggers, setTriggers] = useState(initialTriggers);
   const [status, setStatus] = useState<"saving" | "saved" | "error" | null>(null);
   const byId = new Map(fields.map((f) => [f.id, f] as const));
-  const onForm = [...contractIds, ...added];
+  const onForm = [...contractIds, ...otherIds];
 
-  async function commit(next: { added?: string[]; required?: string[]; triggers?: IntakeTriggers }) {
-    const form = { added: next.added ?? added, required: next.required ?? required, triggers: next.triggers ?? triggers };
-    if (next.added) setAdded(next.added);
+  async function commit(next: { required?: string[]; triggers?: IntakeTriggers }) {
+    const form = { added: [], required: next.required ?? required, triggers: next.triggers ?? triggers };
     if (next.required) setRequired(next.required);
     if (next.triggers) setTriggers(next.triggers);
     setStatus("saving");
@@ -115,24 +120,23 @@ export function IntakeFormPlanner({
             {onForm.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-6 text-sm text-ink-soft">
-                  No contract fields yet. Assign your fields first, or add fields below.
+                  No fields yet. Assign your fields and customize them first.
                 </td>
               </tr>
             )}
             {onForm.map((id, at) => {
               const f = byId.get(id);
               if (!f) return null;
-              const isAdded = at >= contractIds.length;
               const saved = triggers[id] ?? [];
               const rules: IntakeTrigger[] = saved.length ? [...saved] : [{ templates: [], options: [] }];
               if (extraRow === id && rules[rules.length - 1].templates.length > 0) rules.push({ templates: [], options: [] });
               const answers = f.options && f.options.length > 0 ? f.options : VALUE_OPTIONS;
               return (
                 <Fragment key={id}>
-                  {isAdded && at === contractIds.length && (
+                  {at === contractIds.length && (
                     <tr className="border-b border-border-soft bg-accent-soft/40">
                       <td colSpan={4} className="px-4 py-2 font-caption text-xs font-bold uppercase tracking-wide text-accent">
-                        Fields you added
+                        Other fields you&rsquo;re using
                       </td>
                     </tr>
                   )}
@@ -209,24 +213,6 @@ export function IntakeFormPlanner({
                             >
                               &times;
                             </button>
-                          ) : isAdded ? (
-                            <button
-                              type="button"
-                              title="Take this field off the form"
-                              aria-label={`Take ${f.name} off the form`}
-                              onClick={() => {
-                                const next = { ...triggers };
-                                delete next[id];
-                                void commit({
-                                  added: added.filter((x) => x !== id),
-                                  required: required.filter((x) => x !== id),
-                                  triggers: next,
-                                });
-                              }}
-                              className="text-ink-faint hover:text-danger"
-                            >
-                              &times;
-                            </button>
                           ) : null}
                         </td>
                       </tr>
@@ -239,77 +225,29 @@ export function IntakeFormPlanner({
         </table>
       </div>
 
-      <AddField
-        fields={fields.filter((f) => !onForm.includes(f.id))}
-        onAdd={(id) => void commit({ added: [...added, id] })}
-      />
-    </div>
-  );
-}
-
-// "+ Add a field": search every field they could add (by name or section).
-function AddField({ fields, onAdd }: { fields: IntakeField[]; onAdd: (id: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointer);
-    return () => document.removeEventListener("pointerdown", onPointer);
-  }, [open]);
-  const q = query.trim().toLowerCase();
-  const shown = fields
-    .filter((f) => !q || f.name.toLowerCase().includes(q) || f.section.toLowerCase().includes(q))
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .slice(0, 80);
-  return (
-    <div ref={ref} className="relative self-start">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        className="rounded-lg border border-dashed border-accent px-3 py-1.5 text-sm font-semibold text-accent hover:bg-accent-soft/40"
-      >
-        + Add a field
-      </button>
-      {open && (
-        <div
-          className="absolute left-0 top-full z-30 mt-1 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-lg border border-border bg-surface p-2 shadow-lg"
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setOpen(false);
-          }}
-        >
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search Open to Close fields"
-            aria-label="Search fields to add"
-            className="rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-ink outline-none focus:border-accent"
-          />
-          <div className="max-h-64 overflow-y-auto">
-            {shown.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => {
-                  onAdd(f.id);
-                  setQuery("");
-                  setOpen(false);
-                }}
-                className="flex w-full items-baseline justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm text-ink hover:bg-accent-soft/40"
-              >
-                <span>{f.name}</span>
-                <span className="shrink-0 text-xs text-ink-faint">{f.section}</span>
-              </button>
-            ))}
-            {shown.length === 0 && <p className="px-2 py-1.5 text-xs text-ink-faint">No fields match.</p>}
-          </div>
+      <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-ink-soft sm:flex-row sm:items-center sm:justify-between">
+        <p>
+          Missing a field? Add it in Customize Your Fields (it opens in a new tab), then come back to
+          this tab and refresh.
+        </p>
+        <div className="flex shrink-0 items-center gap-2">
+          <a
+            href={fieldsHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg border border-accent px-3 py-1.5 font-semibold text-accent hover:bg-accent-soft/40"
+          >
+            Open Customize Your Fields &#8599;
+          </a>
+          <button
+            type="button"
+            onClick={() => router.refresh()}
+            className="rounded-lg border border-border px-3 py-1.5 font-semibold text-ink-soft hover:border-accent hover:text-accent"
+          >
+            &#8634; Refresh
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
