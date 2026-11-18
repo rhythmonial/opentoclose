@@ -1,13 +1,13 @@
 import { loadFieldUse } from "@/lib/fieldUse";
 import {
+  choiceOptions,
   cleanChoiceEdits,
-  keptOptions,
   ORG_GROUPS,
   ORG_SECTIONS,
   orgFields,
   reconcileLayout,
 } from "@/lib/fieldOrganization";
-import { CopyButton } from "@/components/CopyButton";
+import { CopyButton, CopyIcon } from "@/components/CopyButton";
 import { loadSetupLesson, SetupShell } from "../_setup/shell";
 
 const KIND_LABELS: Record<string, string> = {
@@ -71,7 +71,11 @@ export default async function FieldSetupPage({
                           const f = fieldById.get(id);
                           if (!f) return null;
                           const name = use.names[id] ?? f.name;
-                          const options = f.kind === "choice" ? keptOptions(f, edits) : [];
+                          // Its options: Open to Close's own, then the new ones to add.
+                          const kept =
+                            f.kind === "choice" ? choiceOptions(f, edits[f.id]).filter((o) => !o.removed) : [];
+                          const otcOptions = kept.filter((o) => !o.isNew).map((o) => o.title);
+                          const newOptions = kept.filter((o) => o.isNew).map((o) => o.title);
                           return (
                             <li key={id} className="rounded-lg border border-border bg-bg px-3 py-2 text-sm">
                               <div className="flex flex-wrap items-center gap-2">
@@ -94,18 +98,24 @@ export default async function FieldSetupPage({
                                   </span>
                                 )}
                               </div>
-                              {options.length > 0 && (
+                              {otcOptions.length > 0 && (
+                                <p className="mt-1.5 pl-8 text-xs text-ink-soft">
+                                  <span className="font-semibold">Open to Close options:</span>{" "}
+                                  {otcOptions.join(", ")}
+                                </p>
+                              )}
+                              {newOptions.length > 0 && (
                                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-8">
-                                  <span className="text-xs font-semibold text-ink-soft">Options:</span>
-                                  {options.map((o) => (
+                                  <span className="text-xs font-semibold text-ink-soft">New options:</span>
+                                  {newOptions.map((o) => (
                                     <span
                                       key={o}
-                                      className="rounded-full border border-border bg-surface px-2 py-0.5 text-xs text-ink"
+                                      className="inline-flex items-center gap-0.5 rounded-full border border-gold/50 bg-gold/10 py-0.5 pl-2 pr-1 text-xs text-ink"
                                     >
                                       {o}
+                                      <CopyIcon text={o} />
                                     </span>
                                   ))}
-                                  <CopyButton text={options.join("\n")} label="Copy options" />
                                 </div>
                               )}
                             </li>
