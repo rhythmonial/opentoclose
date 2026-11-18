@@ -1,5 +1,12 @@
 import { loadFieldUse } from "@/lib/fieldUse";
-import { cleanChoiceEdits, keptOptions, orgFields, reconcileLayout } from "@/lib/fieldOrganization";
+import {
+  cleanChoiceEdits,
+  keptOptions,
+  ORG_GROUPS,
+  ORG_SECTIONS,
+  orgFields,
+  reconcileLayout,
+} from "@/lib/fieldOrganization";
 import { CopyButton } from "@/components/CopyButton";
 import { loadSetupLesson, SetupShell } from "../_setup/shell";
 
@@ -47,6 +54,8 @@ export default async function FieldSetupPage({
             <section key={g.group} className="rounded-xl border border-border bg-surface">
               <h2 className="flex items-center justify-between gap-2 border-b border-border-soft bg-navy px-4 py-2.5 font-display text-base font-bold text-white first:rounded-t-xl">
                 <span>Field group: {g.group}</span>
+                {/* Only names they'll type in (new ones) get a copy button. */}
+                {!ORG_GROUPS.includes(g.group) && <CopyButton text={g.group} />}
               </h2>
               <div className="flex flex-col divide-y divide-border-soft">
                 {g.sections
@@ -55,7 +64,7 @@ export default async function FieldSetupPage({
                     <div key={s.id} className="px-4 py-3">
                       <h3 className="flex items-center gap-2 text-sm font-bold text-ink">
                         Section: {sectionName(s.id)}
-                        <CopyButton text={sectionName(s.id)} />
+                        {!ORG_SECTIONS.some((o) => o.id === s.id) && <CopyButton text={sectionName(s.id)} />}
                       </h3>
                       <ol className="mt-2 flex flex-col gap-1.5">
                         {s.fields.map((id, i) => {
@@ -79,9 +88,11 @@ export default async function FieldSetupPage({
                                 {use.names[id] && use.names[id] !== f.name && (
                                   <span className="text-xs text-ink-faint">renamed from {f.name}</span>
                                 )}
-                                <span className="ml-auto">
-                                  <CopyButton text={name} />
-                                </span>
+                                {(f.isNew || name !== f.name) && (
+                                  <span className="ml-auto">
+                                    <CopyButton text={name} />
+                                  </span>
+                                )}
                               </div>
                               {options.length > 0 && (
                                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-8">
