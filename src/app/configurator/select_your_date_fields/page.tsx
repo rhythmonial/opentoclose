@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { contractLines, spotLabel } from "@/lib/placeholders";
 import { LessonVideoButton } from "@/components/LessonVideoButton";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -69,7 +70,7 @@ export default async function SelectYourDateFieldsPage({
     ? await Promise.all([
         supabase
           .from("contract_documents")
-          .select("blanks, workflow_fields, created_at, upload_order")
+          .select("file_name, blanks, workflow_fields, created_at, upload_order")
           .eq("client_account_id", accountId)
           .eq("is_scanned", false),
         supabase.from("date_calculations").select("*").eq("client_account_id", accountId),
@@ -216,6 +217,12 @@ export default async function SelectYourDateFieldsPage({
             </p>
           ) : (
             <DateFieldsConfigurator
+              spots={Object.fromEntries(
+                Object.entries(contractLines(docs ?? [])).flatMap(([id, at]) => {
+                  const label = spotLabel(at);
+                  return label ? [[id, label]] : [];
+                }),
+              )}
               accountId={isStaff ? accountId : null}
               rows={built.rows}
               dates={built.dates}

@@ -13,6 +13,7 @@ import {
 } from "@/lib/dateCalculations";
 import type { DateOption, DateRow } from "@/lib/dateRows";
 import { saveDateCalc } from "@/app/configurator/select_your_date_fields/actions";
+import { DocSpotIcon } from "@/components/DocSpotIcon";
 
 export type NumberOption = DateOption & { group: "contract" | "selected" | "other" };
 
@@ -35,6 +36,7 @@ export function DateFieldsConfigurator({
   initial,
   auto,
   blankNotes = {},
+  spots = {},
 }: {
   // The client account (staff only; clients use their own).
   accountId: string | null;
@@ -48,6 +50,8 @@ export function DateFieldsConfigurator({
   // Days field id -> its placeholder text, when the contract gives a value
   // for leaving it blank.
   blankNotes?: Record<string, string>;
+  // Field id -> where it is on their contracts ("Purchase Agreement #134").
+  spots?: Record<string, string>;
 }) {
   const [saveState, setSaveState] = useState<"saving" | "saved" | "error" | null>(null);
   const rows = initialRows;
@@ -214,8 +218,8 @@ export function DateFieldsConfigurator({
               <span className="min-w-0 flex-1 truncate text-sm">
                 <span className="font-semibold text-ink">{r.name}</span>
                 {r.group === "calculated" && r.onContract && (
-                  <span className="ml-1.5 rounded bg-gold/20 px-1 py-px align-middle text-[10px] font-bold uppercase text-ink">
-                    Contract
+                  <span className="ml-1.5">
+                    <DocSpotIcon spot={(r.numberField && spots[r.numberField]) || spots[r.id]} />
                   </span>
                 )}
                 <span className="text-ink-soft"> &ndash; {summaryOf(c)}</span>
@@ -279,11 +283,12 @@ export function DateFieldsConfigurator({
                 ...(c.time_frame === "same_day" ? { time_frame: "calendar_days" as const } : {}),
               });
             }}
-            title="0 means the same day. Leave it blank when the number of days is filled in on each deal (in the number field)."
+            title="0 means the same day. 1 or more is the default number of days for every transaction. Leave it blank when the number of days is filled in on each deal (in the number field)."
             className={`${cellSelect} !min-w-0 ${ring(daysMissing)}`}
           />
           <span className="text-[11px] text-ink-faint">
-            0 = same day &middot; blank = filled in per deal (number field)
+            0 = same day &middot; 1+ = the default number of days for every transaction &middot; blank =
+            filled in per deal (number field)
           </span>
         </label>
         <label className="flex flex-col gap-1">
@@ -489,7 +494,12 @@ export function DateFieldsConfigurator({
               <tbody className="divide-y divide-border">
                 {contract.map((r) => (
                   <tr key={r.id}>
-                    <td className="px-3 py-2 font-medium text-ink">{r.name}</td>
+                    <td className="px-3 py-2 font-medium text-ink">
+                      <span className="inline-flex items-center gap-1.5">
+                        {r.name}
+                        <DocSpotIcon spot={spots[r.id]} />
+                      </span>
+                    </td>
                     <td className="px-3 py-2 text-ink-soft">{r.section}</td>
                     <td className="px-3 py-2 text-ink-soft">Entered from the contract</td>
                   </tr>

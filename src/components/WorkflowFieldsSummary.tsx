@@ -37,9 +37,17 @@ export function typeLabel(f: WorkflowField) {
 // (by the first box of each, top to bottom and left to right on each page),
 // with the contract's text for each.
 export function inContractOrder(doc: SummaryDoc) {
+  // Page by page; on a page, by the contract's line numbers when both have
+  // one (right for two-column layouts), else top to bottom, left to right.
   const boxes = doc.blanks
     .filter((b) => b.id && !b.removed)
-    .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
+    .sort(
+      (a, b) =>
+        a.page - b.page ||
+        (a.line && b.line ? a.line - b.line : 0) ||
+        a.y - b.y ||
+        a.x - b.x,
+    );
   return doc.fields
     .filter(isActive)
     .map((f) => {
