@@ -8,7 +8,7 @@ import {
   reconcileLayout,
 } from "@/lib/fieldOrganization";
 import { CopyIcon } from "@/components/CopyButton";
-import { NewFieldName } from "@/components/NewFieldName";
+import { NewChoiceOption, NewFieldName, optionKey } from "@/components/NewFieldName";
 import { loadSetupLesson, SetupShell } from "../_setup/shell";
 
 const KIND_LABELS: Record<string, string> = {
@@ -105,13 +105,13 @@ export default async function FieldSetupPage({
                                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-8">
                                   <span className="text-xs font-semibold text-ink-soft">New options:</span>
                                   {newOptions.map((o) => (
-                                    <span
+                                    <NewChoiceOption
                                       key={o}
-                                      className="inline-flex items-center gap-0.5 rounded-full border border-gold/50 bg-gold/10 py-0.5 pl-2 pr-1 text-xs text-ink"
-                                    >
-                                      {o}
-                                      <CopyIcon text={o} />
-                                    </span>
+                                      accountId={lesson.isStaff ? accountId : null}
+                                      fieldId={id}
+                                      title={o}
+                                      initialBuilt={(saved?.built_fields ?? []).includes(optionKey(id, o))}
+                                    />
                                   ))}
                                 </div>
                               )}
