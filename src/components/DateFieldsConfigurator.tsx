@@ -413,23 +413,6 @@ export function DateFieldsConfigurator({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search dates"
-          aria-label="Search dates"
-          className="w-56 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-ink outline-none focus:border-accent"
-        />
-        <span className="text-xs text-ink-faint">
-          {worked.length} date{worked.length === 1 ? "" : "s"} worked out
-          {incomplete > 0 && <span className="font-semibold text-danger"> &middot; {incomplete} to finish</span>}
-          {saveState === "saving" && " · Saving…"}
-          {saveState === "saved" && " · Saved"}
-          {saveState === "error" && <span className="text-danger"> · Couldn&rsquo;t save</span>}
-        </span>
-      </div>
-
       {worked.length > 0 && (
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-3 py-2.5">
           <span className="text-xs font-semibold text-ink">
@@ -467,6 +450,23 @@ export function DateFieldsConfigurator({
           </div>
         </div>
       )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search dates"
+          aria-label="Search dates"
+          className="w-56 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-ink outline-none focus:border-accent"
+        />
+        <span className="text-xs text-ink-faint">
+          {worked.length} date{worked.length === 1 ? "" : "s"} worked out
+          {incomplete > 0 && <span className="font-semibold text-danger"> &middot; {incomplete} to finish</span>}
+          {saveState === "saving" && " · Saving…"}
+          {saveState === "saved" && " · Saved"}
+          {saveState === "error" && <span className="text-danger"> · Couldn&rsquo;t save</span>}
+        </span>
+      </div>
 
       {contract.length > 0 && (
         <section className="flex flex-col gap-1.5">
