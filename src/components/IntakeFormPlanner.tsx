@@ -46,6 +46,7 @@ export function IntakeFormPlanner({
   otherIds,
   spots,
   fieldsHref,
+  organizeHref,
   fieldsStamp,
   initialRequired,
   initialOptional,
@@ -62,6 +63,8 @@ export function IntakeFormPlanner({
   spots: Record<string, string>;
   // Customize Your Fields, where fields are added.
   fieldsHref: string;
+  // Organize Your Fields, where they place them.
+  organizeHref: string;
   // The fields they use when the page loaded (to spot ones added since).
   fieldsStamp: string;
   initialRequired: string[];
@@ -337,33 +340,44 @@ export function IntakeFormPlanner({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-ink-soft sm:flex-row sm:items-center sm:justify-between">
-        <p>
-          Missing a field? Add it in Customize Your Fields (it opens in a new tab), then come back to
-          this tab and refresh.
-        </p>
-        <div className="flex shrink-0 items-center gap-2">
-          <a
-            href={fieldsHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-lg border border-accent px-3 py-1.5 font-semibold text-accent hover:bg-accent-soft/40"
-          >
-            Open Customize Your Fields &#8599;
-          </a>
-          <button
-            type="button"
-            onClick={() => startRefresh(() => router.refresh())}
-            title={stale ? "You've added fields since this page loaded" : undefined}
-            className={`rounded-lg border px-3 py-1.5 font-semibold ${
-              stale
-                ? "border-danger bg-danger text-white hover:bg-danger/90"
-                : "border-border text-ink-soft hover:border-accent hover:text-accent"
-            }`}
-          >
-            &#8634; {refreshing ? "Refreshing…" : stale ? "Refresh to see new fields" : "Refresh"}
-          </button>
-        </div>
+      <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-ink-soft">
+        <p>Missing a field? Each step opens in a new tab; come back to this one when you&rsquo;re done.</p>
+        <ol className="flex flex-wrap items-center gap-2">
+          <li>
+            <a
+              href={fieldsHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block rounded-lg border border-accent px-3 py-1.5 font-semibold text-accent hover:bg-accent-soft/40"
+            >
+              1. Add it in Customize Your Fields &#8599;
+            </a>
+          </li>
+          <li>
+            <a
+              href={organizeHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block rounded-lg border border-accent px-3 py-1.5 font-semibold text-accent hover:bg-accent-soft/40"
+            >
+              2. Place it in Organize Your Fields &#8599;
+            </a>
+          </li>
+          <li>
+            <button
+              type="button"
+              onClick={() => startRefresh(() => router.refresh())}
+              title={stale ? "You've added fields since this page loaded" : undefined}
+              className={`rounded-lg border px-3 py-1.5 font-semibold ${
+                stale
+                  ? "border-danger bg-danger text-white hover:bg-danger/90"
+                  : "border-border text-ink-soft hover:border-accent hover:text-accent"
+              }`}
+            >
+              3. &#8634; {refreshing ? "Refreshing…" : stale ? "Refresh to see new fields" : "Refresh"}
+            </button>
+          </li>
+        </ol>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink-soft">
         <span>

@@ -141,6 +141,7 @@ export default async function PrepYourIntakeFormPage({
           otherIds={otherIds}
           fieldsStamp={fieldsStamp(use.inUse)}
           fieldsHref={`/configurator/select_otc_fields${isStaff ? `?client=${accountId}` : ""}`}
+          organizeHref={`/configurator/organize_your_fields${isStaff ? `?client=${accountId}` : ""}`}
           initialRequired={cleanIds(saved?.required)}
           initialOptional={cleanIds([...(saved?.optional ?? []), ...(saved?.required ?? [])])}
           initialTriggers={cleanIntakeTriggers(saved?.triggers)}
