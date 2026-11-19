@@ -316,6 +316,29 @@ export function IntakeFormPlanner({
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-ink-soft sm:flex-row sm:items-center sm:justify-between">
+        <p>
+          Missing a field? Add it in Customize Your Fields (it opens in a new tab), then come back to
+          this tab and refresh.
+        </p>
+        <div className="flex shrink-0 items-center gap-2">
+          <a
+            href={fieldsHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg border border-accent px-3 py-1.5 font-semibold text-accent hover:bg-accent-soft/40"
+          >
+            Open Customize Your Fields &#8599;
+          </a>
+          <button
+            type="button"
+            onClick={() => router.refresh()}
+            className="rounded-lg border border-border px-3 py-1.5 font-semibold text-ink-soft hover:border-accent hover:text-accent"
+          >
+            &#8634; Refresh
+          </button>
+        </div>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink-soft">
         <span>
           {onForm.length} field{onForm.length === 1 ? "" : "s"} &middot; {requiredCount} required &middot; {optionalCount} optional &middot;{" "}
@@ -425,29 +448,6 @@ export function IntakeFormPlanner({
         </table>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-ink-soft sm:flex-row sm:items-center sm:justify-between">
-        <p>
-          Missing a field? Add it in Customize Your Fields (it opens in a new tab), then come back to
-          this tab and refresh.
-        </p>
-        <div className="flex shrink-0 items-center gap-2">
-          <a
-            href={fieldsHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-lg border border-accent px-3 py-1.5 font-semibold text-accent hover:bg-accent-soft/40"
-          >
-            Open Customize Your Fields &#8599;
-          </a>
-          <button
-            type="button"
-            onClick={() => router.refresh()}
-            className="rounded-lg border border-border px-3 py-1.5 font-semibold text-ink-soft hover:border-accent hover:text-accent"
-          >
-            &#8634; Refresh
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
