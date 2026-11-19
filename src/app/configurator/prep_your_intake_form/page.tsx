@@ -140,7 +140,7 @@ export default async function PrepYourIntakeFormPage({
           otherIds={otherIds}
           fieldsHref={`/configurator/select_otc_fields${isStaff ? `?client=${accountId}` : ""}`}
           initialRequired={cleanIds(saved?.required)}
-          initialOptional={cleanIds(saved?.optional)}
+          initialOptional={cleanIds([...(saved?.optional ?? []), ...(saved?.required ?? [])])}
           initialTriggers={cleanIntakeTriggers(saved?.triggers)}
           // Conditions are only for choice fields.
           initialConditions={Object.fromEntries(
