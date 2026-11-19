@@ -21,7 +21,8 @@ export async function saveIntakeForm(
       client_account_id: account,
       added: cleanIds(form.added),
       required: cleanIds(form.required),
-      optional: cleanIds(form.optional).filter((id) => !form.required.includes(id)),
+      // A required field is on the form too.
+      optional: cleanIds([...form.optional, ...form.required]),
       triggers: cleanIntakeTriggers(form.triggers),
       conditions: cleanIntakeConditions(form.conditions),
       updated_at: new Date().toISOString(),

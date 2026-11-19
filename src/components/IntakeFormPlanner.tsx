@@ -382,7 +382,8 @@ export function IntakeFormPlanner({
                       <td className="px-4 py-2.5">
                         {r === 0 && (
                           <span className="flex min-w-0 items-center gap-1.5">
-                            {/* Required (R) or optional (O): one or the other. */}
+                            {/* O puts it on the form; R also makes it required (and
+                                checks O). Unchecking O takes R off too. */}
                             <LetterBox
                               letter="R"
                               tone="danger"
@@ -391,7 +392,7 @@ export function IntakeFormPlanner({
                               onToggle={(on) =>
                                 void commit({
                                   required: on ? [...required, id] : required.filter((x) => x !== id),
-                                  optional: optional.filter((x) => x !== id),
+                                  ...(on && !optional.includes(id) ? { optional: [...optional, id] } : {}),
                                 })
                               }
                             />
@@ -403,7 +404,7 @@ export function IntakeFormPlanner({
                               onToggle={(on) =>
                                 void commit({
                                   optional: on ? [...optional, id] : optional.filter((x) => x !== id),
-                                  required: required.filter((x) => x !== id),
+                                  ...(on ? {} : { required: required.filter((x) => x !== id) }),
                                 })
                               }
                             />
