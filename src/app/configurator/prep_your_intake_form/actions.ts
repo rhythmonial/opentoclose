@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { approveStep, configuratorAccount } from "@/lib/configuratorAccount";
-import { cleanIds, cleanIntakeConditions, cleanIntakeTriggers } from "@/lib/intakeForm";
+import { loadFieldUse } from "@/lib/fieldUse";
+import { fieldsStamp, cleanIds, cleanIntakeConditions, cleanIntakeTriggers } from "@/lib/intakeForm";
 
 const STEP_KEY = "prep_your_intake_form";
 const PAGE = `/configurator/${STEP_KEY}`;
@@ -40,4 +41,13 @@ export async function finishIntakeForm() {
   if (!accountId) redirect("/portal");
   await approveStep(supabase, user.id, accountId, STEP_KEY);
   redirect("/portal");
+}
+
+// The fields they use, as one string, so the page can tell when one's been
+// added (in Customize Your Fields, in another tab) since it loaded.
+export async function intakeFieldsStamp(accountId: string | null): Promise<string | null> {
+  const { supabase, accountId: account } = await configuratorAccount(accountId);
+  if (!account) return null;
+  const use = await loadFieldUse(supabase, account);
+  return fieldsStamp(use.inUse);
 }

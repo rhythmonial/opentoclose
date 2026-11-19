@@ -12,6 +12,7 @@ import {
   cleanIntakeConditions,
   cleanIntakeTriggers,
   docTemplateLabel,
+  fieldsStamp,
   taskTemplateLabel,
 } from "@/lib/intakeForm";
 import { IntakeFormPlanner, type IntakeField } from "@/components/IntakeFormPlanner";
@@ -138,6 +139,7 @@ export default async function PrepYourIntakeFormPage({
           contractIds={contractIds}
           spots={spots}
           otherIds={otherIds}
+          fieldsStamp={fieldsStamp(use.inUse)}
           fieldsHref={`/configurator/select_otc_fields${isStaff ? `?client=${accountId}` : ""}`}
           initialRequired={cleanIds(saved?.required)}
           initialOptional={cleanIds([...(saved?.optional ?? []), ...(saved?.required ?? [])])}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { MultiSelect } from "@/components/MultiSelect";
 import { DocSpotIcon } from "@/components/DocSpotIcon";
@@ -12,7 +12,7 @@ import {
   type IntakeOp,
   type IntakeTriggers,
 } from "@/lib/intakeForm";
-import { saveIntakeForm } from "@/app/configurator/prep_your_intake_form/actions";
+import { intakeFieldsStamp, saveIntakeForm } from "@/app/configurator/prep_your_intake_form/actions";
 
 export type IntakeField = {
   id: string;
@@ -46,6 +46,7 @@ export function IntakeFormPlanner({
   otherIds,
   spots,
   fieldsHref,
+  fieldsStamp,
   initialRequired,
   initialOptional,
   initialTriggers,
@@ -61,6 +62,8 @@ export function IntakeFormPlanner({
   spots: Record<string, string>;
   // Customize Your Fields, where fields are added.
   fieldsHref: string;
+  // The fields they use when the page loaded (to spot ones added since).
+  fieldsStamp: string;
   initialRequired: string[];
   initialOptional: string[];
   initialTriggers: IntakeTriggers;
@@ -69,6 +72,24 @@ export function IntakeFormPlanner({
   templates: string[];
 }) {
   const router = useRouter();
+  // A field added in Customize Your Fields (another tab) since this loaded:
+  // checked whenever they come back to this tab; Refresh turns red.
+  const [latestStamp, setLatestStamp] = useState<string | null>(null);
+  const stale = latestStamp !== null && latestStamp !== fieldsStamp;
+  const [refreshing, startRefresh] = useTransition();
+  useEffect(() => {
+    const check = async () => {
+      if (document.visibilityState !== "visible") return;
+      const now = await intakeFieldsStamp(accountId);
+      if (now !== null) setLatestStamp(now);
+    };
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [accountId, fieldsStamp]);
   const [required, setRequired] = useState(initialRequired);
   const [optional, setOptional] = useState(initialOptional);
   const [rules, setRules] = useState<Record<Kind, Record<string, Rule[]>>>(() => ({
@@ -332,10 +353,15 @@ export function IntakeFormPlanner({
           </a>
           <button
             type="button"
-            onClick={() => router.refresh()}
-            className="rounded-lg border border-border px-3 py-1.5 font-semibold text-ink-soft hover:border-accent hover:text-accent"
+            onClick={() => startRefresh(() => router.refresh())}
+            title={stale ? "You've added fields since this page loaded" : undefined}
+            className={`rounded-lg border px-3 py-1.5 font-semibold ${
+              stale
+                ? "border-danger bg-danger text-white hover:bg-danger/90"
+                : "border-border text-ink-soft hover:border-accent hover:text-accent"
+            }`}
           >
-            &#8634; Refresh
+            &#8634; {refreshing ? "Refreshing…" : stale ? "Refresh to see new fields" : "Refresh"}
           </button>
         </div>
       </div>

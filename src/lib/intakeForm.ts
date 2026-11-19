@@ -87,3 +87,5 @@ export const cleanIds = (v: unknown) =>
   Array.isArray(v)
     ? [...new Set(v.filter((x): x is string => typeof x === "string" && x.length > 0 && x.length <= 120))].slice(0, 1000)
     : [];
+
+export const fieldsStamp = (ids: Iterable<string>) => [...ids].sort().join("|");
