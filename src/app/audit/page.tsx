@@ -9,10 +9,22 @@ export const metadata: Metadata = {
     "A review of your Open to Close account with a recorded walkthrough and written report of what's broken, missing, or could be optimized.",
 };
 
-const POINTS = [
-  "We review your OTC account: fields, dates, templates, tasks, forms, and views.",
-  "Within 5 business days, you'll get a recorded walkthrough and a written report on what you should fix, work on, or improve.",
-  `If you hire us to work through the updates, the $${AUDIT_FEE} is credited towards implementation.`,
+// What the audit covers, then how it's delivered.
+const CHECKS = [
+  ["Fields", "We'll audit your field order for intake and workflow efficiency."],
+  ["Dates", "We'll confirm your date calculations and the intake triggers that add your templates."],
+  [
+    "Emails",
+    "We'll verify your merge fields and make sure your templates are named and organized so they're easy to find and use.",
+  ],
+  ["Tasks", "We'll make sure the tasks and templates you need are in place for smooth task management."],
+  ["Forms", "We'll review your intake form setup and suggest improvements."],
+  ["Views", "We'll make sure the property, contact, and task views your team needs are in place."],
+];
+const TERMS = [
+  ["Delivery", "Within 5 business days."],
+  ["Deliverables", "A recorded walkthrough and a written report on what to fix, work on, or improve."],
+  ["Bonus Offer", `Your $${AUDIT_FEE} is credited toward implementation if you hire us to make the updates.`],
 ];
 
 // The $55 OTC Audit: a short pitch, then the request form (on submit it's
@@ -41,20 +53,29 @@ export default async function AuditPage({
               account.
             </p>
           </div>
-          <div className="mx-auto mt-8 max-w-2xl rounded-xl bg-white/10 p-5">
+          <div className="mx-auto mt-8 max-w-2xl rounded-xl bg-white/10 p-5 text-center">
             <h2 className="font-caption text-xs font-semibold uppercase tracking-wide text-gold">
               Service Outline
             </h2>
-            <ul className="mt-3 flex flex-col gap-2.5 text-sm text-white">
-              {POINTS.map((p) => (
-                <li key={p} className="flex gap-2.5">
-                  <span aria-hidden className="mt-0.5 text-gold">
+            <p className="mt-3 text-sm font-semibold text-white">We&rsquo;ll review your OTC account:</p>
+            <ul className="mt-3 flex flex-col gap-2.5 text-sm text-white/90">
+              {CHECKS.map(([label, text]) => (
+                <li key={label}>
+                  <span aria-hidden className="mr-1.5 text-gold">
                     &#10003;
                   </span>
-                  <span>{p}</span>
+                  <span className="font-semibold text-white">{label}:</span> {text}
                 </li>
               ))}
             </ul>
+            <dl className="mt-5 flex flex-col gap-2 border-t border-white/15 pt-4 text-sm">
+              {TERMS.map(([label, text]) => (
+                <div key={label}>
+                  <dt className="inline font-semibold text-gold">{label}:</dt>{" "}
+                  <dd className="inline text-white/90">{text}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
           <p className="mx-auto mt-5 max-w-2xl text-center text-sm text-white/80">
             From someone who&rsquo;s set up almost 300 Open to Close accounts over 5 years and trained
