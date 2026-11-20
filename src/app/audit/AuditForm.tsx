@@ -58,7 +58,6 @@ export function AuditForm() {
           inputMode="numeric"
           required
           autoComplete="tel"
-          placeholder="xxx-xxx-xxxx"
           pattern="\d{3}-\d{3}-\d{4}"
           title="A 10-digit phone number: xxx-xxx-xxxx"
           value={phone}
