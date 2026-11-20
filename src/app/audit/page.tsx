@@ -78,8 +78,8 @@ export default async function AuditPage({
             </dl>
           </div>
           <p className="mx-auto mt-5 max-w-2xl text-center text-sm font-semibold text-gold">
-            We take on just 5 audits a week. Audit dates are first come, first served, and this offer
-            closes New Year&rsquo;s Day.
+            Audit dates are first come, first served, and we take on just 5 audits a week. (Offer
+            Expires 12/31/2026)
           </p>
         </div>
       </section>
