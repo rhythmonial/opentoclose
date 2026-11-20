@@ -8,7 +8,7 @@ export function AuditLogo({ className = "", onDark = false }: { className?: stri
     <div className={`flex justify-center ${className}`}>
       <Link href="/" className="inline-flex items-center gap-2.5">
         <BrandMark onDark={onDark} className="h-9 w-9 shrink-0" />
-        <span className={`font-display text-lg font-bold ${onDark ? "text-white" : "text-ink"}`}>
+        <span className={`font-display text-xl font-bold sm:text-2xl ${onDark ? "text-white" : "text-ink"}`}>
           OTC Setup with Josie
         </span>
       </Link>

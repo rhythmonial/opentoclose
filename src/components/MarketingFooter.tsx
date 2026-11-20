@@ -6,9 +6,7 @@ export function MarketingFooter() {
     <footer className="bg-navy text-white/80">
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10 sm:flex-row sm:items-start sm:justify-between sm:px-6 lg:px-12">
         <div className="flex items-start gap-3">
-          <span className="rounded-xl bg-surface p-1.5">
-            <BrandMark className="h-9 w-9" />
-          </span>
+          <BrandMark onDark className="h-10 w-10 shrink-0" />
           <div>
             <div className="font-display text-base font-bold text-white">
               OTC Setup with Josie
