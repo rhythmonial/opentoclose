@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { PLAN_PRICES } from "@/lib/pricing";
 import { syncSubscription } from "@/lib/billing";
 import { AUDIT_REF_PREFIX } from "@/lib/audits";
+import { markAuditPaid } from "@/lib/auditPayments";
 
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -58,28 +59,6 @@ export async function POST(request: Request) {
   }
 
   return Response.json({ received: true });
-}
-
-// The $55 OTC Audit (its Payment Link passes "audit_<request id>"): the
-// request is marked paid, unless it's already been moved past requested.
-async function markAuditPaid(session: Stripe.Checkout.Session): Promise<string | null> {
-  const id = session.client_reference_id!.slice(AUDIT_REF_PREFIX.length);
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
-  const now = new Date().toISOString();
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from("audit_requests")
-    .update({ status: "paid", updated_at: now })
-    .eq("id", id)
-    .eq("status", "requested");
-  if (error) return error.message;
-  // Paid date and session, whatever its status.
-  const { error: stampError } = await admin
-    .from("audit_requests")
-    .update({ paid_at: now, stripe_session_id: session.id })
-    .eq("id", id)
-    .is("paid_at", null);
-  return stampError?.message ?? null;
 }
 
 // A monthly renewal (not the first charge, which checkout records).

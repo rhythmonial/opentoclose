@@ -3,7 +3,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, SUPPORT_INBOX } from "@/lib/email";
-import { ACCESS_METHODS, AUDIT_REF_PREFIX, AUDIT_TEXT_NUMBER, auditClosed } from "@/lib/audits";
+import { ACCESS_METHODS, AUDIT_FEE, AUDIT_REF_PREFIX, AUDIT_TEXT_NUMBER, auditClosed } from "@/lib/audits";
+import { getStripe } from "@/lib/stripe";
+import { siteOrigin } from "@/lib/site-origin";
 import { encryptCredential } from "@/lib/auditCredentials";
 
 const text = (form: FormData, key: string, max = 200) =>
@@ -11,8 +13,8 @@ const text = (form: FormData, key: string, max = 200) =>
 const long = (form: FormData, key: string, max = 4000) =>
   String(form.get(key) ?? "").replace(/\r\n/g, "\n").trim().slice(0, max);
 
-// An audit request: saved as "requested", emailed to Josie, then on to the
-// Stripe Payment Link with the request's id and email.
+// An audit request: saved as "requested", emailed to Josie, then on to
+// Stripe Checkout to pay.
 export async function submitAuditRequest(form: FormData) {
   if (auditClosed()) redirect("/audit");
   const access = text(form, "access_method", 40);
@@ -69,10 +71,40 @@ export async function submitAuditRequest(form: FormData) {
     ctaUrl: `${site}/admin/audits/${row.id}`,
   });
 
-  const link = process.env.STRIPE_AUDIT_LINK;
-  if (!link) redirect("/audit/thanks?unpaid=1");
-  const url = new URL(link);
-  url.searchParams.set("client_reference_id", `${AUDIT_REF_PREFIX}${row.id}`);
-  url.searchParams.set("prefilled_email", row.email);
-  redirect(url.toString());
+  // Stripe Checkout for the $55 (as the app's other payments are made),
+  // tied to the request; back to the thank-you page once paid.
+  const origin = await siteOrigin();
+  let checkoutUrl: string | null = null;
+  try {
+    const session = await getStripe().checkout.sessions.create({
+      mode: "payment",
+      customer_email: row.email,
+      client_reference_id: `${AUDIT_REF_PREFIX}${row.id}`,
+      metadata: { kind: "audit", audit_request_id: row.id },
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: "usd",
+            unit_amount: AUDIT_FEE * 100,
+            product_data: {
+              name: "OTC Audit",
+              description: "A recorded walkthrough and written report of your Open to Close account.",
+            },
+          },
+        },
+      ],
+      success_url: `${origin}/audit/thanks?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/audit`,
+    });
+    checkoutUrl = session.url;
+  } catch (err) {
+    console.error(`Audit checkout failed for ${row.id}:`, err);
+  }
+  if (!checkoutUrl) {
+    redirect(
+      `/audit?error=${encodeURIComponent(`We saved your request but couldn't open payment. Please text ${AUDIT_TEXT_NUMBER} and we'll help.`)}`,
+    );
+  }
+  redirect(checkoutUrl);
 }
