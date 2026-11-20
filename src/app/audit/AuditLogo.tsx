@@ -7,10 +7,10 @@ export function AuditLogo({ className = "" }: { className?: string }) {
     <div className={`flex justify-center ${className}`}>
       <Link
         href="/"
-        className="inline-flex items-center gap-2 rounded-full bg-surface py-1.5 pl-1.5 pr-4 shadow-sm"
+        className="inline-flex items-center gap-2 rounded-xl bg-surface px-4 py-2.5 shadow-sm"
       >
-        <BrandMark className="h-7 w-7 shrink-0" />
-        <span className="font-display text-sm font-bold text-ink">OTC Setup with Josie</span>
+        <BrandMark className="h-8 w-8 shrink-0" />
+        <span className="font-display text-base font-bold text-ink">OTC Setup with Josie</span>
       </Link>
     </div>
   );
