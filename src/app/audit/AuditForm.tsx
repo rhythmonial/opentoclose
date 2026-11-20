@@ -73,7 +73,7 @@ export function AuditForm() {
         <textarea name="frustrations" required rows={4} maxLength={4000} className={INPUT} />
       </label>
       <label className="flex flex-col gap-1.5 sm:col-span-2">
-        <span className="text-sm font-medium text-ink">Your Open to Close login</span>
+        <span className="text-sm font-medium text-ink">Your OTC Login Credentials</span>
         <select
           name="access_method"
           required
