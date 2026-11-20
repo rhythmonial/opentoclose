@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { FoundingMembers } from "@/components/FoundingMembers";
 import { AuditsTable } from "@/components/AuditsTable";
-import { easternDateTime } from "@/lib/audits";
+import { AUDIT_FEE, easternDate } from "@/lib/audits";
 import { createClient } from "@/lib/supabase/server";
 import { SubscriptionStatus } from "@/components/SubscriptionStatus";
 import { LeadStatusSelect } from "@/components/LeadStatusSelect";
@@ -305,13 +305,26 @@ export default async function ClientsPage() {
     return "Marked won";
   }
 
-  // OTC Audit requests still in play (not delivered, upsold or closed),
-  // newest first.
-  const { data: audits } = await supabase
+  // OTC Audit requests, newest first: the ones still in play (not
+  // delivered, upsold or closed) in the table, and every one in the counts
+  // and revenue under it.
+  const { data: allAudits } = await supabase
     .from("audit_requests")
-    .select("id, created_at, name, team_name, audit_date, status")
-    .in("status", ["requested", "paid", "in_progress"])
+    .select("id, created_at, name, team_name, audit_date, status, paid_at, upsell_amount")
     .order("created_at", { ascending: false });
+  const audits = (allAudits ?? []).filter((a) => ["requested", "paid", "in_progress"].includes(a.status));
+  const auditCount = (s: string) => (allAudits ?? []).filter((a) => a.status === s).length;
+  const auditRevenue =
+    (allAudits ?? []).filter((a) => a.paid_at).length * AUDIT_FEE +
+    (allAudits ?? []).reduce((sum, a) => sum + Number(a.upsell_amount ?? 0), 0);
+  const auditTiles = [
+    ["Requested", String(auditCount("requested"))],
+    ["Paid", String(auditCount("paid"))],
+    ["In progress", String(auditCount("in_progress"))],
+    ["Delivered", String(auditCount("delivered"))],
+    ["Upsold", String(auditCount("upsold"))],
+    ["Revenue", auditRevenue.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })],
+  ];
 
   // Founding group applications, newest first.
   const { data: foundingApps } = await supabase
@@ -684,11 +697,19 @@ export default async function ClientsPage() {
               id: a.id,
               name: a.name,
               team_name: a.team_name,
-              requested: easternDateTime(a.created_at),
+              requested: easternDate(a.created_at),
               audit_date: a.audit_date,
               status: a.status,
             }))}
           />
+          <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {auditTiles.map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-border bg-surface px-3 py-2">
+                <div className="font-caption text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{label}</div>
+                <div className="font-display text-lg font-bold leading-tight text-ink">{value}</div>
+              </div>
+            ))}
+          </div>
         </details>
       </section>
 

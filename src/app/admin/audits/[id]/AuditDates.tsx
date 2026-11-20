@@ -7,19 +7,13 @@ const INPUT =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent";
 const LABEL = "font-caption text-[11px] font-semibold uppercase tracking-wide text-ink-faint";
 
-// An audit's dates side by side: the audit date picked here, the report due
-// date (5 business days later, as it's picked) and the delivered date.
-export function AuditDates({
-  initialAuditDate,
-  initialDelivered,
-}: {
-  initialAuditDate: string;
-  initialDelivered: string;
-}) {
+// The audit date picked here, and beside it the report due date (5
+// business days later, as it's picked).
+export function AuditDates({ initialAuditDate }: { initialAuditDate: string }) {
   const [auditDate, setAuditDate] = useState(initialAuditDate);
   return (
-    <div className="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
-      <label className="flex flex-col gap-1.5">
+    <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+      <label className="flex flex-col gap-1">
         <span className={LABEL}>Audit date</span>
         <input
           type="date"
@@ -29,14 +23,10 @@ export function AuditDates({
           className={INPUT}
         />
       </label>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1">
         <span className={LABEL}>Report due</span>
         <span className="py-2 text-ink">{auditDate ? formatYmd(reportDue(auditDate)) : "Pick an audit date"}</span>
       </div>
-      <label className="flex flex-col gap-1.5">
-        <span className={LABEL}>Delivered</span>
-        <input type="date" name="delivered_date" defaultValue={initialDelivered} className={INPUT} />
-      </label>
     </div>
   );
 }

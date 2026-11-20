@@ -66,12 +66,17 @@ export default async function AuditRequestPage({
         <form action={updateAuditRequest}>
           <input type="hidden" name="id" value={r.id} />
           <section className="mt-5 flex flex-col gap-5 rounded-xl border border-border bg-surface p-5 text-sm">
-            <p className="text-ink">
-              <span className={LABEL}>Requested</span> <span className="ml-1">{easternDateTime(r.created_at)}</span>
-              <span className="mx-2 text-ink-faint">&middot;</span>
-              <span className={LABEL}>Paid</span> <span className="ml-1">{easternDateTime(r.paid_at)}</span>
-            </p>
-            <AuditDates initialAuditDate={r.audit_date ?? ""} initialDelivered={easternYmd(r.delivered_at)} />
+            <div className="grid grid-cols-2 gap-x-6">
+              <div>
+                <div className={LABEL}>Requested</div>
+                <div className="mt-1 text-ink">{easternDateTime(r.created_at)}</div>
+              </div>
+              <div>
+                <div className={LABEL}>Paid</div>
+                <div className="mt-1 text-ink">{easternDateTime(r.paid_at)}</div>
+              </div>
+            </div>
+            <AuditDates initialAuditDate={r.audit_date ?? ""} />
             <div className="grid grid-cols-1 gap-x-6 gap-y-3 border-t border-border-soft pt-4 sm:grid-cols-3">
               <div>
                 <div className={LABEL}>Login</div>
@@ -114,6 +119,10 @@ export default async function AuditRequestPage({
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="flex flex-col gap-1.5 sm:w-1/2 sm:pr-3">
+              <span className="text-sm font-medium text-ink">Delivered date</span>
+              <input type="date" name="delivered_date" defaultValue={easternYmd(r.delivered_at)} className={INPUT} />
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-ink">Video link</span>

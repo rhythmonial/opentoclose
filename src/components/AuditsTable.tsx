@@ -9,7 +9,7 @@ export type AuditRow = {
   id: string;
   name: string;
   team_name: string;
-  // When they requested it, already in Eastern ("Nov 20, 2026, 3:14 PM EST").
+  // When they requested it, already as an Eastern date ("Nov 20, 2026").
   requested: string;
   audit_date: string | null;
   status: string;
@@ -36,7 +36,7 @@ export function AuditsTable({ rows: initial }: { rows: AuditRow[] }) {
         <thead>
           <tr className="border-b border-border-soft bg-bg font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
             <th className="px-5 py-3">Name</th>
-            <th className="px-5 py-3">Requested (ET)</th>
+            <th className="px-5 py-3">Requested</th>
             <th className="px-5 py-3">Audit date</th>
             <th className="px-5 py-3">Report due</th>
             <th className="px-5 py-3">Status</th>
