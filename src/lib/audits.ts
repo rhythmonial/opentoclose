@@ -14,13 +14,19 @@ export const isAuditStatus = (v: string): v is AuditStatus => AUDIT_STATUSES.som
 export const statusLabel = (v: string) => AUDIT_STATUSES.find((s) => s.value === v)?.label ?? v;
 
 export const ACCESS_METHODS = [
-  { value: "add_user", label: "Add me as a user" },
-  { value: "share_later", label: "Share login securely later" },
-  { value: "not_sure", label: "Not sure yet" },
+  { value: "provide_below", label: "I'll provide them below" },
+  { value: "share_directly", label: "I'll share them directly" },
 ] as const;
-export const accessLabel = (v: string) => ACCESS_METHODS.find((a) => a.value === v)?.label ?? v;
+// Earlier requests' access answers too.
+const OLD_ACCESS: Record<string, string> = {
+  add_user: "Add me as a user",
+  share_later: "Share login securely later",
+  not_sure: "Not sure yet",
+};
+export const accessLabel = (v: string) => ACCESS_METHODS.find((a) => a.value === v)?.label ?? OLD_ACCESS[v] ?? v;
 
-export const TEAM_SIZES = ["Just me", "2–5", "6–10", "11–25", "26+"];
+// Where they text their login when they share it directly.
+export const AUDIT_TEXT_NUMBER = "813-906-6019";
 
 // Stripe's client_reference_id for a request (Payment Links pass it to
 // the checkout session; the webhook marks the request paid).

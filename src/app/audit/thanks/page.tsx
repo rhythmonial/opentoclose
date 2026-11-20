@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 const STEPS = [
-  "I'll email you to set up secure access to your Open to Close account.",
+  "If you chose to share your Open to Close login directly, text it to 813-906-6019 (\"OTC Audit for [your name] at [your team] - username, password\").",
   "Once I'm in, I review your account and record a walkthrough of what I find.",
   "Within 5 business days you'll get the recording plus a written report: what's broken, what's missing, and what could be optimized.",
   "If you'd like me to make the fixes, your audit fee is credited toward implementation.",

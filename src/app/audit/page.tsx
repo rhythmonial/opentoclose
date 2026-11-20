@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
 import { MarketingFooter } from "@/components/MarketingFooter";
-import { ACCESS_METHODS, AUDIT_FEE, TEAM_SIZES } from "@/lib/audits";
-import { submitAuditRequest } from "./actions";
+import { AUDIT_FEE } from "@/lib/audits";
+import { AuditForm } from "./AuditForm";
 
 export const metadata: Metadata = {
   title: "$55 OTC Audit | OTC Setup with Josie",
   description:
     "A review of your Open to Close account with a recorded walkthrough and written report of what's broken, missing, or could be optimized.",
 };
-
-const INPUT =
-  "w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-accent";
 
 const POINTS = [
   "I review your Open to Close account: fields, dates, templates, tasks, triggers and intake forms.",
@@ -64,76 +61,7 @@ export default async function AuditPage({
           </div>
         )}
 
-        <form action={submitAuditRequest} className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <h2 className="text-[15px] font-bold text-ink sm:col-span-2">Request your audit</h2>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">Name</span>
-            <input name="name" required maxLength={120} autoComplete="name" className={INPUT} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">Email</span>
-            <input name="email" type="email" required maxLength={200} autoComplete="email" className={INPUT} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">
-              Phone <span className="font-normal text-ink-faint">(optional)</span>
-            </span>
-            <input name="phone" type="tel" maxLength={40} autoComplete="tel" className={INPUT} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">Team or Brokerage Name</span>
-            <input name="team_name" required maxLength={200} autoComplete="organization" className={INPUT} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">Team Size</span>
-            <select name="team_size" required defaultValue="" className={INPUT}>
-              <option value="" disabled>
-                Select one
-              </option>
-              {TEAM_SIZES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink">How you&rsquo;ll give me access</span>
-            <select name="access_method" required defaultValue="" className={INPUT}>
-              <option value="" disabled>
-                Select one
-              </option>
-              {ACCESS_METHODS.map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="-mt-1 text-xs text-ink-faint sm:col-span-2">
-            Please don&rsquo;t send your Open to Close password here. We&rsquo;ll sort out access
-            securely after you book.
-          </p>
-          <label className="flex flex-col gap-1.5 sm:col-span-2">
-            <span className="text-sm font-medium text-ink">
-              What&rsquo;s frustrating you about your OTC setup?
-            </span>
-            <textarea name="frustrations" required rows={4} maxLength={4000} className={INPUT} />
-          </label>
-          <label className="flex flex-col gap-1.5 sm:col-span-2">
-            <span className="text-sm font-medium text-ink">
-              Anything else? <span className="font-normal text-ink-faint">(optional)</span>
-            </span>
-            <textarea name="anything_else" rows={3} maxLength={4000} className={INPUT} />
-          </label>
-
-          <div className="mt-2 flex flex-col items-center gap-2 sm:col-span-2">
-            <button type="submit" className="w-full rounded-lg bg-accent px-8 py-3 text-sm font-semibold text-white sm:w-auto">
-              Continue to payment (${AUDIT_FEE})
-            </button>
-            <span className="text-xs text-ink-faint">You&rsquo;ll pay securely through Stripe.</span>
-          </div>
-        </form>
+        <AuditForm />
       </div>
       <MarketingFooter />
     </main>

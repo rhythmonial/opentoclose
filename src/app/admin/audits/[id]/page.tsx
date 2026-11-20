@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { accessLabel, AUDIT_STATUSES } from "@/lib/audits";
+import { decryptCredential } from "@/lib/auditCredentials";
 import { requireStaff } from "../staff";
 import { StatusBadge } from "../StatusBadge";
 import { updateAuditRequest } from "../actions";
@@ -30,8 +31,19 @@ export default async function AuditRequestPage({
     ["Email", <a key="e" href={`mailto:${r.email}`} className="text-accent underline">{r.email}</a>],
     ["Phone", r.phone ? <a key="p" href={`tel:${r.phone}`} className="text-accent underline">{r.phone}</a> : "—"],
     ["Team / brokerage", r.team_name],
-    ["Team size", r.team_size],
-    ["Access", accessLabel(r.access_method)],
+    ...(r.team_size ? [["Team size", r.team_size] as [string, React.ReactNode]] : []),
+    ["Login", accessLabel(r.access_method)],
+    ...(r.otc_username || r.otc_password_enc
+      ? [
+          ["OTC username", r.otc_username ?? "—"] as [string, React.ReactNode],
+          [
+            "OTC password",
+            <span key="pw" className="font-mono">
+              {decryptCredential(r.otc_password_enc) ?? "Couldn't be read"}
+            </span>,
+          ] as [string, React.ReactNode],
+        ]
+      : []),
     ["Requested", when(r.created_at)],
     ["Paid", when(r.paid_at)],
     ["Delivered", when(r.delivered_at)],

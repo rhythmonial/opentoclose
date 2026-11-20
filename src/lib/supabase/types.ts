@@ -569,7 +569,9 @@ export type Database = {
           email: string
           phone: string | null
           team_name: string
-          team_size: string
+          team_size: string | null
+          otc_username: string | null
+          otc_password_enc: string | null
           frustrations: string
           access_method: string
           anything_else: string | null
@@ -589,7 +591,9 @@ export type Database = {
           email: string
           phone?: string | null
           team_name: string
-          team_size: string
+          team_size?: string | null
+          otc_username?: string | null
+          otc_password_enc?: string | null
           frustrations: string
           access_method: string
           anything_else?: string | null
@@ -609,7 +613,9 @@ export type Database = {
           email?: string
           phone?: string | null
           team_name?: string
-          team_size?: string
+          team_size?: string | null
+          otc_username?: string | null
+          otc_password_enc?: string | null
           frustrations?: string
           access_method?: string
           anything_else?: string | null

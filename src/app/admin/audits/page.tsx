@@ -18,7 +18,7 @@ export default async function AuditsAdminPage({
   const supabase = await requireStaff();
   const { data } = await supabase
     .from("audit_requests")
-    .select("id, created_at, name, email, team_name, team_size, status, paid_at, upsell_amount")
+    .select("id, created_at, name, email, phone, team_name, status, paid_at, upsell_amount")
     .order("created_at", { ascending: false });
   const all = data ?? [];
   const rows = filter ? all.filter((r) => r.status === filter) : all;
@@ -86,7 +86,7 @@ export default async function AuditsAdminPage({
             <span>Date</span>
             <span>Name</span>
             <span>Team</span>
-            <span>Size</span>
+            <span>Phone</span>
             <span>Status</span>
           </div>
           {rows.length === 0 && (
@@ -99,7 +99,7 @@ export default async function AuditsAdminPage({
               <li key={r.id}>
                 <Link
                   href={`/admin/audits/${r.id}`}
-                  className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 px-4 py-3 text-sm hover:bg-accent-soft/30 md:grid-cols-[7rem_1fr_1fr_6rem_7rem] md:items-center"
+                  className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 px-4 py-3 text-sm hover:bg-accent-soft/30 md:grid-cols-[7rem_1fr_1fr_8rem_7rem] md:items-center"
                 >
                   <span className="order-4 col-span-2 text-xs text-ink-faint md:order-none md:col-span-1 md:text-sm md:text-ink-soft">
                     {new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -110,9 +110,9 @@ export default async function AuditsAdminPage({
                   </span>
                   <span className="order-3 col-span-2 min-w-0 truncate text-ink-soft md:order-none md:col-span-1">
                     {r.team_name}
-                    <span className="text-ink-faint md:hidden"> · {r.team_size}</span>
+                    {r.phone && <span className="text-ink-faint md:hidden"> · {r.phone}</span>}
                   </span>
-                  <span className="hidden text-ink-soft md:block">{r.team_size}</span>
+                  <span className="hidden truncate text-ink-soft md:block">{r.phone ?? "—"}</span>
                   <span className="order-2 justify-self-end md:order-none md:justify-self-start">
                     <StatusBadge status={r.status} />
                   </span>
