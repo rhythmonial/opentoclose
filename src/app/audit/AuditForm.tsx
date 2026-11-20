@@ -34,14 +34,6 @@ export function AuditForm() {
         />
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-ink">Email</span>
-        <input name="email" type="email" required maxLength={200} autoComplete="email" className={INPUT} />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium text-ink">Phone</span>
-        <input name="phone" type="tel" required maxLength={40} autoComplete="tel" className={INPUT} />
-      </label>
-      <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-ink">Team or Brokerage Name</span>
         <input
           name="team_name"
@@ -52,6 +44,14 @@ export function AuditForm() {
           onChange={(e) => setTeam(e.target.value)}
           className={INPUT}
         />
+      </label>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-ink">Email</span>
+        <input name="email" type="email" required maxLength={200} autoComplete="email" className={INPUT} />
+      </label>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-ink">Phone</span>
+        <input name="phone" type="tel" required maxLength={40} autoComplete="tel" className={INPUT} />
       </label>
       <label className="flex flex-col gap-1.5 sm:col-span-2">
         <span className="text-sm font-medium text-ink">
