@@ -561,6 +561,69 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_requests: {
+        Row: {
+          id: string
+          created_at: string
+          name: string
+          email: string
+          phone: string | null
+          team_name: string
+          team_size: string
+          frustrations: string
+          access_method: string
+          anything_else: string | null
+          status: string
+          paid_at: string | null
+          delivered_at: string | null
+          report_link: string | null
+          notes: string | null
+          upsell_amount: number | null
+          stripe_session_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          name: string
+          email: string
+          phone?: string | null
+          team_name: string
+          team_size: string
+          frustrations: string
+          access_method: string
+          anything_else?: string | null
+          status?: string
+          paid_at?: string | null
+          delivered_at?: string | null
+          report_link?: string | null
+          notes?: string | null
+          upsell_amount?: number | null
+          stripe_session_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          name?: string
+          email?: string
+          phone?: string | null
+          team_name?: string
+          team_size?: string
+          frustrations?: string
+          access_method?: string
+          anything_else?: string | null
+          status?: string
+          paid_at?: string | null
+          delivered_at?: string | null
+          report_link?: string | null
+          notes?: string | null
+          upsell_amount?: number | null
+          stripe_session_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_intake_forms: {
         Row: {
           client_account_id: string

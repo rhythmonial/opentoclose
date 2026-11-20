@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
   "/about",
   "/founding",
   "/invite",
+  "/audit",
   "/api/stripe/webhook",
 ];
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { runLegacyCleanup } from "./actions";
@@ -36,6 +37,9 @@ export default async function AdminPage({
         <p className="mt-1.5 text-sm text-ink-soft">
           Staff-only maintenance actions. Dev and dev_admin only.
         </p>
+        <Link href="/admin/audits" className="mt-4 inline-block text-sm font-semibold text-accent">
+          OTC Audit requests &rarr;
+        </Link>
 
         <div className="mt-6 rounded-xl border border-border bg-surface p-5">
           <h2 className="text-[15px] font-bold text-ink">
