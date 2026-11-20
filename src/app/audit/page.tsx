@@ -56,6 +56,10 @@ export default async function AuditPage({
               ))}
             </ul>
           </div>
+          <p className="mx-auto mt-5 max-w-2xl text-center text-sm text-white/80">
+            From someone who&rsquo;s set up almost 300 Open to Close accounts over 5 years and trained
+            2,000+ people.
+          </p>
         </div>
       </section>
 
