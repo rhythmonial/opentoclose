@@ -148,8 +148,8 @@ export function AuditForm() {
           Continue to payment (${AUDIT_FEE})
         </button>
         <span className="text-center text-xs text-ink-faint">
-          You&rsquo;ll pay securely through Stripe. Every submission is reviewed, and we&rsquo;ll email
-          you your delivery date.
+          You&rsquo;ll pay securely through Stripe and you&rsquo;ll receive an email within 24 hours with
+          an Audit Date.
         </span>
       </div>
     </form>
