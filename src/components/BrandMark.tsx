@@ -1,9 +1,11 @@
 import Image from "next/image";
 
-export function BrandMark({ className }: { className?: string }) {
+// The logo mark: navy and gold, or (onDark) white and gold for navy and
+// other dark backgrounds.
+export function BrandMark({ className, onDark = false }: { className?: string; onDark?: boolean }) {
   return (
     <Image
-      src="/brand/logo-mark.png"
+      src={onDark ? "/brand/logo-mark-dark.png" : "/brand/logo-mark.png"}
       alt="OTC Setup with Josie"
       width={72}
       height={72}
