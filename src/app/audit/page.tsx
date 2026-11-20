@@ -87,7 +87,7 @@ export default async function AuditPage({
       <div className="mx-auto w-full max-w-2xl px-4 py-10">
         {closed && (
           <div className="rounded-xl border border-border bg-surface p-6 text-center text-sm text-ink-soft">
-            This offer closed on New Year&rsquo;s Day. Thanks for your interest!
+            This offer expired on 12/31/26. Thanks for your interest!
           </div>
         )}
         {error && (
