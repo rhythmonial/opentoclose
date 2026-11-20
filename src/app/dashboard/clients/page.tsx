@@ -312,7 +312,18 @@ export default async function ClientsPage() {
     .from("audit_requests")
     .select("id, created_at, name, team_name, audit_date, status, paid_at, upsell_amount")
     .order("created_at", { ascending: false });
-  const audits = (allAudits ?? []).filter((a) => ["requested", "paid", "in_progress"].includes(a.status));
+  // Open until they're upsold or lost; then they're closed (like archived
+  // leads).
+  const audits = (allAudits ?? []).filter((a) => !["upsold", "lost"].includes(a.status));
+  const closedAudits = (allAudits ?? []).filter((a) => ["upsold", "lost"].includes(a.status));
+  const auditRow = (a: (typeof audits)[number]) => ({
+    id: a.id,
+    name: a.name,
+    team_name: a.team_name,
+    requested: easternDate(a.created_at),
+    audit_date: a.audit_date,
+    status: a.status,
+  });
   const auditCount = (s: string) => (allAudits ?? []).filter((a) => a.status === s).length;
   const auditRevenue =
     (allAudits ?? []).filter((a) => a.paid_at).length * AUDIT_FEE +
@@ -681,26 +692,19 @@ export default async function ClientsPage() {
         </section>
       )}
       <section className="mb-9">
-        <details open={(audits?.length ?? 0) > 0}>
+        <details open={audits.length > 0}>
           <summary className="cursor-pointer">
             <h2 className="inline font-display text-lg font-bold text-ink">
-              OTC Audits ({audits?.length ?? 0})
+              OTC Audits ({audits.length})
             </h2>
             <p className="mt-1 text-sm text-ink-soft">
-              Requests from the $55 audit page that are requested, paid or in progress. Set the
-              audit date and status here, or click a row to open it.
+              Requests from the $55 audit page. Set the audit date and status here, or click a row
+              to open it. Upsold and lost audits move to Closed.
             </p>
           </summary>
           <AuditsTable
-            key={(audits ?? []).map((a) => `${a.id}:${a.status}:${a.audit_date}`).join("|")}
-            rows={(audits ?? []).map((a) => ({
-              id: a.id,
-              name: a.name,
-              team_name: a.team_name,
-              requested: easternDate(a.created_at),
-              audit_date: a.audit_date,
-              status: a.status,
-            }))}
+            key={audits.map((a) => `${a.id}:${a.status}:${a.audit_date}`).join("|")}
+            rows={audits.map(auditRow)}
           />
           <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
             {auditTiles.map(([label, value]) => (
@@ -710,6 +714,18 @@ export default async function ClientsPage() {
               </div>
             ))}
           </div>
+          <details className="mt-3 rounded-xl border border-border bg-surface">
+            <summary className="cursor-pointer px-5 py-3.5 font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
+              Closed ({closedAudits.length})
+            </summary>
+            <div className="border-t border-border-soft px-3 pb-3">
+              <AuditsTable
+                key={closedAudits.map((a) => `${a.id}:${a.status}:${a.audit_date}`).join("|")}
+                rows={closedAudits.map(auditRow)}
+                emptyText="No upsold or lost audits yet."
+              />
+            </div>
+          </details>
         </details>
       </section>
 

@@ -17,7 +17,13 @@ export type AuditRow = {
 
 // Staff (Clients page): audits still in play. Each row's audit date and
 // status save as they're picked; clicking anywhere else opens its page.
-export function AuditsTable({ rows: initial }: { rows: AuditRow[] }) {
+export function AuditsTable({
+  rows: initial,
+  emptyText = "No audits waiting.",
+}: {
+  rows: AuditRow[];
+  emptyText?: string;
+}) {
   const router = useRouter();
   const [rows, setRows] = useState(initial);
 
@@ -46,7 +52,7 @@ export function AuditsTable({ rows: initial }: { rows: AuditRow[] }) {
           {rows.length === 0 && (
             <tr>
               <td colSpan={5} className="px-5 py-4 text-ink-faint">
-                No audits waiting.
+                {emptyText}
               </td>
             </tr>
           )}
