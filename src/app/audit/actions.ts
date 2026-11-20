@@ -63,7 +63,7 @@ export async function submitAuditRequest(form: FormData) {
       row.team_name,
       `Login: ${access === "provide_below" ? "provided on the form (see the admin page)" : `they'll text it to ${AUDIT_TEXT_NUMBER}`}`,
       "",
-      `What's frustrating them:\n${row.frustrations}`,
+      `About their setup:\n${row.frustrations}`,
     ].join("\n"),
     ctaLabel: "Open the request",
     ctaUrl: `${site}/admin/audits/${row.id}`,

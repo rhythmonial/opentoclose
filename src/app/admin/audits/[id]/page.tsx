@@ -78,7 +78,7 @@ export default async function AuditRequestPage({
           </dl>
           <div className="mt-5 border-t border-border-soft pt-4 text-sm">
             <h2 className="font-caption text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-              What&rsquo;s frustrating them
+              About their setup
             </h2>
             <p className="mt-1 whitespace-pre-wrap text-ink">{r.frustrations}</p>
             {r.anything_else && (

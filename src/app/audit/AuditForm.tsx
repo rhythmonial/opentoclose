@@ -55,7 +55,7 @@ export function AuditForm() {
       </label>
       <label className="flex flex-col gap-1.5 sm:col-span-2">
         <span className="text-sm font-medium text-ink">
-          What&rsquo;s frustrating you about your OTC setup?
+          Tell us about your setup (how long you&rsquo;ve been in OTC and your frustrations)
         </span>
         <textarea name="frustrations" required rows={4} maxLength={4000} className={INPUT} />
       </label>
