@@ -9,7 +9,6 @@ const UUID = /^[0-9a-f-]{36}$/i;
 const isLink = (v: string) => /^https?:\/\//i.test(v);
 
 function refresh(id: string) {
-  revalidatePath("/admin/audits");
   revalidatePath(`/admin/audits/${id}`);
   revalidatePath("/dashboard/clients");
 }
@@ -20,10 +19,10 @@ function refresh(id: string) {
 // delivered date picked, today.
 export async function updateAuditRequest(form: FormData) {
   const id = String(form.get("id") ?? "");
-  if (!UUID.test(id)) redirect("/admin/audits");
+  if (!UUID.test(id)) redirect("/dashboard/clients");
   const supabase = await requireStaff();
   const { data: current } = await supabase.from("audit_requests").select("paid_at").eq("id", id).maybeSingle();
-  if (!current) redirect("/admin/audits");
+  if (!current) redirect("/dashboard/clients");
 
   const status = String(form.get("status") ?? "");
   const auditDate = String(form.get("audit_date") ?? "").trim();

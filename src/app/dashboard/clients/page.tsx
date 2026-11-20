@@ -675,10 +675,7 @@ export default async function ClientsPage() {
             </h2>
             <p className="mt-1 text-sm text-ink-soft">
               Requests from the $55 audit page that are requested, paid or in progress. Set the
-              audit date and status here, or click a row to open it.{" "}
-              <Link href="/admin/audits" className="font-semibold text-accent">
-                All audits and revenue &rarr;
-              </Link>
+              audit date and status here, or click a row to open it.
             </p>
           </summary>
           <AuditsTable
