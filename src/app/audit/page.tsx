@@ -37,10 +37,10 @@ export default async function AuditPage({
 
   return (
     <main className="flex flex-1 flex-col bg-bg">
-      <AuditLogo />
       <section className="bg-navy text-white">
         <div className="mx-auto max-w-3xl px-5 py-12 sm:px-6">
           <div className="text-center">
+            <AuditLogo className="mb-5" />
             <div className="font-caption text-xs font-semibold uppercase tracking-wide text-gold">
               Slow Season Special &middot; Expires 12/31/26
             </div>

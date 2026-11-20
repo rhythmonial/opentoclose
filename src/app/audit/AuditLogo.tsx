@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 
-// The audit pages' header: the logo, centered.
-export function AuditLogo() {
+// The audit pages' logo: a small rounded bubble, centered above the title.
+export function AuditLogo({ className = "" }: { className?: string }) {
   return (
-    <div className="flex justify-center bg-bg px-4 py-5">
-      <Link href="/" className="flex items-center gap-2.5 sm:gap-3">
-        <BrandMark className="h-9 w-9 shrink-0 sm:h-10 sm:w-10" />
-        <span className="font-display text-lg font-bold text-ink sm:text-xl">OTC Setup with Josie</span>
+    <div className={`flex justify-center ${className}`}>
+      <Link
+        href="/"
+        className="inline-flex items-center gap-2 rounded-full bg-surface py-1.5 pl-1.5 pr-4 shadow-sm"
+      >
+        <BrandMark className="h-7 w-7 shrink-0" />
+        <span className="font-display text-sm font-bold text-ink">OTC Setup with Josie</span>
       </Link>
     </div>
   );
