@@ -13,6 +13,7 @@ const INPUT =
 export function AuditForm() {
   const [name, setName] = useState("");
   const [team, setTeam] = useState("");
+  const [phone, setPhone] = useState("");
   const [access, setAccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   // The text to send: shown with where their login goes; copied without
@@ -51,7 +52,19 @@ export function AuditForm() {
       </label>
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-ink">Phone</span>
-        <input name="phone" type="tel" required maxLength={40} autoComplete="tel" className={INPUT} />
+        <input
+          name="phone"
+          type="tel"
+          inputMode="numeric"
+          required
+          autoComplete="tel"
+          placeholder="xxx-xxx-xxxx"
+          pattern="\d{3}-\d{3}-\d{4}"
+          title="A 10-digit phone number: xxx-xxx-xxxx"
+          value={phone}
+          onChange={(e) => setPhone(formatPhone(e.target.value))}
+          className={INPUT}
+        />
       </label>
       <label className="flex flex-col gap-1.5 sm:col-span-2">
         <span className="text-sm font-medium text-ink">
@@ -142,4 +155,12 @@ export function AuditForm() {
       </div>
     </form>
   );
+}
+
+// xxx-xxx-xxxx as they type (a leading 1 is dropped).
+function formatPhone(raw: string) {
+  const d = raw.replace(/\D/g, "").replace(/^1(?=\d{10})/, "").slice(0, 10);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
 }

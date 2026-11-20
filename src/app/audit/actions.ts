@@ -32,7 +32,7 @@ export async function submitAuditRequest(form: FormData) {
   if (
     !row.name ||
     !/^\S+@\S+\.\S+$/.test(row.email) ||
-    !row.phone ||
+    !/^\d{3}-\d{3}-\d{4}$/.test(row.phone) ||
     !row.team_name ||
     !row.frustrations ||
     !ACCESS_METHODS.some((a) => a.value === access) ||
