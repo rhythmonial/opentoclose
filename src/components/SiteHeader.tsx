@@ -1,7 +1,7 @@
 import { BrandMark } from "@/components/BrandMark";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { WebsiteOnly } from "@/components/WebsiteOnly";
+import { NotOnLandingPages, WebsiteOnly } from "@/components/WebsiteOnly";
 
 export async function SiteHeader() {
   const supabase = await createClient();
@@ -49,5 +49,5 @@ export async function SiteHeader() {
     </div>
   );
 
-  return user ? <WebsiteOnly>{header}</WebsiteOnly> : header;
+  return user ? <WebsiteOnly>{header}</WebsiteOnly> : <NotOnLandingPages>{header}</NotOnLandingPages>;
 }

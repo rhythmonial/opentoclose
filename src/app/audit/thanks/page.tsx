@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingFooter } from "@/components/MarketingFooter";
+import { AuditLogo } from "../AuditLogo";
 
 export const metadata: Metadata = {
   title: "Thanks for booking your OTC Audit | OTC Setup with Josie",
@@ -23,6 +24,7 @@ export default async function AuditThanksPage({
   const { unpaid } = await searchParams;
   return (
     <main className="flex flex-1 flex-col bg-bg">
+      <AuditLogo />
       <div className="mx-auto w-full max-w-2xl px-4 py-12">
         <div className="rounded-xl border border-success/30 bg-success-soft p-6 text-center">
           <h1 className="font-display text-2xl font-bold text-success">

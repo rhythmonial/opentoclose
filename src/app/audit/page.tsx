@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { MarketingFooter } from "@/components/MarketingFooter";
+import { AuditLogo } from "./AuditLogo";
 import { AUDIT_FEE, auditClosed } from "@/lib/audits";
 import { AuditForm } from "./AuditForm";
 
@@ -36,6 +37,7 @@ export default async function AuditPage({
 
   return (
     <main className="flex flex-1 flex-col bg-bg">
+      <AuditLogo />
       <section className="bg-navy text-white">
         <div className="mx-auto max-w-3xl px-5 py-12 sm:px-6">
           <div className="text-center">
