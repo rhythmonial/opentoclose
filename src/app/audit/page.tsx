@@ -12,14 +12,14 @@ export const metadata: Metadata = {
 // What the audit covers, then how it's delivered.
 const CHECKS = [
   ["Fields", "Audit your field order for intake and workflow efficiency."],
-  ["Dates", "Confirm your date calculations and the intake triggers that add your templates."],
+  ["Dates", "Confirm date calculations and intake trigger functionality."],
   ["Emails", "Verify accuracy with your merge fields and templates."],
   ["Tasks", "Make sure the tasks and templates you need are in place."],
   ["Forms", "Review your intake form setup and suggest improvements."],
-  ["Views", "Make sure the property, contact, and task views your team needs are in place."],
+  ["Views", "Make sure the property, contact, and task views needed are in place."],
 ];
 const TERMS = [
-  ["Turn-Around Time", "Within 5 business days."],
+  ["Turn-Around Time", "All deliverables will be emailed within 5 business days from your Audit Date."],
   ["Deliverables", "A recorded walkthrough and a written report on what to fix, work on, or improve."],
   ["Bonus Offer", `Your $${AUDIT_FEE} is credited toward implementation if you hire us to make the updates.`],
 ];
@@ -49,6 +49,10 @@ export default async function AuditPage({
               Figure out what&rsquo;s broken, missing, and could work harder in your Open to Close
               account.
             </p>
+            <p className="mx-auto mt-2 max-w-2xl text-sm text-white/80">
+              From someone who&rsquo;s set up almost 300 Open to Close accounts over 5 years and trained
+              2,000+ people.
+            </p>
           </div>
           <div className="mx-auto mt-8 max-w-2xl rounded-xl bg-white/10 p-5 text-center">
             <h2 className="font-caption text-xs font-semibold uppercase tracking-wide text-gold">
@@ -73,9 +77,8 @@ export default async function AuditPage({
               ))}
             </dl>
           </div>
-          <p className="mx-auto mt-5 max-w-2xl text-center text-sm text-white/80">
-            From someone who&rsquo;s set up almost 300 Open to Close accounts over 5 years and trained
-            2,000+ people.
+          <p className="mx-auto mt-5 max-w-2xl text-center text-sm font-semibold text-gold">
+            Audit dates are scheduled first come, first served, and this offer closes New Year&rsquo;s Day.
           </p>
         </div>
       </section>
