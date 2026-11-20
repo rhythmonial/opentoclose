@@ -11,18 +11,15 @@ export const metadata: Metadata = {
 
 // What the audit covers, then how it's delivered.
 const CHECKS = [
-  ["Fields", "We'll audit your field order for intake and workflow efficiency."],
-  ["Dates", "We'll confirm your date calculations and the intake triggers that add your templates."],
-  [
-    "Emails",
-    "We'll verify your merge fields and make sure your templates are named and organized so they're easy to find and use.",
-  ],
-  ["Tasks", "We'll make sure the tasks and templates you need are in place for smooth task management."],
-  ["Forms", "We'll review your intake form setup and suggest improvements."],
-  ["Views", "We'll make sure the property, contact, and task views your team needs are in place."],
+  ["Fields", "Audit your field order for intake and workflow efficiency."],
+  ["Dates", "Confirm your date calculations and the intake triggers that add your templates."],
+  ["Emails", "Verify accuracy with your merge fields and templates."],
+  ["Tasks", "Make sure the tasks and templates you need are in place."],
+  ["Forms", "Review your intake form setup and suggest improvements."],
+  ["Views", "Make sure the property, contact, and task views your team needs are in place."],
 ];
 const TERMS = [
-  ["Delivery", "Within 5 business days."],
+  ["Turn-Around Time", "Within 5 business days."],
   ["Deliverables", "A recorded walkthrough and a written report on what to fix, work on, or improve."],
   ["Bonus Offer", `Your $${AUDIT_FEE} is credited toward implementation if you hire us to make the updates.`],
 ];
@@ -57,7 +54,6 @@ export default async function AuditPage({
             <h2 className="font-caption text-xs font-semibold uppercase tracking-wide text-gold">
               Service Outline
             </h2>
-            <p className="mt-3 text-sm font-semibold text-white">We&rsquo;ll review your OTC account:</p>
             <ul className="mt-3 flex flex-col gap-2.5 text-sm text-white/90">
               {CHECKS.map(([label, text]) => (
                 <li key={label}>
