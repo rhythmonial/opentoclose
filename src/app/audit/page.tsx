@@ -40,7 +40,7 @@ export default async function AuditPage({
         <div className="mx-auto max-w-3xl px-5 py-12 sm:px-6">
           <div className="text-center">
             <div className="font-caption text-xs font-semibold uppercase tracking-wide text-gold">
-              Slow Season Special &middot; Closes New Year&rsquo;s Day
+              Slow Season Special &middot; Expires 12/31/26
             </div>
             <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
               The ${AUDIT_FEE} OTC Audit
@@ -78,8 +78,8 @@ export default async function AuditPage({
             </dl>
           </div>
           <p className="mx-auto mt-5 max-w-2xl text-center text-sm font-semibold text-gold">
-            Audit dates are first come, first served, and we take on just 5 audits a week. (Offer
-            Expires 12/31/2026)
+            We take 5 audits a week. Audit dates are first come, first served, and this offer expires on
+            12/31/26.
           </p>
         </div>
       </section>
