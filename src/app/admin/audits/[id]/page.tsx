@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { accessLabel, AUDIT_STATUSES, easternDateTime, easternYmd } from "@/lib/audits";
+import { accessLabel, AUDIT_STATUSES, AUDIT_TZ, easternYmd } from "@/lib/audits";
 import { decryptCredential } from "@/lib/auditCredentials";
 import { requireStaff } from "../staff";
 import { StatusBadge } from "../StatusBadge";
 import { updateAuditRequest } from "../actions";
 import { AuditDates } from "./AuditDates";
 import { DeleteAudit } from "./DeleteAudit";
+import { LinkInput } from "./LinkInput";
 
 const INPUT =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent";
@@ -70,11 +71,11 @@ export default async function AuditRequestPage({
             <div className="grid grid-cols-2 gap-x-6">
               <div>
                 <div className={LABEL}>Requested</div>
-                <div className="mt-1 text-ink">{easternDateTime(r.created_at)}</div>
+                <EasternWhen iso={r.created_at} />
               </div>
               <div>
                 <div className={LABEL}>Paid</div>
-                <div className="mt-1 text-ink">{easternDateTime(r.paid_at)}</div>
+                <EasternWhen iso={r.paid_at} />
               </div>
             </div>
             <AuditDates initialAuditDate={r.audit_date ?? ""} />
@@ -127,7 +128,7 @@ export default async function AuditRequestPage({
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-ink">Video link</span>
-              <input name="video_link" type="url" defaultValue={r.video_link ?? ""} placeholder="https://…" className={INPUT} />
+              <LinkInput name="video_link" initial={r.video_link ?? ""} />
               {r.video_link && (
                 <a href={r.video_link} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent">
                   Open video &#8599;
@@ -136,7 +137,7 @@ export default async function AuditRequestPage({
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-ink">Report link</span>
-              <input name="report_link" type="url" defaultValue={r.report_link ?? ""} placeholder="https://…" className={INPUT} />
+              <LinkInput name="report_link" initial={r.report_link ?? ""} />
               {r.report_link && (
                 <a href={r.report_link} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent">
                   Open report &#8599;
@@ -165,5 +166,19 @@ export default async function AuditRequestPage({
         </form>
       </div>
     </main>
+  );
+}
+
+// A time in Eastern: the date, then the time on the next line.
+function EasternWhen({ iso }: { iso: string | null }) {
+  if (!iso) return <div className="mt-1 text-ink">&mdash;</div>;
+  const d = new Date(iso);
+  return (
+    <div className="mt-1 text-ink">
+      <div>{d.toLocaleDateString("en-US", { timeZone: AUDIT_TZ, month: "short", day: "numeric", year: "numeric" })}</div>
+      <div className="text-xs text-ink-soft">
+        {d.toLocaleTimeString("en-US", { timeZone: AUDIT_TZ, hour: "numeric", minute: "2-digit", timeZoneName: "short" })}
+      </div>
+    </div>
   );
 }
