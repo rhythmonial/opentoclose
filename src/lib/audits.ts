@@ -36,3 +36,56 @@ export const AUDIT_TEXT_NUMBER = "813-906-6019";
 // Stripe's client_reference_id for a request (Payment Links pass it to
 // the checkout session; the webhook marks the request paid).
 export const AUDIT_REF_PREFIX = "audit_";
+
+// Times are shown in Eastern (where Josie works).
+export const AUDIT_TZ = "America/New_York";
+export const easternDateTime = (iso: string | null) =>
+  iso
+    ? new Date(iso).toLocaleString("en-US", {
+        timeZone: AUDIT_TZ,
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+      })
+    : "—";
+export const easternDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-US", { timeZone: AUDIT_TZ, month: "short", day: "numeric", year: "numeric" });
+// A timestamp's Eastern date as YYYY-MM-DD (for date inputs).
+export const easternYmd = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString("en-CA", { timeZone: AUDIT_TZ }) : "";
+// A picked date (YYYY-MM-DD) saved as noon Eastern.
+export const ymdToTimestamp = (ymd: string) => `${ymd}T12:00:00-05:00`;
+export const isYmd = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T12:00:00Z`));
+
+// The report is due 5 business days (Monday to Friday) after the audit date.
+export const REPORT_BUSINESS_DAYS = 5;
+export function reportDue(auditDate: string | null): string | null {
+  if (!auditDate || !isYmd(auditDate)) return null;
+  const d = new Date(`${auditDate}T12:00:00Z`);
+  let added = 0;
+  while (added < REPORT_BUSINESS_DAYS) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const day = d.getUTCDay();
+    if (day !== 0 && day !== 6) added++;
+  }
+  return d.toISOString().slice(0, 10);
+}
+// "Mon, Dec 8, 2026" for a YYYY-MM-DD date.
+export const formatYmd = (ymd: string | null) =>
+  ymd
+    ? new Date(`${ymd}T12:00:00Z`).toLocaleDateString("en-US", {
+        timeZone: "UTC",
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "—";
+
+// Moving to paid (or later) stamps the paid date; delivered or upsold, the
+// delivered date.
+export const PAID_OR_LATER = ["paid", "in_progress", "delivered", "upsold"];
+export const DELIVERED_OR_LATER = ["delivered", "upsold"];

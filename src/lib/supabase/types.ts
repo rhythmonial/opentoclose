@@ -575,6 +575,8 @@ export type Database = {
           frustrations: string
           access_method: string
           anything_else: string | null
+          audit_date: string | null
+          video_link: string | null
           status: string
           paid_at: string | null
           delivered_at: string | null
@@ -597,6 +599,8 @@ export type Database = {
           frustrations: string
           access_method: string
           anything_else?: string | null
+          audit_date?: string | null
+          video_link?: string | null
           status?: string
           paid_at?: string | null
           delivered_at?: string | null
@@ -619,6 +623,8 @@ export type Database = {
           frustrations?: string
           access_method?: string
           anything_else?: string | null
+          audit_date?: string | null
+          video_link?: string | null
           status?: string
           paid_at?: string | null
           delivered_at?: string | null

@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { accessLabel, AUDIT_STATUSES } from "@/lib/audits";
+import { accessLabel, AUDIT_STATUSES, easternDateTime, easternYmd } from "@/lib/audits";
 import { decryptCredential } from "@/lib/auditCredentials";
 import { requireStaff } from "../staff";
 import { StatusBadge } from "../StatusBadge";
 import { updateAuditRequest } from "../actions";
+import { AuditDates } from "./AuditDates";
 
 const INPUT =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent";
-const when = (d: string | null) =>
-  d ? new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
 
 // One audit request: what they sent, and the status, notes, report link
 // and upsell to keep up to date.
@@ -44,9 +43,6 @@ export default async function AuditRequestPage({
           ] as [string, React.ReactNode],
         ]
       : []),
-    ["Requested", when(r.created_at)],
-    ["Paid", when(r.paid_at)],
-    ["Delivered", when(r.delivered_at)],
   ];
 
   return (
@@ -94,49 +90,51 @@ export default async function AuditRequestPage({
 
         <form action={updateAuditRequest} className="mt-5 flex flex-col gap-4 rounded-xl border border-border bg-surface p-5">
           <input type="hidden" name="id" value={r.id} />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-ink">Status</span>
-              <select name="status" defaultValue={r.status} className={INPUT}>
-                {AUDIT_STATUSES.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-ink">Upsell amount ($)</span>
-              <input
-                name="upsell_amount"
-                inputMode="decimal"
-                defaultValue={r.upsell_amount ?? ""}
-                placeholder="0"
-                className={INPUT}
-              />
-            </label>
-          </div>
+          <AuditDates
+            requested={easternDateTime(r.created_at)}
+            paid={easternDateTime(r.paid_at)}
+            initialAuditDate={r.audit_date ?? ""}
+            initialDelivered={easternYmd(r.delivered_at)}
+          />
+          <label className="flex flex-col gap-1.5 border-t border-border-soft pt-4 sm:w-1/2 sm:pr-3">
+            <span className="text-sm font-medium text-ink">Status</span>
+            <select name="status" defaultValue={r.status} className={INPUT}>
+              {AUDIT_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-ink">Video link</span>
+            <input name="video_link" type="url" defaultValue={r.video_link ?? ""} placeholder="https://…" className={INPUT} />
+            {r.video_link && (
+              <a href={r.video_link} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent">
+                Open video &#8599;
+              </a>
+            )}
+          </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">Report link</span>
-            <input
-              name="report_link"
-              type="url"
-              defaultValue={r.report_link ?? ""}
-              placeholder="https://…"
-              className={INPUT}
-            />
+            <input name="report_link" type="url" defaultValue={r.report_link ?? ""} placeholder="https://…" className={INPUT} />
             {r.report_link && (
               <a href={r.report_link} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent">
                 Open report &#8599;
               </a>
             )}
           </label>
+          <label className="flex flex-col gap-1.5 sm:w-1/2 sm:pr-3">
+            <span className="text-sm font-medium text-ink">Upsell amount ($)</span>
+            <input name="upsell_amount" inputMode="decimal" defaultValue={r.upsell_amount ?? ""} placeholder="0" className={INPUT} />
+          </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink">Notes</span>
             <textarea name="notes" rows={5} defaultValue={r.notes ?? ""} className={INPUT} />
           </label>
           <p className="text-xs text-ink-faint">
-            Setting Paid (or later) stamps the paid date; Delivered or Upsold stamps the delivered date.
+            Setting Paid (or later) stamps the paid date. Setting Delivered or Upsold without a delivered
+            date uses today.
           </p>
           <button type="submit" className="self-start rounded-lg bg-accent px-6 py-2.5 text-sm font-semibold text-white">
             Save

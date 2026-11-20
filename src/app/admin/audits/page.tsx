@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AUDIT_FEE, AUDIT_STATUSES, isAuditStatus, statusLabel } from "@/lib/audits";
+import { AUDIT_FEE, AUDIT_STATUSES, easternDate, isAuditStatus, statusLabel } from "@/lib/audits";
 import { requireStaff } from "./staff";
 import { StatusBadge } from "./StatusBadge";
 
@@ -102,7 +102,7 @@ export default async function AuditsAdminPage({
                   className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 px-4 py-3 text-sm hover:bg-accent-soft/30 md:grid-cols-[7rem_1fr_1fr_8rem_7rem] md:items-center"
                 >
                   <span className="order-4 col-span-2 text-xs text-ink-faint md:order-none md:col-span-1 md:text-sm md:text-ink-soft">
-                    {new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    {easternDate(r.created_at)}
                   </span>
                   <span className="order-1 min-w-0 md:order-none">
                     <span className="block truncate font-semibold text-ink">{r.name}</span>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { FoundingMembers } from "@/components/FoundingMembers";
-import { StatusBadge } from "@/app/admin/audits/StatusBadge";
-import { accessLabel } from "@/lib/audits";
+import { AuditsTable } from "@/components/AuditsTable";
+import { easternDateTime } from "@/lib/audits";
 import { createClient } from "@/lib/supabase/server";
 import { SubscriptionStatus } from "@/components/SubscriptionStatus";
 import { LeadStatusSelect } from "@/components/LeadStatusSelect";
@@ -309,7 +309,7 @@ export default async function ClientsPage() {
   // newest first.
   const { data: audits } = await supabase
     .from("audit_requests")
-    .select("id, created_at, name, email, phone, team_name, access_method, status, paid_at")
+    .select("id, created_at, name, team_name, audit_date, status")
     .in("status", ["requested", "paid", "in_progress"])
     .order("created_at", { ascending: false });
 
@@ -674,58 +674,24 @@ export default async function ClientsPage() {
               OTC Audits ({audits?.length ?? 0})
             </h2>
             <p className="mt-1 text-sm text-ink-soft">
-              Requests from the $55 audit page that are requested, paid or in progress. Click one
-              to update it.{" "}
+              Requests from the $55 audit page that are requested, paid or in progress. Set the
+              audit date and status here, or click a row to open it.{" "}
               <Link href="/admin/audits" className="font-semibold text-accent">
                 All audits and revenue &rarr;
               </Link>
             </p>
           </summary>
-          <div className="mt-4 min-w-0 overflow-x-auto rounded-xl border border-border bg-surface">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border-soft bg-bg font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
-                  <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">Contact</th>
-                  <th className="px-5 py-3">Login</th>
-                  <th className="px-5 py-3">Requested</th>
-                  <th className="px-5 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(audits ?? []).length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-5 py-4 text-ink-faint">
-                      No audits waiting.
-                    </td>
-                  </tr>
-                )}
-                {(audits ?? []).map((a) => (
-                  <tr key={a.id} className="border-b border-border-soft align-top last:border-0 hover:bg-bg">
-                    <td className="px-5 py-3.5">
-                      <Link href={`/admin/audits/${a.id}`} className="font-semibold text-ink hover:text-accent">
-                        {a.name}
-                      </Link>
-                      <div className="text-xs text-ink-faint">{a.team_name}</div>
-                    </td>
-                    <td className="px-5 py-3.5 text-ink-soft">
-                      <div>{a.email}</div>
-                      <div className="text-xs text-ink-faint">{a.phone ?? ""}</div>
-                    </td>
-                    <td className="px-5 py-3.5 text-ink-soft">{accessLabel(a.access_method)}</td>
-                    <td className="whitespace-nowrap px-5 py-3.5 text-ink-soft">
-                      {new Date(a.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <Link href={`/admin/audits/${a.id}`}>
-                        <StatusBadge status={a.status} />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <AuditsTable
+            key={(audits ?? []).map((a) => `${a.id}:${a.status}:${a.audit_date}`).join("|")}
+            rows={(audits ?? []).map((a) => ({
+              id: a.id,
+              name: a.name,
+              team_name: a.team_name,
+              requested: easternDateTime(a.created_at),
+              audit_date: a.audit_date,
+              status: a.status,
+            }))}
+          />
         </details>
       </section>
 
