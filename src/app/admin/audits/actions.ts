@@ -62,7 +62,18 @@ export async function updateAuditRequest(form: FormData) {
     .eq("id", id);
   if (error) redirect(`${back}?error=${encodeURIComponent(error.message)}`);
   refresh(id);
-  redirect(`${back}?saved=1`);
+  redirect("/dashboard/clients");
+}
+
+// Deletes an audit request (its page asks to confirm first), then back to
+// the Clients page.
+export async function deleteAuditRequest(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!UUID.test(id)) return { ok: false, error: "Unknown request." };
+  const supabase = await requireStaff();
+  const { error } = await supabase.from("audit_requests").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/clients");
+  redirect("/dashboard/clients");
 }
 
 // From the Clients page table: a request's status or audit date, saved as

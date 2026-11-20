@@ -57,8 +57,9 @@ export function AuditsTable({ rows: initial }: { rows: AuditRow[] }) {
               className="cursor-pointer border-b border-border-soft align-top last:border-0 hover:bg-bg"
             >
               <td className="px-5 py-3.5">
-                <div className="font-semibold text-ink">{r.name}</div>
-                <div className="text-xs text-ink-faint">{r.team_name}</div>
+                {/* The name always on one line; the team wraps under it. */}
+                <div className="whitespace-nowrap font-semibold text-ink">{r.name}</div>
+                <div className="max-w-[16rem] text-xs text-ink-faint">{r.team_name}</div>
               </td>
               <td className="whitespace-nowrap px-5 py-3.5 text-ink-soft">{r.requested}</td>
               <td className="px-5 py-3" onClick={stop}>

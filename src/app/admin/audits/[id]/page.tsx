@@ -6,6 +6,7 @@ import { requireStaff } from "../staff";
 import { StatusBadge } from "../StatusBadge";
 import { updateAuditRequest } from "../actions";
 import { AuditDates } from "./AuditDates";
+import { DeleteAudit } from "./DeleteAudit";
 
 const INPUT =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent";
@@ -154,9 +155,12 @@ export default async function AuditRequestPage({
               Setting Paid (or later) stamps the paid date. Setting Delivered or Upsold without a delivered
               date uses today.
             </p>
-            <button type="submit" className="self-start rounded-lg bg-accent px-6 py-2.5 text-sm font-semibold text-white">
-              Save
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="submit" className="rounded-lg bg-accent px-6 py-2.5 text-sm font-semibold text-white">
+                Save
+              </button>
+              <DeleteAudit id={r.id} name={r.name} />
+            </div>
           </section>
         </form>
       </div>

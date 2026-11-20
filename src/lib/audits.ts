@@ -12,7 +12,7 @@ export const AUDIT_STATUSES = [
   { value: "in_progress", label: "In progress" },
   { value: "delivered", label: "Delivered" },
   { value: "upsold", label: "Upsold" },
-  { value: "closed", label: "Closed" },
+  { value: "lost", label: "Lost" },
 ] as const;
 export type AuditStatus = (typeof AUDIT_STATUSES)[number]["value"];
 export const isAuditStatus = (v: string): v is AuditStatus => AUDIT_STATUSES.some((s) => s.value === v);
