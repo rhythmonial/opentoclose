@@ -1,6 +1,11 @@
 // The $55 OTC Audit: request form options and the statuses it moves through.
 export const AUDIT_FEE = 55;
 
+// The offer closes on New Year's Day (Eastern); the form stops taking
+// requests then.
+export const AUDIT_CLOSES_AT = new Date("2027-01-01T00:00:00-05:00");
+export const auditClosed = () => Date.now() >= AUDIT_CLOSES_AT.getTime();
+
 export const AUDIT_STATUSES = [
   { value: "requested", label: "Requested" },
   { value: "paid", label: "Paid" },

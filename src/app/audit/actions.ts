@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, SUPPORT_INBOX } from "@/lib/email";
-import { ACCESS_METHODS, AUDIT_REF_PREFIX, AUDIT_TEXT_NUMBER } from "@/lib/audits";
+import { ACCESS_METHODS, AUDIT_REF_PREFIX, AUDIT_TEXT_NUMBER, auditClosed } from "@/lib/audits";
 import { encryptCredential } from "@/lib/auditCredentials";
 
 const text = (form: FormData, key: string, max = 200) =>
@@ -14,6 +14,7 @@ const long = (form: FormData, key: string, max = 4000) =>
 // An audit request: saved as "requested", emailed to Josie, then on to the
 // Stripe Payment Link with the request's id and email.
 export async function submitAuditRequest(form: FormData) {
+  if (auditClosed()) redirect("/audit");
   const access = text(form, "access_method", 40);
   const username = text(form, "otc_username");
   const password = String(form.get("otc_password") ?? "").slice(0, 200);

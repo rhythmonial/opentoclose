@@ -16,8 +16,7 @@ export function AuditForm() {
   const message = `OTC Audit for ${name.trim() || "{{Name}}"} at ${team.trim() || "{{Team or Brokerage Name}}"} - (add username), (add password)`;
 
   return (
-    <form action={submitAuditRequest} className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <h2 className="text-[15px] font-bold text-ink sm:col-span-2">Request your audit</h2>
+    <form action={submitAuditRequest} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-ink">Name</span>
         <input
@@ -112,7 +111,10 @@ export function AuditForm() {
         <button type="submit" className="w-full rounded-lg bg-accent px-8 py-3 text-sm font-semibold text-white sm:w-auto">
           Continue to payment (${AUDIT_FEE})
         </button>
-        <span className="text-xs text-ink-faint">You&rsquo;ll pay securely through Stripe.</span>
+        <span className="text-center text-xs text-ink-faint">
+          You&rsquo;ll pay securely through Stripe. Every submission is reviewed, and we&rsquo;ll email
+          you your delivery date.
+        </span>
       </div>
     </form>
   );
