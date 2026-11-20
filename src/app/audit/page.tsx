@@ -56,25 +56,25 @@ export default async function AuditPage({
               2,000+ people.
             </p>
           </div>
-          <div className="mx-auto mt-8 max-w-2xl rounded-xl bg-white/10 p-5 text-center">
-            <h2 className="font-caption text-xs font-semibold uppercase tracking-wide text-gold">
+          <div className="mx-auto mt-8 max-w-2xl rounded-xl bg-surface p-5 text-center shadow-sm">
+            <h2 className="font-caption text-xs font-semibold uppercase tracking-wide text-navy">
               Service Outline
             </h2>
-            <ul className="mt-3 flex flex-col gap-2.5 text-sm text-white/90">
+            <ul className="mt-3 flex flex-col gap-2.5 text-sm text-navy">
               {CHECKS.map(([label, text]) => (
                 <li key={label}>
                   <span aria-hidden className="mr-1.5 text-gold">
                     &#10003;
                   </span>
-                  <span className="font-semibold text-white">{label}:</span> {text}
+                  <span className="font-semibold">{label}:</span> {text}
                 </li>
               ))}
             </ul>
-            <dl className="mt-5 flex flex-col gap-2 border-t border-white/15 pt-4 text-sm">
+            <dl className="mt-5 flex flex-col gap-2 border-t border-border-soft pt-4 text-sm text-navy">
               {TERMS.map(([label, text]) => (
                 <div key={label}>
-                  <dt className="inline font-semibold text-gold">{label}:</dt>{" "}
-                  <dd className="inline text-white/90">{text}</dd>
+                  <dt className="inline font-semibold">{label}:</dt>{" "}
+                  <dd className="inline">{text}</dd>
                 </div>
               ))}
             </dl>
