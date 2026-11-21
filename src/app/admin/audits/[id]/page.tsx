@@ -170,19 +170,16 @@ export default async function AuditRequestPage({
               </label>
               <div className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-ink">Report</span>
-                <Link
-                  href={`/admin/audits/${r.id}/report`}
-                  className="self-start rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-soft/40"
-                >
-                  {r.report_completed_at ? "Open report" : "Open report form"}
-                </Link>
-                <a href={`/admin/audits/${r.id}/report/pdf`} className="text-xs font-semibold text-accent hover:underline">
-                  Download report (PDF)
-                </a>
-                <span className="text-xs text-ink-faint">
-                  {r.report_completed_at
-                    ? "Complete: the Send Report email links to it."
-                    : "Mark it complete on the form to share its link."}
+                <span className="flex flex-wrap items-center gap-3">
+                  <Link
+                    href={`/admin/audits/${r.id}/report`}
+                    className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-soft/40"
+                  >
+                    Open form
+                  </Link>
+                  <a href={`/admin/audits/${r.id}/report/pdf`} className="text-sm font-semibold text-accent hover:underline">
+                    Download PDF
+                  </a>
                 </span>
               </div>
             </div>
