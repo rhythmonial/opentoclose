@@ -9,6 +9,8 @@ import { AuditDates } from "./AuditDates";
 import { DeleteAudit } from "./DeleteAudit";
 import { LinkInput } from "./LinkInput";
 import { PayLink } from "./PayLink";
+import { PasswordInput } from "./PasswordInput";
+import { auditReportLink } from "@/lib/auditReportFile";
 import { UpsellFields } from "./UpsellFields";
 import { AuditEmails } from "./AuditEmails";
 import { auditPayLink } from "@/lib/auditCheckout";
@@ -34,7 +36,8 @@ export default async function AuditRequestPage({
   const supabase = await requireStaff();
   const { data: r } = await supabase.from("audit_requests").select("*").eq("id", id).maybeSingle();
   if (!r) notFound();
-  const hasLogin = Boolean(r.otc_username || r.otc_password_enc);
+  const password = decryptCredential(r.otc_password_enc);
+  const hasLogin = Boolean(r.otc_username?.trim() && password);
   const origin = await siteOrigin();
 
   return (
@@ -59,7 +62,13 @@ export default async function AuditRequestPage({
               report_due: formatYmd(reportDue(r.audit_date)),
               payment_link: auditPayLink(origin, r.id),
               video_link: r.video_link ?? "(link coming)",
-              report_link: r.report_link ?? "attached",
+              report_link: auditReportLink(origin, r.id),
+              upsell_hours: r.upsell_hours === null ? "[hours]" : String(r.upsell_hours),
+              upsell_amount:
+                r.upsell_amount === null
+                  ? "[amount]"
+                  : Number(r.upsell_amount).toLocaleString("en-US", { style: "currency", currency: "USD" }),
+              has_login: hasLogin,
             }}
           />
         </div>
@@ -108,20 +117,17 @@ export default async function AuditRequestPage({
                 <div className={LABEL}>Login</div>
                 <div className="mt-1 text-ink">{accessLabel(r.access_method)}</div>
               </div>
-              {hasLogin && (
-                <>
-                  <div>
-                    <div className={LABEL}>OTC username</div>
-                    <div className="mt-1 break-words text-ink">{r.otc_username ?? "—"}</div>
-                  </div>
-                  <div>
-                    <div className={LABEL}>OTC password</div>
-                    <div className="mt-1 break-words font-mono text-ink">
-                      {decryptCredential(r.otc_password_enc) ?? "Couldn't be read"}
-                    </div>
-                  </div>
-                </>
-              )}
+              <label className="flex flex-col gap-1">
+                <span className={LABEL}>OTC username</span>
+                <input name="otc_username" defaultValue={r.otc_username ?? ""} autoComplete="off" className={INPUT} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className={LABEL}>OTC password</span>
+                <PasswordInput name="otc_password" initial={password ?? ""} />
+                {r.otc_password_enc && password === null && (
+                  <span className="text-xs text-danger">The saved password couldn&rsquo;t be read; retype it.</span>
+                )}
+              </label>
             </div>
             <div className="border-t border-border-soft pt-4">
               <h2 className={LABEL}>About their setup</h2>
@@ -162,26 +168,23 @@ export default async function AuditRequestPage({
                   </a>
                 )}
               </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-medium text-ink">Report link</span>
-                <LinkInput name="report_link" initial={r.report_link ?? ""} />
-                {r.report_link && (
-                  <a href={r.report_link} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent">
-                    Open report &#8599;
-                  </a>
-                )}
-              </label>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Link
-                href={`/admin/audits/${r.id}/report`}
-                className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-soft/40"
-              >
-                {r.report_completed_at ? "Open report" : "Open report form"}
-              </Link>
-              <span className="text-xs text-ink-faint">
-                {r.report_completed_at ? "Report complete" : "Fill it in as you audit; save and come back any time."}
-              </span>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-ink">Report</span>
+                <Link
+                  href={`/admin/audits/${r.id}/report`}
+                  className="self-start rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-soft/40"
+                >
+                  {r.report_completed_at ? "Open report" : "Open report form"}
+                </Link>
+                <a href={`/admin/audits/${r.id}/report/pdf`} className="text-xs font-semibold text-accent hover:underline">
+                  Download report (PDF)
+                </a>
+                <span className="text-xs text-ink-faint">
+                  {r.report_completed_at
+                    ? "Complete: the Send Report email links to it."
+                    : "Mark it complete on the form to share its link."}
+                </span>
+              </div>
             </div>
             <UpsellFields initial={r.upsell_hours === null ? "" : String(r.upsell_hours)} />
             <label className="flex flex-col gap-1.5">

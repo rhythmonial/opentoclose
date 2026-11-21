@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "./staff";
 import { cleanReport } from "@/lib/auditReport";
+import { encryptCredential } from "@/lib/auditCredentials";
 import { DELIVERED_OR_LATER, easternYmd, isAuditStatus, isYmd, PAID_OR_LATER, upsellAmount, ymdToTimestamp } from "@/lib/audits";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -30,7 +31,8 @@ export async function updateAuditRequest(form: FormData) {
   const deliveredDate = String(form.get("delivered_date") ?? "").trim();
   const notes = String(form.get("notes") ?? "").trim().slice(0, 10000);
   const video = String(form.get("video_link") ?? "").trim().slice(0, 1000);
-  const report = String(form.get("report_link") ?? "").trim().slice(0, 1000);
+  const username = String(form.get("otc_username") ?? "").trim().slice(0, 200);
+  const password = String(form.get("otc_password") ?? "").slice(0, 200);
   const hoursRaw = String(form.get("upsell_hours") ?? "").trim();
   const upsellHours = hoursRaw === "" ? null : Number(hoursRaw);
   const back = `/admin/audits/${id}`;
@@ -40,7 +42,7 @@ export async function updateAuditRequest(form: FormData) {
   if (upsellHours !== null && (!Number.isFinite(upsellHours) || upsellHours < 0 || upsellHours > 9999))
     redirect(`${back}?error=Upsell+hours+must+be+a+number.`);
   if (video && !isLink(video)) redirect(`${back}?error=Video+link+must+start+with+http.`);
-  if (report && !isLink(report)) redirect(`${back}?error=Report+link+must+start+with+http.`);
+
 
   const now = new Date().toISOString();
   const deliveredAt = deliveredDate
@@ -56,7 +58,8 @@ export async function updateAuditRequest(form: FormData) {
       delivered_at: deliveredAt,
       notes: notes || null,
       video_link: video || null,
-      report_link: report || null,
+      otc_username: username || null,
+      otc_password_enc: password ? encryptCredential(password) : null,
       // Its amount: the hours at the hourly rate, less the audit fee.
       upsell_hours: upsellHours,
       upsell_amount: upsellAmount(upsellHours),
