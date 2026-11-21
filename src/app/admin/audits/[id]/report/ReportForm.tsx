@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { REPORT_AREAS, REPORT_PARTS, type AuditReport } from "@/lib/auditReport";
 import { AUDIT_FEE, AUDIT_TEXT_NUMBER, formatYmd, UPSELL_HOURLY_RATE } from "@/lib/audits";
-import { markReportDelivered, saveAuditReport } from "../../actions";
+import { saveAuditReport } from "../../actions";
 
 // Boxes while filling it in; plain text when printed (and empty parts are
 // left out, so the PDF only has what was written).
@@ -43,7 +43,6 @@ export function ReportForm({
   videoLink,
   initial,
   initialComplete,
-  autoPrint,
 }: {
   id: string;
   name: string;
@@ -54,37 +53,25 @@ export function ReportForm({
   videoLink: string | null;
   initial: AuditReport;
   initialComplete: boolean;
-  autoPrint: boolean;
 }) {
   const [report, setReport] = useState(initial);
   const [complete, setComplete] = useState(initialComplete);
   const [status, setStatus] = useState<"saving" | "saved" | "error" | "changed" | null>(null);
   const [delivered, setDelivered] = useState(initialDelivered);
 
-  // Printing delivers it: today becomes its delivered date (if it hasn't
-  // one), shown on the report before the print dialog opens.
-  async function deliverAndPrint() {
-    const res = await markReportDelivered(id);
-    if (res.ok && res.delivered) setDelivered(formatYmd(res.delivered));
-    await new Promise((r) => window.setTimeout(r, 150));
-    window.print();
+  // Downloading the PDF delivers it: today becomes its delivered date (if
+  // it hasn't one), shown here too.
+  async function download() {
+    if (status === "changed") await save();
+    // A file download, so this page stays open.
+    const link = document.createElement("a");
+    link.href = `/admin/audits/${id}/report/pdf`;
+    link.click();
+    if (!delivered) {
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+      setDelivered(formatYmd(today));
+    }
   }
-
-  // Download report (?print=1): straight to the print dialog.
-  useEffect(() => {
-    if (!autoPrint) return;
-    let stop = false;
-    const t = window.setTimeout(async () => {
-      const res = await markReportDelivered(id);
-      if (stop) return;
-      if (res.ok && res.delivered) setDelivered(formatYmd(res.delivered));
-      window.setTimeout(() => !stop && window.print(), 150);
-    }, 300);
-    return () => {
-      stop = true;
-      window.clearTimeout(t);
-    };
-  }, [autoPrint, id]);
 
   const set = (patch: Partial<AuditReport>) => {
     setReport((r) => ({ ...r, ...patch }));
@@ -150,13 +137,10 @@ export function ReportForm({
             </button>
             <button
               type="button"
-              onClick={async () => {
-                if (status === "changed") await save();
-                await deliverAndPrint();
-              }}
+              onClick={download}
               className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent"
             >
-              Print / Save as PDF
+              Download PDF
             </button>
           </div>
         </div>
@@ -189,7 +173,7 @@ export function ReportForm({
             </div>
             <div>
               <dt className="font-caption text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Delivered</dt>
-              <dd className="text-ink">{delivered ?? "When printed"}</dd>
+              <dd className="text-ink">{delivered ?? "When downloaded"}</dd>
             </div>
           </dl>
           {videoLink && (

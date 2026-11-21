@@ -92,12 +92,15 @@ export function AuditsTable({
               </td>
               <td className="whitespace-nowrap px-5 py-3.5 text-ink-soft" onClick={stop}>
                 <div>{r.delivered ?? "—"}</div>
-                <Link
-                  href={r.reportComplete ? `/admin/audits/${r.id}/report?print=1` : `/admin/audits/${r.id}/report`}
-                  className="text-xs font-semibold text-accent hover:underline"
-                >
-                  {r.reportComplete ? "Download report" : "Report form"}
-                </Link>
+                {r.reportComplete ? (
+                  <a href={`/admin/audits/${r.id}/report/pdf`} className="text-xs font-semibold text-accent hover:underline">
+                    Download report
+                  </a>
+                ) : (
+                  <Link href={`/admin/audits/${r.id}/report`} className="text-xs font-semibold text-accent hover:underline">
+                    Report form
+                  </Link>
+                )}
               </td>
               <td className="px-5 py-3" onClick={stop}>
                 <select
