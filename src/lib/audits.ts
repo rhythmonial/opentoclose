@@ -1,4 +1,5 @@
 // The $55 OTC Audit: request form options and the statuses it moves through.
+import { MONTHLY_FEE_CENTS, PLAN_PRICES } from "@/lib/pricing";
 export const AUDIT_FEE = 55;
 
 // The offer closes on New Year's Day (Eastern); the form stops taking
@@ -7,8 +8,8 @@ export const AUDIT_CLOSES_AT = new Date("2027-01-01T00:00:00-05:00");
 export const auditClosed = () => Date.now() >= AUDIT_CLOSES_AT.getTime();
 
 export const AUDIT_STATUSES = [
-  { value: "requested", label: "Requested" },
-  { value: "paid", label: "Paid" },
+  // Requested (paid or not: paid_at tells which).
+  { value: "received", label: "Received" },
   { value: "in_progress", label: "In progress" },
   { value: "delivered", label: "Delivered" },
   { value: "upsold", label: "Upsold" },
@@ -85,7 +86,16 @@ export const formatYmd = (ymd: string | null) =>
       })
     : "—";
 
-// Moving to paid (or later) stamps the paid date; delivered or upsold, the
-// delivered date.
-export const PAID_OR_LATER = ["paid", "in_progress", "delivered", "upsold"];
+// Moving to in progress (or later) stamps the paid date if it isn't set;
+// delivered or upsold, the delivered date.
+export const PAID_OR_LATER = ["in_progress", "delivered", "upsold"];
 export const DELIVERED_OR_LATER = ["delivered", "upsold"];
+
+// What an upsold audit became, and its first payment (the one-time setup
+// plus the first month, or the first month alone), from the app's prices.
+export const UPSELL_SERVICES = [
+  { value: "diy", label: "DIY", cents: PLAN_PRICES.diy.cents + MONTHLY_FEE_CENTS },
+  { value: "setup", label: "Setup", cents: PLAN_PRICES.setup.cents + MONTHLY_FEE_CENTS },
+] as const;
+export const upsellCents = (service: string | null) =>
+  UPSELL_SERVICES.find((u) => u.value === service)?.cents ?? null;

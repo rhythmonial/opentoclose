@@ -583,6 +583,7 @@ export type Database = {
           report_link: string | null
           notes: string | null
           upsell_amount: number | null
+          upsell_service: string | null
           stripe_session_id: string | null
           updated_at: string
         }
@@ -607,6 +608,7 @@ export type Database = {
           report_link?: string | null
           notes?: string | null
           upsell_amount?: number | null
+          upsell_service?: string | null
           stripe_session_id?: string | null
           updated_at?: string
         }
@@ -631,6 +633,7 @@ export type Database = {
           report_link?: string | null
           notes?: string | null
           upsell_amount?: number | null
+          upsell_service?: string | null
           stripe_session_id?: string | null
           updated_at?: string
         }

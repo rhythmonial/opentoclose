@@ -323,14 +323,15 @@ export default async function ClientsPage() {
     requested: easternDate(a.created_at),
     audit_date: a.audit_date,
     status: a.status,
+    paid: Boolean(a.paid_at),
   });
   const auditCount = (s: string) => (allAudits ?? []).filter((a) => a.status === s).length;
   const auditRevenue =
     (allAudits ?? []).filter((a) => a.paid_at).length * AUDIT_FEE +
     (allAudits ?? []).reduce((sum, a) => sum + Number(a.upsell_amount ?? 0), 0);
   const auditTiles = [
-    ["Requested", String(auditCount("requested"))],
-    ["Paid", String(auditCount("paid"))],
+    ["Received", String(auditCount("received"))],
+    ["Paid", String((allAudits ?? []).filter((a) => a.paid_at).length)],
     ["In progress", String(auditCount("in_progress"))],
     ["Delivered", String(auditCount("delivered"))],
     ["Upsold", String(auditCount("upsold"))],

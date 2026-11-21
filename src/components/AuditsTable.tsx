@@ -13,6 +13,7 @@ export type AuditRow = {
   requested: string;
   audit_date: string | null;
   status: string;
+  paid: boolean;
 };
 
 // Staff (Clients page): audits still in play. Each row's audit date and
@@ -67,7 +68,12 @@ export function AuditsTable({
                 <div className="whitespace-nowrap font-semibold text-ink">{r.name}</div>
                 <div className="max-w-[16rem] text-xs text-ink-faint">{r.team_name}</div>
               </td>
-              <td className="whitespace-nowrap px-5 py-3.5 text-ink-soft">{r.requested}</td>
+              <td className="whitespace-nowrap px-5 py-3.5 text-ink-soft">
+                <div>{r.requested}</div>
+                <div className={`text-xs font-semibold ${r.paid ? "text-success" : "text-danger"}`}>
+                  {r.paid ? "Paid" : "Not paid"}
+                </div>
+              </td>
               <td className="px-5 py-3" onClick={stop}>
                 <input
                   type="date"

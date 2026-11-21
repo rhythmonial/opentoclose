@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "./staff";
-import { DELIVERED_OR_LATER, isAuditStatus, isYmd, PAID_OR_LATER, ymdToTimestamp } from "@/lib/audits";
+import { DELIVERED_OR_LATER, isAuditStatus, isYmd, PAID_OR_LATER, upsellCents, ymdToTimestamp } from "@/lib/audits";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const isLink = (v: string) => /^https?:\/\//i.test(v);
@@ -14,7 +14,7 @@ function refresh(id: string) {
 }
 
 // Saves an audit request from its page: status, audit date, delivered
-// date, video and report links, upsell amount and notes. Moving it to paid
+// date, video and report links, upsell service and notes. Moving it to in progress
 // (or later) stamps the paid date; to delivered or upsold with no
 // delivered date picked, today.
 export async function updateAuditRequest(form: FormData) {
@@ -30,13 +30,12 @@ export async function updateAuditRequest(form: FormData) {
   const notes = String(form.get("notes") ?? "").trim().slice(0, 10000);
   const video = String(form.get("video_link") ?? "").trim().slice(0, 1000);
   const report = String(form.get("report_link") ?? "").trim().slice(0, 1000);
-  const upsellRaw = String(form.get("upsell_amount") ?? "").replace(/[$,\s]/g, "");
-  const upsell = upsellRaw === "" ? null : Number(upsellRaw);
+  const upsellService = String(form.get("upsell_service") ?? "");
   const back = `/admin/audits/${id}`;
   if (!isAuditStatus(status)) redirect(`${back}?error=Pick+a+status.`);
   if (auditDate && !isYmd(auditDate)) redirect(`${back}?error=Pick+a+valid+audit+date.`);
   if (deliveredDate && !isYmd(deliveredDate)) redirect(`${back}?error=Pick+a+valid+delivered+date.`);
-  if (upsell !== null && (!Number.isFinite(upsell) || upsell < 0)) redirect(`${back}?error=Upsell+amount+must+be+a+number.`);
+  if (upsellService && upsellCents(upsellService) === null) redirect(`${back}?error=Pick+an+upsell+service.`);
   if (video && !isLink(video)) redirect(`${back}?error=Video+link+must+start+with+http.`);
   if (report && !isLink(report)) redirect(`${back}?error=Report+link+must+start+with+http.`);
 
@@ -55,7 +54,9 @@ export async function updateAuditRequest(form: FormData) {
       notes: notes || null,
       video_link: video || null,
       report_link: report || null,
-      upsell_amount: upsell === null ? null : Math.round(upsell * 100) / 100,
+      // Its amount comes from the service.
+      upsell_service: upsellService || null,
+      upsell_amount: upsellService ? upsellCents(upsellService)! / 100 : null,
       ...(PAID_OR_LATER.includes(status) && !current.paid_at ? { paid_at: now } : {}),
       updated_at: now,
     })

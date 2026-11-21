@@ -8,6 +8,10 @@ import { updateAuditRequest } from "../actions";
 import { AuditDates } from "./AuditDates";
 import { DeleteAudit } from "./DeleteAudit";
 import { LinkInput } from "./LinkInput";
+import { PayLink } from "./PayLink";
+import { UpsellFields } from "./UpsellFields";
+import { auditPayLink } from "@/lib/auditCheckout";
+import { siteOrigin } from "@/lib/site-origin";
 
 const INPUT =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent";
@@ -75,7 +79,11 @@ export default async function AuditRequestPage({
               </div>
               <div>
                 <div className={LABEL}>Paid</div>
-                <EasternWhen iso={r.paid_at} />
+                {r.paid_at ? (
+                  <EasternWhen iso={r.paid_at} />
+                ) : (
+                  <PayLink link={auditPayLink(await siteOrigin(), r.id)} email={r.email} />
+                )}
               </div>
             </div>
             <AuditDates initialAuditDate={r.audit_date ?? ""} />
@@ -144,17 +152,14 @@ export default async function AuditRequestPage({
                 </a>
               )}
             </label>
-            <label className="flex flex-col gap-1.5 sm:w-1/2 sm:pr-3">
-              <span className="text-sm font-medium text-ink">Upsell amount ($)</span>
-              <input name="upsell_amount" inputMode="decimal" defaultValue={r.upsell_amount ?? ""} placeholder="0" className={INPUT} />
-            </label>
+            <UpsellFields initial={r.upsell_service ?? ""} />
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-ink">Notes</span>
               <textarea name="notes" rows={5} defaultValue={r.notes ?? ""} className={INPUT} />
             </label>
             <p className="text-xs text-ink-faint">
-              Setting Paid (or later) stamps the paid date. Setting Delivered or Upsold without a delivered
-              date uses today.
+              Setting In progress (or later) stamps the paid date if there isn&rsquo;t one. Setting Delivered
+              or Upsold without a delivered date uses today.
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <button type="submit" className="rounded-lg bg-accent px-6 py-2.5 text-sm font-semibold text-white">

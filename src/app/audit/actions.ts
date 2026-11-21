@@ -3,8 +3,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, SUPPORT_INBOX } from "@/lib/email";
-import { ACCESS_METHODS, AUDIT_FEE, AUDIT_REF_PREFIX, AUDIT_TEXT_NUMBER, auditClosed } from "@/lib/audits";
-import { getStripe } from "@/lib/stripe";
+import { ACCESS_METHODS, AUDIT_TEXT_NUMBER, auditClosed } from "@/lib/audits";
+import { auditCheckoutUrl } from "@/lib/auditCheckout";
 import { siteOrigin } from "@/lib/site-origin";
 import { encryptCredential } from "@/lib/auditCredentials";
 
@@ -71,36 +71,8 @@ export async function submitAuditRequest(form: FormData) {
     ctaUrl: `${site}/admin/audits/${row.id}`,
   });
 
-  // Stripe Checkout for the $55 (as the app's other payments are made),
-  // tied to the request; back to the thank-you page once paid.
-  const origin = await siteOrigin();
-  let checkoutUrl: string | null = null;
-  try {
-    const session = await getStripe().checkout.sessions.create({
-      mode: "payment",
-      customer_email: row.email,
-      client_reference_id: `${AUDIT_REF_PREFIX}${row.id}`,
-      metadata: { kind: "audit", audit_request_id: row.id },
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "usd",
-            unit_amount: AUDIT_FEE * 100,
-            product_data: {
-              name: "OTC Audit",
-              description: "A recorded walkthrough and written report of your Open to Close account.",
-            },
-          },
-        },
-      ],
-      success_url: `${origin}/audit/thanks?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/audit`,
-    });
-    checkoutUrl = session.url;
-  } catch (err) {
-    console.error(`Audit checkout failed for ${row.id}:`, err);
-  }
+  // On to Stripe Checkout for the $55.
+  const checkoutUrl = await auditCheckoutUrl(row, await siteOrigin());
   if (!checkoutUrl) {
     redirect(
       `/audit?error=${encodeURIComponent(`We saved your request but couldn't open payment. Please text ${AUDIT_TEXT_NUMBER} and we'll help.`)}`,
