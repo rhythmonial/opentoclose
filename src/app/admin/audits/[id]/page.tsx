@@ -46,9 +46,23 @@ export default async function AuditRequestPage({
           </Link>
           <StatusBadge status={r.status} />
         </div>
-        <h1 className="mt-3 font-display text-2xl font-bold text-ink">
-          {r.name} <span className="font-sans text-base font-normal text-ink-soft">({r.team_name})</span>
-        </h1>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-display text-2xl font-bold text-ink">
+            {r.name} <span className="font-sans text-base font-normal text-ink-soft">({r.team_name})</span>
+          </h1>
+          <AuditEmails
+            email={r.email}
+            fields={{
+              name: r.name,
+              team: r.team_name,
+              audit_date: formatYmd(r.audit_date),
+              report_due: formatYmd(reportDue(r.audit_date)),
+              payment_link: auditPayLink(origin, r.id),
+              video_link: r.video_link ?? "(link coming)",
+              report_link: r.report_link ?? "attached",
+            }}
+          />
+        </div>
         <p className="mt-1 text-sm text-ink-soft">
           <a href={`mailto:${r.email}`} className="text-accent hover:underline">
             {r.email}
@@ -63,18 +77,6 @@ export default async function AuditRequestPage({
             </>
           )}
         </p>
-        <AuditEmails
-          email={r.email}
-          fields={{
-            name: r.name,
-            team: r.team_name,
-            audit_date: formatYmd(r.audit_date),
-            report_due: formatYmd(reportDue(r.audit_date)),
-            payment_link: auditPayLink(origin, r.id),
-            video_link: r.video_link ?? "(link coming)",
-            report_link: r.report_link ?? "attached",
-          }}
-        />
 
         {saved && (
           <div className="mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm text-success">Saved.</div>

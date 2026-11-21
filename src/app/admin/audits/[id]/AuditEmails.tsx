@@ -14,7 +14,7 @@ export function AuditEmails({ email, fields }: { email: string; fields: AuditEma
       )}&body=${encodeURIComponent(fillAuditEmail(template.body, fields))}`
     : undefined;
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <select
         value={key}
         onChange={(e) => setKey(e.target.value)}
