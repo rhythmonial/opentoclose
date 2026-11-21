@@ -120,20 +120,22 @@ export default async function AuditRequestPage({
           </section>
 
           <section className="mt-5 flex flex-col gap-4 rounded-xl border border-border bg-surface p-5">
-            <label className="flex flex-col gap-1.5 sm:w-1/2 sm:pr-3">
-              <span className="text-sm font-medium text-ink">Status</span>
-              <select name="status" defaultValue={r.status} className={INPUT}>
-                {AUDIT_STATUSES.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5 sm:w-1/2 sm:pr-3">
-              <span className="text-sm font-medium text-ink">Delivered date</span>
-              <input type="date" name="delivered_date" defaultValue={easternYmd(r.delivered_at)} className={INPUT} />
-            </label>
+            <div className="grid grid-cols-2 gap-x-6">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-ink">Status</span>
+                <select name="status" defaultValue={r.status} className={INPUT}>
+                  {AUDIT_STATUSES.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-ink">Delivered date</span>
+                <input type="date" name="delivered_date" defaultValue={easternYmd(r.delivered_at)} className={INPUT} />
+              </label>
+            </div>
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-ink">Video link</span>
               <LinkInput name="video_link" initial={r.video_link ?? ""} />
