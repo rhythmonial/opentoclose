@@ -51,7 +51,11 @@ export function CopyIcon({ text, onDark = false }: { text: string; onDark?: bool
   return (
     <button
       type="button"
-      onClick={async () => {
+      onClick={async (e) => {
+        // Inside a <summary> (or a clickable row), copying shouldn't also
+        // toggle or open it.
+        e.preventDefault();
+        e.stopPropagation();
         try {
           await navigator.clipboard.writeText(text);
           setCopied(true);

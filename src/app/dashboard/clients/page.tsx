@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { FoundingMembers } from "@/components/FoundingMembers";
 import { AuditsTable } from "@/components/AuditsTable";
-import { AUDIT_FEE, easternDate } from "@/lib/audits";
+import { AUDIT_FEE, easternDate, easternYmd, formatYmd } from "@/lib/audits";
+import { CopyIcon } from "@/components/CopyButton";
+import { siteOrigin } from "@/lib/site-origin";
 import { createClient } from "@/lib/supabase/server";
 import { SubscriptionStatus } from "@/components/SubscriptionStatus";
 import { LeadStatusSelect } from "@/components/LeadStatusSelect";
@@ -310,7 +312,7 @@ export default async function ClientsPage() {
   // and revenue under it.
   const { data: allAudits } = await supabase
     .from("audit_requests")
-    .select("id, created_at, name, team_name, audit_date, status, paid_at, upsell_amount")
+    .select("id, created_at, name, team_name, audit_date, status, paid_at, upsell_amount, delivered_at, report_completed_at")
     .order("created_at", { ascending: false });
   // Open until they're upsold or lost; then they're closed (like archived
   // leads).
@@ -324,6 +326,8 @@ export default async function ClientsPage() {
     audit_date: a.audit_date,
     status: a.status,
     paid: Boolean(a.paid_at),
+    delivered: a.delivered_at ? formatYmd(easternYmd(a.delivered_at)) : null,
+    reportComplete: Boolean(a.report_completed_at),
   });
   const auditCount = (s: string) => (allAudits ?? []).filter((a) => a.status === s).length;
   const auditRevenue =
@@ -698,6 +702,10 @@ export default async function ClientsPage() {
             <h2 className="inline font-display text-lg font-bold text-ink">
               OTC Audits ({audits.length})
             </h2>
+            {/* Copies the audit page's link (to send people). */}
+            <span className="ml-1.5 inline-block align-middle" title="Copy the audit page link">
+              <CopyIcon text={`${await siteOrigin()}/audit`} />
+            </span>
             <p className="mt-1 text-sm text-ink-soft">
               Requests from the $55 audit page. Set the audit date and status here, or click a row
               to open it. Upsold and lost audits move to Closed.

@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "./staff";
-import { DELIVERED_OR_LATER, isAuditStatus, isYmd, PAID_OR_LATER, upsellCents, ymdToTimestamp } from "@/lib/audits";
+import { cleanReport } from "@/lib/auditReport";
+import { DELIVERED_OR_LATER, isAuditStatus, isYmd, PAID_OR_LATER, upsellAmount, ymdToTimestamp } from "@/lib/audits";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const isLink = (v: string) => /^https?:\/\//i.test(v);
@@ -14,7 +15,7 @@ function refresh(id: string) {
 }
 
 // Saves an audit request from its page: status, audit date, delivered
-// date, video and report links, upsell service and notes. Moving it to in progress
+// date, video and report links, upsell hours and notes. Moving it to in progress
 // (or later) stamps the paid date; to delivered or upsold with no
 // delivered date picked, today.
 export async function updateAuditRequest(form: FormData) {
@@ -30,12 +31,14 @@ export async function updateAuditRequest(form: FormData) {
   const notes = String(form.get("notes") ?? "").trim().slice(0, 10000);
   const video = String(form.get("video_link") ?? "").trim().slice(0, 1000);
   const report = String(form.get("report_link") ?? "").trim().slice(0, 1000);
-  const upsellService = String(form.get("upsell_service") ?? "");
+  const hoursRaw = String(form.get("upsell_hours") ?? "").trim();
+  const upsellHours = hoursRaw === "" ? null : Number(hoursRaw);
   const back = `/admin/audits/${id}`;
   if (!isAuditStatus(status)) redirect(`${back}?error=Pick+a+status.`);
   if (auditDate && !isYmd(auditDate)) redirect(`${back}?error=Pick+a+valid+audit+date.`);
   if (deliveredDate && !isYmd(deliveredDate)) redirect(`${back}?error=Pick+a+valid+delivered+date.`);
-  if (upsellService && upsellCents(upsellService) === null) redirect(`${back}?error=Pick+an+upsell+service.`);
+  if (upsellHours !== null && (!Number.isFinite(upsellHours) || upsellHours < 0 || upsellHours > 9999))
+    redirect(`${back}?error=Upsell+hours+must+be+a+number.`);
   if (video && !isLink(video)) redirect(`${back}?error=Video+link+must+start+with+http.`);
   if (report && !isLink(report)) redirect(`${back}?error=Report+link+must+start+with+http.`);
 
@@ -54,9 +57,9 @@ export async function updateAuditRequest(form: FormData) {
       notes: notes || null,
       video_link: video || null,
       report_link: report || null,
-      // Its amount comes from the service.
-      upsell_service: upsellService || null,
-      upsell_amount: upsellService ? upsellCents(upsellService)! / 100 : null,
+      // Its amount: the hours at the hourly rate, less the audit fee.
+      upsell_hours: upsellHours,
+      upsell_amount: upsellAmount(upsellHours),
       ...(PAID_OR_LATER.includes(status) && !current.paid_at ? { paid_at: now } : {}),
       updated_at: now,
     })
@@ -112,5 +115,34 @@ export async function quickUpdateAudit(
   const { error } = await supabase.from("audit_requests").update(update).eq("id", id);
   if (error) return { ok: false, error: error.message };
   refresh(id);
+  return { ok: true };
+}
+
+// Saves an audit's report form (and whether it's complete).
+export async function saveAuditReport(
+  id: string,
+  report: unknown,
+  complete: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!UUID.test(id)) return { ok: false, error: "Unknown request." };
+  const supabase = await requireStaff();
+  const { data: current } = await supabase
+    .from("audit_requests")
+    .select("report_completed_at")
+    .eq("id", id)
+    .maybeSingle();
+  if (!current) return { ok: false, error: "Unknown request." };
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("audit_requests")
+    .update({
+      report: cleanReport(report),
+      report_completed_at: complete ? (current.report_completed_at ?? now) : null,
+      updated_at: now,
+    })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  refresh(id);
+  revalidatePath(`/admin/audits/${id}/report`);
   return { ok: true };
 }

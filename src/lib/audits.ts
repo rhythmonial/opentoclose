@@ -1,5 +1,4 @@
 // The $55 OTC Audit: request form options and the statuses it moves through.
-import { MONTHLY_FEE_CENTS, PLAN_PRICES } from "@/lib/pricing";
 export const AUDIT_FEE = 55;
 
 // The offer closes on New Year's Day (Eastern); the form stops taking
@@ -91,11 +90,8 @@ export const formatYmd = (ymd: string | null) =>
 export const PAID_OR_LATER = ["in_progress", "delivered", "upsold"];
 export const DELIVERED_OR_LATER = ["delivered", "upsold"];
 
-// What an upsold audit became, and its first payment (the one-time setup
-// plus the first month, or the first month alone), from the app's prices.
-export const UPSELL_SERVICES = [
-  { value: "diy", label: "DIY", cents: PLAN_PRICES.diy.cents + MONTHLY_FEE_CENTS },
-  { value: "setup", label: "Setup", cents: PLAN_PRICES.setup.cents + MONTHLY_FEE_CENTS },
-] as const;
-export const upsellCents = (service: string | null) =>
-  UPSELL_SERVICES.find((u) => u.value === service)?.cents ?? null;
+// The upsell is billed hourly, less the audit fee (it's credited toward
+// the work).
+export const UPSELL_HOURLY_RATE = 125;
+export const upsellAmount = (hours: number | null) =>
+  hours && hours > 0 ? Math.max(0, hours * UPSELL_HOURLY_RATE - AUDIT_FEE) : null;

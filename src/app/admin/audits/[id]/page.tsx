@@ -136,25 +136,38 @@ export default async function AuditRequestPage({
                 <input type="date" name="delivered_date" defaultValue={easternYmd(r.delivered_at)} className={INPUT} />
               </label>
             </div>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-ink">Video link</span>
-              <LinkInput name="video_link" initial={r.video_link ?? ""} />
-              {r.video_link && (
-                <a href={r.video_link} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent">
-                  Open video &#8599;
-                </a>
-              )}
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-ink">Report link</span>
-              <LinkInput name="report_link" initial={r.report_link ?? ""} />
-              {r.report_link && (
-                <a href={r.report_link} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent">
-                  Open report &#8599;
-                </a>
-              )}
-            </label>
-            <UpsellFields initial={r.upsell_service ?? ""} />
+            <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-ink">Video link</span>
+                <LinkInput name="video_link" initial={r.video_link ?? ""} />
+                {r.video_link && (
+                  <a href={r.video_link} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent">
+                    Open video &#8599;
+                  </a>
+                )}
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-ink">Report link</span>
+                <LinkInput name="report_link" initial={r.report_link ?? ""} />
+                {r.report_link && (
+                  <a href={r.report_link} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-accent">
+                    Open report &#8599;
+                  </a>
+                )}
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href={`/admin/audits/${r.id}/report`}
+                className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-soft/40"
+              >
+                {r.report_completed_at ? "Open report" : "Open report form"}
+              </Link>
+              <span className="text-xs text-ink-faint">
+                {r.report_completed_at ? "Report complete" : "Fill it in as you audit; save and come back any time."}
+              </span>
+            </div>
+            <UpsellFields initial={r.upsell_hours === null ? "" : String(r.upsell_hours)} />
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-ink">Notes</span>
               <textarea name="notes" rows={5} defaultValue={r.notes ?? ""} className={INPUT} />

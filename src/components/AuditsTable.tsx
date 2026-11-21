@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AUDIT_STATUSES, formatYmd, reportDue } from "@/lib/audits";
 import { quickUpdateAudit } from "@/app/admin/audits/actions";
@@ -14,6 +15,9 @@ export type AuditRow = {
   audit_date: string | null;
   status: string;
   paid: boolean;
+  // When it was delivered ("Mon, Dec 7, 2026"), or null.
+  delivered: string | null;
+  reportComplete: boolean;
 };
 
 // Staff (Clients page): audits still in play. Each row's audit date and
@@ -44,8 +48,8 @@ export function AuditsTable({
           <tr className="border-b border-border-soft bg-bg font-caption text-xs font-bold uppercase tracking-wide text-ink-faint">
             <th className="px-5 py-3">Name</th>
             <th className="px-5 py-3">Requested</th>
-            <th className="px-5 py-3">Audit date</th>
-            <th className="px-5 py-3">Report due</th>
+            <th className="px-5 py-3">Audit &amp; report due</th>
+            <th className="px-5 py-3">Delivered</th>
             <th className="px-5 py-3">Status</th>
           </tr>
         </thead>
@@ -82,8 +86,19 @@ export function AuditsTable({
                   aria-label={`Audit date for ${r.name}`}
                   className="rounded-md border border-border bg-bg px-2 py-1 text-sm text-ink"
                 />
+                <div className="mt-1 whitespace-nowrap text-xs text-ink-faint">
+                  Report due: {formatYmd(reportDue(r.audit_date))}
+                </div>
               </td>
-              <td className="whitespace-nowrap px-5 py-3.5 text-ink-soft">{formatYmd(reportDue(r.audit_date))}</td>
+              <td className="whitespace-nowrap px-5 py-3.5 text-ink-soft" onClick={stop}>
+                <div>{r.delivered ?? "—"}</div>
+                <Link
+                  href={r.reportComplete ? `/admin/audits/${r.id}/report?print=1` : `/admin/audits/${r.id}/report`}
+                  className="text-xs font-semibold text-accent hover:underline"
+                >
+                  {r.reportComplete ? "Download report" : "Report form"}
+                </Link>
+              </td>
               <td className="px-5 py-3" onClick={stop}>
                 <select
                   value={r.status}
