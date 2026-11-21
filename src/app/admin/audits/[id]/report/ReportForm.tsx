@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { REPORT_AREAS, REPORT_PARTS, type AuditReport } from "@/lib/auditReport";
-import { AUDIT_FEE, AUDIT_TEXT_NUMBER, UPSELL_HOURLY_RATE } from "@/lib/audits";
-import { saveAuditReport } from "../../actions";
+import { AUDIT_FEE, AUDIT_TEXT_NUMBER, formatYmd, UPSELL_HOURLY_RATE } from "@/lib/audits";
+import { markReportDelivered, saveAuditReport } from "../../actions";
 
 // Boxes while filling it in; plain text when printed (and empty parts are
 // left out, so the PDF only has what was written).
@@ -39,7 +39,7 @@ export function ReportForm({
   name,
   team,
   auditDate,
-  reportDate,
+  initialDelivered,
   videoLink,
   initial,
   initialComplete,
@@ -49,7 +49,8 @@ export function ReportForm({
   name: string;
   team: string;
   auditDate: string;
-  reportDate: string;
+  // Its delivered date ("Mon, Dec 7, 2026"): the day it was first printed.
+  initialDelivered: string | null;
   videoLink: string | null;
   initial: AuditReport;
   initialComplete: boolean;
@@ -58,12 +59,32 @@ export function ReportForm({
   const [report, setReport] = useState(initial);
   const [complete, setComplete] = useState(initialComplete);
   const [status, setStatus] = useState<"saving" | "saved" | "error" | "changed" | null>(null);
+  const [delivered, setDelivered] = useState(initialDelivered);
 
+  // Printing delivers it: today becomes its delivered date (if it hasn't
+  // one), shown on the report before the print dialog opens.
+  async function deliverAndPrint() {
+    const res = await markReportDelivered(id);
+    if (res.ok && res.delivered) setDelivered(formatYmd(res.delivered));
+    await new Promise((r) => window.setTimeout(r, 150));
+    window.print();
+  }
+
+  // Download report (?print=1): straight to the print dialog.
   useEffect(() => {
     if (!autoPrint) return;
-    const t = window.setTimeout(() => window.print(), 400);
-    return () => window.clearTimeout(t);
-  }, [autoPrint]);
+    let stop = false;
+    const t = window.setTimeout(async () => {
+      const res = await markReportDelivered(id);
+      if (stop) return;
+      if (res.ok && res.delivered) setDelivered(formatYmd(res.delivered));
+      window.setTimeout(() => !stop && window.print(), 150);
+    }, 300);
+    return () => {
+      stop = true;
+      window.clearTimeout(t);
+    };
+  }, [autoPrint, id]);
 
   const set = (patch: Partial<AuditReport>) => {
     setReport((r) => ({ ...r, ...patch }));
@@ -128,7 +149,7 @@ export function ReportForm({
               type="button"
               onClick={async () => {
                 if (status === "changed") await save();
-                window.print();
+                await deliverAndPrint();
               }}
               className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent"
             >
@@ -142,14 +163,10 @@ export function ReportForm({
           <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-navy pb-4">
             <div className="flex items-center gap-2.5">
               <BrandMark className="h-10 w-10 shrink-0" />
-              <div>
-                <div className="font-display text-lg font-bold leading-tight text-navy">OTC Setup with Josie</div>
-                <div className="text-xs text-ink-faint">Rhythmonial, LLC (formerly TC Optimize)</div>
-              </div>
+              <div className="text-xs text-ink-faint">Rhythmonial, LLC (formerly TC Optimize)</div>
             </div>
             <div className="text-right">
               <div className="font-display text-2xl font-bold text-navy">OTC Audit Report</div>
-              <div className="text-xs text-ink-faint">{reportDate}</div>
             </div>
           </header>
 
@@ -165,8 +182,8 @@ export function ReportForm({
               <dd className="text-ink">{auditDate}</dd>
             </div>
             <div>
-              <dt className="font-caption text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Prepared by</dt>
-              <dd className="text-ink">Josie</dd>
+              <dt className="font-caption text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Delivered</dt>
+              <dd className="text-ink">{delivered ?? "When printed"}</dd>
             </div>
           </dl>
           {videoLink && (

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { cleanReport } from "@/lib/auditReport";
-import { formatYmd, reportDue, easternYmd } from "@/lib/audits";
+import { formatYmd, easternYmd } from "@/lib/audits";
 import { requireStaff } from "../../staff";
 import { ReportForm } from "./ReportForm";
 
@@ -20,7 +20,6 @@ export default async function AuditReportPage({
   const supabase = await requireStaff();
   const { data: r } = await supabase.from("audit_requests").select("*").eq("id", id).maybeSingle();
   if (!r) notFound();
-  const reportDate = r.delivered_at ? easternYmd(r.delivered_at) : reportDue(r.audit_date);
 
   return (
     <ReportForm
@@ -28,7 +27,7 @@ export default async function AuditReportPage({
       name={r.name}
       team={r.team_name}
       auditDate={formatYmd(r.audit_date)}
-      reportDate={formatYmd(reportDate)}
+      initialDelivered={r.delivered_at ? formatYmd(easternYmd(r.delivered_at)) : null}
       videoLink={r.video_link}
       initial={cleanReport(r.report)}
       initialComplete={Boolean(r.report_completed_at)}

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "./staff";
 import { cleanReport } from "@/lib/auditReport";
-import { DELIVERED_OR_LATER, isAuditStatus, isYmd, PAID_OR_LATER, upsellAmount, ymdToTimestamp } from "@/lib/audits";
+import { DELIVERED_OR_LATER, easternYmd, isAuditStatus, isYmd, PAID_OR_LATER, upsellAmount, ymdToTimestamp } from "@/lib/audits";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const isLink = (v: string) => /^https?:\/\//i.test(v);
@@ -145,4 +145,24 @@ export async function saveAuditReport(
   refresh(id);
   revalidatePath(`/admin/audits/${id}/report`);
   return { ok: true };
+}
+
+// Printing the report to PDF delivers it: today becomes its delivered date
+// (unless it already has one). Returns the date (YYYY-MM-DD, Eastern).
+export async function markReportDelivered(id: string): Promise<{ ok: boolean; delivered?: string; error?: string }> {
+  if (!UUID.test(id)) return { ok: false, error: "Unknown request." };
+  const supabase = await requireStaff();
+  const { data: current } = await supabase.from("audit_requests").select("delivered_at").eq("id", id).maybeSingle();
+  if (!current) return { ok: false, error: "Unknown request." };
+  let deliveredAt = current.delivered_at;
+  if (!deliveredAt) {
+    deliveredAt = new Date().toISOString();
+    const { error } = await supabase
+      .from("audit_requests")
+      .update({ delivered_at: deliveredAt, updated_at: deliveredAt })
+      .eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    refresh(id);
+  }
+  return { ok: true, delivered: easternYmd(deliveredAt) };
 }
