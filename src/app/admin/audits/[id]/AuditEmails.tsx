@@ -3,13 +3,15 @@
 import { useState } from "react";
 import { AUDIT_EMAILS, fillAuditEmail, type AuditEmailFields } from "@/lib/auditEmails";
 
-// Pick an email template and Send: it opens in your email app with the
-// to, subject and body filled in from this request.
+// Pick an email template and Send: it opens a Gmail draft (in a new tab)
+// with the to, subject and body filled in from this request.
 export function AuditEmails({ email, fields }: { email: string; fields: AuditEmailFields }) {
   const [key, setKey] = useState("");
   const template = AUDIT_EMAILS.find((t) => t.key === key);
+  // Opens a Gmail draft (mailto: only works with a desktop email app set
+  // as the computer's default).
   const href = template
-    ? `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(
+    ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(
         fillAuditEmail(template.subject, fields),
       )}&body=${encodeURIComponent(fillAuditEmail(template.body, fields))}`
     : undefined;
@@ -31,7 +33,7 @@ export function AuditEmails({ email, fields }: { email: string; fields: AuditEma
         ))}
       </select>
       {href ? (
-        <a href={href} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
+        <a href={href} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
           Send
         </a>
       ) : (

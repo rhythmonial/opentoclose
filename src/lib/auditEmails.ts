@@ -1,5 +1,5 @@
 // Emails to send an audit client from their audit page: pick one, and it
-// opens in your email app with the to, subject and body filled in.
+// opens as a Gmail draft with the to, subject and body filled in.
 // {{fields}} are filled from the request; {{#no_login}}…{{/no_login}} only
 // shows when there's no OTC login saved for them.
 export const AUDIT_EMAILS = [
