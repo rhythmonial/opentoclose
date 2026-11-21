@@ -107,7 +107,10 @@ export function ReportForm({
 
   return (
     <main className="flex flex-1 justify-center bg-bg px-4 py-8 print:bg-white print:p-0">
-      <style>{`@page { margin: 0.6in; } @media print { body { background: white; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }`}</style>
+      {/* No page margin, so the browser leaves off its own header and footer
+          (date, title, web address, page number); the report pads itself on
+          every page instead. */}
+      <style>{`@page { margin: 0; } @media print { body { background: white; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .report-page { padding: 0.6in; -webkit-box-decoration-break: clone; box-decoration-break: clone; } }`}</style>
       <div className="w-full max-w-3xl">
         {/* Controls (not printed). */}
         <div className="sticky top-0 z-10 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 bg-bg/95 px-4 py-3 backdrop-blur print:hidden">
@@ -159,11 +162,14 @@ export function ReportForm({
         </div>
 
         {/* The report. */}
-        <article className="rounded-xl border border-border bg-surface p-6 sm:p-8 print:rounded-none print:border-0 print:p-0">
+        <article className="report-page rounded-xl border border-border bg-surface p-6 sm:p-8 print:rounded-none print:border-0">
           <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-navy pb-4">
             <div className="flex items-center gap-2.5">
               <BrandMark className="h-10 w-10 shrink-0" />
-              <div className="text-xs text-ink-faint">Rhythmonial, LLC (formerly TC Optimize)</div>
+              <div>
+                <div className="font-display text-lg font-bold leading-tight text-navy">OTC Setup with Josie</div>
+                <div className="text-xs text-ink-faint">Rhythmonial, LLC (formerly TC Optimize)</div>
+              </div>
             </div>
             <div className="text-right">
               <div className="font-display text-2xl font-bold text-navy">OTC Audit Report</div>

@@ -4,6 +4,15 @@ import { formatYmd, easternYmd } from "@/lib/audits";
 import { requireStaff } from "../../staff";
 import { ReportForm } from "./ReportForm";
 
+// The tab's title, which is also the PDF's file name.
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { title: "OTC Audit Report" };
+  const supabase = await requireStaff();
+  const { data: r } = await supabase.from("audit_requests").select("name, team_name").eq("id", id).maybeSingle();
+  return { title: r ? `OTC Audit Report - ${r.name} (${r.team_name})` : "OTC Audit Report" };
+}
+
 // An audit's report form: a template laid out like the finished report.
 // Fill in the boxes as you audit, save and come back; printing (or
 // ?print=1) gives a clean PDF without the boxes.
