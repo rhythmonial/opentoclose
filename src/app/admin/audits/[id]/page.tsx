@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { accessLabel, AUDIT_STATUSES, AUDIT_TZ, easternYmd } from "@/lib/audits";
+import { accessLabel, AUDIT_STATUSES, AUDIT_TZ, easternYmd, formatYmd, reportDue } from "@/lib/audits";
 import { decryptCredential } from "@/lib/auditCredentials";
 import { requireStaff } from "../staff";
 import { StatusBadge } from "../StatusBadge";
@@ -10,6 +10,7 @@ import { DeleteAudit } from "./DeleteAudit";
 import { LinkInput } from "./LinkInput";
 import { PayLink } from "./PayLink";
 import { UpsellFields } from "./UpsellFields";
+import { AuditEmails } from "./AuditEmails";
 import { auditPayLink } from "@/lib/auditCheckout";
 import { siteOrigin } from "@/lib/site-origin";
 
@@ -34,6 +35,7 @@ export default async function AuditRequestPage({
   const { data: r } = await supabase.from("audit_requests").select("*").eq("id", id).maybeSingle();
   if (!r) notFound();
   const hasLogin = Boolean(r.otc_username || r.otc_password_enc);
+  const origin = await siteOrigin();
 
   return (
     <main className="flex flex-1 justify-center bg-bg px-4 py-10">
@@ -61,6 +63,18 @@ export default async function AuditRequestPage({
             </>
           )}
         </p>
+        <AuditEmails
+          email={r.email}
+          fields={{
+            name: r.name,
+            team: r.team_name,
+            audit_date: formatYmd(r.audit_date),
+            report_due: formatYmd(reportDue(r.audit_date)),
+            payment_link: auditPayLink(origin, r.id),
+            video_link: r.video_link ?? "(link coming)",
+            report_link: r.report_link ?? "attached",
+          }}
+        />
 
         {saved && (
           <div className="mt-4 rounded-lg border border-success/30 bg-success-soft px-4 py-2.5 text-sm text-success">Saved.</div>
@@ -82,7 +96,7 @@ export default async function AuditRequestPage({
                 {r.paid_at ? (
                   <EasternWhen iso={r.paid_at} />
                 ) : (
-                  <PayLink link={auditPayLink(await siteOrigin(), r.id)} email={r.email} />
+                  <PayLink link={auditPayLink(origin, r.id)} email={r.email} />
                 )}
               </div>
             </div>

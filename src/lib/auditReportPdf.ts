@@ -12,10 +12,10 @@ function plain(text: string) {
     .replace(/[“”]/g, '"')
     .replace(/[–—]/g, "-")
     .replace(/…/g, "...")
-    .replace(/[•●▪]/g, "-")
+    .replace(/[●▪]/g, "•")
     .replace(/→/g, "->")
     .replace(/\t/g, "  ")
-    .replace(/[^\n\x20-\x7E\xA0-\xFF]/g, "?");
+    .replace(/[^\n\x20-\x7E\xA0-\xFF•]/g, "?");
 }
 
 const NAVY = rgb(0, 39 / 255, 94 / 255);
@@ -25,6 +25,30 @@ const SOFT = rgb(89 / 255, 126 / 255, 162 / 255);
 const LINE = rgb(227 / 255, 230 / 255, 234 / 255);
 const TINT = rgb(221 / 255, 230 / 255, 240 / 255);
 const WHITE = rgb(1, 1, 1);
+
+type Run = { text: string; bold?: boolean; italic?: boolean; link?: string };
+
+// **bold**, *italic* / _italic_, `code` and [text](url) into styled runs
+// (a link shows its text, then its address unless that's the text).
+function inline(text: string): Run[] {
+  const out: Run[] = [];
+  const re = /(\*\*|__)(.+?)\1|(\*|_)(?!\s)(.+?)\3|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (m.index > last) out.push({ text: text.slice(last, m.index) });
+    if (m[2] !== undefined) out.push(...inline(m[2]).map((r) => ({ ...r, bold: true })));
+    else if (m[4] !== undefined) out.push(...inline(m[4]).map((r) => ({ ...r, italic: true })));
+    else if (m[5] !== undefined) out.push({ text: m[5] });
+    else if (m[6] !== undefined) {
+      out.push({ text: m[6], link: m[7] });
+      if (m[6].trim() !== m[7]) out.push({ text: ` (${m[7]})` });
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push({ text: text.slice(last) });
+  return out;
+}
 
 const W = 612;
 const H = 792;
@@ -36,11 +60,105 @@ class Writer {
   doc: PDFDocument;
   font: PDFFont;
   bold: PDFFont;
-  constructor(doc: PDFDocument, font: PDFFont, bold: PDFFont) {
+  italic: PDFFont;
+  boldItalic: PDFFont;
+  constructor(doc: PDFDocument, font: PDFFont, bold: PDFFont, italic: PDFFont, boldItalic: PDFFont) {
     this.doc = doc;
     this.font = font;
     this.bold = bold;
+    this.italic = italic;
+    this.boldItalic = boldItalic;
     this.newPage();
+  }
+
+  // Markdown: # headings, - / * bullets and 1. numbered lists (indented
+  // for nesting), **bold**, *italic*, [links](url) and blank-line
+  // paragraphs.
+  markdown(source: string, size = 10.5) {
+    const lead = size * 1.45;
+    for (const raw of plain(source).split("\n")) {
+      if (!raw.trim()) {
+        this.y -= lead * 0.5;
+        continue;
+      }
+      const heading = /^\s*(#{1,3})\s+(.*)$/.exec(raw);
+      if (heading) {
+        const hSize = heading[1].length === 1 ? 12.5 : 11.5;
+        this.y -= 3;
+        this.runs(inline(heading[2]), { x: M, width: W - 2 * M, size: hSize, color: NAVY, forceBold: true });
+        continue;
+      }
+      const item = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/.exec(raw);
+      if (item) {
+        const depth = Math.min(3, Math.floor(item[1].replace(/\t/g, "  ").length / 2));
+        const x = M + 4 + depth * 14;
+        const marker = /\d/.test(item[2]) ? item[2] : "•";
+        const markerW = Math.max(10, this.font.widthOfTextAtSize(marker, size) + 5);
+        this.ensure(lead);
+        this.page.drawText(marker, { x, y: this.y - size, size, font: this.font, color: INK });
+        this.runs(inline(item[3]), { x: x + markerW, width: W - M - x - markerW, size });
+        continue;
+      }
+      this.runs(inline(raw.trim()), { x: M, width: W - 2 * M, size });
+    }
+  }
+
+  // Lays out styled runs across lines, wrapping at word breaks.
+  runs(
+    parts: Run[],
+    opts: { x: number; width: number; size: number; color?: ReturnType<typeof rgb>; forceBold?: boolean },
+  ) {
+    const { x, width, size } = opts;
+    const lead = size * 1.45;
+    const fontFor = (r: Run) =>
+      (r.bold || opts.forceBold) && r.italic ? this.boldItalic : r.bold || opts.forceBold ? this.bold : r.italic ? this.italic : this.font;
+    // Words, each keeping its style (and the space before it).
+    const words: { text: string; run: Run; space: boolean }[] = [];
+    let pendingSpace = false;
+    for (const r of parts) {
+      for (const token of r.text.split(/(\s+)/)) {
+        if (!token) continue;
+        if (/^\s+$/.test(token)) {
+          pendingSpace = words.length > 0;
+          continue;
+        }
+        words.push({ text: token, run: r, space: pendingSpace });
+        pendingSpace = false;
+      }
+    }
+    let line: typeof words = [];
+    let lineW = 0;
+    const flush = () => {
+      this.ensure(lead);
+      let cx = x;
+      line.forEach((wd, i) => {
+        const f = fontFor(wd.run);
+        if (i > 0 && wd.space) cx += f.widthOfTextAtSize(" ", size);
+        const color = wd.run.link ? NAVY : (opts.color ?? INK);
+        this.page.drawText(wd.text, { x: cx, y: this.y - size, size, font: f, color });
+        const ww = f.widthOfTextAtSize(wd.text, size);
+        if (wd.run.link) {
+          this.page.drawRectangle({ x: cx, y: this.y - size - 1.5, width: ww, height: 0.5, color: NAVY });
+        }
+        cx += ww;
+      });
+      this.y -= lead;
+      line = [];
+      lineW = 0;
+    };
+    for (const wd of words) {
+      const f = fontFor(wd.run);
+      const add = (line.length && wd.space ? f.widthOfTextAtSize(" ", size) : 0) + f.widthOfTextAtSize(wd.text, size);
+      if (line.length && lineW + add > width) {
+        flush();
+        line.push({ ...wd, space: false });
+        lineW = f.widthOfTextAtSize(wd.text, size);
+      } else {
+        line.push(wd);
+        lineW += add;
+      }
+    }
+    if (line.length) flush();
   }
   newPage() {
     this.page = this.doc.addPage([W, H]);
@@ -103,13 +221,15 @@ export async function auditReportPdf({
   doc.setAuthor("OTC Setup with Josie");
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const italic = await doc.embedFont(StandardFonts.HelveticaOblique);
+  const boldItalic = await doc.embedFont(StandardFonts.HelveticaBoldOblique);
   let mark: PDFImage | null = null;
   if (logo) {
     try {
       mark = await doc.embedPng(logo);
     } catch {}
   }
-  const w = new Writer(doc, font, bold);
+  const w = new Writer(doc, font, bold, italic, boldItalic);
   const filled = (v: string | undefined) => Boolean(v && v.trim());
 
   // Header: logo, site name and company on the left; title on the right.
@@ -176,11 +296,11 @@ export async function auditReportPdf({
 
   if (filled(report.summary)) {
     heading("Summary");
-    w.text(report.summary, {});
+    w.markdown(report.summary);
   }
   if (filled(report.priorities)) {
     heading("Top priorities");
-    w.text(report.priorities, {});
+    w.markdown(report.priorities);
   }
   for (const a of REPORT_AREAS) {
     const parts = REPORT_PARTS.filter((p) => filled(report.areas[a.key]?.[p.key]));
@@ -197,13 +317,13 @@ export async function auditReportPdf({
         color: SOFT,
       });
       w.y -= 15;
-      w.text(report.areas[a.key][p.key], {});
+      w.markdown(report.areas[a.key][p.key]);
       w.y -= 4;
     }
   }
   if (filled(report.next_steps)) {
     heading("Next steps");
-    w.text(report.next_steps, {});
+    w.markdown(report.next_steps);
   }
 
   // Closing: the implementation offer.

@@ -145,6 +145,12 @@ export function ReportForm({
           </div>
         </div>
 
+        <p className="mb-3 text-xs text-ink-faint print:hidden">
+          Each box takes Markdown: <code>**bold**</code>, <code>*italic*</code>, <code>- bullets</code>,{" "}
+          <code>1. numbered</code>, <code>## headings</code> and <code>[link text](https://…)</code>. Empty boxes are
+          left out of the PDF.
+        </p>
+
         {/* The report. */}
         <article className="report-page rounded-xl border border-border bg-surface p-6 sm:p-8 print:rounded-none print:border-0">
           <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-navy pb-4">
@@ -198,7 +204,7 @@ export function ReportForm({
               <Box
                 value={report.priorities}
                 onChange={(v) => set({ priorities: v })}
-                placeholder={"The few things to tackle first, one per line:\n- …"}
+                placeholder={"The few things to tackle first:\n1. …\n2. …"}
               />
             </div>
           </section>
@@ -218,7 +224,7 @@ export function ReportForm({
                         {p.label} <span className="font-normal text-ink-faint">&middot; {p.hint}</span>
                       </div>
                       <div className="mt-1">
-                        <Box value={v} onChange={(nv) => setPart(a.key, p.key, nv)} placeholder={`${p.hint} in ${a.label.toLowerCase()}…`} rows={2} />
+                        <Box value={v} onChange={(nv) => setPart(a.key, p.key, nv)} placeholder={`${p.hint} in ${a.label.toLowerCase()}…\n- …`} rows={2} />
                       </div>
                     </div>
                   );
