@@ -2,19 +2,14 @@
 
 import { useState } from "react";
 import { AUDIT_EMAILS, fillAuditEmail, type AuditEmailFields } from "@/lib/auditEmails";
+import { EmailDraftLink } from "@/components/EmailDraftLink";
 
-// Pick an email template and Send: it opens a Gmail draft (in a new tab)
-// with the to, subject and body filled in from this request.
+// Pick an email template and Send: it drafts the email (the email app on a
+// phone, Gmail in a new tab on a computer) with the to, subject and body
+// filled in from this request.
 export function AuditEmails({ email, fields }: { email: string; fields: AuditEmailFields }) {
   const [key, setKey] = useState("");
   const template = AUDIT_EMAILS.find((t) => t.key === key);
-  // Opens a Gmail draft (mailto: only works with a desktop email app set
-  // as the computer's default).
-  const href = template
-    ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(
-        fillAuditEmail(template.subject, fields),
-      )}&body=${encodeURIComponent(fillAuditEmail(template.body, fields))}`
-    : undefined;
   return (
     <div className="flex flex-wrap items-center gap-2">
       <select
@@ -32,10 +27,15 @@ export function AuditEmails({ email, fields }: { email: string; fields: AuditEma
           </option>
         ))}
       </select>
-      {href ? (
-        <a href={href} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white">
+      {template ? (
+        <EmailDraftLink
+          to={email}
+          subject={fillAuditEmail(template.subject, fields)}
+          body={fillAuditEmail(template.body, fields)}
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
+        >
           Send
-        </a>
+        </EmailDraftLink>
       ) : (
         <span className="cursor-not-allowed rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white opacity-50">
           Send
