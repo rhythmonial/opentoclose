@@ -21,13 +21,15 @@ I'm looking forward to getting you going!`,
     subject: "Your OTC Audit is booked for {{audit_date}}",
     body: `Hi {{first_name}}!
 
-You're all set. Your OTC Audit is booked for {{audit_date}}, and you'll get your recorded walkthrough and written report by {{report_due}}.
+You're all set! Your OTC Audit is booked for {{audit_date}}, and you'll get your recorded walkthrough and written report by {{report_due}}.
 {{#no_login}}
 If you chose to share your login directly, please text it to 813-906-6019 before your Audit Date:
 "OTC Audit for {{name}} at {{team}} - username, password"
 {{/no_login}}
-Talk soon!
-Josie`,
+I'm excited to dive in and help you get your account running smoothly!
+
+Talk soon 🤗
+Josie Cruz`,
   },
   {
     key: "send_report",
