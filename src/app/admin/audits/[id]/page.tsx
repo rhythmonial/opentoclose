@@ -53,24 +53,6 @@ export default async function AuditRequestPage({
           <h1 className="font-display text-2xl font-bold text-ink">
             {r.name} <span className="font-sans text-base font-normal text-ink-soft">({r.team_name})</span>
           </h1>
-          <AuditEmails
-            email={r.email}
-            fields={{
-              name: r.name,
-              team: r.team_name,
-              audit_date: formatYmd(r.audit_date),
-              report_due: formatYmd(reportDue(r.audit_date)),
-              payment_link: auditPayLink(origin, r.id),
-              video_link: r.video_link ?? "(link coming)",
-              report_link: auditReportLink(origin, r.id),
-              upsell_hours: r.upsell_hours === null ? "[hours]" : String(r.upsell_hours),
-              upsell_amount:
-                r.upsell_amount === null
-                  ? "[amount]"
-                  : Number(r.upsell_amount).toLocaleString("en-US", { style: "currency", currency: "USD" }),
-              has_login: hasLogin,
-            }}
-          />
         </div>
         <p className="mt-1 text-sm text-ink-soft">
           <a href={`mailto:${r.email}`} className="text-accent hover:underline">
@@ -140,6 +122,28 @@ export default async function AuditRequestPage({
               )}
             </div>
           </section>
+
+          {/* Email templates, between the details and the editable fields. */}
+          <div className="mt-5">
+            <AuditEmails
+              email={r.email}
+              fields={{
+                name: r.name,
+                team: r.team_name,
+                audit_date: formatYmd(r.audit_date),
+                report_due: formatYmd(reportDue(r.audit_date)),
+                payment_link: auditPayLink(origin, r.id),
+                video_link: r.video_link ?? "(link coming)",
+                report_link: auditReportLink(origin, r.id),
+                upsell_hours: r.upsell_hours === null ? "[hours]" : String(r.upsell_hours),
+                upsell_amount:
+                  r.upsell_amount === null
+                    ? "[amount]"
+                    : Number(r.upsell_amount).toLocaleString("en-US", { style: "currency", currency: "USD" }),
+                has_login: hasLogin,
+              }}
+            />
+          </div>
 
           <section className="mt-5 flex flex-col gap-4 rounded-xl border border-border bg-surface p-5">
             <div className="grid grid-cols-2 gap-x-6">

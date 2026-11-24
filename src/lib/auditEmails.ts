@@ -29,7 +29,7 @@ If you chose to share your login directly, please text it to 813-906-6019 before
 I'm excited to dive in and help you get your account running smoothly!
 
 Talk soon 🤗
-Josie Cruz`,
+Josie`,
   },
   {
     key: "send_report",
