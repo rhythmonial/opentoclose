@@ -8,6 +8,7 @@ import {
   type ChecklistItem,
   type ChecklistValues,
 } from "@/lib/auditChecklist";
+import { ContractFieldScanner } from "./ContractFieldScanner";
 
 const INPUT =
   "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent";
@@ -177,6 +178,42 @@ function Item({
               </label>
             ))}
           </div>
+        </div>
+      );
+    }
+    case "toggle":
+      return (
+        <label className="flex items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={values[item.key] === true}
+            onChange={(e) => onChange(item.key, e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0"
+          />
+          <span className={LABEL}>{item.label}</span>
+        </label>
+      );
+    case "contract_fields": {
+      const current = str(item.key);
+      return (
+        <div className={`flex flex-col gap-2 ${wide}`}>
+          <span className={LABEL}>{item.label}</span>
+          <ContractFieldScanner
+            onList={(lines) => {
+              if (current.trim() && !window.confirm("Replace the field list below with this contract's fields?")) return;
+              onChange(item.key, lines.join("\n"));
+            }}
+          />
+          <textarea
+            value={current}
+            onChange={(e) => onChange(item.key, e.target.value)}
+            rows={6}
+            placeholder={"One field per line, in the order you recommend.\nUpload their contract to fill this in, then edit and reorder."}
+            className={`${INPUT} [field-sizing:content] max-h-[32rem] font-mono text-[13px]`}
+          />
+          <span className="text-xs text-ink-faint">
+            Each line is a field; cut and paste lines to reorder them, and edit or delete any. The report lists them in this order.
+          </span>
         </div>
       );
     }

@@ -21,6 +21,12 @@ export type ChecklistItem =
       detail?: { type: "text" | "textarea" | "multiselect"; label: string; options?: string[] };
     }
   | { key: string; type: "yesno"; label: string; reportYes: string; reportNo: string }
+  // A checkbox the report always speaks to: one thing when it's ticked,
+  // another when it isn't.
+  | { key: string; type: "toggle"; label: string; reportOn: string; reportOff: string }
+  // The fields filled in on their contract, found by scanning it (one per
+  // line, to review and put in order); the report lists them.
+  | { key: string; type: "contract_fields"; label: string; report: string }
   // Paste template names (one per line); the duplicates are listed.
   | { key: string; type: "duplicates"; label: string; report: string };
 
@@ -38,6 +44,8 @@ const MERGE_FORMATS = [
   "%merge-field%",
   "%merge field%",
 ];
+
+const PLANS = ["Lite ($9)", "Plus ($49)", "Premium ($69)", "Premium+ ($99)", "Grow ($99)", "Pro ($199)", "Scale ($399)"];
 
 const CATEGORY_TIP =
   "Start each category name with 00, 01, 02, 03 and so on, so the categories appear in the order you want them.";
@@ -94,18 +102,8 @@ export const AUDIT_CHECKLIST: ChecklistStep[] = [
       {
         title: "Billing",
         items: [
-          {
-            key: "current_plan",
-            type: "select",
-            label: "Current plan",
-            options: ["Lite ($9)", "Plus ($49)", "Premium ($69)", "Premium+ ($99)", "Grow ($99)", "Pro ($199)", "Scale ($399)"],
-          },
-          {
-            key: "recommended_plan",
-            type: "select",
-            label: "Recommended plan",
-            options: ["Grow ($99)", "Pro ($199)", "Scale ($399)"],
-          },
+          { key: "current_plan", type: "select", label: "Current plan", options: PLANS },
+          { key: "recommended_plan", type: "select", label: "Recommended plan", options: PLANS },
         ],
       },
       {
@@ -224,12 +222,12 @@ export const AUDIT_CHECKLIST: ChecklistStep[] = [
           },
           {
             key: "documents_trigger_file_role",
-            type: "yesno",
-            label: "Documents trigger file role conditions",
-            reportYes:
-              "Documents trigger file role conditions is turned on. It's best to use this only if documents are not being added to Open to Close.",
-            reportNo:
-              "Documents trigger file role conditions is turned off. It's best to use this only if documents are always being added to Open to Close.",
+            type: "toggle",
+            label: "Documents trigger file role is yes",
+            reportOn:
+              "Documents trigger file role is set to yes. It's best to use this only if documents are not being added to Open to Close.",
+            reportOff:
+              "Documents trigger file role is set to no. It's best to use this only if documents are always being added to Open to Close.",
           },
           {
             key: "broker_signed_button",
@@ -256,6 +254,79 @@ export const AUDIT_CHECKLIST: ChecklistStep[] = [
             label: "Intake form stage validation disabled",
             report:
               "Enable intake form stage validation so important contract details aren't missed, and so your form triggers and conditions work as intended.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    key: "fields",
+    title: "Fields",
+    sections: [
+      {
+        title: "Field Groups",
+        items: [
+          {
+            key: "address_group",
+            type: "check",
+            label: "Address field group present",
+            report:
+              "Move the Address field group's fields into the Transaction field group. It cleans up your field groups and saves jumping from group to group for information.",
+          },
+          {
+            key: "commission_group",
+            type: "check",
+            label: "Commission field group present",
+            report:
+              "Archive the commission fields you don't need, and move the ones you do into the appropriate groups (for example, Commission and Referral).",
+          },
+        ],
+      },
+      {
+        title: "Transaction Fields",
+        items: [
+          {
+            key: "tx_fields_multiple_groups",
+            type: "check",
+            label: "Transaction fields are in multiple field groups",
+            report: "Move and organize all of your transaction fields into the Transaction Details field group.",
+          },
+          {
+            key: "hidden_fields_unarchived",
+            type: "check",
+            label: "Hidden field sections and fields unarchived",
+            report: "Move hidden fields and field sections into an Archived field group or section.",
+          },
+          {
+            key: "year_built_field",
+            type: "check",
+            label: "Year built field",
+            report:
+              "If lead-based paint is the only reason you enter the year built, replace it with a Lead-Based Paint Yes/No choice field. It saves time entering data you don't need.",
+          },
+          {
+            key: "days_fields_not_bottom",
+            type: "check",
+            label: "Days fields are not at the bottom",
+            report: "Move the due days fields to the bottom of their field sections, so the important fields stay at the top.",
+          },
+          {
+            key: "text_areas_not_bottom",
+            type: "check",
+            label: "Text areas not below due days or at the bottom",
+            report:
+              "Move text area fields to the bottom of their field sections, below the due days. They're larger boxes and leave an unnecessary gap in your field sections.",
+          },
+        ],
+      },
+      {
+        title: "Field Order",
+        items: [
+          {
+            key: "field_order",
+            type: "contract_fields",
+            label: "Fields filled in on their contract",
+            report: "Based on your contract, here's the order we recommend for your fields:",
           },
         ],
       },
@@ -438,7 +509,8 @@ export function cleanChecklist(raw: unknown): ChecklistValues {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     if (!ITEM_KEYS.has(k)) continue;
-    if (typeof v === "boolean") out[k] = v;
+    if (k === "documents_trigger_file_role" && typeof v === "string") out[k] = v === "yes";
+    else if (typeof v === "boolean") out[k] = v;
     else if (typeof v === "string") out[k] = v.replace(/\r\n/g, "\n").slice(0, 20000);
     else if (Array.isArray(v)) out[k] = v.filter((x): x is string => typeof x === "string").slice(0, 50).map((x) => x.slice(0, 200));
   }

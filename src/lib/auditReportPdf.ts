@@ -387,6 +387,19 @@ function itemOutput(item: ChecklistItem, v: ChecklistValues): Output | null {
         : str(item.key) === "no"
           ? { kind: "block", label: item.label, text: item.reportNo }
           : null;
+    case "toggle":
+      return v[item.key] === true
+        ? { kind: "block", label: item.label, text: item.reportOn }
+        : { kind: "block", label: item.label.replace(/ is yes$/i, ""), text: item.reportOff };
+    case "contract_fields": {
+      const lines = str(item.key)
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+      return lines.length
+        ? { kind: "block", label: "Recommended field order", text: `${item.report}\n${lines.map((l, i) => `${i + 1}. ${l}`).join("\n")}` }
+        : null;
+    }
     case "duplicates": {
       const dups = duplicateNames(str(item.key));
       return dups.length ? { kind: "list", label: item.label.replace(/\s*\(.*\)$/, ""), text: item.report, list: dups } : null;
