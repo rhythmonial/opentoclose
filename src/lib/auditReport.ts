@@ -1,3 +1,5 @@
+import { cleanChecklist, type ChecklistValues } from "@/lib/auditChecklist";
+
 // The OTC Audit report: what's filled in on each audit's report form, and
 // what it prints as.
 export const REPORT_AREAS = [
@@ -21,6 +23,8 @@ export type AuditReport = {
   priorities: string;
   areas: Record<string, Record<string, string>>;
   next_steps: string;
+  // The audit checklist (see auditChecklist.ts).
+  checklist: ChecklistValues;
 };
 
 const text = (v: unknown) => (typeof v === "string" ? v.replace(/\r\n/g, "\n").slice(0, 20000) : "");
@@ -33,5 +37,11 @@ export function cleanReport(raw: unknown): AuditReport {
     const parts = (rawAreas[a.key] && typeof rawAreas[a.key] === "object" ? rawAreas[a.key] : {}) as Record<string, unknown>;
     areas[a.key] = Object.fromEntries(REPORT_PARTS.map((p) => [p.key, text(parts[p.key])]));
   }
-  return { summary: text(o.summary), priorities: text(o.priorities), areas, next_steps: text(o.next_steps) };
+  return {
+    summary: text(o.summary),
+    priorities: text(o.priorities),
+    areas,
+    next_steps: text(o.next_steps),
+    checklist: cleanChecklist(o.checklist),
+  };
 }

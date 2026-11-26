@@ -2,6 +2,7 @@ import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import { REPORT_AREAS, REPORT_PARTS, type AuditReport } from "@/lib/auditReport";
 import { AUDIT_FEE, AUDIT_TEXT_NUMBER, UPSELL_HOURLY_RATE } from "@/lib/audits";
+import { AUDIT_CHECKLIST, duplicateNames, withCommas, type ChecklistItem, type ChecklistValues } from "@/lib/auditChecklist";
 
 // The standard PDF fonts only cover basic Latin, so curly quotes and the
 // like become plain ones (anything else outside it becomes "?").
@@ -294,6 +295,10 @@ export async function auditReportPdf({
     w.y -= 7;
   };
 
+  // The checklist: each step with what was found and recommended (steps
+  // with nothing filled in are left out).
+  checklistBlocks(w, report.checklist, heading);
+
   if (filled(report.summary)) {
     heading("Summary");
     w.markdown(report.summary);
@@ -340,4 +345,109 @@ export async function auditReportPdf({
   w.y -= boxH;
 
   return doc.save();
+}
+
+type Heading = (label: string, about?: string) => void;
+
+// What an item says in the report, or null when there's nothing to say.
+type Output =
+  | { kind: "line"; label: string; text: string }
+  | { kind: "block"; label: string; text: string }
+  | { kind: "list"; label: string; text: string; list: string[] }
+  | { kind: "checklist"; label: string; options: { name: string; on: boolean }[] };
+
+function itemOutput(item: ChecklistItem, v: ChecklistValues): Output | null {
+  const str = (k: string) => (typeof v[k] === "string" ? (v[k] as string).trim() : "");
+  const arr = (k: string) => (Array.isArray(v[k]) ? (v[k] as string[]) : []);
+  switch (item.type) {
+    case "text":
+    case "textarea":
+      return str(item.key) ? { kind: "block", label: item.label, text: str(item.key) } : null;
+    case "select":
+      return str(item.key) ? { kind: "line", label: item.label, text: str(item.key) } : null;
+    case "multiselect":
+      return arr(item.key).length ? { kind: "line", label: item.label, text: arr(item.key).join(", ") } : null;
+    case "checklist":
+      return { kind: "checklist", label: item.label, options: item.options.map((o) => ({ name: o, on: arr(item.key).includes(o) })) };
+    case "number": {
+      const raw = str(item.key);
+      if (!raw) return null;
+      return { kind: "line", label: item.label, text: item.percent ? `${raw}%` : withCommas(raw) };
+    }
+    case "check": {
+      if (v[item.key] !== true) return null;
+      const d = v[`${item.key}__detail`];
+      const detail = Array.isArray(d) ? d.join(", ") : typeof d === "string" ? d.trim() : "";
+      const text = (item.report ?? "").replace(/\{\{detail\}\}/g, detail || "[not filled in]").trim();
+      return { kind: "block", label: item.label, text: text || item.label };
+    }
+    case "yesno":
+      return str(item.key) === "yes"
+        ? { kind: "block", label: item.label, text: item.reportYes }
+        : str(item.key) === "no"
+          ? { kind: "block", label: item.label, text: item.reportNo }
+          : null;
+    case "duplicates": {
+      const dups = duplicateNames(str(item.key));
+      return dups.length ? { kind: "list", label: item.label.replace(/\s*\(.*\)$/, ""), text: item.report, list: dups } : null;
+    }
+  }
+}
+
+function checklistBlocks(w: Writer, values: ChecklistValues, heading: Heading) {
+  AUDIT_CHECKLIST.forEach((step) => {
+    const sections = step.sections
+      .map((sec) => ({ sec, outs: sec.items.map((i) => itemOutput(i, values)).filter((o): o is Output => o !== null) }))
+      // A section with only the integrations list still counts if anything's checked.
+      .filter(({ outs }) => outs.some((o) => o.kind !== "checklist" || o.options.some((x) => x.on)));
+    if (sections.length === 0) return;
+    heading(step.title);
+    for (const { sec, outs } of sections) {
+      if (sec.title) {
+        w.ensure(28);
+        w.y -= 2;
+        w.page.drawText(sec.title.toUpperCase(), { x: M, y: w.y - 9, size: 8.5, font: w.bold, color: SOFT });
+        w.y -= 16;
+      }
+      for (const o of outs) {
+        if (o.kind === "line") {
+          w.runs([{ text: `${o.label}: `, bold: true }, { text: o.text }], { x: M, width: W - 2 * M, size: 10.5 });
+        } else if (o.kind === "block") {
+          w.ensure(30);
+          w.page.drawText(plain(o.label), { x: M, y: w.y - 10.5, size: 10.5, font: w.bold, color: INK });
+          w.y -= 15;
+          w.markdown(o.text);
+          w.y -= 4;
+        } else if (o.kind === "list") {
+          w.ensure(30);
+          w.page.drawText(plain(o.label), { x: M, y: w.y - 10.5, size: 10.5, font: w.bold, color: INK });
+          w.y -= 15;
+          w.markdown(`${o.text}\n${o.list.map((x) => `- ${x}`).join("\n")}`);
+          w.y -= 4;
+        } else if (o.kind === "checklist") {
+          w.ensure(30);
+          w.page.drawText(plain(o.label), { x: M, y: w.y - 10.5, size: 10.5, font: w.bold, color: INK });
+          w.y -= 17;
+          // Two columns of options, a check beside the ones they use.
+          const colW = (W - 2 * M) / 2;
+          o.options.forEach((opt, i) => {
+            if (i % 2 === 0) w.ensure(16);
+            const x = M + (i % 2) * colW;
+            const y = w.y - 10;
+            if (opt.on) {
+              // A filled box with a white check.
+              w.page.drawRectangle({ x: x + 1, y: y - 0.5, width: 9, height: 9, color: NAVY });
+              w.page.drawLine({ start: { x: x + 3, y: y + 4 }, end: { x: x + 5, y: y + 1.8 }, thickness: 1.4, color: WHITE });
+              w.page.drawLine({ start: { x: x + 5, y: y + 1.8 }, end: { x: x + 8.4, y: y + 6.6 }, thickness: 1.4, color: WHITE });
+            } else {
+              w.page.drawRectangle({ x: x + 1, y: y - 0.5, width: 9, height: 9, borderColor: SOFT, borderWidth: 0.8 });
+            }
+            w.page.drawText(plain(opt.name), { x: x + 16, y, size: 10.5, font: opt.on ? w.bold : w.font, color: opt.on ? INK : SOFT });
+            if (i % 2 === 1 || i === o.options.length - 1) w.y -= 16;
+          });
+          w.y -= 4;
+        }
+      }
+    }
+  });
 }

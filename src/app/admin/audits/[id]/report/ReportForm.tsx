@@ -1,38 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
-import { REPORT_AREAS, REPORT_PARTS, type AuditReport } from "@/lib/auditReport";
-import { AUDIT_FEE, AUDIT_TEXT_NUMBER, formatYmd, UPSELL_HOURLY_RATE } from "@/lib/audits";
+import { type AuditReport } from "@/lib/auditReport";
+import { formatYmd } from "@/lib/audits";
 import { saveAuditReport } from "../../actions";
-
-// Boxes while filling it in; plain text when printed (and empty parts are
-// left out, so the PDF only has what was written).
-function Box({
-  value,
-  onChange,
-  placeholder,
-  rows = 3,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  rows?: number;
-}) {
-  return (
-    <>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        rows={rows}
-        className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm leading-relaxed text-ink outline-none [field-sizing:content] focus:border-accent print:hidden"
-      />
-      <div className="hidden whitespace-pre-wrap text-[13px] leading-relaxed text-ink print:block">{value}</div>
-    </>
-  );
-}
+import { ChecklistFields } from "./ChecklistFields";
 
 export function ReportForm({
   id,
@@ -73,14 +47,17 @@ export function ReportForm({
     }
   }
 
-  const set = (patch: Partial<AuditReport>) => {
-    setReport((r) => ({ ...r, ...patch }));
+  const setCheck = (key: string, value: string | boolean | string[]) => {
+    setReport((r) => ({ ...r, checklist: { ...r.checklist, [key]: value } }));
     setStatus("changed");
   };
-  const setPart = (area: string, part: string, v: string) => {
-    setReport((r) => ({ ...r, areas: { ...r.areas, [area]: { ...r.areas[area], [part]: v } } }));
-    setStatus("changed");
-  };
+  // Saves on its own a moment after the last change.
+  useEffect(() => {
+    if (status !== "changed") return;
+    const t = window.setTimeout(() => void save(), 1500);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report, status]);
   async function save(nextComplete = complete) {
     setStatus("saving");
     const res = await saveAuditReport(id, report, nextComplete);
@@ -88,9 +65,6 @@ export function ReportForm({
     if (!res.ok) window.alert(res.error ?? "Couldn't save.");
   }
 
-  const filled = (v: string) => v.trim().length > 0;
-  const areaFilled = (key: string) => REPORT_PARTS.some((p) => filled(report.areas[key]?.[p.key] ?? ""));
-  const H2 = "font-display text-lg font-bold text-navy";
 
   return (
     <main className="flex flex-1 justify-center bg-bg px-4 py-8 print:bg-white print:p-0">
@@ -146,9 +120,8 @@ export function ReportForm({
         </div>
 
         <p className="mb-3 text-xs text-ink-faint print:hidden">
-          Each box takes Markdown: <code>**bold**</code>, <code>*italic*</code>, <code>- bullets</code>,{" "}
-          <code>1. numbered</code>, <code>## headings</code> and <code>[link text](https://…)</code>. Empty boxes are
-          left out of the PDF.
+          Work through each step as you audit. Changes save on their own; text boxes take Markdown (
+          <code>- bullets</code>, <code>**bold**</code>). Download PDF gives the report from what you fill in.
         </p>
 
         {/* The report. */}
@@ -191,63 +164,11 @@ export function ReportForm({
             </p>
           )}
 
-          <section className={`mt-6 ${filled(report.summary) ? "" : "print:hidden"}`}>
-            <h2 className={H2}>Summary</h2>
-            <div className="mt-2">
-              <Box value={report.summary} onChange={(v) => set({ summary: v })} placeholder="An overview of their account and what you found." />
-            </div>
-          </section>
-
-          <section className={`mt-6 ${filled(report.priorities) ? "" : "print:hidden"}`}>
-            <h2 className={H2}>Top priorities</h2>
-            <div className="mt-2">
-              <Box
-                value={report.priorities}
-                onChange={(v) => set({ priorities: v })}
-                placeholder={"The few things to tackle first:\n1. …\n2. …"}
-              />
-            </div>
-          </section>
-
-          {REPORT_AREAS.map((a) => (
-            <section key={a.key} className={`mt-6 break-inside-avoid-page ${areaFilled(a.key) ? "" : "print:hidden"}`}>
-              <div className="flex flex-wrap items-baseline gap-x-2 border-b border-border-soft pb-1">
-                <h2 className={H2}>{a.label}</h2>
-                <span className="text-xs text-ink-faint">{a.about}</span>
-              </div>
-              <div className="mt-3 flex flex-col gap-3">
-                {REPORT_PARTS.map((p) => {
-                  const v = report.areas[a.key]?.[p.key] ?? "";
-                  return (
-                    <div key={p.key} className={filled(v) ? "" : "print:hidden"}>
-                      <div className="text-sm font-semibold text-ink">
-                        {p.label} <span className="font-normal text-ink-faint">&middot; {p.hint}</span>
-                      </div>
-                      <div className="mt-1">
-                        <Box value={v} onChange={(nv) => setPart(a.key, p.key, nv)} placeholder={`${p.hint} in ${a.label.toLowerCase()}…\n- …`} rows={2} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-
-          <section className={`mt-6 ${filled(report.next_steps) ? "" : "print:hidden"}`}>
-            <h2 className={H2}>Next steps</h2>
-            <div className="mt-2">
-              <Box value={report.next_steps} onChange={(v) => set({ next_steps: v })} placeholder="What you recommend they do next." />
-            </div>
-          </section>
-
-          <footer className="mt-8 rounded-lg bg-navy px-5 py-4 text-sm text-white break-inside-avoid">
-            <div className="font-semibold text-gold">Want us to make these updates?</div>
-            <p className="mt-1 text-white/90">
-              Implementation is ${UPSELL_HOURLY_RATE}/hour, and your ${AUDIT_FEE} audit fee is credited toward it.
-              Reply to this email or text {AUDIT_TEXT_NUMBER} to get started.
-            </p>
-          </footer>
         </article>
+
+        <div className="mt-6">
+          <ChecklistFields values={report.checklist} onChange={setCheck} />
+        </div>
       </div>
     </main>
   );
