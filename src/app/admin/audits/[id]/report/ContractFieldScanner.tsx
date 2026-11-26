@@ -7,9 +7,39 @@ import { analyzeContract, fieldLabel } from "@/lib/contractBlanks";
 type Filled = { page: number; top: number; left: number; label: string; value: string; line: number | null };
 
 // Field Order: upload a filled-in contract, and the blanks that have
-// something written in them come back as a field list (label, what was
-// filled in, and its line), to review and put in order. The contract is
-// read in the browser and isn't saved.
+// something written in them come back as a list of probable field names,
+// in contract order, to review and put in order. The contract is read in
+// the browser and isn't saved.
+const FILLER = new Set(["the", "of", "a", "an", "to", "is", "in", "and", "or", "for", "on", "at", "by", "as", "be", "with"]);
+const SMALL = new Set(["of", "and", "or", "the", "to", "for", "on", "in", "at", "by"]);
+
+// A field name from the words before a blank: the last few words, without
+// the line number, punctuation or filler words at either end, in title case
+// ("the Purchase Price of $" -> "Purchase Price").
+function probableName(label: string) {
+  if (label === "Unlabeled field") return "";
+  let words = label
+    .replace(/^\d+\s+/, "")
+    .replace(/[_$:;,.()[\]#*]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  // Filler at the end ("Purchase Price of") and the start ("the Buyer").
+  while (words.length > 1 && FILLER.has(words[words.length - 1].toLowerCase())) words.pop();
+  words = words.slice(-5);
+  while (words.length > 1 && FILLER.has(words[0].toLowerCase())) words.shift();
+  return words
+    .map((w, i) =>
+      w === w.toUpperCase() && w.length > 1
+        ? w
+        : i > 0 && SMALL.has(w.toLowerCase())
+          ? w.toLowerCase()
+          : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(),
+    )
+    .join(" ")
+    .slice(0, 60);
+}
+
 export function ContractFieldScanner({ onList }: { onList: (lines: string[]) => void }) {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -84,14 +114,17 @@ export function ContractFieldScanner({ onList }: { onList: (lines: string[]) => 
         setStatus("No filled-in blanks found. Is this a completed contract (not a blank one)?");
         return;
       }
-      onList(
-        filled.map((f) => {
-          // The label without the line number in front or a trailing ":" / "$".
-          const label = f.label.replace(/^\d+\s+/, "").replace(/[\s:$]+$/, "") || "Unlabeled field";
-          return `${label}: ${f.value}${f.line !== null ? ` (line ${f.line})` : ` (page ${f.page})`}`;
-        }),
-      );
-      setStatus(`Found ${filled.length} filled-in field${filled.length === 1 ? "" : "s"}. Review and reorder them below.`);
+      // Each field once, by name; a blank with no label gets its line so it
+      // can be found.
+      const seen = new Set<string>();
+      const names = filled.flatMap((f) => {
+        const name = probableName(f.label) || `Unlabeled field (${f.line !== null ? `line ${f.line}` : `page ${f.page}`})`;
+        if (seen.has(name.toLowerCase())) return [];
+        seen.add(name.toLowerCase());
+        return [name];
+      });
+      onList(names);
+      setStatus(`Found ${names.length} field${names.length === 1 ? "" : "s"}. Review, rename and reorder them below.`);
     } catch (err) {
       console.error(err);
       setStatus("Couldn't read that PDF.");
