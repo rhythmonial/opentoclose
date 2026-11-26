@@ -109,22 +109,7 @@ function Item({
         </div>
       );
     case "number":
-      return (
-        <label className="flex flex-col gap-1.5">
-          <span className={LABEL}>{item.label}</span>
-          <span className="relative">
-            <input
-              inputMode="numeric"
-              value={item.percent ? str(item.key).replace(/[^\d.]/g, "") : withCommas(str(item.key))}
-              onChange={(e) =>
-                onChange(item.key, item.percent ? e.target.value.replace(/[^\d.]/g, "").slice(0, 6) : e.target.value.replace(/\D/g, "").slice(0, 12))
-              }
-              className={`${INPUT} ${item.percent ? "pr-8" : ""}`}
-            />
-            {item.percent && <span className="absolute inset-y-0 right-3 flex items-center text-sm text-ink-faint">%</span>}
-          </span>
-        </label>
-      );
+      return <NumberItem item={item} value={str(item.key)} onChange={(v) => onChange(item.key, v)} />;
     case "check": {
       const on = values[item.key] === true;
       const detailKey = `${item.key}__detail`;
@@ -245,6 +230,41 @@ function Item({
       );
     }
   }
+}
+
+// Digits only (a percent can have a decimal point). Anything else typed is
+// dropped, with a note saying so rather than seeming not to type.
+function NumberItem({
+  item,
+  value,
+  onChange,
+}: {
+  item: Extract<ChecklistItem, { type: "number" }>;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [dropped, setDropped] = useState(false);
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className={LABEL}>{item.label}</span>
+      <span className="relative">
+        <input
+          inputMode={item.percent ? "decimal" : "numeric"}
+          value={item.percent ? value.replace(/[^\d.]/g, "") : withCommas(value)}
+          onChange={(e) => {
+            const typed = e.target.value;
+            const keep = item.percent ? typed.replace(/[^\d.]/g, "").slice(0, 6) : typed.replace(/\D/g, "").slice(0, 12);
+            setDropped(/[^\d.,\s%]/.test(typed));
+            onChange(keep);
+          }}
+          onBlur={() => setDropped(false)}
+          className={`${INPUT} ${item.percent ? "pr-8" : ""}`}
+        />
+        {item.percent && <span className="absolute inset-y-0 right-3 flex items-center text-sm text-ink-faint">%</span>}
+      </span>
+      {dropped && <span className="text-xs text-danger">Numbers only</span>}
+    </label>
+  );
 }
 
 // Chips for what's chosen and a dropdown checklist to choose more.

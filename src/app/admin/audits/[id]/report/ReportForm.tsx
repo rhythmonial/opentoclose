@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { type AuditReport } from "@/lib/auditReport";
@@ -47,8 +47,17 @@ export function ReportForm({
     }
   }
 
+  // The latest report and a count of edits, so a save sends what's on the
+  // page and an edit made while it saves still gets saved after.
+  const latest = useRef(report);
+  const edits = useRef(0);
   const setCheck = (key: string, value: string | boolean | string[]) => {
-    setReport((r) => ({ ...r, checklist: { ...r.checklist, [key]: value } }));
+    setReport((r) => {
+      const next = { ...r, checklist: { ...r.checklist, [key]: value } };
+      latest.current = next;
+      return next;
+    });
+    edits.current += 1;
     setStatus("changed");
   };
   // Saves on its own a moment after the last change.
@@ -58,11 +67,15 @@ export function ReportForm({
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report, status]);
-  async function save(nextComplete = complete) {
+  // `manual`: the Save button, which says why if it can't save (an autosave
+  // just shows "Couldn't save" up top, so it never interrupts typing).
+  async function save(nextComplete = complete, manual = false) {
+    const at = edits.current;
     setStatus("saving");
-    const res = await saveAuditReport(id, report, nextComplete);
-    setStatus(res.ok ? "saved" : "error");
-    if (!res.ok) window.alert(res.error ?? "Couldn't save.");
+    const res = await saveAuditReport(id, latest.current, nextComplete);
+    if (edits.current !== at) setStatus("changed");
+    else setStatus(res.ok ? "saved" : "error");
+    if (!res.ok && manual) window.alert(res.error ?? "Couldn't save.");
   }
 
 
@@ -104,7 +117,7 @@ export function ReportForm({
             </label>
             <button
               type="button"
-              onClick={() => save()}
+              onClick={() => save(complete, true)}
               className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white"
             >
               Save
