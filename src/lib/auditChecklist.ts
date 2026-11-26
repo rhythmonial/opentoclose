@@ -325,7 +325,7 @@ export const AUDIT_CHECKLIST: ChecklistStep[] = [
           {
             key: "field_order",
             type: "contract_fields",
-            label: "Match their contract to their fields",
+            label: "Fields filled in on their contract",
             report: "Based on your contract, here's the order we recommend for your fields:",
           },
         ],
@@ -501,14 +501,7 @@ export const withCommas = (v: string) => {
 };
 
 const ITEM_KEYS = new Set(
-  AUDIT_CHECKLIST.flatMap((s) => s.sections.flatMap((sec) => sec.items.flatMap((i) => [
-        i.key,
-        `${i.key}__detail`,
-        // Field Order: their current fields, and what each contract field is matched to.
-        ...(i.type === "contract_fields" ? [`${i.key}__current`, `${i.key}__map`] : []),
-      ]),
-    ),
-  ),
+  AUDIT_CHECKLIST.flatMap((s) => s.sections.flatMap((sec) => sec.items.flatMap((i) => [i.key, `${i.key}__detail`]))),
 );
 
 export function cleanChecklist(raw: unknown): ChecklistValues {

@@ -9,7 +9,6 @@ import {
   type ChecklistValues,
 } from "@/lib/auditChecklist";
 import { ContractFieldScanner } from "./ContractFieldScanner";
-import { fieldOrderPlan, parseMap } from "@/lib/fieldMatch";
 
 const INPUT =
   "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent";
@@ -179,12 +178,30 @@ function Item({
           <span className={LABEL}>{item.label}</span>
         </label>
       );
-    case "contract_fields":
+    case "contract_fields": {
+      const current = str(item.key);
       return (
-        <div className={wide}>
-          <FieldOrder item={item} str={str} onChange={onChange} />
+        <div className={`flex flex-col gap-2 ${wide}`}>
+          <span className={LABEL}>{item.label}</span>
+          <ContractFieldScanner
+            onList={(lines) => {
+              if (current.trim() && !window.confirm("Replace the field list below with this contract's fields?")) return;
+              onChange(item.key, lines.join("\n"));
+            }}
+          />
+          <textarea
+            value={current}
+            onChange={(e) => onChange(item.key, e.target.value)}
+            rows={6}
+            placeholder={"One field per line, in the order you recommend.\nUpload their contract to fill this in, then edit and reorder."}
+            className={`${INPUT} [field-sizing:content] max-h-[32rem] font-mono text-[13px]`}
+          />
+          <span className="text-xs text-ink-faint">
+            Each line is a field; cut and paste lines to reorder them, and edit or delete any. The report lists them in this order.
+          </span>
         </div>
       );
+    }
     case "duplicates": {
       const dups = duplicateNames(str(item.key));
       const any = str(item.key).trim().length > 0;
@@ -213,115 +230,6 @@ function Item({
       );
     }
   }
-}
-
-// Field Order: their contract's filled-in fields (scanned from it), the
-// fields they have in OTC (pasted), and each contract field matched to one
-// of theirs. The order follows the contract.
-function FieldOrder({
-  item,
-  str,
-  onChange,
-}: {
-  item: Extract<ChecklistItem, { type: "contract_fields" }>;
-  str: (k: string) => string;
-  onChange: (key: string, value: string) => void;
-}) {
-  const currentKey = `${item.key}__current`;
-  const mapKey = `${item.key}__map`;
-  const contract = str(item.key);
-  const plan = fieldOrderPlan(contract, str(currentKey), str(mapKey));
-  const pick = (raw: string, field: string) => onChange(mapKey, JSON.stringify({ ...parseMap(str(mapKey)), [raw]: field }));
-  const step = "text-xs font-bold uppercase tracking-wide text-ink-soft";
-  return (
-    <div className="flex flex-col gap-4">
-      <span className={LABEL}>{item.label}</span>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <span className={step}>1. Their contract</span>
-          <ContractFieldScanner
-            onList={(lines) => {
-              if (contract.trim() && !window.confirm("Replace the contract fields below with this contract's?")) return;
-              onChange(item.key, lines.join("\n"));
-            }}
-          />
-          <textarea
-            value={contract}
-            onChange={(e) => onChange(item.key, e.target.value)}
-            rows={6}
-            placeholder={"Upload their contract to list its filled-in fields here.\nOne per line, in contract order."}
-            className={`${INPUT} max-h-80 font-mono text-[13px]`}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <span className={step}>2. Their fields in Open to Close</span>
-          <textarea
-            value={str(currentKey)}
-            onChange={(e) => onChange(currentKey, e.target.value)}
-            rows={8}
-            placeholder="Paste their current field names, one per line"
-            className={`${INPUT} max-h-80 flex-1 font-mono text-[13px]`}
-          />
-        </div>
-      </div>
-      {plan.rows.length > 0 && plan.fields.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className={step}>3. Match them up (the report lists their fields in this order)</span>
-          <div className="overflow-hidden rounded-lg border border-border">
-            {plan.rows.map(({ line, field, suggested }, i) => (
-              <div
-                key={line.raw}
-                className={`grid grid-cols-1 items-center gap-2 px-3 py-2 sm:grid-cols-2 ${i % 2 ? "bg-bg" : ""} ${field ? "" : "bg-danger/5"}`}
-              >
-                <div className="min-w-0 text-sm text-ink">
-                  <span className="mr-1.5 text-ink-faint">{i + 1}.</span>
-                  {line.label}
-                  {(line.value || line.where) && (
-                    <span className="ml-1.5 text-xs text-ink-faint">
-                      {[line.value && `"${line.value}"`, line.where].filter(Boolean).join(" · ")}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={field ?? ""}
-                    onChange={(e) => pick(line.raw, e.target.value)}
-                    className={`${INPUT} py-1.5 ${field ? "" : "border-danger/40 text-danger"}`}
-                  >
-                    <option value="">No match: add a field</option>
-                    {plan.fields.map((f) => (
-                      <option key={f} value={f}>
-                        {f}
-                      </option>
-                    ))}
-                  </select>
-                  {suggested && (
-                    <span className="shrink-0 text-[11px] text-ink-faint" title="Matched by name. Pick another to change it.">
-                      suggested
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          {plan.notOnContract.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold text-ink-soft">
-                Not on the contract ({plan.notOnContract.length}): the report says to move these below or archive them
-              </span>
-              <div className="flex flex-wrap gap-1">
-                {plan.notOnContract.map((f) => (
-                  <span key={f} className="rounded-full border border-border bg-surface px-2 py-px text-xs text-ink">
-                    {f}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // Digits only (a percent can have a decimal point). Anything else typed is
