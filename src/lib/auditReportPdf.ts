@@ -2,6 +2,7 @@ import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import { REPORT_AREAS, REPORT_PARTS, type AuditReport } from "@/lib/auditReport";
 import { AUDIT_FEE, AUDIT_TEXT_NUMBER, UPSELL_HOURLY_RATE } from "@/lib/audits";
+import { fieldOrderList, fieldOrderPlan } from "@/lib/fieldMatch";
 import { AUDIT_CHECKLIST, duplicateNames, withCommas, type ChecklistItem, type ChecklistValues } from "@/lib/auditChecklist";
 
 // The standard PDF fonts only cover basic Latin, so curly quotes and the
@@ -392,6 +393,22 @@ function itemOutput(item: ChecklistItem, v: ChecklistValues): Output | null {
         ? { kind: "block", label: item.label, text: item.reportOn }
         : { kind: "block", label: item.label.replace(/ is yes$/i, ""), text: item.reportOff };
     case "contract_fields": {
+      // With their current fields pasted in: those fields in contract
+      // order, the ones to add, and the ones not on the contract.
+      if (str(`${item.key}__current`)) {
+        const plan = fieldOrderPlan(str(item.key), str(`${item.key}__current`), str(`${item.key}__map`));
+        const list = fieldOrderList(plan);
+        if (!list.length) return null;
+        let text = `${item.report}\n${list.map((l, i) => `${i + 1}. ${l}`).join("\n")}`;
+        if (plan.notOnContract.length)
+          text += `\n\nThese fields aren't on your contract. Move them below the ones above, or archive them if you don't use them:\n${[...new Set(plan.notOnContract.map((f) => f.section))]
+            .map((sec) => {
+              const names = plan.notOnContract.filter((f) => f.section === sec).map((f) => f.name).join(", ");
+              return sec ? `- **${sec}:** ${names}` : `- ${names}`;
+            })
+            .join("\n")}`;
+        return { kind: "block", label: "Recommended field order", text };
+      }
       const lines = str(item.key)
         .split("\n")
         .map((l) => l.trim())
