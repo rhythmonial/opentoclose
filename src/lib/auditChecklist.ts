@@ -24,9 +24,6 @@ export type ChecklistItem =
   // A checkbox the report always speaks to: one thing when it's ticked,
   // another when it isn't.
   | { key: string; type: "toggle"; label: string; reportOn: string; reportOff: string }
-  // The fields filled in on their contract, found by scanning it (one per
-  // line, to review and put in order); the report lists them.
-  | { key: string; type: "contract_fields"; label: string; report: string }
   // Paste template names (one per line); the duplicates are listed.
   | { key: string; type: "duplicates"; label: string; report: string };
 
@@ -319,17 +316,6 @@ export const AUDIT_CHECKLIST: ChecklistStep[] = [
           },
         ],
       },
-      {
-        title: "Field Order",
-        items: [
-          {
-            key: "field_order",
-            type: "contract_fields",
-            label: "Match their contract to their fields",
-            report: "Based on your contract, here's the order we recommend for your fields:",
-          },
-        ],
-      },
     ],
   },
   {
@@ -501,14 +487,7 @@ export const withCommas = (v: string) => {
 };
 
 const ITEM_KEYS = new Set(
-  AUDIT_CHECKLIST.flatMap((s) => s.sections.flatMap((sec) => sec.items.flatMap((i) => [
-        i.key,
-        `${i.key}__detail`,
-        // Field Order: their current fields, and what each contract field is matched to.
-        ...(i.type === "contract_fields" ? [`${i.key}__current`, `${i.key}__map`] : []),
-      ]),
-    ),
-  ),
+  AUDIT_CHECKLIST.flatMap((s) => s.sections.flatMap((sec) => sec.items.flatMap((i) => [i.key, `${i.key}__detail`]))),
 );
 
 export function cleanChecklist(raw: unknown): ChecklistValues {

@@ -8,8 +8,6 @@ import {
   type ChecklistItem,
   type ChecklistValues,
 } from "@/lib/auditChecklist";
-import { ContractFieldScanner } from "./ContractFieldScanner";
-import { fieldOrderPlan, parseMap } from "@/lib/fieldMatch";
 
 const INPUT =
   "w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent";
@@ -179,12 +177,6 @@ function Item({
           <span className={LABEL}>{item.label}</span>
         </label>
       );
-    case "contract_fields":
-      return (
-        <div className={wide}>
-          <FieldOrder item={item} str={str} onChange={onChange} />
-        </div>
-      );
     case "duplicates": {
       const dups = duplicateNames(str(item.key));
       const any = str(item.key).trim().length > 0;
@@ -213,129 +205,6 @@ function Item({
       );
     }
   }
-}
-
-// Field Order: the field names on their contract (scanned from it), their
-// field sections and fields copied from Open to Close, and each contract
-// field matched to one of theirs. The order follows the contract.
-function FieldOrder({
-  item,
-  str,
-  onChange,
-}: {
-  item: Extract<ChecklistItem, { type: "contract_fields" }>;
-  str: (k: string) => string;
-  onChange: (key: string, value: string) => void;
-}) {
-  const otcKey = `${item.key}__current`;
-  const mapKey = `${item.key}__map`;
-  const contract = str(item.key);
-  const plan = fieldOrderPlan(contract, str(otcKey), str(mapKey));
-  const pick = (raw: string, key: string) => onChange(mapKey, JSON.stringify({ ...parseMap(str(mapKey)), [raw]: key }));
-  const sections = [...new Set(plan.fields.map((f) => f.section))];
-  const step = "text-xs font-bold uppercase tracking-wide text-ink-soft";
-  const box = `${INPUT} h-56 resize-y font-mono text-[13px]`;
-  return (
-    <div className="flex flex-col gap-4">
-      <span className={LABEL}>{item.label}</span>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <span className={step}>1. Fields on their contract</span>
-          <ContractFieldScanner
-            onList={(names) => {
-              if (contract.trim() && !window.confirm("Replace the contract fields below with this contract's?")) return;
-              onChange(item.key, names.join("\n"));
-            }}
-          />
-          <textarea
-            value={contract}
-            onChange={(e) => onChange(item.key, e.target.value)}
-            placeholder={"Upload their contract, or type the field names\none per line, in contract order"}
-            className={box}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <span className={step}>2. Their field sections and fields</span>
-          <span className="text-xs text-ink-faint">Copy a field group&rsquo;s page in Open to Close and paste it here.</span>
-          <textarea
-            value={str(otcKey)}
-            onChange={(e) => onChange(otcKey, e.target.value)}
-            placeholder={"Details\nAll | None Add Field | Edit\nProperty Details\nAddress\nCity\n…"}
-            className={`${box} sm:mt-auto`}
-          />
-        </div>
-      </div>
-      {plan.rows.length > 0 && plan.fields.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className={step}>3. Matched in contract order</span>
-          <div className="overflow-hidden rounded-lg border border-border">
-            {plan.rows.map(({ line, field, suggested }, i) => (
-              <div
-                key={line.raw}
-                className={`grid grid-cols-1 items-center gap-x-3 gap-y-1 border-b border-border-soft px-3 py-1.5 last:border-b-0 sm:grid-cols-[1fr_1.3fr] ${field ? "" : "bg-danger/5"}`}
-              >
-                <span className="min-w-0 text-sm text-ink">
-                  <span className="mr-1.5 inline-block w-6 text-right text-ink-faint">{i + 1}.</span>
-                  {line.label}
-                  {line.where && <span className="ml-1.5 text-xs text-ink-faint">{line.where}</span>}
-                </span>
-                <span className="flex items-center gap-2">
-                  <select
-                    value={field?.key ?? ""}
-                    onChange={(e) => pick(line.raw, e.target.value)}
-                    className={`${INPUT} py-1 ${field ? "" : "text-danger"}`}
-                  >
-                    <option value="">Add field (no match)</option>
-                    {sections.map((sec) => {
-                      const opts = plan.fields
-                        .filter((f) => f.section === sec)
-                        .map((f) => (
-                          <option key={f.key} value={f.key}>
-                            {f.name}
-                            {f.hidden ? " (hidden)" : ""}
-                          </option>
-                        ));
-                      return sec ? (
-                        <optgroup key={sec} label={sec}>
-                          {opts}
-                        </optgroup>
-                      ) : (
-                        opts
-                      );
-                    })}
-                  </select>
-                  {field?.section && <span className="hidden shrink-0 text-xs text-ink-faint lg:inline">{field.section}</span>}
-                  {suggested && (
-                    <span className="shrink-0 text-[11px] italic text-ink-faint" title="Matched by name. Pick another to change it.">
-                      auto
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-          {plan.notOnContract.length > 0 && (
-            <details className="rounded-lg border border-border px-3 py-2">
-              <summary className="cursor-pointer text-xs font-semibold text-ink-soft">
-                Their fields not on the contract ({plan.notOnContract.length})
-              </summary>
-              <div className="mt-2 flex flex-col gap-2">
-                {sections.map((sec) => {
-                  const fs = plan.notOnContract.filter((f) => f.section === sec);
-                  return fs.length ? (
-                    <div key={sec} className="text-xs text-ink">
-                      {sec && <span className="font-semibold">{sec}: </span>}
-                      {fs.map((f) => f.name).join(", ")}
-                    </div>
-                  ) : null;
-                })}
-              </div>
-            </details>
-          )}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // Digits only (a percent can have a decimal point). Anything else typed is
